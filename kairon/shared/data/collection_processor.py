@@ -39,6 +39,7 @@ class DataProcessor:
                 "id": str(doc.id),
                 "collection_name": doc.collection_name,
                 "is_secure": list(doc.is_secure),
+                "is_non_editable":list(doc.is_non_editable),
                 "data": doc.data,
                 "status": doc.status,
                 "timestamp": doc.timestamp.isoformat(),
@@ -54,24 +55,22 @@ class DataProcessor:
         collection_name = payload.get("collection_name")
         data = payload.get("data", {})
         is_secure = payload.get("is_secure", [])
-        is_editable = payload.get("is_editable", [])
+        is_non_editable = payload.get("is_non_editable", [])
 
         CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
 
         try:
             collection_obj = CollectionData.objects(bot=bot, id=collection_id, collection_name=collection_name).get()
-
-            # Remove uneditable keys from update
             filtered_data = {
                 k: v for k, v in data.items()
-                if k not in is_editable
+                if k not in is_non_editable
             }
 
             collection_obj.data.update(filtered_data)
             collection_obj.collection_name = collection_name
             collection_obj.is_secure = is_secure
-            collection_obj.is_editable = is_editable
+            collection_obj.is_non_editable = is_non_editable
             collection_obj.user = user
             collection_obj.timestamp = datetime.utcnow()
             collection_obj.save()
@@ -86,7 +85,7 @@ class DataProcessor:
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
         is_secure = payload.get('is_secure')
-        is_editable = payload.get('is_editable')
+        is_non_editable = payload.get('is_non_editable')
         CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
 
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
@@ -94,7 +93,7 @@ class DataProcessor:
         collection_obj = CollectionData()
         collection_obj.data = data
         collection_obj.is_secure = is_secure
-        collection_obj.is_editable = is_editable
+        collection_obj.is_non_editable = is_non_editable
         collection_obj.collection_name = collection_name
         collection_obj.user = user
         collection_obj.bot = bot

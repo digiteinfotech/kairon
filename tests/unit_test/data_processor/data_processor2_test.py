@@ -11,7 +11,7 @@ from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.processor_new import DataProcessor
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1288,6 +1288,7 @@ def test_list_collection_data_success():
         "id": str(mock_doc.id),
         "collection_name": mock_doc.collection_name,
         "is_secure": list(mock_doc.is_secure),
+        'is_non_editable': [],
         "data": mock_doc.data,
         "status": mock_doc.status,
         "timestamp": mock_doc.timestamp.isoformat(),
@@ -1315,7 +1316,7 @@ def test_update_crud_collection_data_success(mock_objects, mock_validate, mock_p
         "collection_name": "test_collection",
         "data": {"key1": "value1", "key2": "value2"},
         "is_secure": ["key1"],
-        "is_editable": ["key2"]
+        "is_non_editable": ["key2"]
     }
 
     encrypted_data = {"key1": "encrypted_value1", "key2": "value2"}
@@ -1360,7 +1361,7 @@ def test_update_crud_collection_data_collection_not_found(mock_objects, mock_val
         "collection_name": "test_collection",
         "data": {"key1": "value1"},
         "is_secure": ["key1"],
-        "is_editable": []
+        "is_non_editable": []
     }
 
     mock_objects.return_value.get.side_effect = DoesNotExist("CollectionData matching query does not exist.")
@@ -1374,7 +1375,7 @@ def test_update_crud_collection_data_collection_not_found(mock_objects, mock_val
             bot=bot
         )
 
-@patch("kairon.shared.data.processor_new.CollectionData")
+@patch("kairon.shared.data.collection_processor.CollectionData")
 @patch("kairon.shared.cognition.processor.CognitionDataProcessor.validate_collection_payload")
 @patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_encrypted_data")
 def test_save_crud_collection_data_success(mock_prepare, mock_validate, mock_collection_class):
@@ -1384,7 +1385,7 @@ def test_save_crud_collection_data_success(mock_prepare, mock_validate, mock_col
         "collection_name": "test_collection",
         "data": {"key1": "value1", "key2": "value2"},
         "is_secure": ["key1"],
-        "is_editable": ["key2"]
+        "is_non_editable": ["key2"]
     }
 
     # Setup mock for encrypted data
@@ -1401,7 +1402,7 @@ def test_save_crud_collection_data_success(mock_prepare, mock_validate, mock_col
     mock_instance.save.return_value = mock_save_return
     mock_collection_class.return_value = mock_instance
 
-    from kairon.shared.data.processor_new import DataProcessor
+    from kairon.shared.data.collection_processor import DataProcessor
     result = DataProcessor.save_crud_collection_data(payload, user, bot)
 
     assert result == "abc123"

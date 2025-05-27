@@ -1471,7 +1471,7 @@ def test_secure_collection_crud_lifecycle():
     add_payload_1 = {
         "collection_name": "testing_create_colection_secure",
         "is_secure": ["mobile_number"],
-        "is_editable": ["empid"],
+        "is_non_editable": ["empid"],
         "data": {
             "mobile_number": "09876541",
             "name": "testing_1",
@@ -1487,7 +1487,7 @@ def test_secure_collection_crud_lifecycle():
     add_payload = {
         "collection_name": "testing_create_colection_secure",
         "is_secure": ["mobile_number"],
-        "is_editable": ["empid"],
+        "is_non_editable": ["empid"],
         "data": {
             "mobile_number": "0987654",
             "name": "testing",
@@ -1523,10 +1523,10 @@ def test_secure_collection_crud_lifecycle():
         "collection_name": "testing_create_colection_secure",
         "data": {
             "name": "testing_updated",
-            "empid": 4321  # This should be ignored because it's in `is_editable`
+            "empid": 4321  # This should be ignored because it's in `is_non_editable`
         },
         "is_secure": ["mobile_number"],
-        "is_editable": ["empid"],
+        "is_non_editable": ["empid"],
         "status": False
     }
     update_resp = client.put(
@@ -1545,7 +1545,7 @@ def test_secure_collection_crud_lifecycle():
     )
     updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["id"] == doc_id)
     assert updated_doc["data"]["name"] == "testing_updated"
-    assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_editable
+    assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_non_editable
 
     # Step 5: Delete the document
     delete_payload = {
@@ -1602,7 +1602,7 @@ def test_get_all_collections():
         payload = {
             "collection_name": f"collection_{i}",
             "is_secure": ["mobile_number"],
-            "is_editable": ["empid"],
+            "is_non_editable": ["empid"],
             "data": {
                 "mobile_number": f"999999000{i}",
                 "name": f"test_user_{i}",
