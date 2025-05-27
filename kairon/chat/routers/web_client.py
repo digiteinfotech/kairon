@@ -136,7 +136,7 @@ async def execute_flow(
 
 
 @router.post('/chat/exec/flow/media', response_model=Response)
-async def execute_flow(
+async def execute_flow_media(
         name: str = Form(...),
         sender_id: str = Form(...),
         slot_vals: str = Form('{}'),
