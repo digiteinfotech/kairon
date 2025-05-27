@@ -29990,6 +29990,31 @@ def test_add_parallel_action_missing_existing_action(monkeypatch):
     ParallelActionConfig.objects(name="parallel_action_test").delete()
     PyscriptActionConfig.objects(name="pyscript_action").delete()
 
+
+def test_add_parallel_action_empty_actions_list(monkeypatch):
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": []
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "The 'actions' field must contain at least one action."
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+
+
 def test_add_parallel_action_nested_parallel_action(monkeypatch):
     script = "bot_response='hello world'"
     request_body = {
@@ -30040,7 +30065,6 @@ def test_add_parallel_action_nested_parallel_action(monkeypatch):
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 422
     assert actual["message"][0]['msg'] == "ParallelAction cannot include other parallel actions: ['parallel_action_test']"
     assert actual["message"][0]['type'] == "value_error"

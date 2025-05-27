@@ -10,6 +10,7 @@ from ...shared.actions.data_objects import ActionServerLogs
 from ...shared.actions.exception import ActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
+from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 
 
 class ActionProcessor:
@@ -35,13 +36,10 @@ class ActionProcessor:
 
             action_instance = ActionFactory.get_instance(bot_id, action)
 
-            from kairon.actions.definitions.custom_parallel_actions import ActionParallel
             if isinstance(action_instance, ActionParallel):
                 slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain, **kwargs)
             else:
                 slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain)
-
-            # slots = await ActionFactory.get_instance(bot_id, action).execute(dispatcher=dispatcher, tracker=tracker, domain=domain, **kwargs)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)

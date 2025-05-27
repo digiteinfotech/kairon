@@ -1167,7 +1167,35 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d21",
-                                       status="SUCCESS").get()
+                                       status="SUCCESS").get().to_mongo().to_dict()
+
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {
+            "type": "parallel_action",
+            "intent": "parallel_action",
+            "action": "test_run_parallel_action",
+            "sender": "sender1",
+            "headers": {},
+            "bot_response": "Parallel Action Success",
+            "bot": "5f50fd0a56b698ca10d35d21",
+            "status": "SUCCESS",
+            "executed_actions_info": [
+                {
+                    "name": "test_run_pyscript_action",
+                    "status": "SUCCESS",
+                    "slot_changes": {
+                        "param2": "param2value",
+                        "kairon_action_response": {
+                            "numbers": [1, 2, 3, 4, 5],
+                            "total": 15,
+                            "i": 5
+                        }
+                    }
+                }
+            ],
+            "user_msg": "get intents"
+        }
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -1257,7 +1285,21 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action= action_name,
                                        bot="5f50fd0a56b698ca10d35d21",
-                                       status="FAILURE").get()
+                                       status="FAILURE").get().to_mongo().to_dict()
+        log.pop('_id')
+        log.pop('timestamp')
+        assert log == {
+            "type": "parallel_action",
+            "intent": "parallel_action",
+            "action": "test_run_parallel_action",
+            "sender": "sender1",
+            "headers": {},
+            "exception": "No parallel action found for given action and bot",
+            "bot": "5f50fd0a56b698ca10d35d21",
+            "status": "FAILURE",
+            "executed_actions_info": [],
+            "user_msg": "get intents"
+        }
         assert log['exception'] == "No parallel action found for given action and bot"
         ParallelActionConfig.objects(name=action_name).delete()
         PyscriptActionConfig.objects(name=pyscript_name).delete()
@@ -1271,18 +1313,12 @@ class TestActions:
             ActionParallel('test_get_parallel_action_config_action_empty', ' ').retrieve_config()
 
     def test_get_parallel_action_no_bot(self):
-        try:
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
             ActionParallel(bot=None, name="http_action").retrieve_config()
-            assert False
-        except ActionFailure as ex:
-            assert str(ex) == "No parallel action found for given action and bot"
 
     def test_get_parallel_action_no_parallel_action(self):
-        try:
+        with pytest.raises(ActionFailure, match="No parallel action found for given action and bot"):
             ActionParallel(bot="bot", name=None).retrieve_config()
-            assert False
-        except ActionFailure as ex:
-            assert str(ex) == "No parallel action found for given action and bot"
 
     def test_get_parallel_action_config(self):
         action_name = "test_get_parallel_action_config"
