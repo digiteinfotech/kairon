@@ -1285,3 +1285,44 @@ async def test_comment_without_static_comment_reply(monkeypatch):
     messenger._handle_user_message.assert_awaited_once_with(
         "Another test comment", "sender789", metadata, bot
     )
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.UserMedia.upload_media_content_sync")
+@patch("kairon.chat.utils.AgenticFlow.execute_rule")
+@patch("kairon.chat.utils.AgenticFlow.__init__")
+async def test_handle_media_agentic_flow_success(af_init, mock_execute_rule, mock_upload_media_content_sync):
+    bot = "test_bot"
+    sender_id = "user123"
+    name = "test_flow"
+    files = [MagicMock()]
+    slot_vals = '{"key": "value"}'
+    af_init.return_value = None
+
+    mock_upload_media_content_sync.return_value = (["media_id_1"], None)
+
+    mock_execute_rule.return_value = (["response_1"], None)
+
+    from kairon.chat.utils import ChatUtils
+    rsps, errors = await ChatUtils.handle_media_agentic_flow(bot, sender_id, name, files, slot_vals)
+
+    assert rsps == ["response_1"]
+    assert errors is None
+    mock_upload_media_content_sync.assert_called_once_with(bot, sender_id, files)
+    mock_execute_rule.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.UserMedia.upload_media_content_sync")
+async def test_handle_media_agentic_flow_invalid_slot_vals(mock_upload_media_content_sync):
+    bot = "test_bot"
+    sender_id = "user123"
+    name = "test_flow"
+    files = [MagicMock()]
+    slot_vals = "invalid_json"
+
+    mock_upload_media_content_sync.return_value = (["media_id_1"], None)
+
+    from kairon.chat.utils import ChatUtils
+    with pytest.raises(AppException, match="Invalid slot values format. Must be a valid JSON string."):
+        await ChatUtils.handle_media_agentic_flow(bot, sender_id, name, files, slot_vals)
+
+    mock_upload_media_content_sync.assert_called_once_with(bot, sender_id, files)

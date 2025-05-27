@@ -607,3 +607,55 @@ def test_save_whatsapp_media_content_success(mock_create_user_media_data, mock_r
     mock_requests_get.assert_called()
     mock_create_user_media_data.assert_called_once()
     mock_create_task.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.save_media_content_task", new_callable=AsyncMock)
+@patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+async def test_upload_media_content_sync(mock_create_user_media_data, mock_save_media_content_task):
+    bot = "test_bot"
+    sender_id = "user123"
+    files = [MagicMock(), MagicMock()]
+
+    files[0].filename = "file1.txt"
+    files[1].filename = "file2.txt"
+    files[0].read = AsyncMock(return_value=b"binary_data_1")
+    files[1].read = AsyncMock(return_value=b"binary_data_2")
+
+    media_ids, file_names = await UserMedia.upload_media_content_sync(bot, sender_id, files)
+
+    assert len(media_ids) == 2
+    assert len(file_names) == 2
+    assert file_names == ["file1.txt", "file2.txt"]
+    assert mock_create_user_media_data.call_count == 2
+    assert mock_save_media_content_task.call_count == 2
+
+    mock_create_user_media_data.assert_any_call(
+        bot=bot,
+        media_id=media_ids[0],
+        filename="file1.txt",
+        sender_id=sender_id
+    )
+    mock_create_user_media_data.assert_any_call(
+        bot=bot,
+        media_id=media_ids[1],
+        filename="file2.txt",
+        sender_id=sender_id
+    )
+
+    mock_save_media_content_task.assert_any_await(
+        bot=bot,
+        sender_id=sender_id,
+        media_id=media_ids[0],
+        binary_data=b"binary_data_1",
+        filename="file1.txt",
+        execute_summarizarion=False
+    )
+    mock_save_media_content_task.assert_any_await(
+        bot=bot,
+        sender_id=sender_id,
+        media_id=media_ids[1],
+        binary_data=b"binary_data_2",
+        filename="file2.txt",
+        execute_summarizarion=False
+    )

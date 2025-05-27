@@ -210,6 +210,7 @@ class UserMedia:
             media_id: str,
             binary_data: bytes,
             filename: str,
+            execute_summarizarion: bool = True
     ):
         await asyncio.to_thread(
             UserMedia.save_media_content,
@@ -219,7 +220,8 @@ class UserMedia:
             binary_data,
             filename
         )
-        await UserMedia.extract_media_information(bot, media_id, sender_id)
+        if execute_summarizarion:
+            await UserMedia.extract_media_information(bot, media_id, sender_id)
 
     @staticmethod
     async def upload_media_contents(
@@ -257,6 +259,43 @@ class UserMedia:
                 binary_data=binary_data,
                 filename=filename
             ))
+        return media_ids, file_names
+
+    @staticmethod
+    async def upload_media_content_sync(
+            bot: str,
+            sender_id: str,
+            files: list[File],
+    ):
+        media_ids = []
+        file_names = []
+        read_tasks = [asyncio.create_task(file.read()) for file in files]
+        binary_datas = await asyncio.gather(*read_tasks)
+        tasks = []
+
+        for file, binary_data in zip(files, binary_datas):
+            filename = file.filename
+            file_names.append(filename)
+            media_id = uuid7().hex
+            media_ids.append(media_id)
+            UserMedia.create_user_media_data(
+                bot=bot,
+                media_id=media_id,
+                filename=filename,
+                sender_id=sender_id
+            )
+            tasks.append(
+                UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=binary_data,
+                    filename=filename,
+                    execute_summarizarion=False
+                )
+            )
+
+        await asyncio.gather(*tasks)
         return media_ids, file_names
 
 
