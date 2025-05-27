@@ -55,6 +55,9 @@ class ActionParallel(ActionsBase):
         @param domain: Bot domain providing context for the action execution.
         @return: A dictionary of slot changes after executing all actions.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
 
         exception = None
         executed_actions_info = []
@@ -64,10 +67,6 @@ class ActionParallel(ActionsBase):
         dispatch_type = DispatchType.text.value
         response_text = ""
         bot_response = None
-
-        action_call = kwargs.get('action_call')
-        if not action_call:
-            raise ActionFailure("Missing action_call in kwargs.")
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
@@ -173,15 +172,24 @@ class ActionParallel(ActionsBase):
                 })
                 continue
 
-            status_code = result.get("status_code", 500)
+            status_code = result.get("status_code", 422)
             body = result.get("body", {})
             slot_changes = {}
 
             if isinstance(body, dict) and "events" in body:
+                events = body["events"]
+                slot_events = [
+                    event for event in events
+                    if (
+                        isinstance(event, dict)
+                        and event.get("event") == "slot"
+                        and "name" in event
+                        and "value" in event
+                    )
+                ]
                 slot_changes = {
-                    event.get("name"): event.get("value")
-                    for event in body["events"]
-                    if event.get("event") == "slot"
+                    event["name"]: event["value"]
+                    for event in slot_events
                 }
 
             filled_slots.update(slot_changes)

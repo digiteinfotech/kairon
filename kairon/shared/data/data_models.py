@@ -1403,13 +1403,16 @@ class ParallelActionRequest(BaseModel):
     response_text: Optional[str]
     actions: List[str]
 
+    #Add validation for actions should not be empty
     @root_validator
     def validate_no_nested_parallel_actions(cls, values):
         action_names = values.get("actions", [])
-        if action_names:
-            # Check if any of the actions are of type 'parallel_action'
-            existing = Actions.objects(name__in=action_names, type=ActionType.parallel_action.value).only("name")
-            if existing:
-                names = [a.name for a in existing]
-                raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
+
+        if not action_names:
+            raise ValueError("The 'actions' field must contain at least one action.")
+
+        existing = Actions.objects(name__in=action_names, type=ActionType.parallel_action.value).only("name") # Check if any of the actions are of type 'parallel_action'
+        if existing:
+            names = [a.name for a in existing]
+            raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
         return values
