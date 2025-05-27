@@ -135,11 +135,11 @@ async def execute_flow(
     }
 
 
-@router.post('/exec/flow/media', response_model=Response)
+@router.post('/chat/exec/flow/media', response_model=Response)
 async def execute_flow(
         name: str = Form(...),
         sender_id: str = Form(...),
-        slot_vals: str = Form(...),
+        slot_vals: str = Form('{}'),
         files: list[UploadFile] = File(...),
         bot: Text = Path(description="Bot id"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)

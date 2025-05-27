@@ -4159,3 +4159,20 @@ def test_chat_media(mock_upload_media):
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
     assert mock_upload_media.called_once()
+
+@patch("kairon.chat.utils.ChatUtils.handle_media_agentic_flow", new_callable=AsyncMock)
+def test_agentic_flow_media(mock_media_agentic_flow):
+    mock_media_agentic_flow.return_value = {'text': 'hello'}, None
+    files = [("files", ("dummy.txt", b"", "text/plain"))]
+
+    response = client.post(
+        f"/api/bot/{bot}/chat/exec/flow/media",
+        data={"name": 'test_flow_name', "sender_id": "spandan"},
+        files=files,
+        headers={"Authorization": f"{token_type} {token}"},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert mock_media_agentic_flow.called_once()
