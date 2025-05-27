@@ -62,6 +62,7 @@ augmentation:
 model:
   cache_size: ${CHAT_SERVER_CACHE_SIZE:100}
   retention: ${MODEL_RETENTION_COUNT:4}
+  enable_model_loading: ${ENABLE_MODEL_LOADING:true}
   train:
     limit_per_day: ${TRAINING_LIMIT_PER_DAY:5}
     default_model_training_config_path: ${DEFAULT_MODEL_TRAINING_CONFIG_PATH:"./template/config/kairon-default.yml"}

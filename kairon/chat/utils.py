@@ -19,7 +19,7 @@ from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class ChatUtils:
     @staticmethod
@@ -330,3 +330,15 @@ class ChatUtils:
             metadata["telemetry-sid"] = x_telemetry_sid
         return metadata
 
+    @staticmethod
+    def on_server_start_loadmodels(botId_list):
+        from .agent_processor import AgentProcessor
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(AgentProcessor.reload, bot): bot for bot in botId_list}
+            for future in as_completed(futures):
+                botid = futures[future]
+                try:
+                    result = future.result()
+                    logger.info(f"bot: {botid} is successfully loaded")
+                except Exception as e:
+                    logger.error(f"bot: {botid} failed to load with exception {e}")

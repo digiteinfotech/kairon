@@ -24,7 +24,8 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.shared.core.trackers import DialogueStateTracker
-
+from kairon.shared.data.data_objects import BotSettings
+from kairon.chat.utils import ChatUtils
 
 class TestChat:
 
@@ -35,6 +36,9 @@ class TestChat:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        BotSettings(bot="onlifespan_load1", user="onload_user", is_billed=True).save()
+        BotSettings(bot="onlifespan_load2", user="onload_user", is_billed=True).save()
+        BotSettings(bot="onlifespan_loa3", user="onload_user", is_billed=True).save()
 
 
     def test_save_channel_config_invalid(self):
@@ -1038,6 +1042,60 @@ class TestChat:
         assert mock_request_epock.call_count == 3
 
         Channels.objects(connector_type='mail').delete()
+
+    def test_on_server_start_loadmodels(self, monkeypatch):
+        from unittest.mock import patch, MagicMock
+        from concurrent.futures import Future
+        from kairon.chat.agent_processor import AgentProcessor
+        user = "onload_user"
+        bot_settings = [botsettingObj.bot for botsettingObj in BotSettings.objects(user=user,
+                                                                                   is_billed=True).only("bot")]
+
+        def __mock_reload(*args):
+            return None
+
+        monkeypatch.setattr(AgentProcessor, "reload", __mock_reload)
+        with patch('concurrent.futures.ThreadPoolExecutor') as MockExecutor:
+            mock_executor_instance = MockExecutor.return_value
+            mock_submit = mock_executor_instance.submit
+
+            # Mock the future objects returned by the executor
+            mock_future = MagicMock(Future)
+            mock_future.result.return_value = True
+            mock_submit.return_value = mock_future
+
+            ChatUtils.on_server_start_loadmodels(bot_settings)
+            print(mock_submit.call_count)
+            assert True
+
+    def test_on_server_start_loadmodels_exception(self, monkeypatch, caplog):
+        import logging
+        from loguru import logger
+        class PropagateHandler(logging.Handler):
+            def emit(self, record):
+                logging.getLogger(record.name).handle(record)
+
+        logger.add(
+            PropagateHandler(),
+            format="{time} {level} {message}",
+            level="ERROR",
+        )
+        from unittest.mock import patch, MagicMock
+        from concurrent.futures import Future
+        user = "onload_user"
+        bot_settings = [botsettingObj.bot for botsettingObj in BotSettings.objects(user=user, bot="onlifespan_load1",
+                                                                                   is_billed=True).only("bot")]
+        with patch('concurrent.futures.ThreadPoolExecutor') as MockExecutor:
+            mock_executor_instance = MockExecutor.return_value
+            mock_submit = mock_executor_instance.submit
+            mock_future = MagicMock(Future)
+            mock_future.result.return_value = True
+            mock_submit.return_value = mock_future
+            ChatUtils.on_server_start_loadmodels(bot_settings)
+        assert any(
+            record.levelname == "ERROR" and
+            "bot: onlifespan_load1 failed to load with exception Bot has not been trained yet!"
+            in record.message for record in caplog.records)
 
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")

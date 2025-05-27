@@ -34,6 +34,7 @@ Utility.load_environment()
 
 from kairon.chat.routers import web_client, channels
 from kairon.shared.otel import instrument_fastapi
+import threading
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
 referrer = ReferrerPolicy().no_referrer()
@@ -72,6 +73,13 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
+    onload_property = Utility.environment['model']["enable_model_loading"]
+    if onload_property:
+        from kairon.shared.data.data_objects import BotSettings
+        from kairon.chat.utils import ChatUtils
+        botId_list = [botsettingObj.bot for botsettingObj in BotSettings.objects(is_billed=True).only("bot")]
+        thread = threading.Thread(target=ChatUtils.on_server_start_loadmodels(botId_list))
+        thread.start()
     yield
     disconnect()
 
