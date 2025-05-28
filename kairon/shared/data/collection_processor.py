@@ -1,9 +1,5 @@
-from typing import Dict, Text
-
 from kairon.shared.cognition.data_objects import CollectionData
-from datetime import datetime
-from mongoengine.errors import DoesNotExist
-from kairon.exceptions import AppException
+
 
 
 class DataProcessor:
