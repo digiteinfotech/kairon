@@ -89,6 +89,7 @@ class CognitionData(Auditlog):
 class CollectionData(Auditlog):
     collection_name = StringField(required=True)
     is_secure = ListField(StringField(), default=[])
+    is_non_editable = ListField(StringField(), default=[])
     data = DictField()
     user = StringField(required=True)
     bot = StringField(required=True)

@@ -1456,6 +1456,185 @@ def test_list_bots():
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
 
+def test_secure_collection_crud_lifecycle():
+    # Step 1: Add a bot
+    add_bot_resp = client.post(
+        "/api/account/bot",
+        json={"name": "secure-collection-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert add_bot_resp.status_code == 200
+    bot_id = add_bot_resp.json()["data"]["bot_id"]
+    assert bot_id
+
+    # Step 2: Add document to secure collection
+    add_payload_1 = {
+        "collection_name": "testing_create_colection_secure",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "09876541",
+            "name": "testing_1",
+            "empid": 12345
+        },
+        "status": True
+    }
+    add_resp = client.post(
+        f"/api/bot/{bot_id}/collections/data/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload_1
+    )
+    add_payload = {
+        "collection_name": "testing_create_colection_secure",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "0987654",
+            "name": "testing",
+            "empid": 1234
+        },
+        "status": True
+    }
+    add_resp = client.post(
+        f"/api/bot/{bot_id}/collections/data/add",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload
+    )
+    assert add_resp.status_code == 200
+    resp_json = add_resp.json()
+    print(resp_json)
+    assert resp_json["message"] == "Record saved!"
+    doc_id = resp_json["data"]["id"]
+    assert doc_id
+
+    # Step 3: List collection data
+    list_resp = client.post(
+        f"/api/bot/{bot_id}/collections/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"collection_name": "testing_create_colection_secure"}
+    )
+    assert list_resp.status_code == 200
+    listed_data = list_resp.json()["data"]
+    assert any(doc["_id"] == doc_id for doc in listed_data)
+
+    # Step 4: Update the document
+    update_payload = {
+        "id": doc_id,
+        "collection_name": "testing_create_colection_secure",
+        "data": {
+            "name": "testing_updated",
+            "empid": 4321  # This should be ignored because it's in `is_non_editable`
+        },
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "status": False
+    }
+    update_resp = client.put(
+        f"/api/bot/{bot_id}/collections/data/update",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=update_payload
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["message"] == "Doccument Updated"
+
+    # Verify update — empid should remain unchanged (1234), name should change
+    list_resp_after_update = client.post(
+        f"/api/bot/{bot_id}/collections/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json={"collection_name": "testing_create_colection_secure"}
+    )
+    updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["_id"] == doc_id)
+    assert updated_doc["data"]["name"] == "testing_updated"
+    assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_non_editable
+
+    # Step 5: Delete the document
+    delete_doc_resp = client.request(
+        method="DELETE",
+        url=f"/api/bot/{bot_id}/collections/data/delete/{doc_id}",
+        headers={
+            "Authorization": pytest.token_type + " " + pytest.access_token,
+            "Content-Type": "application/json"
+        }
+    )
+    assert delete_doc_resp.status_code == 200
+    assert delete_doc_resp.json()["message"] == "Record deleted!"
+    assert delete_doc_resp.json()["data"]["deleted"] == 1
+
+    # Step 6: Delete the collection
+    delete_coll_resp = client.request(
+        method="DELETE",
+        url=f"/api/bot/{bot_id}/collections/delete/testing_create_colection_secure",
+        headers={
+            "Authorization": pytest.token_type + " " + pytest.access_token,
+            "Content-Type": "application/json"
+        })
+
+    assert delete_coll_resp.status_code == 200
+    assert delete_coll_resp.json()["data"]["deleted"] >= 1
+
+    delete_resp = client.delete(
+        f"/api/account/bot/{bot_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["message"] == "Bot removed"
+
+
+def test_get_all_collections():
+    # Step 1: Create a bot
+    add_bot_resp = client.post(
+        "/api/account/bot",
+        json={"name": "secure-collection-bot_testing"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert add_bot_resp.status_code == 200
+    bot_id = add_bot_resp.json()["data"]["bot_id"]
+    assert bot_id
+
+    # Step 2: Add 4 different collections
+    for i in range(1, 5):
+        payload = {
+            "collection_name": f"collection_{i}",
+            "is_secure": ["mobile_number"],
+            "is_non_editable": ["empid"],
+            "data": {
+                "mobile_number": f"999999000{i}",
+                "name": f"test_user_{i}",
+                "empid": 1000 + i
+            },
+            "status": True
+        }
+        add_resp = client.post(
+            f"/api/bot/{bot_id}/collections/data/add",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json=payload
+        )
+        assert add_resp.status_code == 200
+        assert add_resp.json()["message"] == "Record saved!"
+        assert add_resp.json()["data"]["id"]
+
+    # Step 3: Fetch all collections
+    get_resp = client.get(
+        f"/api/bot/{bot_id}/collections",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    assert get_resp.status_code == 200
+    response_data = get_resp.json()["data"]
+
+    # Step 4: Check the 4 collections are present with count = 1 each
+    expected_collections = {f"collection_{i}": 1 for i in range(1, 5)}
+    for collection in response_data:
+        name = collection["collection_name"]
+        count = collection["count"]
+        assert name in expected_collections
+        assert count == expected_collections[name]
+
+    delete_resp = client.delete(
+        f"/api/account/bot/{bot_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["message"] == "Bot removed"
 
 def test_delete_multiple_payload_content_with_empty_list():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()

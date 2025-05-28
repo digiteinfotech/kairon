@@ -1192,6 +1192,7 @@ def test_fetch_collection_data_success():
         "collection_name": "test_collection",
         "timestamp": "2024-08-07T07:03:06.905+00:00",
         "is_secure": True,
+        "is_non_editable": False,
         "data": "encrypted_data"
     }
 
@@ -1209,6 +1210,7 @@ def test_fetch_collection_data_success():
         "collection_name": "test_collection",
         "timestamp": "2024-08-07T07:03:06.905+00:00",
         "is_secure": True,
+        "is_non_editable": False,
         "data": "decrypted_data"
     }
 
@@ -1228,6 +1230,7 @@ def test_fetch_collection_data_without_collection_name():
     mock_data = {
         "_id": "67890",
         "is_secure": False,
+        "is_non_editable": True,
         "timestamp": "2024-08-07T07:03:06.905+00:00",
         "data": "encrypted_data"
     }
@@ -1245,6 +1248,7 @@ def test_fetch_collection_data_without_collection_name():
         "_id": "67890",
         "collection_name": None,  # collection_name is missing
         "is_secure": False,
+        "is_non_editable": True,
         "timestamp": "2024-08-07T07:03:06.905+00:00",
         "data": "decrypted_data"
     }

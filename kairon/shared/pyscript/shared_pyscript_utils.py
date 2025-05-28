@@ -23,12 +23,14 @@ class PyscriptSharedUtility:
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
+            is_non_editable=item.pop('is_non_editable')
             data = item.pop('data')
             data = cognition_processor.prepare_decrypted_data(data, is_secure)
 
             final_data["_id"] = str(item["_id"])
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
+            final_data['is_non_editable']=is_non_editable
             final_data['timestamp'] = item.get("timestamp")
             final_data['data'] = data
 

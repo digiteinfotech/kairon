@@ -156,6 +156,7 @@ class CognitionDataProcessor:
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
         is_secure = payload.get('is_secure')
+        is_non_editable = payload.get('is_non_editable')
         CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
 
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
@@ -163,6 +164,7 @@ class CognitionDataProcessor:
         collection_obj = CollectionData()
         collection_obj.data = data
         collection_obj.is_secure = is_secure
+        collection_obj.is_non_editable = is_non_editable
         collection_obj.collection_name = collection_name
         collection_obj.user = user
         collection_obj.bot = bot
@@ -170,23 +172,31 @@ class CognitionDataProcessor:
         return collection_id
 
     def update_collection_data(self, collection_id: str, payload: Dict, user: Text, bot: Text):
-        collection_name = payload.get("collection_name", None)
-        data = payload.get('data')
-        is_secure = payload.get('is_secure')
-        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
+        collection_name = payload.get("collection_name")
+        data = payload.get("data", {})
+        is_secure = payload.get("is_secure", [])
+        is_non_editable = payload.get("is_non_editable", [])
 
+        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
         data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
 
         try:
             collection_obj = CollectionData.objects(bot=bot, id=collection_id, collection_name=collection_name).get()
-            collection_obj.data = data
+            filtered_data = {
+                k: v for k, v in data.items()
+                if k not in is_non_editable
+            }
+
+            collection_obj.data.update(filtered_data)
             collection_obj.collection_name = collection_name
             collection_obj.is_secure = is_secure
+            collection_obj.is_non_editable = is_non_editable
             collection_obj.user = user
             collection_obj.timestamp = datetime.utcnow()
             collection_obj.save()
         except DoesNotExist:
             raise AppException("Collection Data with given id and collection_name not found!")
+
         return collection_id
 
     @staticmethod

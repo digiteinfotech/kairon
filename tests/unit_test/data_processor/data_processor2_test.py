@@ -1,13 +1,17 @@
 import os
 import re
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 import pytest
+from mongoengine import DoesNotExist
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 
 from kairon.exceptions import AppException
+from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1206,3 +1210,54 @@ def test_prepare_training_actions_without_story_graphs(mock_fetch_actions):
 
     mock_fetch_actions.assert_called_once_with('test_bot')
     assert result == ['action1', 'action2', 'action3']
+
+
+class CollectionProcessor:
+    pass
+
+def test_get_all_collections_success():
+    # Mocked aggregation result
+    mocked_result = [
+        {"collection_name": "collection1", "count": 2},
+        {"collection_name": "collection2", "count": 5},
+    ]
+
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_query_set = MagicMock()
+        mock_query_set.aggregate.return_value = mocked_result
+        mock_objects.return_value = mock_query_set
+
+        # Act
+        result = DataProcessor.get_all_collections(bot="test_bot")
+
+        # Assert
+        assert result == mocked_result
+        assert len(result) == 2
+        assert {"collection_name": "collection1", "count": 2} in result
+        assert {"collection_name": "collection2", "count": 5} in result
+
+
+def test_delete_collection_success():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 1  # Simulate successful deletion
+        mock_objects.return_value = mock_query
+
+        result = DataProcessor.delete_collection(bot="test_bot", name="sample_collection")
+
+        mock_objects.assert_called_once_with(bot="test_bot", collection_name="sample_collection")
+        mock_query.delete.assert_called_once()
+        assert result == ["Collection sample_collection deleted successfully!", 1]
+
+def test_delete_collection_not_found():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 0  # Simulate no deletion (not found)
+        mock_objects.return_value = mock_query
+
+        result = DataProcessor.delete_collection(bot="test_bot", name="nonexistent_collection")
+
+        mock_objects.assert_called_once_with(bot="test_bot", collection_name="nonexistent_collection")
+        mock_query.delete.assert_called_once()
+        assert result == ["Collection nonexistent_collection does not exist!", 0]
+
