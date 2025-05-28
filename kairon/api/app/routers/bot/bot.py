@@ -46,6 +46,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.models import User, TemplateType
+from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
 
@@ -1704,7 +1705,7 @@ async def get_flow_tag(
 
 @router.get("/collections", response_model=Response)
 async def get_all_collections(
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     List all collection names for the bot.
@@ -1713,17 +1714,17 @@ async def get_all_collections(
     return Response(data=names)
 
 
-@router.delete("/collections", response_model=Response)
+@router.delete("/collections/delete/{collection_name}", response_model=Response)
 async def delete_collection(
-    payload: dict = Body(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    collection_name: str = Path(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Drop an entire collection and its documents.
+    Drop an entire collection and its documents by collection name.
     """
     message, deleted_count = DataProcessor.delete_collection(
         bot=current_user.get_bot(),
-        name=payload["collection_name"]
+        name=collection_name
     )
     return Response(message=message, data={"deleted": deleted_count})
 
@@ -1731,27 +1732,28 @@ async def delete_collection(
 @router.post("/collections/data", response_model=Response)
 async def list_collection_data(
     payload: dict = Body(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     List all documents within a collection.
     """
-    records = DataProcessor.list_collection_data(
-        bot=current_user.get_bot(),
-        name=payload["collection_name"]
-    )
+    query={
+        "bot": current_user.get_bot(),
+    "collection_name": payload["collection_name"]
+    }
+    records = list(PyscriptSharedUtility.fetch_collection_data(query))
     return Response(data=records)
 
 
 @router.post("/collections/data/add", response_model=Response)
 async def add_collection_data(
     payload: dict = Body(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Insert a new document into a collection using secure-aware logic.
     """
-    collection_id = DataProcessor.save_crud_collection_data(
+    collection_id = CognitionDataProcessor().save_collection_data(
         payload=payload,
         user=current_user.get_user(),
         bot=current_user.get_bot()
@@ -1762,12 +1764,12 @@ async def add_collection_data(
 @router.put("/collections/data/update", response_model=Response)
 async def update_collection_data(
     payload: dict = Body(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Merge new values into an existing document’s `data`, plus optional `is_secure` and `status`.
     """
-    result = DataProcessor.update_crud_collection_data(
+    result = CognitionDataProcessor().update_collection_data(
         collection_id=payload["id"],
         user=current_user.get_user(),
         payload=payload,
@@ -1776,16 +1778,16 @@ async def update_collection_data(
     return Response(data=result, message="Doccument Updated")
 
 
-@router.delete("/collections/data/delete", response_model=Response)
+@router.delete("/collections/data/delete/{collection_id}", response_model=Response)
 async def delete_collection_data(
-    payload: dict = Body(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+    collection_id: str = Path(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
-    Remove one document from a collection.
+    Remove one document from a collection by ID.
     """
     CognitionDataProcessor().delete_collection_data(
-        collection_id=payload["id"],
+        collection_id=collection_id,
         bot=current_user.get_bot(),
         user=current_user.get_user()
     )

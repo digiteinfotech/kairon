@@ -1515,7 +1515,7 @@ def test_secure_collection_crud_lifecycle():
     )
     assert list_resp.status_code == 200
     listed_data = list_resp.json()["data"]
-    assert any(doc["id"] == doc_id for doc in listed_data)
+    assert any(doc["_id"] == doc_id for doc in listed_data)
 
     # Step 4: Update the document
     update_payload = {
@@ -1543,22 +1543,18 @@ def test_secure_collection_crud_lifecycle():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json={"collection_name": "testing_create_colection_secure"}
     )
-    updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["id"] == doc_id)
+    updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["_id"] == doc_id)
     assert updated_doc["data"]["name"] == "testing_updated"
     assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_non_editable
 
     # Step 5: Delete the document
-    delete_payload = {
-        "id": doc_id
-    }
     delete_doc_resp = client.request(
         method="DELETE",
-        url=f"/api/bot/{bot_id}/collections/data/delete",
+        url=f"/api/bot/{bot_id}/collections/data/delete/{doc_id}",
         headers={
             "Authorization": pytest.token_type + " " + pytest.access_token,
             "Content-Type": "application/json"
-        },
-        data=json.dumps({"id": doc_id}),
+        }
     )
     assert delete_doc_resp.status_code == 200
     assert delete_doc_resp.json()["message"] == "Record deleted!"
@@ -1567,13 +1563,11 @@ def test_secure_collection_crud_lifecycle():
     # Step 6: Delete the collection
     delete_coll_resp = client.request(
         method="DELETE",
-        url=f"/api/bot/{bot_id}/collections",
+        url=f"/api/bot/{bot_id}/collections/delete/testing_create_colection_secure",
         headers={
             "Authorization": pytest.token_type + " " + pytest.access_token,
             "Content-Type": "application/json"
-        },
-        data=json.dumps({"collection_name": "testing_create_colection_secure"})
-    )
+        })
 
     assert delete_coll_resp.status_code == 200
     assert delete_coll_resp.json()["data"]["deleted"] >= 1
