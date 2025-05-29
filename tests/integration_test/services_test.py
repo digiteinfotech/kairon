@@ -11729,7 +11729,8 @@ def test_add_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -12404,7 +12405,8 @@ def test_add_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
         }
@@ -12498,7 +12500,8 @@ def test_update_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -12995,7 +12998,8 @@ def test_update_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
         }
@@ -18819,7 +18823,8 @@ def test_add_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -18934,7 +18939,8 @@ def test_update_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -26382,6 +26388,7 @@ def test_get_bot_settings():
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'nlu_fallback'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
@@ -26489,6 +26496,7 @@ def test_update_analytics_settings():
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'utter_please_rephrase'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
