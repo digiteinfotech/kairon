@@ -30292,6 +30292,7 @@ def test_add_parallel_action_nested_parallel_action(monkeypatch):
     ParallelActionConfig.objects(name="parallel_action_test").delete()
     PyscriptActionConfig.objects(name="pyscript_action").delete()
 
+
 def test_add_parallel_action(monkeypatch):
     script= "bot_response='hello world'"
     request_body = {
