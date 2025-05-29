@@ -30194,6 +30194,32 @@ def test_add_parallel_action_empty_actions_list(monkeypatch):
     ParallelActionConfig.objects(name="parallel_action_test").delete()
 
 
+def test_add_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+
+
 def test_add_parallel_action_nested_parallel_action(monkeypatch):
     script = "bot_response='hello world'"
     request_body = {
@@ -30375,7 +30401,7 @@ def test_update_parallel_action(monkeypatch):
     parallel_action_request_body = {
         "name": "parallel_action_test",
         "response_text": "Parallel Action Success",
-        "dispatch_response_text": False,
+        "dispatch_response_text": True,
         "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
     }
 
@@ -30390,6 +30416,24 @@ def test_update_parallel_action(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
     assert actual["success"]
+
+    config = ParallelActionConfig.objects(name="parallel_action_test").first()
+    assert config is not None
+
+    config = config.to_mongo().to_dict()
+    assert config["actions"] == ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    assert config["dispatch_response_text"] is True
+
+def test_delete_action_used_in_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action 'pyscript_action' cannot be deleted because it is used in parallel actions: ['parallel_action_test']"
 
 def test_delete_parallel_action_not_exists():
     response = client.delete(
