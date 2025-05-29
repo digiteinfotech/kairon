@@ -22,6 +22,7 @@ roles:
       broadcast: true
       customAnalytics: true
       liveAgent: true
+      customCollections: true
     pages:
       chatbots:
         renameBot: true
@@ -119,6 +120,14 @@ roles:
         viewLogs: true
       liveAgent:
         chatView: true
+      customCollections:
+        viewCustomCollections: true
+        browseCollectionData: true
+        insertDataInCollection: true
+        updateDataInCollection: true
+        deleteDataFromCollection: true
+        deleteCustomCollection: true
+
 
   admin:
     menu:
@@ -143,6 +152,7 @@ roles:
       broadcast: true
       customAnalytics: true
       liveAgent: true
+      customCollections: true
     pages:
       chatbots:
         renameBot: false
@@ -240,6 +250,13 @@ roles:
         viewLogs: true
       liveAgent:
         chatView: true
+      customCollections:
+        viewCustomCollections: true
+        browseCollectionData: true
+        insertDataInCollection: true
+        updateDataInCollection: true
+        deleteDataFromCollection: true
+        deleteCustomCollection: true
 
   designer:
     menu:
@@ -264,6 +281,7 @@ roles:
       broadcast: true
       customAnalytics: true
       liveAgent: false
+      customCollections: true
     pages:
       chatbots:
         renameBot: false
@@ -361,6 +379,13 @@ roles:
         viewLogs: true
       liveAgent:
         chatView: false
+      customCollections:
+        viewCustomCollections: true
+        browseCollectionData: true
+        insertDataInCollection: true
+        updateDataInCollection: true
+        deleteDataFromCollection: true
+        deleteCustomCollection: true
 
   tester:
     menu:
@@ -385,6 +410,7 @@ roles:
       broadcast: false
       customAnalytics: true
       liveAgent: false
+      customCollections: true
     pages:
       chatbots:
         renameBot: false
@@ -482,6 +508,13 @@ roles:
         viewLogs: true
       liveAgent:
         chatView: false
+      customCollections:
+        viewCustomCollections: true
+        browseCollectionData: true
+        insertDataInCollection: false
+        updateDataInCollection: false
+        deleteDataFromCollection: false
+        deleteCustomCollection: false
 
   agent:
     menu:
@@ -506,6 +539,7 @@ roles:
       broadcast: false
       customAnalytics: false
       liveAgent: true
+      customCollections: false
     pages:
       chatbots:
         renameBot: false
@@ -603,7 +637,13 @@ roles:
         viewLogs: false
       liveAgent:
         chatView: true
-
+      customCollections:
+        viewCustomCollections: false
+        browseCollectionData: false
+        insertDataInCollection: false
+        updateDataInCollection: false
+        deleteDataFromCollection: false
+        deleteCustomCollection: false
 
 
   view:
@@ -629,6 +669,7 @@ roles:
       broadcast: false
       customAnalytics: true
       liveAgent: false
+      customCollections: true
     pages:
       chatbots:
         renameBot: false
@@ -726,3 +767,10 @@ roles:
         viewLogs: false
       liveAgent:
         chatView: false
+      customCollections:
+        viewCustomCollections: true
+        browseCollectionData: false
+        insertDataInCollection: false
+        updateDataInCollection: false
+        deleteDataFromCollection: false
+        deleteCustomCollection: false
