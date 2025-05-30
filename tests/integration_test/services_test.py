@@ -11729,11 +11729,12 @@ def test_add_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -12376,7 +12377,7 @@ def test_add_multiflow_story_invalid_event_type():
                    "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                    "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
                    "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', "
-                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -12404,7 +12405,8 @@ def test_add_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
         }
@@ -12498,11 +12500,12 @@ def test_update_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -12967,7 +12970,7 @@ def test_update_multiflow_story_invalid_event_type():
                    "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                    "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
                    "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', "
-                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -12995,7 +12998,8 @@ def test_update_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
         }
@@ -18819,11 +18823,12 @@ def test_add_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -18934,11 +18939,12 @@ def test_update_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -26382,6 +26388,7 @@ def test_get_bot_settings():
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'nlu_fallback'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
@@ -26489,6 +26496,7 @@ def test_update_analytics_settings():
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'utter_please_rephrase'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
@@ -30194,6 +30202,37 @@ def test_add_parallel_action_empty_actions_list(monkeypatch):
     ParallelActionConfig.objects(name="parallel_action_test").delete()
 
 
+def test_add_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 5
+    bot_settings.save()
+
+    Actions.objects(name="parallel_action_test").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+
+
 def test_add_parallel_action_nested_parallel_action(monkeypatch):
     script = "bot_response='hello world'"
     request_body = {
@@ -30367,7 +30406,6 @@ def test_update_parallel_action(monkeypatch):
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added!"
     assert actual["success"]
@@ -30375,7 +30413,7 @@ def test_update_parallel_action(monkeypatch):
     parallel_action_request_body = {
         "name": "parallel_action_test",
         "response_text": "Parallel Action Success",
-        "dispatch_response_text": False,
+        "dispatch_response_text": True,
         "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
     }
 
@@ -30390,6 +30428,71 @@ def test_update_parallel_action(monkeypatch):
     assert actual["error_code"] == 0
     assert actual["message"] == "Action updated!"
     assert actual["success"]
+
+    config = ParallelActionConfig.objects(name="parallel_action_test").first()
+    assert config is not None
+
+    config = config.to_mongo().to_dict()
+    assert config["actions"] == ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    assert config["dispatch_response_text"] is True
+
+def test_update_parallel_action_empty_action_list(monkeypatch):
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": []
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "The 'actions' field must contain at least one action."
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+
+def test_update_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 5
+    bot_settings.save()
+
+def test_delete_action_used_in_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action 'pyscript_action' cannot be deleted because it is used in parallel actions: ['parallel_action_test']"
 
 def test_delete_parallel_action_not_exists():
     response = client.delete(

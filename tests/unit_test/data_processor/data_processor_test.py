@@ -19452,6 +19452,30 @@ class TestModelProcessor:
 
         Actions.objects(name=valid_action, bot=bot).delete()
 
+    def test_add_parallel_action_success_exceeds_max_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2, action_1, action_2, action_1, action_2]
+        }
+
+        with pytest.raises(AppException, match="Maximum 5 actions are allowed in a parallel action."):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
     def test_update_parallel_action_success(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -19550,6 +19574,39 @@ class TestModelProcessor:
         Actions.objects(name__in=[existing_action, parallel_name], bot=bot).delete()
         ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
 
+    def test_update_parallel_action_exceeds_max_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+        parallel_name = "update_test_parallel"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [action_1]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Updated response",
+            "actions": [action_1, action_2, action_1, action_2, action_1, action_2]
+        }
+
+        with pytest.raises(AppException, match="Maximum 5 actions are allowed in a parallel action."):
+            processor.update_parallel_action(update_data, bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
     def test_list_parallel_action_returns_created_action(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -19621,3 +19678,105 @@ class TestModelProcessor:
         assert action_5 not in action_names
 
         Actions.objects(name__in=[action_1, action_2, action_3, action_4, action_5], bot=bot).delete()
+
+    def test_delete_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        processor.delete_action("parallel_test_action", bot, user)
+
+        result = ParallelActionConfig.objects(name="parallel_test_action", bot=bot).first()
+        assert result is None
+
+        result = Actions.objects(name="parallel_test_action", bot=bot).first()
+        assert result is None
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_delete_subaction_used_in_parallel_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        with pytest.raises(AppException, match=re.escape(
+            "Action 'action_1' cannot be deleted because it is used in parallel actions: ['parallel_test_action']"
+        )):
+            processor.delete_action("action_1", bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_check_action_usage_in_parallel_actions_raises_exception(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        with pytest.raises(AppException, match=re.escape(
+            "Action 'action_1' cannot be deleted because it is used in parallel actions: ['parallel_test_action']"
+        )):
+            processor.check_action_usage_in_parallel_actions(bot, action_1)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
