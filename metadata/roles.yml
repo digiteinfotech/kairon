@@ -509,8 +509,8 @@ roles:
       liveAgent:
         chatView: false
       customCollections:
-        viewCustomCollections: true
-        browseCollectionData: true
+        viewCustomCollections: false
+        browseCollectionData: false
         insertDataInCollection: false
         updateDataInCollection: false
         deleteDataFromCollection: false
@@ -768,7 +768,7 @@ roles:
       liveAgent:
         chatView: false
       customCollections:
-        viewCustomCollections: true
+        viewCustomCollections: false
         browseCollectionData: false
         insertDataInCollection: false
         updateDataInCollection: false
