@@ -410,7 +410,7 @@ roles:
       broadcast: false
       customAnalytics: true
       liveAgent: false
-      customCollections: true
+      customCollections: false
     pages:
       chatbots:
         renameBot: false
@@ -669,7 +669,7 @@ roles:
       broadcast: false
       customAnalytics: true
       liveAgent: false
-      customCollections: true
+      customCollections: false
     pages:
       chatbots:
         renameBot: false
