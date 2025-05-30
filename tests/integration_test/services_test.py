@@ -30436,6 +30436,53 @@ def test_update_parallel_action(monkeypatch):
     assert config["actions"] == ["pyscript_action", "prompt_action", "pyscript_action_2"]
     assert config["dispatch_response_text"] is True
 
+def test_update_parallel_action_empty_action_list(monkeypatch):
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": []
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "The 'actions' field must contain at least one action."
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+
+def test_update_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 5
+    bot_settings.save()
+
 def test_delete_action_used_in_parallel_action():
     response = client.delete(
         f"/api/bot/{pytest.bot}/action/pyscript_action",

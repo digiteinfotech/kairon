@@ -7022,13 +7022,7 @@ class MongoProcessor:
             action = Actions.objects(name=name, bot=bot, status=True).get()
 
             MongoProcessor.get_attached_flows(bot, name, "action")
-
-            parallel_actions_using_action = ParallelActionConfig.objects(bot=bot, status=True, actions=name)
-            if parallel_actions_using_action:
-                parallel_action_names = [parallel_action.name for parallel_action in parallel_actions_using_action]
-                raise AppException(
-                    f"Action '{name}' cannot be deleted because it is used in parallel actions: {parallel_action_names}"
-                )
+            MongoProcessor.check_action_usage_in_parallel_actions(bot, name)
 
             Utility.is_exist(
                 PromptAction,
@@ -7131,6 +7125,15 @@ class MongoProcessor:
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
+
+    @staticmethod
+    def check_action_usage_in_parallel_actions(bot: Text, name: Text):
+        parallel_actions_using_action = ParallelActionConfig.objects(bot=bot, status=True, actions=name)
+        if parallel_actions_using_action:
+            parallel_action_names = [parallel_action.name for parallel_action in parallel_actions_using_action]
+            raise AppException(
+                f"Action '{name}' cannot be deleted because it is used in parallel actions: {parallel_action_names}"
+            )
 
     def add_email_action(self, action: Dict, bot: str, user: str):
         """
@@ -9089,9 +9092,6 @@ class MongoProcessor:
         )
 
         settings = BotSettings.objects(bot=bot, status=True).first()
-        if not settings or not hasattr(settings, "max_actions_per_parallel_action"):
-            raise AppException(
-                "Bot setting is missing field 'max_actions_per_parallel_action'. Please contact the administrator.")
 
         if len(request_data.get("actions")) > settings.max_actions_per_parallel_action:
             raise AppException(
@@ -9137,10 +9137,6 @@ class MongoProcessor:
             raise AppException(f"Parallel Action with name '{parallel_action_name}' not found!")
 
         settings = BotSettings.objects(bot=bot, status=True).first()
-        if not settings or not hasattr(settings, "max_actions_per_parallel_action"):
-            raise AppException(
-                "Bot setting is missing field 'max_actions_per_parallel_action'. Please contact the administrator.")
-
         if len(request_data.get("actions")) > settings.max_actions_per_parallel_action:
             raise AppException(
                 f"Maximum {settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
