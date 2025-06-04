@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 import json
 from typing import Dict, Text
 
@@ -114,11 +114,13 @@ class DataProcessor:
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
+            is_non_editable = item.pop('is_non_editable')
             data = item.pop('data')
             data = DataProcessor.prepare_decrypted_data(data, is_secure)
             final_data["_id"] = item["_id"].__str__()
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
+            final_data['is_non_editable'] = is_non_editable
             final_data['data'] = data
             yield final_data
 
@@ -137,11 +139,13 @@ class DataProcessor:
             item = collection_data.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
+            is_non_editable = item.pop('is_non_editable')
             data = item.pop('data')
             data = DataProcessor.prepare_decrypted_data(data, is_secure)
             final_data["_id"] = item["_id"].__str__()
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
+            final_data['is_non_editable'] = is_non_editable
             final_data['data'] = data
         except DoesNotExist:
             raise AppException("Collection data does not exists!")
@@ -212,11 +216,13 @@ class DataProcessor:
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
+            is_non_editable = item.pop('is_non_editable')
             data = item.pop('data')
             data = DataProcessor.prepare_decrypted_data(data, is_secure)
             final_data["_id"] = item["_id"].__str__()
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
+            final_data['is_non_editable'] = is_non_editable
             final_data['data'] = data
             yield final_data
 
