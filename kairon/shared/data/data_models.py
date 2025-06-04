@@ -1210,6 +1210,7 @@ class CognitionSchemaRequest(BaseModel):
 class CollectionDataRequest(BaseModel):
     data: dict
     is_secure: list = []
+    is_non_editable: list = []
     collection_name: constr(to_lower=True, strip_whitespace=True)
 
     @root_validator
