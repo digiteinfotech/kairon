@@ -1210,6 +1210,7 @@ class CognitionSchemaRequest(BaseModel):
 class CollectionDataRequest(BaseModel):
     data: dict
     is_secure: list = []
+    is_non_editable: list = []
     collection_name: constr(to_lower=True, strip_whitespace=True)
 
     @root_validator
@@ -1233,6 +1234,16 @@ class CollectionDataRequest(BaseModel):
 
             if not is_secure_set.issubset(data_keys):
                 raise ValueError("is_secure contains keys that are not present in data")
+
+        non_editable = values.get("is_non_editable")
+        if not isinstance(non_editable, list):
+            raise ValueError("is_non_editable should be a list of keys!")
+
+        if non_editable:
+            non_editable_set = set(non_editable)
+            if not non_editable_set.issubset(data_keys):
+                raise ValueError("is_non_editable contains keys that are not present in data")
+
         return values
 
 
