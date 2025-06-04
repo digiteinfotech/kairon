@@ -27,7 +27,7 @@ class PyscriptSharedUtility:
             is_secure = item.pop('is_secure')
             is_non_editable=item.pop('is_non_editable')
             data = item.pop('data')
-            data = cognition_processor.prepare_decrypted_data(data, is_secure)
+            data = DataProcessor.prepare_decrypted_data(data, is_secure)
 
             final_data["_id"] = str(item["_id"])
             final_data['collection_name'] = collection_name
