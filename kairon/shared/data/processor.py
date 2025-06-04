@@ -283,7 +283,8 @@ class MongoProcessor:
         actions_to_exclude = [ActionType.form_validation_action.value,
                               ActionType.live_agent_action.value,
                               ActionType.hubspot_forms_action.value,
-                              ActionType.two_stage_fallback.value]
+                              ActionType.two_stage_fallback.value,
+                              ActionType.parallel_action.value]
         for key, value in actions.items():
             if key in actions_to_exclude:
                 continue
@@ -3690,6 +3691,7 @@ class MongoProcessor:
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
         schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
+        parallel_actions = set(ParallelActionConfig.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3759,6 +3761,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.live_agent_action.value
                     elif event['name'] in callback_actions:
                         step["type"] = StoryStepType.callback_action.value
+                    elif event['name'] in parallel_actions:
+                        step["type"] = StoryStepType.parallel_action.value
                     elif event['name'] in schedule_action:
                         step["type"] = StoryStepType.schedule_action.value
                     elif event['name'] == 'action_listen':
