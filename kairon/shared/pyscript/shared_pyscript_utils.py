@@ -9,6 +9,8 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.api.app.routers.bot.data import CognitionDataProcessor
+from kairon.shared.data.collection_processor import DataProcessor
+
 cognition_processor = CognitionDataProcessor()
 
 class PyscriptSharedUtility:
@@ -46,6 +48,7 @@ class PyscriptSharedUtility:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=pytz.UTC)
         return dt
+
     @staticmethod
     def get_data(collection_name: str, user: str, data_filter: dict, kwargs=None, bot: Text = None):
         if not bot:
@@ -75,7 +78,7 @@ class PyscriptSharedUtility:
         if not bot:
             raise Exception("Missing bot id")
 
-        collection_id = cognition_processor.save_collection_data(payload, user, bot)
+        collection_id = DataProcessor.save_collection_data(payload, user, bot)
         return {
             "message": "Record saved!",
             "data": {"_id": collection_id}
@@ -87,7 +90,7 @@ class PyscriptSharedUtility:
         if not bot:
             raise Exception("Missing bot id")
 
-        collection_id = cognition_processor.update_collection_data(collection_id, payload, user, bot)
+        collection_id = DataProcessor.update_collection_data(collection_id, payload, user, bot)
         return {
             "message": "Record updated!",
             "data": {"_id": collection_id}
@@ -99,7 +102,7 @@ class PyscriptSharedUtility:
         if not bot:
             raise Exception("Missing bot id")
 
-        cognition_processor.delete_collection_data(collection_id, bot, user)
+        DataProcessor.delete_collection_data(collection_id, bot, user)
 
         return {
             "message": f"Collection with ID {collection_id} has been successfully deleted.",
