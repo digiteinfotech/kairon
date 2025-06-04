@@ -4560,6 +4560,32 @@ def test_save_collection_data_with_invalid_data():
                                    'type': 'value_error'}]
     assert not actual["success"]
 
+def test_save_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_save_collection_data():
     request_body = {
@@ -5008,6 +5034,61 @@ def test_update_collection_data_with_invalid_is_secure():
                                   'type': 'value_error'}]
     assert not actual["success"]
 
+def test_update_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+def test_update_collection_data_with_invalid_is_non_editable():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": "name, aadhar",  # Invalid: should be a list
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_non_editable'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable should be a list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_update_collection_data_with_invalid_data():
     request_body = {
