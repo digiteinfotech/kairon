@@ -14,6 +14,7 @@ import ujson as json
 import yaml
 
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
@@ -3481,7 +3482,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         assert response == []
 
@@ -3500,7 +3501,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
 
     def test_save_collection_data_with_collection_name_empty(self):
@@ -3518,7 +3519,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='collection name is empty'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data_with_invalid_is_secure(self):
         bot = 'test_bot'
@@ -3535,7 +3536,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='is_secure should be list of keys'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data_with_invalid_data(self):
         bot = 'test_bot'
@@ -3547,7 +3548,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Invalid value for data'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data(self):
         bot = 'test_bot'
@@ -3563,7 +3564,7 @@ class TestMongoProcessor:
             }
         }
         processor = CognitionDataProcessor()
-        collection_id = processor.save_collection_data(request_body, user, bot)
+        collection_id = DataProcessor.save_collection_data(request_body, user, bot)
         pytest.collection_id = collection_id
 
     def test_save_collection_data_with_collection_name_already_exist(self):
@@ -3581,13 +3582,13 @@ class TestMongoProcessor:
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        processor.save_collection_data(request_body, user, bot)
+        DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_get_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3631,7 +3632,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_collection_name_empty(self):
         request_body = {
@@ -3650,7 +3651,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='collection name is empty'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_invalid_is_secure(self):
         request_body = {
@@ -3668,7 +3669,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='is_secure should be list of keys'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_invalid_data(self):
         request_body = {
@@ -3682,7 +3683,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Invalid value for data'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data(self):
         request_body = {
@@ -3699,7 +3700,7 @@ class TestMongoProcessor:
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        pytest.collection_id = processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+        pytest.collection_id = DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_doesnot_exist(self):
         request_body = {
@@ -3718,13 +3719,13 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection Data with given id and collection_name not found!'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_get_collection_data_after_update(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3756,14 +3757,14 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Keys and values lists must be of the same length.'):
-            list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+            list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                value=["Mahesh"]))
 
     def test_get_collection_data_with_filters(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name"],
                                                       value=["Mahesh"]))
         for coll in response:
             coll.pop("_id")
@@ -3771,6 +3772,7 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['mobile_number', 'location'],
+                'is_non_editable': [],
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3779,12 +3781,12 @@ class TestMongoProcessor:
                 }
             }
         ]
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Mahesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
         assert response == []
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Hitesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
@@ -3792,6 +3794,7 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3805,7 +3808,7 @@ class TestMongoProcessor:
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
+        response = DataProcessor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
         print(response)
         assert response == {
             '_id': pytest.collection_id,
@@ -3824,26 +3827,26 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection Data does not exists!'):
-            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
+            DataProcessor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
 
     def test_delete_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        processor.delete_collection_data(pytest.collection_id, bot, user)
+        DataProcessor.delete_collection_data(pytest.collection_id, bot, user)
 
     def test_get_collection_data_with_collection_id_doesnot_exists(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection data does not exists!'):
-            processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
+            DataProcessor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
 
     def test_get_collection_data_after_delete(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3899,10 +3902,10 @@ class TestMongoProcessor:
             },
         }
 
-        processor.save_collection_data(request_body_1, user, bot)
-        processor.save_collection_data(request_body_2, user, bot)
+        DataProcessor.save_collection_data(request_body_1, user, bot)
+        DataProcessor.save_collection_data(request_body_2, user, bot)
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=timestamp,
@@ -3928,7 +3931,7 @@ class TestMongoProcessor:
             }
         ]
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=datetime.utcnow(),
@@ -3939,7 +3942,7 @@ class TestMongoProcessor:
             coll.pop("_id")
         assert response == []
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=timestamp,
