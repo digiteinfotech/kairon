@@ -3500,6 +3500,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['name', 'mobile_number'],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3510,6 +3512,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3637,6 +3641,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['mobile_number', 'location'],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3647,6 +3653,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3718,6 +3726,7 @@ class TestMongoProcessor:
             '_id': pytest.collection_id,
             'collection_name': 'user',
             'is_secure': ['mobile_number', 'location'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -3758,6 +3767,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3780,6 +3791,8 @@ class TestMongoProcessor:
                 "aadhar",
                 "pan"
             ],
+            'is_non_editable': [],
+
             "data": {
                 "name": "User1",
                 "age": 24,
@@ -3824,6 +3837,8 @@ class TestMongoProcessor:
                 'is_secure': ["aadhar",
                               "pan"
                               ],
+                'is_non_editable': [],
+
                 'data': {
                     "name": "User1",
                     "age": 24,
