@@ -1241,8 +1241,8 @@ class CollectionDataRequest(BaseModel):
 
         if non_editable:
             non_editable_set = set(non_editable)
-        if not non_editable_set.issubset(data_keys):
-            raise ValueError("is_non_editable contains keys that are not present in data")
+            if not non_editable_set.issubset(data_keys):
+                raise ValueError("is_non_editable contains keys that are not present in data")
 
         return values
 

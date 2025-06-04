@@ -4655,6 +4655,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4665,6 +4666,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4675,6 +4677,8 @@ def test_list_collection_data():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
+
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4875,6 +4879,7 @@ def test_get_collection_data_with_collection_id():
         '_id': pytest.collection_id,
         'collection_name': 'user',
         'is_secure': ['name', 'mobile_number'],
+        'is_non_editable': [],
         'data': {
             'name': 'Mahesh',
             'age': 24,
@@ -4900,6 +4905,7 @@ def test_get_collection_data_with_filter():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -5094,6 +5100,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': ['mobile_number', 'location'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -5104,6 +5111,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -5114,6 +5122,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -5168,6 +5177,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -5178,6 +5188,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
