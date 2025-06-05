@@ -253,6 +253,9 @@ class DatabaseAction(Auditlog):
         for item in self.payload:
             item.validate()
 
+class TriggerInfo(EmbeddedDocument):
+    trigger_name = StringField(default="")
+    trigger_type = StringField(default="implicit")
 
 class ActionServerLogs(DynamicDocument):
     type = StringField()
@@ -270,7 +273,7 @@ class ActionServerLogs(DynamicDocument):
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default="SUCCESS")
-    executed_actions_info = ListField()
+    trigger_info = EmbeddedDocumentField(TriggerInfo, default = TriggerInfo)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 

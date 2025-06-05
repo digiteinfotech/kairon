@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, WebSearchAction
+from kairon.shared.actions.data_objects import ActionServerLogs, WebSearchAction, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -39,7 +39,7 @@ class ActionWebSearch(ActionsBase):
             raise ActionFailure("No Public search action found for given action and bot")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -49,6 +49,10 @@ class ActionWebSearch(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         slots_set = {}
         results = None
         exception = None
@@ -75,6 +79,8 @@ class ActionWebSearch(ActionsBase):
             exception = str(e)
             status = "FAILURE"
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.web_search_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -85,7 +91,8 @@ class ActionWebSearch(ActionsBase):
                 bot=tracker.get_slot("bot"),
                 exception=exception,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         if action_config.get('dispatch_response', True):
             dispatcher.utter_message(bot_response)

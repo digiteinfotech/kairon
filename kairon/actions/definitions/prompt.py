@@ -5,7 +5,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
@@ -38,7 +38,7 @@ class ActionPrompt(ActionsBase):
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
         return k_faq_action_config, bot_settings
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Fetches response for user query from llm configured.
         Information regarding the execution is logged in ActionServerLogs.
@@ -48,6 +48,10 @@ class ActionPrompt(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         status = "SUCCESS"
         exception = None
         llm_response = None
@@ -109,6 +113,8 @@ class ActionPrompt(ActionsBase):
             events.extend(events_to_extend)
             if llm_processor:
                 llm_logs = llm_processor.logs
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -125,7 +131,8 @@ class ActionPrompt(ActionsBase):
                 llm_logs=llm_logs,
                 user_msg=user_msg,
                 media_ids=media_ids,
-                time_elapsed=total_time_elapsed
+                time_elapsed=total_time_elapsed,
+                trigger_info=trigger_info_obj
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
