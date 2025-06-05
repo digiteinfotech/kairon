@@ -74,7 +74,7 @@ class ActionPrompt(ActionsBase):
             user_question = k_faq_action_config.get('user_question')
             user_msg = self.__get_user_msg(tracker, user_question)
             llm_type = k_faq_action_config['llm_type']
-            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain,**kwargs)
             llm_processor = LLMProcessor(self.bot, llm_type)
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
@@ -140,7 +140,7 @@ class ActionPrompt(ActionsBase):
 
         return slots_to_fill
 
-    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         from kairon.actions.definitions.factory import ActionFactory
 
         system_prompt = None
@@ -174,7 +174,7 @@ class ActionPrompt(ActionsBase):
                         context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
                     action = ActionFactory.get_instance(self.bot, prompt['data'])
-                    await action.execute(dispatcher, tracker, domain)
+                    await action.execute(dispatcher, tracker, domain, **kwargs)
                     if action.is_success:
                         response = action.response
                         context_prompt += f"{prompt['name']}:\n{response}\n"
