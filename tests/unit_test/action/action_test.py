@@ -1390,7 +1390,15 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1463,7 +1471,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1525,7 +1540,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1587,7 +1609,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1649,7 +1678,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1712,7 +1748,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1775,7 +1818,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1831,8 +1881,15 @@ class TestActions:
                               latest_message=latest_message,
                               followup_action=None, active_loop=None, latest_action_name=None)
             domain: Dict[Text, Any] = None
+            action_call = {
+                "next_action": action_name,
+                "sender_id": "sender1",
+                "tracker": tracker,
+                "version": "3.6.21",
+                "domain": domain
+            }
             actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                                 action_name)
+                                                                                 action_name, action_call=action_call)
             log = ActionServerLogs.objects(sender="sender1",
                                            action=action_name,
                                            bot="5f50fd0a56b698ca10d35d2a",
@@ -1887,7 +1944,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
@@ -1946,7 +2010,14 @@ class TestActions:
         tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         log = ActionServerLogs.objects(
             sender="sender1",
             action=action_name,
@@ -1995,7 +2066,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
@@ -2047,7 +2125,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
@@ -2107,7 +2192,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
@@ -2156,8 +2248,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_post",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post")
+                                                                             "test_run_with_post", action_call=action_call)
         assert actual is not None
         assert actual[0]['name'] == 'kairon_action_response'
         assert actual[0]['value'] == 'Data added successfully, id:5000'
@@ -2200,8 +2299,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_post_and_parameters",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post_and_parameters")
+                                                                             "test_run_with_post_and_parameters", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -2260,8 +2366,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_post_and_dynamic_params",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_post_and_dynamic_params")
+                                                                             "test_run_with_post_and_dynamic_params", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
@@ -2317,8 +2430,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_get",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_get")
+                                                                             "test_run_with_get", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
@@ -2391,8 +2511,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_get_with_json_response",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_get_with_json_response")
+                                                                             "test_run_with_get_with_json_response", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == str(data_obj)
@@ -2502,8 +2629,15 @@ class TestActions:
                           latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_with_get_with_dynamic_params",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_with_get_with_dynamic_params")
+                                                                             "test_run_with_get_with_dynamic_params", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == "Mayank"
@@ -2543,7 +2677,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']).__contains__('I have failed to process your request')
@@ -2583,7 +2724,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
 
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
@@ -2691,8 +2839,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_get_with_parameters",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_get_with_parameters")
+                                                                             "test_run_get_with_parameters", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
@@ -2737,8 +2892,15 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": "test_run_get_with_parameters_2",
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain,
-                                                                             "test_run_get_with_parameters_2")
+                                                                             "test_run_get_with_parameters_2", action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'The value of 2 in red is [\'red\', \'buggy\', \'bumpers\']'
@@ -2765,7 +2927,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'location'
         assert str(actual[0]['value']) == 'Bengaluru'
@@ -2791,7 +2960,14 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         domain: Dict[Text, Any] = None
         action.save().to_mongo().to_dict()
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name, action_call=action_call)
         assert actual is not None
         assert str(actual[0]['name']) == 'location'
         assert actual[0]['value'] == None
