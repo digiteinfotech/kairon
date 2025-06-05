@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, PyscriptActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, PyscriptActionConfig, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -41,7 +41,7 @@ class ActionPyscript(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No pyscript action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -51,6 +51,10 @@ class ActionPyscript(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         pyscript_action_config = None
         bot_response = None
         exception = None
@@ -81,6 +85,8 @@ class ActionPyscript(ActionsBase):
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.pyscript_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -92,7 +98,8 @@ class ActionPyscript(ActionsBase):
                 exception=exception,
                 bot=self.bot,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots

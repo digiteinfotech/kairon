@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, PipedriveLeadsAction
+from kairon.shared.actions.data_objects import ActionServerLogs, PipedriveLeadsAction, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -39,7 +39,7 @@ class ActionPipedriveLeads(ActionsBase):
             raise ActionFailure("No Pipedrive leads action found for given action and bot")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -49,6 +49,10 @@ class ActionPipedriveLeads(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         status = "SUCCESS"
         exception = None
         action_config = self.retrieve_config()
@@ -74,6 +78,8 @@ class ActionPipedriveLeads(ActionsBase):
             status = "FAILURE"
             bot_response = "I have failed to create lead for you"
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.pipedrive_leads_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -83,7 +89,8 @@ class ActionPipedriveLeads(ActionsBase):
                 exception=exception,
                 bot_response=bot_response,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         dispatcher.utter_message(bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

@@ -1180,20 +1180,7 @@ class TestActions:
             "bot_response": "Parallel Action Success",
             "bot": "5f50fd0a56b698ca10d35d21",
             "status": "SUCCESS",
-            "executed_actions_info": [
-                {
-                    "name": "test_run_pyscript_action",
-                    "status": "SUCCESS",
-                    "slot_changes": {
-                        "param2": "param2value",
-                        "kairon_action_response": {
-                            "numbers": [1, 2, 3, 4, 5],
-                            "total": 15,
-                            "i": 5
-                        }
-                    }
-                }
-            ],
+            'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
             "user_msg": "get intents"
         }
         assert len(actual) == 2
@@ -1297,7 +1284,7 @@ class TestActions:
             "exception": "No parallel action found for given action and bot",
             "bot": "5f50fd0a56b698ca10d35d21",
             "status": "FAILURE",
-            "executed_actions_info": [],
+            'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
             "user_msg": "get intents"
         }
         assert log['exception'] == "No parallel action found for given action and bot"

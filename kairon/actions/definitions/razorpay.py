@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, RazorpayAction
+from kairon.shared.actions.data_objects import ActionServerLogs, RazorpayAction, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -40,7 +40,7 @@ class ActionRazorpay(ActionsBase):
             raise ActionFailure("No Razorpay action found for given action and bot")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -50,6 +50,10 @@ class ActionRazorpay(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         status = "SUCCESS"
         exception, http_response, bot_response = None, None, None
         action_config = self.retrieve_config()
@@ -100,6 +104,8 @@ class ActionRazorpay(ActionsBase):
             status = "FAILURE"
             bot_response = "I have failed to process your request"
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.razorpay_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -111,7 +117,8 @@ class ActionRazorpay(ActionsBase):
                 bot_response=bot_response,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
-                request=body
+                request=body,
+                trigger_info=trigger_info_obj
             ).save()
         dispatcher.utter_message(bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
