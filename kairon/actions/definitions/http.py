@@ -8,7 +8,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType, EvaluationType
 from kairon.shared.actions.utils import ActionUtility
@@ -44,7 +44,7 @@ class ActionHTTP(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No HTTP action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -54,6 +54,10 @@ class ActionHTTP(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         bot_response = None
         http_response = None
         exception = None
@@ -148,6 +152,8 @@ class ActionHTTP(ActionsBase):
                 events_to_extend.insert(0, initial_slots)
             events.extend(events_to_extend)
             total_time_elapsed = time_elapsed + time_taken_slots + time_taken_pyscript + time_taken_compose_response
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -163,7 +169,8 @@ class ActionHTTP(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
                 time_elapsed=total_time_elapsed,
-                http_status_code=resp_status_code
+                http_status_code=resp_status_code,
+                trigger_info=trigger_info_obj
             ).save()
             filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response, "http_status_code": resp_status_code})
             filled_slots.update(slot_values)

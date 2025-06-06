@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, LiveAgentActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, LiveAgentActionConfig, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -50,7 +50,7 @@ class ActionLiveAgent(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No Live Agent action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -60,6 +60,10 @@ class ActionLiveAgent(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call')
+        if not action_call:
+            raise ActionFailure("Missing action_call in kwargs.")
+
         bot_response = None
         exception = None
         filled_slots = {}
@@ -107,6 +111,8 @@ class ActionLiveAgent(ActionsBase):
                                                                                 DispatchType.json.value,
                                                                                 resp_obj)
 
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.live_agent_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -117,7 +123,8 @@ class ActionLiveAgent(ActionsBase):
                 exception=str(exception) if exception else None,
                 bot=self.bot,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         return filled_slots
 

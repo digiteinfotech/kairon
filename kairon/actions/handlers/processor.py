@@ -35,11 +35,8 @@ class ActionProcessor:
                 raise ActionFailure("Bot id and action name not found in slot")
 
             action_instance = ActionFactory.get_instance(bot_id, action)
+            slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain, **kwargs)
 
-            if isinstance(action_instance, ActionParallel):
-                slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain, **kwargs)
-            else:
-                slots = await action_instance.execute(dispatcher=dispatcher, tracker=tracker, domain=domain)
             return [SlotSet(slot, value) for slot, value in slots.items()]
         except Exception as e:
             logger.exception(e)
