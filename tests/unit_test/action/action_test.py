@@ -1193,6 +1193,116 @@ class TestActions:
     @responses.activate
     @pytest.mark.asyncio
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_parallel_action_missing_action_call(self, mock_logger, mock_get_action, aioresponses):
+        import textwrap
+
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'parallel_action'}]}
+        action_name = "test_run_parallel_action_missing_action_call"
+
+        ParallelActionConfig(
+            name=action_name,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user",
+            actions=["test_run_pyscript_action"],
+            response_text="Parallel Action Success",
+            dispatch_response_text=True
+        ).save()
+
+        pyscript_name = "test_run_pyscript_action"
+        script = """
+                numbers = [1, 2, 3, 4, 5]
+                total = 0
+                for i in numbers:
+                    total += i
+                print(total)
+                """
+        script = textwrap.dedent(script)
+        PyscriptActionConfig(
+            name=pyscript_name,
+            source_code=script,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user"
+        ).save()
+
+        def _get_action(bot: str, name: str):
+            if name == action_name:
+                return {"type": ActionType.parallel_action.value}
+            else:
+                return {"type": ActionType.pyscript_action.value}
+
+        responses.add(
+            responses.POST,
+            Utility.environment["async_callback_action"]["pyscript"]["url"],
+            json={
+                "success": True,
+                "body": {
+                    "bot_response": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                    "slots": {"param2": "param2value"}
+                },
+                "statusCode": 200
+            },
+            status=200,
+            match=[responses.matchers.json_params_matcher({
+                "source_code": script,
+                "predefined_objects": {
+                    "sender_id": "sender1",
+                    "user_message": "get intents",
+                    "latest_message": {
+                        "intent_ranking": [{"name": "parallel_action"}],
+                        "text": "get intents"
+                    },
+                    "slot": {
+                        "param2": "param2value",
+                        "bot": "5f50fd0a56b698ca10d35d21"
+                    },
+                    "intent": "parallel_action",
+                    "chat_log": [],
+                    "key_vault": {},
+                    "kairon_user_msg": None,
+                    "session_started": None
+                }
+            })]
+        )
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+
+        aioresponses.add(
+            method="POST",
+            url=Utility.environment["action"]["url"],
+            payload={
+                "events": [
+                    {'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
+                    {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
+                     'value': {'numbers': [1, 2, 3, 4, 5], 'total': 15, 'i': 5}}
+                ],
+                "responses": [
+                    {"text": None, "buttons": [], "elements": [],
+                     "custom": {"numbers": [1, 2, 3, 4, 5], "total": 15, "i": 5},
+                     "template": None, "response": None, "image": None, "attachment": None}
+                ]
+            },
+            status=200
+        )
+
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
+        ParallelActionConfig.objects(name=action_name).delete()
+        PyscriptActionConfig.objects(name=pyscript_name).delete()
+
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
     async def test_run_parallel_action_without_action(self, mock_get_action):
         import textwrap
 
@@ -1404,6 +1514,38 @@ class TestActions:
                                        bot="5f50fd0a56b698ca10d35d2z",
                                        status="FAILURE").get()
         assert log['exception'] == "No pyscript action found for given action and bot"
+
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_pyscript_action_missing_action_call(self, mock_logger, mock_get_action):
+        slots = {"bot": "5f50fd0a56b698ca10d35d2z",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'pyscript_action'}]}
+        action_name = "test_run_pyscript_action_with_exception"
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.pyscript_action.value}
+
+        mock_get_action.return_value = _get_action()
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
 
     @responses.activate
     @pytest.mark.asyncio
@@ -2084,6 +2226,60 @@ class TestActions:
         assert log['intent']
         assert log['action']
         assert log['bot_response']
+
+    @pytest.mark.asyncio
+    @responses.activate
+    @mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_missing_action_call(self, mock_logger, mock_execute_request_async, monkeypatch):
+        http_url = "http://www.google.com"
+        http_response = "This should be response"
+        action = HttpActionConfig(
+            action_name="http_action",
+            response=HttpActionResponse(value=http_response),
+            http_url=http_url,
+            request_method="GET",
+            params_list=None,
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+        mock_execute_request_async.return_value = http_response, 200, 5, None
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.http_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+
+        responses.add(
+            method=responses.GET,
+            url=http_url,
+            body=http_response,
+            status=200,
+        )
+
+        action_name = "http_action"
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e",
+                 "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender_test_run", slots=slots, events=events, paused=False,
+                          latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
 
     @pytest.mark.asyncio
     @responses.activate
@@ -2938,6 +3134,42 @@ class TestActions:
         assert actual is not None
         assert str(actual[0]['name']) == 'location'
         assert str(actual[0]['value']) == 'Bengaluru'
+
+    @pytest.mark.asyncio
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_slot_set_action_from_value_missing_action_call(self, mock_logger, monkeypatch):
+        action_name = "test_slot_set_action_from_value"
+        action = SlotSetAction(
+            name=action_name,
+            set_slots=[SetSlots(name="location", type="from_value", value="Bengaluru")],
+            bot="5f50fd0a56b698ca10d35d2e",
+            user="user"
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.slot_set_action.value}
+
+        monkeypatch.setattr(ActionUtility, "get_action", _get_action)
+        slots = {"bot": "5f50fd0a56b698ca10d35d2e", "location": None, "current_location": 'Mumbai'}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+        action.save().to_mongo().to_dict()
+        action_call = {
+            "next_action": action_name,
+            "sender_id": "sender1",
+            "tracker": tracker,
+            "version": "3.6.21",
+            "domain": domain
+        }
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
 
     @pytest.mark.asyncio
     async def test_slot_set_action_reset_slot(self, monkeypatch):
