@@ -97,7 +97,9 @@ class HistoryProcessor:
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                                                    "$lte": Utility.get_timestamp_from_date(to_date)},
+                                                      "tag": {"$ne": "callback_message"}
+                                                      }},
                                           {"$sort": {"timestamp": 1}},
                                           {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1,
                                                         "timestamp": 1, "status": 1}}])
@@ -243,18 +245,36 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection(collection)
                 users = list(
-                    conversations.aggregate([{"$match": {"timestamp": time_filter}},
-                                             {"$sort": {"timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "latest_event_time": {"$last": "$timestamp"},
-                                                         "steps": {"$sum": 1}}},
-                                             {"$sort": {"latest_event_time": -1}},
-                                             {"$project": {
-                                                 "sender_id": "$_id",
-                                                 "_id": 0,
-                                                 "steps": 1,
-                                                 "latest_event_time": 1,
-                                             }},
-                                             ], allowDiskUse=True))
+                    conversations.aggregate([
+                        {
+                            "$match": {
+                                "$and": [
+                                    {"timestamp": time_filter},
+                                    {
+                                        "$or": [
+                                            {"tag": {"$ne": "callback_message"}},
+                                            {"tag": {"$exists": False}}
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {"$sort": {"timestamp": 1}},
+                        {"$group": {
+                            "_id": "$sender_id",
+                            "latest_event_time": {"$last": "$timestamp"},
+                            "steps": {"$sum": 1}
+                        }},
+                        {"$sort": {"latest_event_time": -1}},
+                        {"$project": {
+                            "sender_id": "$_id",
+                            "_id": 0,
+                            "steps": 1,
+                            "latest_event_time": 1
+                        }},
+                    ], allowDiskUse=True)
+                )
+
         except Exception as e:
             logger.error(e)
             message = str(e)
