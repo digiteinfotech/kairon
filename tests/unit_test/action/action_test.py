@@ -42,7 +42,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters, ParallelActionConfig
+    CustomActionParameters, ParallelActionConfig, DatabaseAction
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -1298,6 +1298,139 @@ class TestActions:
         assert str(logged_exception) == "Missing action_call in kwargs."
         ParallelActionConfig.objects(name=action_name).delete()
         PyscriptActionConfig.objects(name=pyscript_name).delete()
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_database_action_missing_action_call(self, mock_logger, mock_get_action):
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'database_action'}]}
+        action_name = "test_run_database_action_missing_action_call"
+
+        DatabaseAction(
+            name=action_name,
+            collection="test_collection",
+            payload=[{
+                "type": "from_value",
+                "value": {"ids": [0], "with_payload": True, "with_vector": True},
+                "query_type": "embedding_search",
+            }],
+            response={"value": "0"},
+            bot="5f50fd0a56b698ca10d35d21",
+            user="test_user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.database_action.value}
+
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
+        DatabaseAction.objects(name=action_name).delete()
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_hubspot_action_missing_action_call(self, mock_logger, mock_get_action):
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'hubspot_action'}]}
+        action_name = "test_run_hubspot_action_missing_action_call"
+
+        HubspotFormsAction(
+            name=action_name,
+            portal_id="123456",
+            form_guid="abc-def-123",
+            fields=[
+                {"key": "email", "value": "email_slot", "parameter_type": "header"},
+                {"key": "firstname", "value": "firstname_slot", "parameter_type": "slot"},
+            ],
+            response="Form submitted successfully!",
+            bot="5f50fd0a56b698ca10d35d21",
+            user="test_user"
+        ).save()
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.hubspot_forms_action.value}
+
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
+        HubspotFormsAction.objects(name=action_name).delete()
+
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    @mock.patch("kairon.actions.handlers.processor.logger")
+    async def test_run_email_action_missing_action_call(self, mock_logger, mock_get_action):
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = [{"event1": "hello"}, {"event2": "how are you"}]
+        latest_message = {'text': 'get intents', 'intent_ranking': [{'name': 'email_action'}]}
+        action_name = "test_run_email_action_missing_action_call"
+
+        request = {
+            "action_name": action_name,
+            "smtp_url": "test.test.com",
+            "smtp_port": 25,
+            "smtp_userid": None,
+            "smtp_password": {"value": "test"},
+            "from_email": {"value": "from_email", "parameter_type": "slot"},
+            "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+            "subject": "Test Subject",
+            "response": "Test Response",
+            "tls": False,
+        }
+        EmailActionConfig(
+            action_name=action_name,
+            smtp_url="test.test.com",
+            smtp_port=25,
+            smtp_userid=None,  # Handle this separately if present
+            smtp_password={"value": "test"},
+            from_email={"value": "from_email", "parameter_type": "slot"},
+            to_email={"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+            subject="Test Subject",
+            response="Test Response",
+            tls=False,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="test_user",
+        )
+
+        def _get_action(*args, **kwargs):
+            return {"type": ActionType.email_action.value}
+
+        mock_get_action.side_effect = _get_action
+        dispatcher: CollectingDispatcher = CollectingDispatcher()
+        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
+                          followup_action=None, active_loop=None, latest_action_name=None)
+        domain: Dict[Text, Any] = None
+
+        await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
+
+        assert mock_logger.exception.called
+        logged_exception = mock_logger.exception.call_args[0][0]
+        assert isinstance(logged_exception, ActionFailure)
+        assert str(logged_exception) == "Missing action_call in kwargs."
+        PromptAction.objects(name=action_name).delete()
 
 
     @responses.activate
