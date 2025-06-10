@@ -5032,8 +5032,13 @@ class MongoProcessor:
         :param page_size: number of rows
         :return: List of Http actions.
         """
+        query = {
+            "bot": bot,
+            "trigger_info.trigger_type": "implicit"
+        }
+
         for log in (
-                ActionServerLogs.objects(bot=bot)
+                ActionServerLogs.objects(__raw__=query)
                         .order_by("-timestamp")
                         .skip(start_idx)
                         .limit(page_size)
@@ -9177,3 +9182,23 @@ class MongoProcessor:
             action.pop("status")
             yield action
 
+    def fetch_action_logs_for_parallel_action(self, name: str, bot: str) -> List[dict]:
+        """
+        Helper to fetch ActionServerLogs for all actions in a given parallel action.
+
+        :param name: Name of the parallel action
+        :param bot: Bot ID
+        :return: List of ActionServerLogs as dicts
+        """
+        # Fetch the parallel action config
+        parallel_action = ParallelActionConfig.objects(name__iexact=name, bot=bot, status=True).first()
+        if not parallel_action:
+            raise AppException(f"Parallel action '{name}' not found")
+
+        # Get all logs matching the action names and bot
+        logs = list(
+            ActionServerLogs.objects(action__in=parallel_action.actions, bot=bot)
+            .order_by("-timestamp")
+            .as_pymongo()
+        )
+        return logs
