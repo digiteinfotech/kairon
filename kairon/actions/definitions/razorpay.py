@@ -50,9 +50,7 @@ class ActionRazorpay(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
-        action_call = kwargs.get('action_call')
-        if not action_call:
-            raise ActionFailure("Missing action_call in kwargs.")
+        action_call = kwargs.get('action_call', {})
 
         status = "SUCCESS"
         exception, http_response, bot_response = None, None, None

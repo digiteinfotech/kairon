@@ -55,9 +55,7 @@ class ActionParallel(ActionsBase):
         @param domain: Bot domain providing context for the action execution.
         @return: A dictionary of slot changes after executing all actions.
         """
-        action_call = kwargs.get('action_call')
-        if not action_call:
-            raise ActionFailure("Missing action_call in kwargs.")
+        action_call = kwargs.get('action_call', {})
 
         exception = None
         filled_slots = {}

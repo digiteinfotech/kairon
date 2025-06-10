@@ -51,9 +51,7 @@ class ActionPyscript(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
-        action_call = kwargs.get('action_call')
-        if not action_call:
-            raise ActionFailure("Missing action_call in kwargs.")
+        action_call = kwargs.get('action_call', {})
 
         pyscript_action_config = None
         bot_response = None
