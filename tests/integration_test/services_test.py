@@ -9290,7 +9290,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 18
+    assert len(actual['data']) == 19
     assert actual["success"]
 
 
@@ -10055,7 +10055,7 @@ def test_list_entities():
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
-                'subject', 'body', 'media_ids'}
+                'subject', 'body', 'media_ids','flow_docs'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -10695,12 +10695,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 25
+    assert len(actual["data"]) == 26
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 18
+    assert default_slots_count == 19
 
 
 def test_add_slots():

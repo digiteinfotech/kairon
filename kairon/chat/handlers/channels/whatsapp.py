@@ -49,21 +49,22 @@ class Whatsapp:
                 entity = json.dumps({"flow_reply": response_json})
                 docs = response_json.get("documents", [])
                 if docs:
+                    temp_media_ids=[]
+                    media_id_list=[]
                     for doc in docs:
-                        major = doc["mime_type"].split("/")[0]
-                        media_type = "audio" if major == "audio" and doc["mime_type"].endswith("ogg") else major
                         media_id = doc["id"]
-
-                        text = f"/k_multimedia_msg{{\"{media_type}\": \"{media_id}\"}}"
-                        media_ids = UserMedia.save_whatsapp_media_content(
+                        ids = UserMedia.save_whatsapp_media_content(
                             bot=bot,
                             sender_id=message["from"],
                             whatsapp_media_id=media_id,
                             config=self.config
                         )
-                        await self._handle_user_message(text, message["from"], message, bot, media_ids)
-                    return
-                text = f"/k_interactive_msg{entity}"
+                        media_id_list.append(media_id)
+                        temp_media_ids.extend(ids)
+                    media_ids=temp_media_ids
+                    text = f"/k_multimedia_msg{{\"flow_docs\": \"{media_id_list}\"}}"
+                else:
+                    text = f"/k_interactive_msg{entity}"
             else:
                 text = message["interactive"][interactive_type]["id"]
         elif message.get("type") == "text":
