@@ -313,6 +313,7 @@ class TestWhatsappHandler:
         }
         bot = "whatsapp_test"
         handler = Whatsapp(channel_config)
+
         monkeypatch.setattr(WhatsappBot, "mark_as_read", lambda *args, **kwargs: None)
         monkeypatch.setattr(
             Whatsapp,
@@ -320,7 +321,7 @@ class TestWhatsappHandler:
             lambda self: "142427035629239"
         )
 
-        # Simulate save_whatsapp_media_content returning a list containing the media id
+        # Simulate save_whatsapp_media_content returning a list of one media id
         monkeypatch.setattr(
             UserMedia,
             "save_whatsapp_media_content",
@@ -330,7 +331,6 @@ class TestWhatsappHandler:
         # Spy on _handle_user_message
         handler._handle_user_message = AsyncMock()
 
-        # Build a payload: two docs in interactive.nfm_reply.response_json
         docs = [
             {"id": "doc1", "mime_type": "image/jpeg", "sha256": "x", "file_name": "a.jpg"},
             {"id": "doc2", "mime_type": "application/pdf", "sha256": "y", "file_name": "b.pdf"}
@@ -371,22 +371,19 @@ class TestWhatsappHandler:
             ]
         }
 
-        # Call through the public entry‐point
         await handler.handle_meta_payload(
             payload,
             {"channel_type": "whatsapp", "bsp_type": "meta", "tabname": "default"},
             bot
         )
 
-        # Ensure single invocation
         assert handler._handle_user_message.call_count == 1
-        # Inspect call args
+
         text, sender, msg_obj, bot_name, media_ids = handler._handle_user_message.call_args[0]
 
-        # Construct expectations based on code behavior
         expected_list_str = str([doc["id"] for doc in docs])
         expected_payload = f'/k_multimedia_msg{{"flow_docs": "{expected_list_str}"}}'
-        expected_media_ids = [[doc["id"]] for doc in docs]
+        expected_media_ids = [doc["id"] for doc in docs]
 
         assert text == expected_payload
         assert sender == "user123"

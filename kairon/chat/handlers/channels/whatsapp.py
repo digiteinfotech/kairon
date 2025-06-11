@@ -60,7 +60,7 @@ class Whatsapp:
                             config=self.config
                         )
                         media_id_list.append(media_id)
-                        temp_media_ids.append(ids)
+                        temp_media_ids.extend(ids)
                     media_ids=temp_media_ids
                     text = f"/k_multimedia_msg{{\"flow_docs\": \"{media_id_list}\"}}"
                 else:
