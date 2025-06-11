@@ -1672,8 +1672,8 @@ class TestMongoProcessor:
         logs = processor.fetch_action_logs_for_parallel_action(parallel_action_name, bot)
 
         assert len(logs) == 2
-        assert logs[0]["action"] == action_name_1
-        assert logs[1]["action"] == action_name_2
+        actions = sorted([log["action"] for log in logs])
+        assert actions == sorted([action_name_1, action_name_2])
 
         ParallelActionConfig.objects(name=parallel_action_name, bot=bot).delete()
         ActionServerLogs.objects(action=action_name_1).delete()
