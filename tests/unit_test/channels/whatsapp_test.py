@@ -314,20 +314,23 @@ class TestWhatsappHandler:
         bot = "whatsapp_test"
         handler = Whatsapp(channel_config)
         monkeypatch.setattr(WhatsappBot, "mark_as_read", lambda *args, **kwargs: None)
-        monkeypatch.setattr(Whatsapp, "get_business_phone_number_id",
-                            lambda self: "142427035629239")
+        monkeypatch.setattr(
+            Whatsapp,
+            "get_business_phone_number_id",
+            lambda self: "142427035629239"
+        )
 
-        saved_ids = ["media1", "media2"]
+        # Simulate save_whatsapp_media_content returning a list containing the media id
         monkeypatch.setattr(
             UserMedia,
             "save_whatsapp_media_content",
             lambda bot, sender_id, whatsapp_media_id, config: [whatsapp_media_id]
         )
 
-        # spy on _handle_user_message
+        # Spy on _handle_user_message
         handler._handle_user_message = AsyncMock()
 
-        # build a payload: two docs in interactive.nfm_reply.response_json
+        # Build a payload: two docs in interactive.nfm_reply.response_json
         docs = [
             {"id": "doc1", "mime_type": "image/jpeg", "sha256": "x", "file_name": "a.jpg"},
             {"id": "doc2", "mime_type": "application/pdf", "sha256": "y", "file_name": "b.pdf"}
@@ -368,35 +371,27 @@ class TestWhatsappHandler:
             ]
         }
 
-        # call through the public entry‐point
+        # Call through the public entry‐point
         await handler.handle_meta_payload(
             payload,
             {"channel_type": "whatsapp", "bsp_type": "meta", "tabname": "default"},
             bot
         )
 
-        # Assert: _handle_user_message was called exactly twice
-        assert handler._handle_user_message.call_count == 2
+        # Assert: _handle_user_message was called exactly once
+        assert handler._handle_user_message.call_count == 1
 
-        # Grab the two calls
-        calls = handler._handle_user_message.call_args_list
+        # Grab the single call
+        args, kwargs = handler._handle_user_message.call_args
+        text, sender, msg_obj, bot_name, media_ids = args
 
-        # First call: image/jpeg → /k_multimedia_msg{"image":"doc1"}
-        args, kwargs = calls[0]
-        text1, sender1, msg1, bot1, media_ids1 = args
-        assert text1 == '/k_multimedia_msg{"image": "doc1"}'
-        assert sender1 == "user123"
-        assert bot1 == bot
-        assert media_ids1 == ["doc1"]
+        expected_last_doc = docs[-1]["id"]
+        expected_payload = f'/k_multimedia_msg{{"media_ids": "{expected_last_doc}"}}'
 
-        # Second call: application/pdf → /k_multimedia_msg{"application":"doc2"}
-        args, kwargs = calls[1]
-        text2, sender2, msg2, bot2, media_ids2 = args
-        # note: top‐level type from mime before slash ("application")
-        assert text2 == '/k_multimedia_msg{"application": "doc2"}'
-        assert sender2 == "user123"
-        assert bot2 == bot
-        assert media_ids2 == ["doc2"]
+        assert text == expected_payload
+        assert sender == "user123"
+        assert bot_name == bot
+        assert media_ids == [expected_last_doc]
 
     @pytest.mark.asyncio
     async def test_whatsapp_valid_location_message_request(self):
