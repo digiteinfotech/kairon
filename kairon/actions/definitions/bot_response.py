@@ -6,7 +6,6 @@ from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
-from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM
 from kairon.shared.data.data_objects import BotSettings
