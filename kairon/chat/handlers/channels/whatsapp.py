@@ -49,17 +49,20 @@ class Whatsapp:
                 entity = json.dumps({"flow_reply": response_json})
                 docs = response_json.get("documents", [])
                 if docs:
-                    media_list=[]
+                    temp_media_ids=[]
+                    media_id_list=[]
                     for doc in docs:
                         media_id = doc["id"]
-                        media_ids = UserMedia.save_whatsapp_media_content(
+                        ids = UserMedia.save_whatsapp_media_content(
                             bot=bot,
                             sender_id=message["from"],
                             whatsapp_media_id=media_id,
                             config=self.config
                         )
-                        media_list.append(media_ids)
-                    text = f"/k_multimedia_msg{{\"media_ids\": \"{media_id}\"}}"
+                        media_id_list.append(media_id)
+                        temp_media_ids.append(ids)
+                    media_ids=temp_media_ids
+                    text = f"/k_multimedia_msg{{\"flow_docs\": \"{media_id_list}\"}}"
                 else:
                     text = f"/k_interactive_msg{entity}"
             else:

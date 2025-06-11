@@ -378,20 +378,20 @@ class TestWhatsappHandler:
             bot
         )
 
-        # Assert: _handle_user_message was called exactly once
+        # Ensure single invocation
         assert handler._handle_user_message.call_count == 1
+        # Inspect call args
+        text, sender, msg_obj, bot_name, media_ids = handler._handle_user_message.call_args[0]
 
-        # Grab the single call
-        args, kwargs = handler._handle_user_message.call_args
-        text, sender, msg_obj, bot_name, media_ids = args
-
-        expected_last_doc = docs[-1]["id"]
-        expected_payload = f'/k_multimedia_msg{{"media_ids": "{expected_last_doc}"}}'
+        # Construct expectations based on code behavior
+        expected_list_str = str([doc["id"] for doc in docs])
+        expected_payload = f'/k_multimedia_msg{{"flow_docs": "{expected_list_str}"}}'
+        expected_media_ids = [[doc["id"]] for doc in docs]
 
         assert text == expected_payload
         assert sender == "user123"
         assert bot_name == bot
-        assert media_ids == [expected_last_doc]
+        assert media_ids == expected_media_ids
 
     @pytest.mark.asyncio
     async def test_whatsapp_valid_location_message_request(self):
