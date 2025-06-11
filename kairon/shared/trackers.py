@@ -69,6 +69,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             IndexModel([("event.event", ASCENDING), ("event.timestamp", DESCENDING)]),
             IndexModel([("event.name", ASCENDING), ("event.timestamp", DESCENDING)]),
             IndexModel([("event.timestamp", DESCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.event", ASCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.event", ASCENDING), ("event.timestamp", ASCENDING)]),
         ]
         self.conversations.create_indexes(indexes)
 
