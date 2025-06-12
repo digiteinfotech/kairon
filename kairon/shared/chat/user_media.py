@@ -9,7 +9,7 @@ from markdown_pdf import MarkdownPdf, Section
 from loguru import logger
 from fastapi import File
 import requests
-from mongoengine import DoesNotExist
+from mongoengine import DoesNotExist, NotUniqueError
 from pathy import ClientError
 from uuid6 import uuid7
 
@@ -466,9 +466,13 @@ class UserMedia:
                     user="system",
                 )
                 prompt_action.save()
+            MULTIMEDIA_INTENT_NAME = "k_multimedia_msg"
 
-            if not Intents.objects(name__iexact="k_multimedia_msg", bot=bot, status=True).first():
-                MongoProcessor().add_intent("k_multimedia_msg", bot, "system", True)
+            if not Intents.objects(name__iexact=MULTIMEDIA_INTENT_NAME, bot=bot, status=True).first():
+                try:
+                    MongoProcessor().add_intent(MULTIMEDIA_INTENT_NAME, bot, "system", True)
+                except NotUniqueError:
+                    pass
 
             if not Rules.objects(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot).first():
                 rule_data = {
