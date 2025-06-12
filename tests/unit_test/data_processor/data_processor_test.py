@@ -58,7 +58,7 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction, PromptAction, UserQuestion, DbQuery, \
     CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, LiveAgentActionConfig, \
-    KaironTwoStageFallbackAction, ParallelActionConfig
+    KaironTwoStageFallbackAction, ParallelActionConfig, TriggerInfo
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.actions.models import ActionType, DispatchType, DbActionOperationType, DbQueryValueType, \
     ActionParameterType
@@ -1591,6 +1591,102 @@ class TestMongoProcessor:
     def test_bot_id_change(self):
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
+
+    def test_get_action_server_logs_not_implicit(self):
+        bot = "test_bot"
+        request_params = {"key": "value", "key2": "value2"}
+
+        # This log has implicit trigger_info (default), should be returned
+        ActionServerLogs(
+            intent="intent1",
+            action="http_action",
+            sender="sender_id",
+            timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
+            request_params=request_params,
+            api_response="Response",
+            bot_response="Bot Response",
+            bot=bot
+        ).save()
+
+        # This log has explicit trigger_info, should be filtered out
+        ActionServerLogs(
+            intent="intent2",
+            action="http_action2",
+            sender="sender_id",
+            url="http://kairon-api.digite.com/api/bot",
+            request_params=request_params,
+            api_response="Response",
+            bot_response="Bot Response",
+            bot=bot,
+            status="FAILURE",
+            trigger_info=TriggerInfo(trigger_name="explicit_action", trigger_type="parallel_action")
+        ).save()
+
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs(bot))
+
+        # Only the first one should be returned
+        assert len(logs) == 1
+        assert logs[0]['action'] == "http_action"
+        ActionServerLogs.objects(action = "http_action").delete()
+        ActionServerLogs.objects(action = "http_action2").delete()
+
+    def test_fetch_action_logs_for_parallel_action(self):
+        bot = "test_bot_parallel"
+        action_name_1 = "action_name_1"
+        action_name_2 = "action_name_2"
+        parallel_action_name = "parallel_action"
+        action_name_3 = "action_name_3"
+
+        ParallelActionConfig(
+            name=parallel_action_name,
+            bot=bot,
+            user="test_user",
+            actions=[action_name_1, action_name_2],
+            response_text="parallel response"
+        ).save()
+
+        ActionServerLogs(
+            intent="intent_parallel",
+            action=action_name_1,
+            sender="sender_1",
+            bot=bot
+        ).save()
+
+        ActionServerLogs(
+            intent="intent_parallel_2",
+            action=action_name_2,
+            sender="sender_2",
+            bot=bot
+        ).save()
+
+        ActionServerLogs(
+            intent="intent_parallel_3",
+            action=action_name_3,
+            sender="sender_3",
+            bot=bot
+        ).save()
+
+
+        processor = MongoProcessor()
+        logs = processor.fetch_action_logs_for_parallel_action(parallel_action_name, bot)
+
+        assert len(logs) == 2
+        actions = sorted([log["action"] for log in logs])
+        assert actions == sorted([action_name_1, action_name_2])
+
+        ParallelActionConfig.objects(name=parallel_action_name, bot=bot).delete()
+        ActionServerLogs.objects(action=action_name_1).delete()
+        ActionServerLogs.objects(action=action_name_2).delete()
+        ActionServerLogs.objects(action=action_name_3).delete()
+
+    def test_fetch_action_logs_for_parallel_action_parallel_action_not_found(self):
+        bot = "test_bot_parallel_2"
+        parallel_action_name = "parallel_action_2"
+
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Parallel action 'parallel_action_2' not found"):
+            processor.fetch_action_logs_for_parallel_action(parallel_action_name, bot)
 
     def test_validate_data_push_menu_success(self):
         bot = 'test_bot'

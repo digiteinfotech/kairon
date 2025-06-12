@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, HubspotFormsAction
+from kairon.shared.actions.data_objects import ActionServerLogs, HubspotFormsAction, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -39,7 +39,7 @@ class ActionHubspotForms(ActionsBase):
             raise ActionFailure("No Hubspot forms action found for given action and bot")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -49,6 +49,8 @@ class ActionHubspotForms(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         status = "SUCCESS"
         exception = None
         http_response = None
@@ -71,6 +73,8 @@ class ActionHubspotForms(ActionsBase):
             status = "FAILURE"
             bot_response = "I have failed to process your request"
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.hubspot_forms_action.value,
                 request_params=request_body,
@@ -82,7 +86,8 @@ class ActionHubspotForms(ActionsBase):
                 api_response=str(http_response) if http_response else None,
                 bot_response=bot_response,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         dispatcher.utter_message(bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

@@ -9,7 +9,7 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, ParallelActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, ParallelActionConfig, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -55,12 +55,9 @@ class ActionParallel(ActionsBase):
         @param domain: Bot domain providing context for the action execution.
         @return: A dictionary of slot changes after executing all actions.
         """
-        action_call = kwargs.get('action_call')
-        if not action_call:
-            raise ActionFailure("Missing action_call in kwargs.")
+        action_call = kwargs.get('action_call', {})
 
         exception = None
-        executed_actions_info = []
         filled_slots = {}
         status = "SUCCESS"
         dispatch_bot_response = False
@@ -79,7 +76,7 @@ class ActionParallel(ActionsBase):
                 return_exceptions=True
             )
 
-            executed_actions_info, filled_slots = self.formatted_results(results, action_names, filled_slots)
+            filled_slots = self.extract_and_update_slots(results, filled_slots)
 
             self.__is_success = True
 
@@ -94,6 +91,8 @@ class ActionParallel(ActionsBase):
                 filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
                 if message:
                     logger.exception(message)
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.parallel_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -104,7 +103,7 @@ class ActionParallel(ActionsBase):
                 bot=self.bot,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
-                executed_actions_info=executed_actions_info
+                trigger_info=trigger_info_obj
             ).save()
 
         return filled_slots
@@ -135,8 +134,12 @@ class ActionParallel(ActionsBase):
         @param action_instance: The instance of the action to execute.
         @return: The response from the webhook call.
         """
-        request_json = action_instance
+        request_json = action_instance.copy()
         request_json['next_action'] = action_name
+        request_json['trigger_info'] = {
+            "trigger_name": self.name,
+            "trigger_type": ActionType.parallel_action.value
+        }
 
         url = Utility.environment["action"].get("url")
 
@@ -144,60 +147,26 @@ class ActionParallel(ActionsBase):
             async with session.post(url, json=request_json) as response:
                 response_json = await response.json()
 
+        return response_json
 
-        return {
-            "action_name": action_name,
-            "status_code": response.status,
-            "body": response_json
-        }
 
     @staticmethod
-    def formatted_results(results, action_names, filled_slots):
+    def extract_and_update_slots(results, filled_slots):
         """
-        Formats the webhook results with action name, status, and slot changes.
+        Extracts slot changes from the webhook results and updates the filled_slots dict.
 
-        @param results: Raw results from webhook calls.
-        @param action_names: Corresponding action names.
-        @return: List of formatted result dicts.
+        @param results: List of JSON responses from webhook calls.
+        @param filled_slots: Dictionary to update slot values.
+        @return: The updated filled_slots dictionary.
         """
-        formatted_results = []
-        for i, result in enumerate(results):
-            action_name = action_names[i]
-            if isinstance(result, Exception):
-                logger.exception(f"Error in action '{action_name}': {result}")
-                formatted_results.append({
-                    "name": action_name,
-                    "status": "FAILURE",
-                    "slot_changes": {}
-                })
-                continue
-
-            status_code = result.get("status_code", 422)
-            body = result.get("body", {})
-            slot_changes = {}
-
+        for body in results:
             if isinstance(body, dict) and "events" in body:
-                events = body["events"]
-                slot_events = [
-                    event for event in events
+                for event in body["events"]:
                     if (
                         isinstance(event, dict)
                         and event.get("event") == "slot"
                         and "name" in event
                         and "value" in event
-                    )
-                ]
-                slot_changes = {
-                    event["name"]: event["value"]
-                    for event in slot_events
-                }
-
-            filled_slots.update(slot_changes)
-
-            formatted_results.append({
-                "name": action_name,
-                "status": "SUCCESS" if status_code == 200 else "FAILURE",
-                "slot_changes": slot_changes
-            })
-
-        return formatted_results, filled_slots
+                    ):
+                        filled_slots[event["name"]] = event["value"]
+        return filled_slots
