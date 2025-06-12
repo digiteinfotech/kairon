@@ -19,7 +19,8 @@ from kairon.shared.actions.data_objects import Actions, PromptAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.data.data_objects import UserMediaData, Rules
+from kairon.shared.data.data_objects import UserMediaData, Rules, Intents
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
 import fitz
 
@@ -465,6 +466,9 @@ class UserMedia:
                     user="system",
                 )
                 prompt_action.save()
+
+            if not Intents.objects(name__iexact="k_multimedia_msg", bot=bot, status=True).first():
+                MongoProcessor().add_intent("k_multimedia_msg", bot, "system", True)
 
             if not Rules.objects(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot).first():
                 rule_data = {
