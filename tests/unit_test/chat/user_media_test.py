@@ -437,6 +437,14 @@ def test_save_whatsapp_media_content_meta_failure(mock_get):
 @patch("kairon.shared.chat.user_media.PromptAction")
 @patch("kairon.shared.chat.user_media.Rules")
 @patch("kairon.shared.chat.user_media.logger")
+@patch("kairon.shared.utils.Utility.environment", {
+    "notifications": {"enable": False},
+    "events": {
+        "audit_logs": {
+            "attributes": []
+        }
+    }
+})
 def test_add_media_extraction_flow_if_not_exist(mock_logger, mock_rules, mock_prompt_action, mock_actions):
     bot = "test_bot"
 
