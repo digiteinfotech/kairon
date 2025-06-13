@@ -5,7 +5,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
@@ -38,7 +38,7 @@ class ActionPrompt(ActionsBase):
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
         return k_faq_action_config, bot_settings
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Fetches response for user query from llm configured.
         Information regarding the execution is logged in ActionServerLogs.
@@ -48,6 +48,8 @@ class ActionPrompt(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         status = "SUCCESS"
         exception = None
         llm_response = None
@@ -70,7 +72,7 @@ class ActionPrompt(ActionsBase):
             user_question = k_faq_action_config.get('user_question')
             user_msg = self.__get_user_msg(tracker, user_question)
             llm_type = k_faq_action_config['llm_type']
-            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain,**kwargs)
             llm_processor = LLMProcessor(self.bot, llm_type)
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
@@ -109,6 +111,8 @@ class ActionPrompt(ActionsBase):
             events.extend(events_to_extend)
             if llm_processor:
                 llm_logs = llm_processor.logs
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -125,7 +129,8 @@ class ActionPrompt(ActionsBase):
                 llm_logs=llm_logs,
                 user_msg=user_msg,
                 media_ids=media_ids,
-                time_elapsed=total_time_elapsed
+                time_elapsed=total_time_elapsed,
+                trigger_info=trigger_info_obj
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
@@ -133,7 +138,7 @@ class ActionPrompt(ActionsBase):
 
         return slots_to_fill
 
-    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         from kairon.actions.definitions.factory import ActionFactory
 
         system_prompt = None
@@ -167,7 +172,7 @@ class ActionPrompt(ActionsBase):
                         context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
                     action = ActionFactory.get_instance(self.bot, prompt['data'])
-                    await action.execute(dispatcher, tracker, domain)
+                    await action.execute(dispatcher, tracker, domain, **kwargs)
                     if action.is_success:
                         response = action.response
                         context_prompt += f"{prompt['name']}:\n{response}\n"

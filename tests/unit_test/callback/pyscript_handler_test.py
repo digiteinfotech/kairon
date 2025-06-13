@@ -1200,7 +1200,7 @@ def test_fetch_collection_data_success():
     mock_object.to_mongo.return_value.to_dict.return_value = mock_data
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
-            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
+            patch("kairon.shared.data.collection_processor.DataProcessor.prepare_decrypted_data",
                   return_value="decrypted_data"):
         results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "some_value"}))
 
@@ -1239,7 +1239,7 @@ def test_fetch_collection_data_without_collection_name():
     mock_object.to_mongo.return_value.to_dict.return_value = mock_data
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=[mock_object]), \
-            patch("kairon.shared.cognition.processor.CognitionDataProcessor.prepare_decrypted_data",
+            patch("kairon.shared.data.collection_processor.DataProcessor.prepare_decrypted_data",
                   return_value="decrypted_data"):
         results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "some_value"}))
 
@@ -1270,7 +1270,7 @@ def test_add_data_missing_bot():
         PyscriptSharedUtility.add_data("test_user", {"key": "value"}, bot=None)
 
 
-@patch('kairon.shared.cognition.processor.CognitionDataProcessor.save_collection_data')
+@patch('kairon.shared.data.collection_processor.DataProcessor.save_collection_data')
 def test_add_data_success(mock_save):
     mock_save.return_value = "collection_id_123"
     result = PyscriptSharedUtility.add_data("test_user", {"key": "value"}, bot="test_bot")
@@ -1289,7 +1289,7 @@ def test_update_data_missing_bot():
         PyscriptSharedUtility.update_data("id_123", "test_user", {"key": "value"}, bot=None)
 
 
-@patch('kairon.shared.cognition.processor.CognitionDataProcessor.update_collection_data')
+@patch('kairon.shared.data.collection_processor.DataProcessor.update_collection_data')
 def test_update_data_success(mock_update):
     mock_update.return_value = "updated_id_123"
     result = PyscriptSharedUtility.update_data("id_123", "test_user", {"key": "value"}, bot="test_bot")
@@ -1308,7 +1308,7 @@ def test_delete_data_missing_bot():
         PyscriptSharedUtility.delete_data("id_123", "test_user", bot=None)
 
 
-@patch('kairon.shared.cognition.processor.CognitionDataProcessor.delete_collection_data')
+@patch('kairon.shared.data.collection_processor.DataProcessor.delete_collection_data')
 def test_delete_data_success(mock_delete):
     result = PyscriptSharedUtility.delete_data("id_123", "test_user", bot="test_bot")
 

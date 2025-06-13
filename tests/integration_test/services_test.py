@@ -1479,8 +1479,8 @@ def test_secure_collection_crud_lifecycle():
         },
         "status": True
     }
-    add_resp = client.post(
-        f"/api/bot/{bot_id}/collections/data/add",
+    add_resp_1 = client.post(
+        f"/api/bot/{bot_id}/data/collection",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json=add_payload_1
     )
@@ -1496,7 +1496,7 @@ def test_secure_collection_crud_lifecycle():
         "status": True
     }
     add_resp = client.post(
-        f"/api/bot/{bot_id}/collections/data/add",
+        f"/api/bot/{bot_id}/data/collection",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json=add_payload
     )
@@ -1504,14 +1504,13 @@ def test_secure_collection_crud_lifecycle():
     resp_json = add_resp.json()
     print(resp_json)
     assert resp_json["message"] == "Record saved!"
-    doc_id = resp_json["data"]["id"]
+    doc_id = resp_json["data"]["_id"]
     assert doc_id
 
     # Step 3: List collection data
-    list_resp = client.post(
-        f"/api/bot/{bot_id}/collections/data",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"collection_name": "testing_create_colection_secure"}
+    list_resp = client.get(
+        f"/api/bot/{bot_id}/data/collection/testing_create_colection_secure",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     assert list_resp.status_code == 200
     listed_data = list_resp.json()["data"]
@@ -1522,6 +1521,7 @@ def test_secure_collection_crud_lifecycle():
         "id": doc_id,
         "collection_name": "testing_create_colection_secure",
         "data": {
+            "mobile_number":"123456789",
             "name": "testing_updated",
             "empid": 4321  # This should be ignored because it's in `is_non_editable`
         },
@@ -1530,18 +1530,17 @@ def test_secure_collection_crud_lifecycle():
         "status": False
     }
     update_resp = client.put(
-        f"/api/bot/{bot_id}/collections/data/update",
+        f"/api/bot/{bot_id}/data/collection/{doc_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         json=update_payload
     )
     assert update_resp.status_code == 200
-    assert update_resp.json()["message"] == "Doccument Updated"
+    assert update_resp.json()["message"] == "Record updated!"
 
     # Verify update — empid should remain unchanged (1234), name should change
-    list_resp_after_update = client.post(
-        f"/api/bot/{bot_id}/collections/data",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        json={"collection_name": "testing_create_colection_secure"}
+    list_resp_after_update = client.get(
+        f"/api/bot/{bot_id}/data/collection/testing_create_colection_secure",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["_id"] == doc_id)
     assert updated_doc["data"]["name"] == "testing_updated"
@@ -1550,7 +1549,7 @@ def test_secure_collection_crud_lifecycle():
     # Step 5: Delete the document
     delete_doc_resp = client.request(
         method="DELETE",
-        url=f"/api/bot/{bot_id}/collections/data/delete/{doc_id}",
+        url=f"/api/bot/{bot_id}/data/collection/{doc_id}",
         headers={
             "Authorization": pytest.token_type + " " + pytest.access_token,
             "Content-Type": "application/json"
@@ -1558,12 +1557,11 @@ def test_secure_collection_crud_lifecycle():
     )
     assert delete_doc_resp.status_code == 200
     assert delete_doc_resp.json()["message"] == "Record deleted!"
-    assert delete_doc_resp.json()["data"]["deleted"] == 1
 
     # Step 6: Delete the collection
     delete_coll_resp = client.request(
         method="DELETE",
-        url=f"/api/bot/{bot_id}/collections/delete/testing_create_colection_secure",
+        url=f"/api/bot/{bot_id}/data/collection/delete/testing_create_colection_secure",
         headers={
             "Authorization": pytest.token_type + " " + pytest.access_token,
             "Content-Type": "application/json"
@@ -1605,17 +1603,17 @@ def test_get_all_collections():
             "status": True
         }
         add_resp = client.post(
-            f"/api/bot/{bot_id}/collections/data/add",
+            f"/api/bot/{bot_id}/data/collection",
             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
             json=payload
         )
         assert add_resp.status_code == 200
         assert add_resp.json()["message"] == "Record saved!"
-        assert add_resp.json()["data"]["id"]
+        assert add_resp.json()["data"]["_id"]
 
     # Step 3: Fetch all collections
     get_resp = client.get(
-        f"/api/bot/{bot_id}/collections",
+        f"/api/bot/{bot_id}/data/collections/all",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     assert get_resp.status_code == 200
@@ -4562,6 +4560,32 @@ def test_save_collection_data_with_invalid_data():
                                    'type': 'value_error'}]
     assert not actual["success"]
 
+def test_save_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_save_collection_data():
     request_body = {
@@ -4657,6 +4681,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4667,6 +4692,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4677,6 +4703,8 @@ def test_list_collection_data():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
+
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4718,6 +4746,8 @@ def test_get_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
+
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4742,6 +4772,7 @@ def test_get_collection_data():
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4767,6 +4798,8 @@ def test_get_collection_data():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
+
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4793,6 +4826,7 @@ def test_get_collection_data():
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4803,6 +4837,8 @@ def test_get_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
+
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4842,6 +4878,7 @@ def test_get_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4868,6 +4905,7 @@ def test_get_collection_data_with_collection_id():
         '_id': pytest.collection_id,
         'collection_name': 'user',
         'is_secure': ['name', 'mobile_number'],
+        'is_non_editable': [],
         'data': {
             'name': 'Mahesh',
             'age': 24,
@@ -4893,6 +4931,7 @@ def test_get_collection_data_with_filter():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4995,6 +5034,61 @@ def test_update_collection_data_with_invalid_is_secure():
                                   'type': 'value_error'}]
     assert not actual["success"]
 
+def test_update_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+def test_update_collection_data_with_invalid_is_non_editable():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": "name, aadhar",  # Invalid: should be a list
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_non_editable'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable should be a list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_update_collection_data_with_invalid_data():
     request_body = {
@@ -5087,6 +5181,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': ['mobile_number', 'location'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -5097,6 +5192,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -5107,6 +5203,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -5161,6 +5258,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -5171,6 +5269,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',

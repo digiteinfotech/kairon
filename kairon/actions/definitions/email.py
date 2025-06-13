@@ -8,7 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.utils import MailUtility
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, EmailActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, EmailActionConfig, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.actions.utils import ActionUtility
@@ -40,7 +40,7 @@ class ActionEmail(ActionsBase):
             raise ActionFailure("No Email action found for given action and bot")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -50,6 +50,8 @@ class ActionEmail(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         status = "SUCCESS"
         exception = None
         action_config = self.retrieve_config()
@@ -90,6 +92,8 @@ class ActionEmail(ActionsBase):
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.email_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -99,7 +103,8 @@ class ActionEmail(ActionsBase):
                 exception=exception,
                 bot_response=bot_response,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj
             ).save()
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
 

@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
+from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -15,6 +15,7 @@ from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType
 from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -212,7 +213,7 @@ async def save_collection_data(
     return {
         "message": "Record saved!",
         "data": {
-            "_id": cognition_processor.save_collection_data(
+            "_id": DataProcessor.save_collection_data(
                 collection.dict(),
                 current_user.get_user(),
                 current_user.get_bot(),
@@ -233,7 +234,7 @@ async def update_collection_data(
     return {
         "message": "Record updated!",
         "data": {
-            "_id": cognition_processor.update_collection_data(
+            "_id": DataProcessor.update_collection_data(
                 collection_id,
                 collection.dict(),
                 current_user.get_user(),
@@ -251,7 +252,7 @@ async def delete_collection_data(
     """
     Deletes collection data
     """
-    cognition_processor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
+    DataProcessor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
     return {
         "message": "Record deleted!"
     }
@@ -264,7 +265,7 @@ async def list_collection_data(
     """
     Fetches collection data of the bot
     """
-    return {"data": list(cognition_processor.list_collection_data(current_user.get_bot()))}
+    return {"data": list(DataProcessor.list_collection_data(current_user.get_bot()))}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)
@@ -276,7 +277,7 @@ async def get_collection_data(
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
+    return {"data": list(DataProcessor.get_collection_data(current_user.get_bot(),
                                                                  collection_name=collection_name,
                                                                  key=key, value=value))}
 
@@ -292,7 +293,7 @@ async def get_collection_data_with_timestamp(
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(cognition_processor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
+    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
                                                                                    data_filter=filters,
                                                                                  collection_name=collection_name,
                                                                                    start_time=start_time,
@@ -307,9 +308,33 @@ async def get_collection_data_with_id(
     """
     Fetches collection data based on the collection_id provided
     """
-    return {"data": cognition_processor.get_collection_data_with_id(current_user.get_bot(),
+    return {"data": DataProcessor.get_collection_data_with_id(current_user.get_bot(),
                                                                     collection_id=collection_id)}
 
+@router.get("/collections/all", response_model=Response)
+async def get_all_collections(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    List all collection names for the bot.
+    """
+    names = DataProcessor.get_all_collections(current_user.get_bot())
+    return Response(data=names)
+
+
+@router.delete("/collection/delete/{collection_name}", response_model=Response)
+async def delete_collection(
+    collection_name: str = Path(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Drop an entire collection and its documents by collection name.
+    """
+    message, deleted_count = DataProcessor.delete_collection(
+        bot=current_user.get_bot(),
+        name=collection_name
+    )
+    return Response(message=message, data={"deleted": deleted_count})
 
 @router.post("/content/upload", response_model=Response)
 async def upload_doc_content(
