@@ -1404,6 +1404,15 @@ class FlowTagChangeRequest(BaseModel):
     tag: str
     type: str
 
+class MetaConfig(BaseModel):
+    access_token: str
+    catalog_id: str
+
+class POSIntegrationRequest(BaseModel):
+    provider: str
+    config: dict
+    meta_config: Optional[MetaConfig]
+
 
 class ParallelActionRequest(BaseModel):
     """

@@ -335,6 +335,24 @@ class LLMProcessor(LLMBase):
             timeout=5)
         return response
 
+    async def __delete_collection_points__(self, collection_name: Text, point_ids: List, err_msg: Text,
+                                           raise_err=True):
+        client = AioRestClient()
+        response = await client.request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/delete"),
+                                        request_method="POST",
+                                        headers=self.headers,
+                                        request_body={"points": point_ids},
+                                        return_json=True,
+                                        timeout=5)
+        print(response)
+
+        if not response.get('result'):
+            if "status" in response:
+                logging.exception(response['status'].get('error'))
+                if raise_err:
+                    raise AppException(err_msg)
+
+
     async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
         client = AioRestClient()
         request_body = {

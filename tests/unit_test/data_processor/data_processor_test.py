@@ -7,14 +7,17 @@ import tempfile
 import urllib
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import List
 from urllib.parse import urljoin
 
 import ujson as json
 import yaml
 
+from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.collection_processor import DataProcessor
+from kairon.shared.data.data_models import POSIntegrationRequest
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
@@ -66,7 +69,7 @@ from kairon.shared.actions.models import ActionType, DispatchType, DbActionOpera
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
@@ -85,7 +88,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup
+                                             Lookup, BotSyncConfig
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -95,7 +98,7 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncEventType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
@@ -1316,6 +1319,428 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
             processor.delete_action('non_existent_kairon_faq_action', bot, user)
 
+    def test_preprocess_push_menu_data_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+
+        push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+        with push_menu_payload_path.open("r", encoding="utf-8") as f:
+            push_menu_payload = json.load(f)
+
+        CatalogProviderMapping(
+            provider=provider,
+            meta_mappings={
+                "name": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "availability": {"source": "in_stock", "default": "out of stock"},
+                "image_url": {"source": "item_image_url", "default": "https://www.kairon.com/default-image.jpg"},
+                "url": {"source": None, "default": "https://www.kairon.com/"},
+                "brand": {"source": None, "default": "Sattva"},
+                "condition": {"source": None, "default": "new"}
+            },
+            kv_mappings={
+                "title": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "facebook_product_category": {"source": "item_categoryid", "default": "Food and drink > General"},
+                "availability": {"source": "in_stock", "default": "out of stock"}
+            }
+        ).save()
+
+        BotSyncConfig(
+            parent_bot=bot,
+            restaurant_name="Test Restaurant",
+            provider="demo",
+            branch_name="Branch",
+            branch_bot=bot,
+            user=user,
+            process_push_menu=False,
+            process_item_toggle=True
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "https://picsum.photos/id/237/200/300",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.preprocess_push_menu_data(bot, push_menu_payload, provider)
+
+        expected_result = {
+            "meta": [
+                {
+                    "id": "10539634",
+                    "name": "Potter 4",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 8700,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                },
+                {
+                    "id": "10539699",
+                    "name": "Potter 99",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 3426,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                },
+                {
+                    "id": "10539580",
+                    "name": "Potter 5",
+                    "description": "chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust",
+                    "price": 3159,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                }
+            ],
+            "kv": [
+                {
+                    "id": "10539634",
+                    "title": "Potter 4",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 8700,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                },
+                {
+                    "id": "10539699",
+                    "title": "Potter 99",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 3426,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                },
+                {
+                    "id": "10539580",
+                    "title": "Potter 5",
+                    "description": "chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust",
+                    "price": 3159,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                }
+            ]
+        }
+
+        assert result == expected_result
+        CatalogProviderMapping.objects.delete()
+        BotSyncConfig.objects.delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_preprocess_push_menu_data_no_provider_mapping(self):
+        bot = "test_bot"
+        provider = "nonexistent_provider"
+        push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+        with push_menu_payload_path.open("r", encoding="utf-8") as f:
+            push_menu_payload = json.load(f)
+
+        with pytest.raises(Exception, match="Metadata mappings not found for provider=nonexistent_provider"):
+            CognitionDataProcessor.preprocess_push_menu_data(bot, push_menu_payload, provider)
+
+    def test_preprocess_item_toggle_data_success(self):
+        bot = "test_bot"
+        provider = "petpooja"
+
+        CatalogProviderMapping(
+            provider=provider,
+            meta_mappings={
+                "name": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "availability": {"source": "in_stock", "default": "out of stock"},
+                "image_url": {"source": "item_image_url", "default": "https://www.kairon.com/default-image.jpg"},
+                "url": {"source": None, "default": "https://www.kairon.com/"},
+                "brand": {"source": None, "default": "Sattva"},
+                "condition": {"source": None, "default": "new"}
+            },
+            kv_mappings={
+                "title": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "facebook_product_category": {"source": "item_categoryid", "default": "Food and drink > General"},
+                "availability": {"source": "in_stock", "default": "out of stock"}
+            }
+        ).save()
+
+        json_data_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+        with json_data_path.open("r", encoding="utf-8") as f:
+            json_data = json.load(f)
+
+        result = CognitionDataProcessor.preprocess_item_toggle_data(bot, json_data, provider)
+
+        expected_result = {
+            "meta": [
+                {"id": "10539580", "availability": "out of stock"}
+            ],
+            "kv": [
+                {"id": "10539580", "availability": "out of stock"}
+            ]
+        }
+
+        assert result == expected_result
+        CatalogProviderMapping.objects.delete()
+
+    def test_preprocess_item_toggle_data_no_provider_mapping(self):
+        bot = "test_bot"
+        provider = "nonexistent_provider"
+        json_data_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+        with json_data_path.open("r", encoding="utf-8") as f:
+            json_data = json.load(f)
+
+        with pytest.raises(Exception, match="Metadata mappings not found for provider=nonexistent_provider"):
+            CognitionDataProcessor.preprocess_item_toggle_data(bot, json_data, provider)
+
+    def test_resolve_image_link_global(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+
+        bot_sync_config = BotSyncConfig(
+            parent_bot="parent_bot",
+            restaurant_name="TestRestaurant",
+            provider="some_provider",
+            branch_name="TestBranch",
+            branch_bot=bot,
+            ai_enabled=True,
+            meta_enabled=True,
+            user=user,
+            timestamp=datetime.utcnow()
+        )
+        bot_sync_config.save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "http://global_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        expected_result = "http://global_image_url.com"
+        assert result == expected_result
+
+        BotSyncConfig.objects.delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_resolve_image_link_local(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+
+        bot_sync_config = BotSyncConfig(
+            parent_bot="parent_bot",
+            restaurant_name="TestRestaurant",
+            provider="some_provider",
+            branch_name="TestBranch",
+            branch_bot=bot,
+            ai_enabled=True,
+            meta_enabled=True,
+            user=user,
+            timestamp=datetime.utcnow()
+        )
+        bot_sync_config.save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "http://global_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        local_image_data = {
+            "image_type": "local",
+            "item_id": int(item_id),
+            "image_url": "http://local_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=local_image_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        expected_result = "http://local_image_url.com"
+        assert result == expected_result
+
+        BotSyncConfig.objects.delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_resolve_image_link_no_image(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+
+        bot_sync_config = BotSyncConfig(
+            parent_bot="parent_bot",
+            restaurant_name="TestRestaurant",
+            provider="some_provider",
+            branch_name="TestBranch",
+            branch_bot=bot,
+            ai_enabled=True,
+            meta_enabled=True,
+            user=user,
+            timestamp=datetime.utcnow()
+        )
+        bot_sync_config.save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+
+        with pytest.raises(Exception,
+                           match=f"Image URL not found for {item_id} in {catalog_images_collection}"):
+            CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        BotSyncConfig.objects.delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_add_bot_sync_config_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        request_data = POSIntegrationRequest(
+            provider="petpooja",
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            }
+        )
+
+        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
+
+        CognitionDataProcessor.add_bot_sync_config(request_data, bot, user)
+
+        bot_sync = BotSyncConfig.objects.get(branch_bot=bot, provider="petpooja")
+        assert bot_sync.restaurant_name == "restaurant1"
+        assert bot_sync.branch_name == "branch1"
+        assert bot_sync.process_push_menu is False
+        assert bot_sync.process_item_toggle is False
+        assert bot_sync.ai_enabled is False
+        assert bot_sync.meta_enabled is False
+        assert bot_sync.user == user
+        assert bot_sync.parent_bot == bot
+
+        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
+
+    def test_add_bot_sync_config_already_exists(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        request_data = POSIntegrationRequest(
+            provider="petpooja",
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            }
+        )
+
+        existing_config = BotSyncConfig(
+            process_push_menu=True,
+            process_item_toggle=True,
+            parent_bot=bot,
+            restaurant_name="restaurant1",
+            provider="petpooja",
+            branch_name="branch1",
+            branch_bot=bot,
+            ai_enabled=True,
+            meta_enabled=True,
+            user=user
+        )
+        existing_config.save()
+
+        CognitionDataProcessor.add_bot_sync_config(request_data, bot, user)
+
+        configs = BotSyncConfig.objects(branch_bot=bot, provider="petpooja")
+        assert configs.count() == 1
+
+        config = configs.first()
+        assert config.process_push_menu is True
+        assert config.ai_enabled is True
+
+        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
+
+    def test_get_restaurant_and_branch_name_success(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        BotSyncConfig(
+            parent_bot="parent_bot",
+            restaurant_name="My Test Restaurant",
+            provider="test_provider",
+            branch_name="Main Branch",
+            branch_bot=bot,
+            ai_enabled=True,
+            meta_enabled=False,
+            user=user,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+
+        assert restaurant_name == "my_test_restaurant"
+        assert branch_name == "main_branch"
+
+        BotSyncConfig.objects(branch_bot=bot).delete()
+
+    def test_get_restaurant_and_branch_name_no_config(self):
+        bot = "bot_without_config"
+        BotSyncConfig.objects(branch_bot=bot).delete()
+
+        with pytest.raises(Exception, match=f"No bot sync config found for bot: {bot}"):
+            CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+
     def test_get_live_agent(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -1694,7 +2119,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {
@@ -1743,7 +2168,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1751,12 +2176,12 @@ class TestMongoProcessor:
         assert validation_summary == {}
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
 
-    def test_validate_data_field_update_success(self):
+    def test_validate_data_item_toggle_success(self):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = "field_update"
+        sync_type = "item_toggle"
 
         metadata = [
             {
@@ -1837,7 +2262,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1846,20 +2271,20 @@ class TestMongoProcessor:
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
 
-    def test_validate_data_event_type_does_not_exist(self):
+    def test_validate_data_sync_type_does_not_exist(self):
         bot = 'test_bot'
         collection_name = 'groceries'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'non_existent_event_type'
+        sync_type = 'non_existent_sync_type'
 
         processor = CognitionDataProcessor()
 
-        with pytest.raises(AppException, match=f"Event type does not exist"):
+        with pytest.raises(AppException, match=f"Sync type does not exist"):
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1869,7 +2294,7 @@ class TestMongoProcessor:
         collection_name = 'nonexistent_collection'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         processor = CognitionDataProcessor()
 
@@ -1877,7 +2302,7 @@ class TestMongoProcessor:
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1887,7 +2312,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1917,7 +2342,7 @@ class TestMongoProcessor:
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
                 data=data,
-                event_type=event_type,
+                sync_type=sync_type,
                 bot=bot
             )
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
@@ -1927,7 +2352,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1954,7 +2379,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1969,7 +2394,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1996,7 +2421,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -2011,7 +2436,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2054,7 +2479,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -2076,7 +2501,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -2138,7 +2563,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2161,6 +2586,15 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 3.00  # Updated price
         assert updated_record.data["quantity"] == 5
 
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-large",
+            input=['{"id":1,"item":"Juice","price":2.5,"quantity":10}',
+                   '{"id":2,"item":"Milk","price":3.0,"quantity":5}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="value",
+            num_retries=3
+        )
+
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
         LLMSecret.objects.delete()
@@ -2170,14 +2604,14 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_field_update_success(self, mock_embedding, mock_collection_upsert,
+    async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
                                                     mock_create_collection,
                                                     mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -2254,7 +2688,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2277,6 +2711,15 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 27.00  # Updated price
         assert updated_record.data["quantity"] == 12
 
+        mock_embedding.assert_called_once_with(
+            model="text-embedding-3-large",
+            input=['{"id":1,"item":"Juice","price":80.5,"quantity":56}',
+                   '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
+            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
+            api_key="value",
+            num_retries=3
+        )
+
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
         LLMSecret.objects.delete()
@@ -2285,24 +2728,16 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+    @patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
     @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_delete_collection_points,
+                                               mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key='value',
-            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
-            bot=bot,
-            user=user
-        )
-
-        llm_secret.save()
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2339,9 +2774,20 @@ class TestMongoProcessor:
 
         upsert_data = []
 
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
+        mock_delete_collection_points.return_value = None
 
         embedding = list(np.random.random(1532))
         mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
@@ -2350,7 +2796,7 @@ class TestMongoProcessor:
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2359,206 +2805,10 @@ class TestMongoProcessor:
         data = list(CognitionData.objects(bot=bot, collection=collection_name))
 
         assert result["message"] == "Upsert complete!"
-        assert len(data) == 1
-
-        existing_record = data[0]
-        assert existing_record.data["id"] == 2
-        assert existing_record.data["item"] == "Milk"
-        assert existing_record.data["price"] == 2.80
-        assert existing_record.data["quantity"] == 5
+        assert len(data) == 0
 
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @patch.object(litellm, "aembedding", autospec=True)
-    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_embedding):
-        bot = "test_bot"
-        user = "test_user"
-        collection_name = "groceries"
-        primary_key_col = "id"
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key='value',
-            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
-            bot=bot,
-            user=user
-        )
-
-        llm_secret.save()
-
-        metadata = [
-            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
-            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
-            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
-        ]
-
-        cognition_schema = CognitionSchema(
-            metadata=[ColumnMetadata(**item) for item in metadata],
-            collection_name=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        cognition_schema.validate(clean=True)
-        cognition_schema.save()
-
-        document_data = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 5
-        }
-        document = CognitionData(
-            data=document_data,
-            content_type="json",
-            collection=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        document.save()
-
-        saved_document = None
-        for doc in CognitionData.objects(bot=bot, collection=collection_name):
-            doc_dict = doc.to_mongo().to_dict()
-            if doc_dict.get("data", {}).get("id") == 2:  # Match based on `data.id`
-                saved_document = doc_dict
-                break
-        assert saved_document, "Saved CognitionData document not found"
-        vector_id = saved_document["vector_id"]
-
-        if not isinstance(document, dict):
-            document = document.to_mongo().to_dict()
-
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
-        mock_collection_upsert.return_value = None
-
-        processor = CognitionDataProcessor()
-        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-        await processor.sync_with_qdrant(
-            llm_processor=llm_processor,
-            collection_name=collection_name,
-            bot=bot,
-            document=document,
-            user=user,
-            primary_key_col=primary_key_col
-        )
-
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
-        mock_collection_upsert.assert_called_once_with(
-            llm_processor,
-            collection_name,
-            {
-                "points": [
-                    {
-                        "id": vector_id,
-                        "vector": embedding,
-                        "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
-                    }
-                ]
-            },
-            err_msg="Unable to train FAQ! Contact support"
-        )
-
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @patch.object(litellm, "aembedding", autospec=True)
-    @patch.object(AioRestClient, "request", autospec=True)
-    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_embedding):
-        bot = "test_bot"
-        user = "test_user"
-        collection_name = "groceries"
-        primary_key_col = "id"
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key='value',
-            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
-            bot=bot,
-            user=user
-        )
-
-        llm_secret.save()
-
-        metadata = [
-            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
-            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
-            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
-        ]
-
-        cognition_schema = CognitionSchema(
-            metadata=[ColumnMetadata(**item) for item in metadata],
-            collection_name=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        cognition_schema.validate(clean=True)
-        cognition_schema.save()
-
-        document_data = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 5
-        }
-        document = CognitionData(
-            data=document_data,
-            content_type="json",
-            collection=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        document.save()
-        if not isinstance(document, dict):
-            document = document.to_mongo().to_dict()
-
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
-        mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
-
-        processor = CognitionDataProcessor()
-        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-
-        with pytest.raises(AppException, match="Failed to sync document with Qdrant: Failed to connect to Qdrant"):
-            await processor.sync_with_qdrant(
-                llm_processor=llm_processor,
-                collection_name=collection_name,
-                bot=bot,
-                document=document,
-                user=user,
-                primary_key_col=primary_key_col
-            )
-
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
-
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
         LLMSecret.objects.delete()
 
     def test_get_pydantic_type_int(self):
@@ -2575,16 +2825,16 @@ class TestMongoProcessor:
         with pytest.raises(ValueError, match="Unsupported data type: unknown"):
             CognitionDataProcessor.get_pydantic_type('unknown')
 
-    def test_validate_event_type_valid(self):
+    def test_validate_sync_type_valid(self):
         processor = CognitionDataProcessor()
-        valid_event_type = list(VaultSyncEventType.__members__.keys())[0]
-        processor._validate_event_type(valid_event_type)
+        valid_sync_type = list(VaultSyncType.__members__.keys())[0]
+        processor._validate_sync_type(valid_sync_type)
 
-    def test_validate_event_type_invalid(self):
+    def test_validate_sync_type_invalid(self):
         processor = CognitionDataProcessor()
-        invalid_event_type = "invalid_event"
-        with pytest.raises(AppException, match="Event type does not exist"):
-            processor._validate_event_type(invalid_event_type)
+        invalid_sync_type = "invalid_event"
+        with pytest.raises(AppException, match="Sync type does not exist"):
+            processor._validate_sync_type(invalid_sync_type)
 
     def test_validate_collection_exists_valid(self):
         bot = 'test_bot'

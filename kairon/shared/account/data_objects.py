@@ -155,6 +155,7 @@ class MailTemplates(EmbeddedDocument):
     add_trusted_device = StringField()
     button_template = StringField()
     leave_bot_owner_notification = StringField()
+    catalog_sync_status = StringField()
 
 
 class SystemProperties(Document):
