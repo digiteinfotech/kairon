@@ -3327,7 +3327,8 @@ class TestActions:
                                 'content_importer_limit_per_day': 5,
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
-                                'retry_broadcasting_limit': 3}
+                                'retry_broadcasting_limit': 3,
+                                'catalog_sync_limit_per_day': 5}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -4629,7 +4630,8 @@ class TestActions:
                                 'cognition_columns_per_collection_limit': 5,
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
-                                'retry_broadcasting_limit': 3}
+                                'retry_broadcasting_limit': 3,
+                                'catalog_sync_limit_per_day': 5}
 
 
     def test_get_prompt_action_config_2(self):

@@ -1,0 +1,13 @@
+{
+    "type": "POST",
+    "body": {
+        "restID": "njrbv7mu",
+        "itemID": [
+            "10539580"
+        ],
+        "type": "item",
+        "autoTurnOnTime": "custom",
+        "customTurnOnTime": "2025-03-26 12:45:00"
+    },
+    "params": {}
+}
