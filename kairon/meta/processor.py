@@ -70,8 +70,8 @@ class MetaProcessor:
 
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            print("Response JSON:", response.json())
-            print("Successfully synced product items to Meta catalog(Push Menu)")
+            logger.info("Response JSON:", response.json())
+            logger.info("Successfully synced product items to Meta catalog(Push Menu)")
         except Exception as e:
             logger.exception(f"Error syncing product items to Meta catalog for push menu: {str(e)}")
             raise e
@@ -91,8 +91,8 @@ class MetaProcessor:
 
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            print("Response JSON:", response.json())
-            print("Successfully synced product items to Meta catalog(Item Toggle)")
+            logger.info("Response JSON:", response.json())
+            logger.info("Successfully synced product items to Meta catalog(Item Toggle)")
         except Exception as e:
             logger.exception(f"Error syncing product items to Meta catalog for item toggle: {str(e)}")
             raise e
@@ -112,8 +112,8 @@ class MetaProcessor:
             }
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            print("Response JSON:", response.json())
-            print("Successfully deleted data from meta.")
+            logger.info("Response JSON:", response.json())
+            logger.info("Successfully deleted data from meta.")
         except Exception as e:
             logger.exception(f"Error deleting data from meta: {str(e)}")
             raise e

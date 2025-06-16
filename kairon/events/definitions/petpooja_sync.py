@@ -7,6 +7,7 @@ from kairon.shared.data.constant import SyncType, SYNC_STATUS
 from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.utils import MailUtility
+from loguru import logger
 
 
 class PetpoojaSync(CatalogSyncBase):
@@ -173,7 +174,7 @@ class PetpoojaSync(CatalogSyncBase):
             )
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status, status=status)
         except Exception as e:
-            print(str(e))
+            logger.exception(str(e))
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             await MailUtility.format_and_send_mail(
                 mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.bot,

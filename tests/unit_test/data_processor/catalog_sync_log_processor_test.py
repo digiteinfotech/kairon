@@ -120,13 +120,6 @@ class TestCatalogSyncLogProcessor:
         bot = 'test'
         logs = list(CatalogSyncLogProcessor.get_logs(bot))
         assert len(logs) == 4
-        # bot_settings = BotSettings.objects(bot=bot).get()
-        # bot_settings.catalog_sync_limit_per_day = 3
-        # print(bot_settings.to_mongo().to_dict())
-        # bot_settings.save()
-        # logs = list(CatalogSyncLogProcessor.get_logs(bot))
-        # print(logs)
-        # assert CatalogSyncLogProcessor.is_limit_exceeded(bot, False)
 
     def test_is_limit_exceeded_exception(self, monkeypatch):
         bot = 'test'
@@ -146,10 +139,7 @@ class TestCatalogSyncLogProcessor:
             bot_settings.catalog_sync_limit_per_day = 3
         except:
             bot_settings = BotSettings(bot=bot, catalog_sync_limit_per_day=0, user="test")
-        print(bot_settings.to_mongo().to_dict())
         bot_settings.save()
-        logs = list(CatalogSyncLogProcessor.get_logs(bot))
-        print(logs)
         assert CatalogSyncLogProcessor.is_limit_exceeded(bot, False)
 
     def test_is_limit_exceeded_false(self, monkeypatch):

@@ -15763,8 +15763,6 @@ class TestMongoProcessor:
         processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
         story = MultiflowStories.objects(block_name="updated_story", bot="test").get()
         assert story.events[0]['connections'][0]['name'] == "utter_time"
-        # print(story.events[1].name)
-        # assert story.events[1].name == "utter_nonsense"
 
     def test_update_multiflow_story_with_same_events(self):
         processor = MongoProcessor()

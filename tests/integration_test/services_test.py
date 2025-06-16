@@ -2003,7 +2003,6 @@ def test_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.0
@@ -2049,7 +2048,6 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.08
@@ -2073,7 +2071,6 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 27.0
@@ -3986,6 +3983,25 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
         assert item["id"] in cognition_map
         assert cognition_map[item["id"]] == item["price"]
 
+def test_get_catalog_sync_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/catalog/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    log = actual['data']['logs'][0]
+
+    assert 'execution_id' in log and log['execution_id']
+    assert 'raw_payload' in log and isinstance(log['raw_payload'], dict)
+    assert 'start_timestamp' in log and log['start_timestamp']
+    assert 'end_timestamp' in log and log['end_timestamp']
+    assert 'validation_errors' in log and log['validation_errors'] == {}
+    assert log['provider'] == 'petpooja'
+    assert log['sync_type'] == 'push_menu'
+    assert log['status'] == 'Success'
+    assert log['sync_status'] == 'Completed'
+
+
 @pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
@@ -4362,7 +4378,6 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     assert not actual["success"]
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
@@ -4492,7 +4507,6 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     assert not actual["success"]
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
@@ -4649,7 +4663,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -4664,8 +4677,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
         {"id": doc.data["id"], "price": doc.data["price"]}
         for doc in catalog_data_docs
     ]
-    for i in catalog_data_docs:
-        print(i.to_mongo().to_dict())
 
     expected_items = [
         {"id": "10539634", "price": 8700.0},
@@ -4803,7 +4814,6 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -4973,7 +4983,6 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -5130,7 +5139,6 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -5307,7 +5315,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -5459,7 +5466,6 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_enabled(mock_embedding, mock_
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
@@ -5606,7 +5612,6 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     assert not actual["success"]
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
@@ -5942,7 +5947,6 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert not actual["success"]
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    print(latest_log.to_mongo().to_dict())
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
@@ -5989,7 +5993,6 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     )
 
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Sync in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
