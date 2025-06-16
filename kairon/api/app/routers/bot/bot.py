@@ -26,8 +26,9 @@ from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
+from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
+from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.channels.mail.processor import MailProcessor
-from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
@@ -39,14 +40,12 @@ from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.events.processor import ExecutorProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.models import User, TemplateType
-from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
 
@@ -950,6 +949,21 @@ async def get_content_importer_logs(
     }
     return Response(data=data)
 
+@router.get("/catalog/logs", response_model=Response)
+async def get_catalog_sync_logs(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get data importer event logs.
+    """
+    logs = list(CatalogSyncLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(CatalogSyncLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 @router.post("/validate", response_model=Response)
 async def validate_training_data(

@@ -10,6 +10,7 @@ from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
+from kairon.events.definitions.catalog_sync import CatalogSync
 
 
 class EventFactory:
@@ -24,7 +25,8 @@ class EventFactory:
         EventClass.message_broadcast: MessageBroadcastEvent,
         EventClass.content_importer: DocContentImporterEvent,
         EventClass.mail_channel_read_mails: MailReadEvent,
-        EventClass.agentic_flow: AgenticFlowEvent
+        EventClass.agentic_flow: AgenticFlowEvent,
+        EventClass.catalog_integration: CatalogSync
     }
 
     @staticmethod

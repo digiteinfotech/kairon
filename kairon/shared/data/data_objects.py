@@ -931,6 +931,7 @@ class BotSettings(Auditlog):
     integrations_per_user_limit = IntField(default=3)
     live_agent_enabled = BooleanField(default=False)
     max_actions_per_parallel_action = IntField(default=5)
+    catalog_sync_limit_per_day = IntField(default=5)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
@@ -1089,3 +1090,33 @@ class UserMediaData(Auditlog):
 
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}
+
+
+@auditlogger.log
+@push_notification.apply
+class POSIntegrations(Auditlog):
+    bot = StringField(required=True)
+    provider = StringField(required=True)
+    config = DictField(required=True)
+    sync_type = StringField(required=True, default=None)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    meta_config = DictField()
+
+    meta = {"indexes": [{"fields": ["bot", "provider"]}]}
+
+
+@auditlogger.log
+@push_notification.apply
+class BotSyncConfig(Auditlog):
+    process_push_menu = BooleanField(default=False)
+    process_item_toggle = BooleanField(default=False)
+    parent_bot = StringField(required=True)
+    restaurant_name = StringField(required=True)
+    provider = StringField(required=True)
+    branch_name = StringField(required=True)
+    branch_bot = StringField(required=True)
+    ai_enabled = BooleanField(default=False)
+    meta_enabled = BooleanField(default=False)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)

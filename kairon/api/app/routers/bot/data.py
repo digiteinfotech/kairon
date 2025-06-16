@@ -13,8 +13,9 @@ from kairon.shared.auth import Authentication
 from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ActorType
+from kairon.shared.constants import ActorType, CatalogSyncClass
 from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.data.data_models import POSIntegrationRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
@@ -385,7 +386,7 @@ async def download_error_csv(
 async def knowledge_vault_sync(
     primary_key_col: str,
     collection_name: str,
-    event_type: str,
+    sync_type: str,
     data: List[dict],
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -394,7 +395,7 @@ async def knowledge_vault_sync(
     """
     data = [{key.lower(): value for key, value in row.items()} for row in data]
 
-    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), event_type.lower(), data, current_user.get_bot())
+    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), sync_type.lower(), data, current_user.get_bot())
 
     if error_summary:
         return Response(
@@ -404,7 +405,7 @@ async def knowledge_vault_sync(
             error_code=400
         )
 
-    await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), event_type.lower(), data,
+    await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), sync_type.lower(), data,
                                     current_user.get_bot(), current_user.get_user())
 
     return Response(
@@ -412,3 +413,25 @@ async def knowledge_vault_sync(
         message="Processing completed successfully",
         data=None
     )
+
+@router.post("/integrations/add", response_model=Response)
+async def add_pos_integration_config(
+    request_data: POSIntegrationRequest,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Add data integration config
+    """
+    CognitionDataProcessor.load_catalog_provider_mappings()
+
+    if request_data.provider not in CatalogSyncClass.__members__.values():
+        raise AppException("Invalid Provider")
+
+    CognitionDataProcessor.add_bot_sync_config(request_data, current_user.get_bot(), current_user.get_user())
+
+    integration_endpoint = cognition_processor.save_pos_integration_config(
+        request_data.dict(), current_user.get_bot(), current_user.get_user(), sync_type
+    )
+
+    return Response(message='POS Integration Complete', data=integration_endpoint)
