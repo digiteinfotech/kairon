@@ -344,8 +344,6 @@ class LLMProcessor(LLMBase):
                                         request_body={"points": point_ids},
                                         return_json=True,
                                         timeout=5)
-        print(response)
-
         if not response.get('result'):
             if "status" in response:
                 logging.exception(response['status'].get('error'))
