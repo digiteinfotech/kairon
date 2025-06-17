@@ -9,6 +9,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import cli
+from kairon.cli.catalog_sync import sync_catalog_content
 from kairon.cli.content_importer import import_doc_content
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.delete_logs import delete_logs
@@ -17,6 +18,7 @@ from kairon.cli.message_broadcast import send_notifications
 from kairon.cli.testing import run_tests_on_model
 from kairon.cli.training import train
 from kairon.cli.translator import translate_multilingual_bot
+from kairon.events.definitions.catalog_sync import CatalogSync
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -472,3 +474,60 @@ class TestDocContentImporterCli:
 
         monkeypatch.setattr(DocContentImporterEvent, "execute", mock_doc_content_importer)
         cli()
+
+class TestCatalogSyncCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        """
+        Initialize environment connection for testing.
+        """
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=sync_catalog_content))
+    def test_catalog_sync_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=sync_catalog_content, bot="test_cli"))
+    def test_catalog_sync_no_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(
+                    func=sync_catalog_content,
+                    bot="test_cli",
+                    user="testUser",
+                    provider="petpooja",
+                    sync_type="item_toggle",
+                    token="testToken",
+                    data='[{"item_id": "123", "available": true}]'
+                )
+    )
+    def test_catalog_sync_all_arguments(self, monkeypatch):
+        async def mock_execute(self, data):
+            return None
+
+        monkeypatch.setattr(CatalogSync, "execute", mock_execute)
+        cli()
+
+    @mock.patch('kairon.events.definitions.catalog_sync.CatalogSync.execute')
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(
+                    func=sync_catalog_content,
+                    bot="test_cli",
+                    user="testUser",
+                    provider="petpooja",
+                    sync_type="item_toggle",
+                    token="testToken",
+                    data='INVALID_JSON'
+                ))
+    def test_catalog_sync_invalid_json_data(self, mock_parse_args, mock_execute):
+        cli()
+        mock_execute.assert_not_called()
