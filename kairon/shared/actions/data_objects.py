@@ -789,6 +789,7 @@ class LlmPrompt(EmbeddedDocument):
             LlmPromptSource.bot_content.value,
             LlmPromptSource.action.value,
             LlmPromptSource.slot.value,
+            LlmPromptSource.crud.value,
         ],
         default=LlmPromptSource.static.value,
     )
