@@ -10,7 +10,9 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.llm.processor import LLMProcessor
@@ -168,6 +170,22 @@ class ActionPrompt(ActionsBase):
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
+                    if prompt['instructions']:
+                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                elif prompt['source'] == LlmPromptSource.crud.value:
+                    sender=kwargs.get('action_call').get('sender_id')
+                    collection_name=prompt['data']
+                    keys=['mobile_number']
+                    values=[sender]
+                    results_gen = DataProcessor.get_collection_data(
+                        bot=self.bot,
+                        collection_name=collection_name,
+                        key=keys,
+                        value=values
+                    )
+                    records = list(results_gen)
+                    data_list = [rec["data"] for rec in records]
+                    context_prompt += f"{prompt['name']}:\n{data_list}\n"
                     if prompt['instructions']:
                         context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
