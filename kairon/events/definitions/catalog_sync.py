@@ -1,3 +1,4 @@
+import json
 from typing import Text
 from kairon import Utility
 from loguru import logger
@@ -52,7 +53,7 @@ class CatalogSync(EventsBase):
                 'provider': self.catalog_sync.provider,
                 'sync_type': self.catalog_sync.sync_type,
                 'token': self.catalog_sync.token,
-                'data': self.catalog_sync.data
+                'data': json.dumps(self.catalog_sync.data)
             }
             CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, self.catalog_sync.provider, self.catalog_sync.sync_type, sync_status=SYNC_STATUS.ENQUEUED.value)
             Utility.request_event_server(EventClass.catalog_integration, payload)
