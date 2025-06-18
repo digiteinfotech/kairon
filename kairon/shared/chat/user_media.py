@@ -468,12 +468,6 @@ class UserMedia:
                 prompt_action.save()
             MULTIMEDIA_INTENT_NAME = "k_multimedia_msg"
 
-            if not Intents.objects(name__iexact=MULTIMEDIA_INTENT_NAME, bot=bot, status=True).first():
-                try:
-                    MongoProcessor().add_intent(MULTIMEDIA_INTENT_NAME, bot, "system", True)
-                except NotUniqueError:
-                    pass
-
             if not Rules.objects(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot).first():
                 rule_data = {
                     "block_name": UserMedia.MEDIA_EXTRACTION_FLOW_NAME,
