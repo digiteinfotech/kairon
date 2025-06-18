@@ -110,6 +110,7 @@ from kairon.shared.models import (
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
+from .collection_processor import DataProcessor
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -7964,6 +7965,11 @@ class MongoProcessor:
                 )
                 ):
                     raise AppException(f'Action with name {prompt["data"]} not found!')
+
+            if prompt["source"] == "crud":
+                collections_list= DataProcessor.get_all_collections(bot)
+                if not any(item['collection_name'] == prompt['data'] for item in collections_list):
+                    raise AppException(f'Collection with name {prompt["data"]} not found!')
 
     def edit_prompt_action(
             self, prompt_action_id: str, request_data: dict, bot: Text, user: Text
