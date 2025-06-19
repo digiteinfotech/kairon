@@ -2056,7 +2056,7 @@ class TestMongoProcessor:
         # Only the first one should be returned
         assert len(logs) == 1
         assert logs[0]['action'] == "http_action"
-        assert logs[0]['_id'] == log_implicit.id
+        assert logs[0]['_id'] == str(log_implicit.id)
         ActionServerLogs.objects(action="http_action").delete()
         ActionServerLogs.objects(action="http_action2").delete()
 
