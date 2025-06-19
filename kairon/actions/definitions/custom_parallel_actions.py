@@ -65,6 +65,7 @@ class ActionParallel(ActionsBase):
         dispatch_type = DispatchType.text.value
         response_text = ""
         bot_response = None
+        trigger_id = ""
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
@@ -96,6 +97,10 @@ class ActionParallel(ActionsBase):
                     logger.exception(message)
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)
+            if not trigger_id:
+                log_entry = ActionServerLogs()
+                log_entry.save()
+                trigger_id = str(log_entry.id)
             action_server_log_obj=ActionServerLogs.objects(_id=ObjectId(trigger_id)).get()
             action_server_log_obj.type = ActionType.parallel_action.value
             action_server_log_obj.intent = tracker.get_intent_of_latest_message(skip_fallback_intent=False)

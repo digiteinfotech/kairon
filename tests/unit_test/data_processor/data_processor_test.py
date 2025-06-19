@@ -13,6 +13,7 @@ from urllib.parse import urljoin
 
 import ujson as json
 import yaml
+from bson import ObjectId
 
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
@@ -2059,69 +2060,53 @@ class TestMongoProcessor:
         ActionServerLogs.objects(action="http_action").delete()
         ActionServerLogs.objects(action="http_action2").delete()
 
-    def test_fetch_action_logs_for_parallel_action(self):
-        bot = "test_bot_parallel"
-        action_name_1 = "action_name_1"
-        action_name_2 = "action_name_2"
-        parallel_action_name = "parallel_action"
-        action_name_3 = "action_name_3"
+    from bson import ObjectId
 
-        ParallelActionConfig(
-            name=parallel_action_name,
+    def test_fetch_action_logs_for_parallel_action_by_id(self):
+        bot = "test_bot_parallel"
+        a1, a2, a3 = "action1", "action2", "action3"
+
+        # 1) Create the ParallelActionConfig and grab its ObjectId string
+        cfg = ParallelActionConfig(
+            name="parallel_action",
             bot=bot,
             user="test_user",
-            actions=[action_name_1, action_name_2],
-            response_text="parallel response"
+            actions=[a1, a2],
+            response_text="resp"
         ).save()
+        trigger_id = str(cfg.id)
 
-        ActionServerLogs(
-            intent="intent_parallel_3",
-            action=parallel_action_name,
-            sender="sender_3",
-            bot=bot
-        ).save()
+        # Patch _id field manually via __raw__ to simulate actual behavior
+        parallel = ParallelActionConfig.objects(__raw__={"_id": ObjectId(trigger_id)}).first()
+        assert parallel is not None  # safety check
 
-        ActionServerLogs(
-            intent="intent_parallel",
-            action=action_name_1,
-            sender="sender_1",
-            bot=bot
-        ).save()
+        # 2) One log for the parallel action itself (ignored)
+        ActionServerLogs(intent="i0", action=cfg.name, sender="s0", bot=bot,
+                         trigger_info={"trigger_id": trigger_id}).save()
+        # 3) Two logs for the child actions (should be returned)
+        ActionServerLogs(intent="i1", action=a1, sender="s1", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
+        ActionServerLogs(intent="i2", action=a2, sender="s2", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
+        # 4) One unrelated log (ignored)
+        ActionServerLogs(intent="i3", action=a3, sender="s3", bot=bot,
+                         trigger_info={"trigger_id": "some_other_id"}).save()
 
-        ActionServerLogs(
-            intent="intent_parallel_2",
-            action=action_name_2,
-            sender="sender_2",
-            bot=bot
-        ).save()
+        # 5) Now call the function
+        logs = MongoProcessor().fetch_action_logs_for_parallel_action(trigger_id, bot)
 
-        ActionServerLogs(
-            intent="intent_parallel_3",
-            action=action_name_3,
-            sender="sender_3",
-            bot=bot
-        ).save()
+        # 6) Assert only the two child-action logs come back
+        assert {log["action"] for log in logs} == {a1, a2}
 
-
-        processor = MongoProcessor()
-        logs = processor.fetch_action_logs_for_parallel_action(parallel_action_name, bot)
-
-        assert len(logs) == 2
-        actions = sorted([log["action"] for log in logs])
-        assert actions == sorted([action_name_1, action_name_2])
-
-        ParallelActionConfig.objects(name=parallel_action_name, bot=bot).delete()
-        ActionServerLogs.objects(action=action_name_1).delete()
-        ActionServerLogs.objects(action=action_name_2).delete()
-        ActionServerLogs.objects(action=action_name_3).delete()
+        # Cleanup
+        ParallelActionConfig.objects(id=cfg.id).delete()
+        ActionServerLogs.objects(action__in=[cfg.name, a1, a2, a3]).delete()
 
     def test_fetch_action_logs_for_parallel_action_parallel_action_not_found(self):
         bot = "test_bot_parallel_2"
-        parallel_action_name = "parallel_action_2"
+        trigger_id = str(ObjectId())  # valid ObjectId, but not in the DB
 
         processor = MongoProcessor()
-        with pytest.raises(AppException, match="Parallel action 'parallel_action_2' not found"):
-            processor.fetch_action_logs_for_parallel_action(parallel_action_name, bot)
+        with pytest.raises(AppException, match="Parallel action not found"):
+            processor.fetch_action_logs_for_parallel_action(trigger_id, bot)
 
     def test_validate_data_push_menu_success(self):
         bot = 'test_bot'

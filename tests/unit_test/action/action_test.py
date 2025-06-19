@@ -1180,7 +1180,7 @@ class TestActions:
             "bot_response": "Parallel Action Success",
             "bot": "5f50fd0a56b698ca10d35d21",
             "status": "SUCCESS",
-            'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+            'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
             "user_msg": "get intents"
         }
         assert len(actual) == 2
@@ -1190,12 +1190,12 @@ class TestActions:
         ParallelActionConfig.objects(name=action_name).delete()
         PyscriptActionConfig.objects(name=pyscript_name).delete()
 
-
     @responses.activate
     @pytest.mark.asyncio
     @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
     async def test_run_parallel_action_without_action(self, mock_get_action):
         import textwrap
+        from bson import ObjectId
 
         slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
         events = [{"event1": "hello"}, {"event2": "how are you"}]
@@ -1204,12 +1204,12 @@ class TestActions:
 
         pyscript_name = "test_run_pyscript_action"
         script = """
-                numbers = [1, 2, 3, 4, 5]
-                total = 0
-                for i in numbers:
-                    total += i
-                print(total)
-                """
+            numbers = [1, 2, 3, 4, 5]
+            total = 0
+            for i in numbers:
+                total += i
+            print(total)
+        """
         script = textwrap.dedent(script)
         PyscriptActionConfig(
             name=pyscript_name,
@@ -1257,26 +1257,58 @@ class TestActions:
                 }
             })]
         )
+
         mock_get_action.side_effect = _get_action
         dispatcher: CollectingDispatcher = CollectingDispatcher()
-        tracker = Tracker(sender_id="sender1", slots=slots, events=events, paused=False, latest_message=latest_message,
-                          followup_action=None, active_loop=None, latest_action_name=None)
+        tracker = Tracker(
+            sender_id="sender1",
+            slots=slots,
+            events=events,
+            paused=False,
+            latest_message=latest_message,
+            followup_action=None,
+            active_loop=None,
+            latest_action_name=None
+        )
         domain: Dict[Text, Any] = None
+        dummy_trigger_id = str(ObjectId())  # generate valid ObjectId
+        print(dummy_trigger_id)
         action_call = {
             "next_action": action_name,
             "sender_id": "sender1",
             "tracker": tracker,
             "version": "3.6.21",
-            "domain": domain
+            "domain": domain,
+            "trigger_info": {
+                "trigger_id": dummy_trigger_id,
+                "trigger_type": "implicit",
+                "trigger_name": ""
+            }
         }
-        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name,action_call = action_call)
-        log = ActionServerLogs.objects(sender="sender1",
-                                       action= action_name,
-                                       bot="5f50fd0a56b698ca10d35d21",
-                                       status="FAILURE").get().to_mongo().to_dict()
-        log.pop('_id')
-        log.pop('timestamp')
-        assert log == {
+        print("data")
+        pl=ParallelActionConfig.objects(bot="5f50fd0a56b698ca10d35d21")
+        for item in pl:
+            print(item.to_mongo().to_dict())
+        print("data")
+
+
+        actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(
+            dispatcher, tracker, domain, action_name, action_call=action_call
+        )
+
+        log_obj = ActionServerLogs.objects(
+            sender="sender1",
+            action=action_name,
+            bot="5f50fd0a56b698ca10d35d21",
+            status="FAILURE"
+        ).first()
+        assert log_obj is not None, "FAILURE log not found"
+
+        log = log_obj.to_mongo().to_dict()
+        log.pop('_id', None)
+        log.pop('timestamp', None)
+
+        expected_log = {
             "type": "parallel_action",
             "intent": "parallel_action",
             "action": "test_run_parallel_action",
@@ -1285,10 +1317,17 @@ class TestActions:
             "exception": "No parallel action found for given action and bot",
             "bot": "5f50fd0a56b698ca10d35d21",
             "status": "FAILURE",
-            'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+            'trigger_info': {
+                'trigger_id': dummy_trigger_id,
+                'trigger_name': '',
+                'trigger_type': 'implicit'
+            },
             "user_msg": "get intents"
         }
-        assert log['exception'] == "No parallel action found for given action and bot"
+
+        assert log == expected_log
+
+        # Cleanup
         ParallelActionConfig.objects(name=action_name).delete()
         PyscriptActionConfig.objects(name=pyscript_name).delete()
 

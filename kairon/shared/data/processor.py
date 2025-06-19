@@ -5046,6 +5046,7 @@ class MongoProcessor:
         ):
             log = log.to_mongo().to_dict()
             log.pop("bot")
+            log["_id"] = str(log["_id"])
             yield log
 
     def __extract_rules(self, story_steps, bot: str, user: str):
@@ -9191,14 +9192,14 @@ class MongoProcessor:
         :return: List of ActionServerLogs as dicts
         """
         # Fetch the parallel action config
-        parallel_action = ParallelActionConfig.objects(_id=ObjectId(trigger_id), bot=bot, status=True).first()
+        parallel_action = ParallelActionConfig.objects(id=ObjectId(trigger_id), bot=bot, status=True).first()
         if not parallel_action:
             raise AppException(f"Parallel action not found")
 
         # Get all logs matching the action names and bot
         logs = (
             ActionServerLogs
-            .objects(trigger_info__trigger_id=trigger_id, bot=bot)
+            .objects(trigger_info__trigger_id=trigger_id, bot=bot, action__in=parallel_action.actions)
             .order_by("-timestamp")
             .as_pymongo()
         )
