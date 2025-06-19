@@ -2075,6 +2075,13 @@ class TestMongoProcessor:
         ).save()
 
         ActionServerLogs(
+            intent="intent_parallel_3",
+            action=parallel_action_name,
+            sender="sender_3",
+            bot=bot
+        ).save()
+
+        ActionServerLogs(
             intent="intent_parallel",
             action=action_name_1,
             sender="sender_1",

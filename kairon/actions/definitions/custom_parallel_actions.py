@@ -70,7 +70,9 @@ class ActionParallel(ActionsBase):
             action_names = action_config['actions']
             dispatch_bot_response = action_config['dispatch_response_text']
             response_text = action_config['response_text']
-            trigger_id=ActionServerLogs().save()
+            log_entry = ActionServerLogs()
+            log_entry.save()
+            trigger_id = str(log_entry.id)
             results = await asyncio.gather(
                 *[self.execute_webhook(action_name, action_call,trigger_id)
                   for action_name in action_names],
