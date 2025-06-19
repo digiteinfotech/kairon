@@ -5045,7 +5045,6 @@ class MongoProcessor:
         ):
             log = log.to_mongo().to_dict()
             log.pop("bot")
-            log.pop("_id")
             yield log
 
     def __extract_rules(self, story_steps, bot: str, user: str):

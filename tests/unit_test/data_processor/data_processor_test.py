@@ -2023,7 +2023,7 @@ class TestMongoProcessor:
         request_params = {"key": "value", "key2": "value2"}
 
         # This log has implicit trigger_info (default), should be returned
-        ActionServerLogs(
+        log_implicit = ActionServerLogs(
             intent="intent1",
             action="http_action",
             sender="sender_id",
@@ -2032,7 +2032,8 @@ class TestMongoProcessor:
             api_response="Response",
             bot_response="Bot Response",
             bot=bot
-        ).save()
+        )
+        log_implicit.save()
 
         # This log has explicit trigger_info, should be filtered out
         ActionServerLogs(
@@ -2054,8 +2055,9 @@ class TestMongoProcessor:
         # Only the first one should be returned
         assert len(logs) == 1
         assert logs[0]['action'] == "http_action"
-        ActionServerLogs.objects(action = "http_action").delete()
-        ActionServerLogs.objects(action = "http_action2").delete()
+        assert logs[0]['_id'] == log_implicit.id
+        ActionServerLogs.objects(action="http_action").delete()
+        ActionServerLogs.objects(action="http_action2").delete()
 
     def test_fetch_action_logs_for_parallel_action(self):
         bot = "test_bot_parallel"
