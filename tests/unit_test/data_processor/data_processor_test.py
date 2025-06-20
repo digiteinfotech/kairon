@@ -1642,7 +1642,7 @@ class TestMongoProcessor:
         bot = "test_bot"
         user = "test_user"
         request_data = POSIntegrationRequest(
-            provider="petpooja",
+            connector_type="petpooja",
             config={
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
@@ -1675,7 +1675,7 @@ class TestMongoProcessor:
         user = "test_user"
 
         request_data = POSIntegrationRequest(
-            provider="petpooja",
+            connector_type="petpooja",
             config={
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",

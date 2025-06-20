@@ -3934,7 +3934,7 @@ def test_get_pos_params():
     petpooja_data = actual["data"]["petpooja"]
 
     assert "required_fields" in petpooja_data
-    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', 'sync_type - push_menu - item_toggle']
+    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', {'sync_type': ['push_menu', 'item_toggle']} ]
 
     assert "optional_fields" in petpooja_data
     assert petpooja_data["optional_fields"] == ["access_token", "catalog_id"]
@@ -34024,7 +34024,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 16
+    assert len(actual["data"]) == 17
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(
