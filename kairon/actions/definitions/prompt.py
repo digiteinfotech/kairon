@@ -1,3 +1,4 @@
+import json
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -175,8 +176,12 @@ class ActionPrompt(ActionsBase):
                 elif prompt['source'] == LlmPromptSource.crud.value:
                     sender=kwargs.get('action_call').get('sender_id')
                     collection_name=prompt['data']
-                    keys=['mobile_number']
-                    values=[sender]
+                    query_dict = prompt.get("query", {})
+                    if isinstance(query_dict, str):
+                        query_dict = json.loads(query_dict)
+                    query_dict["mobile_number"] = sender
+                    keys = list(query_dict.keys())
+                    values = list(query_dict.values())
                     results_gen = DataProcessor.get_collection_data(
                         bot=self.bot,
                         collection_name=collection_name,
