@@ -256,6 +256,7 @@ class DatabaseAction(Auditlog):
 class TriggerInfo(EmbeddedDocument):
     trigger_name = StringField(default="")
     trigger_type = StringField(default="implicit")
+    trigger_id=StringField(default="")
 
 class ActionServerLogs(DynamicDocument):
     type = StringField()

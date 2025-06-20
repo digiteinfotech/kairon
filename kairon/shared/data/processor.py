@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Text, Dict, List, Any, Optional
 from urllib.parse import urljoin
 
+from bson import ObjectId
 from loguru import logger
 
 import networkx as nx
@@ -5045,7 +5046,7 @@ class MongoProcessor:
         ):
             log = log.to_mongo().to_dict()
             log.pop("bot")
-            log.pop("_id")
+            log["_id"] = str(log["_id"])
             yield log
 
     def __extract_rules(self, story_steps, bot: str, user: str):
@@ -9182,7 +9183,7 @@ class MongoProcessor:
             action.pop("status")
             yield action
 
-    def fetch_action_logs_for_parallel_action(self, name: str, bot: str) -> List[dict]:
+    def fetch_action_logs_for_parallel_action(self, trigger_id: str, bot: str) -> List[dict]:
         """
         Helper to fetch ActionServerLogs for all actions in a given parallel action.
 
@@ -9191,14 +9192,15 @@ class MongoProcessor:
         :return: List of ActionServerLogs as dicts
         """
         # Fetch the parallel action config
-        parallel_action = ParallelActionConfig.objects(name__iexact=name, bot=bot, status=True).first()
+        parallel_action = ParallelActionConfig.objects(id=ObjectId(trigger_id), bot=bot, status=True).first()
         if not parallel_action:
-            raise AppException(f"Parallel action '{name}' not found")
+            raise AppException(f"Parallel action not found")
 
         # Get all logs matching the action names and bot
-        logs = list(
-            ActionServerLogs.objects(action__in=parallel_action.actions, bot=bot)
+        logs = (
+            ActionServerLogs
+            .objects(trigger_info__trigger_id=trigger_id, bot=bot, action__in=parallel_action.actions)
             .order_by("-timestamp")
             .as_pymongo()
         )
-        return logs
+        return list(logs)

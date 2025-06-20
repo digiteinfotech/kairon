@@ -839,15 +839,15 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
     }
     return Response(data=data)
 
-@router.get("/parallel/{name}/logs", response_model=Response)
+@router.get("/parallel/{parallel_action_id}/logs", response_model=Response)
 async def get_parallel_action_logs(
-    name: str,
+    parallel_action_id: str,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     """
     Fetch all ActionServerLogs for a given parallel action
     """
-    logs = mongo_processor.fetch_action_logs_for_parallel_action(name, current_user.get_bot())
+    logs = mongo_processor.fetch_action_logs_for_parallel_action(parallel_action_id, current_user.get_bot())
     return Response(data=logs, message="Fetched logs successfully.")
 
 

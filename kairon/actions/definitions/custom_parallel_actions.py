@@ -2,6 +2,7 @@ import asyncio
 from typing import Text, Dict, Any
 
 import aiohttp
+from bson import ObjectId
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -64,14 +65,17 @@ class ActionParallel(ActionsBase):
         dispatch_type = DispatchType.text.value
         response_text = ""
         bot_response = None
+        trigger_id = ""
         try:
             action_config = self.retrieve_config()
             action_names = action_config['actions']
             dispatch_bot_response = action_config['dispatch_response_text']
             response_text = action_config['response_text']
-
+            log_entry = ActionServerLogs()
+            log_entry.save()
+            trigger_id = str(log_entry.id)
             results = await asyncio.gather(
-                *[self.execute_webhook(action_name, action_call)
+                *[self.execute_webhook(action_name, action_call,trigger_id)
                   for action_name in action_names],
                 return_exceptions=True
             )
@@ -93,18 +97,22 @@ class ActionParallel(ActionsBase):
                     logger.exception(message)
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)
-            ActionServerLogs(
-                type=ActionType.parallel_action.value,
-                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
-                action=self.name,
-                sender=tracker.sender_id,
-                exception=str(exception) if exception else None,
-                bot_response=str(bot_response) if bot_response else None,
-                bot=self.bot,
-                status=status,
-                user_msg=tracker.latest_message.get('text'),
-                trigger_info=trigger_info_obj
-            ).save()
+            if not trigger_id:
+                log_entry = ActionServerLogs()
+                log_entry.save()
+                trigger_id = str(log_entry.id)
+            action_server_log_obj=ActionServerLogs.objects(_id=ObjectId(trigger_id)).get()
+            action_server_log_obj.type = ActionType.parallel_action.value
+            action_server_log_obj.intent = tracker.get_intent_of_latest_message(skip_fallback_intent=False)
+            action_server_log_obj.action = self.name
+            action_server_log_obj.sender = tracker.sender_id
+            action_server_log_obj.exception = str(exception) if exception else None
+            action_server_log_obj.bot_response = str(bot_response) if bot_response else None
+            action_server_log_obj.bot = self.bot
+            action_server_log_obj.status = status
+            action_server_log_obj.user_msg = tracker.latest_message.get('text')
+            action_server_log_obj.trigger_info = trigger_info_obj
+            action_server_log_obj.save()
 
         return filled_slots
 
@@ -126,7 +134,7 @@ class ActionParallel(ActionsBase):
         """
         return self.__response
 
-    async def execute_webhook(self, action_name, action_instance):
+    async def execute_webhook(self, action_name, action_instance, trigger_id):
         """
         Executes the /webhook call for each action instance.
 
@@ -138,7 +146,8 @@ class ActionParallel(ActionsBase):
         request_json['next_action'] = action_name
         request_json['trigger_info'] = {
             "trigger_name": self.name,
-            "trigger_type": ActionType.parallel_action.value
+            "trigger_type": ActionType.parallel_action.value,
+            "trigger_id": trigger_id
         }
 
         url = Utility.environment["action"].get("url")

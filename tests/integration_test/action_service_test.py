@@ -209,7 +209,7 @@ def test_callback_action_execution(aioresponses):
                    'headers': {}, 'bot_response': 'Hello',
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
                    'status': 'SUCCESS', 'user_msg': 'get intents',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'callback_url_slot': 'callback_url', 'metadata': {}}
 
 
@@ -325,7 +325,7 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
                    'exception': "Callback Configuration with name 'callback_script3' does not exist!",
                    'status': 'FAILURE', 'user_msg': 'get intents',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                    'callback_url_slot': 'callback_url', 'metadata': {}}
 
 
@@ -441,7 +441,7 @@ def test_live_agent_action_execution(aioresponses):
     log.pop('timestamp')
     assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
                    'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                    'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
 
 
@@ -847,7 +847,7 @@ def test_parallel_action_execution(aioresponses):
         "bot_response": "Parallel Action Executed",
         "bot": "5f50fd0a56b698ca10d35d2z",
         "status": "SUCCESS",
-        "trigger_info": {"trigger_name": '',"trigger_type": 'implicit'},
+        "trigger_info": {"trigger_name": '',"trigger_type": 'implicit',"trigger_id":""},
         "user_msg": "get intents"
     }
     Actions.objects(name="test_pyscript_action_execution").delete()
@@ -987,7 +987,7 @@ def test_parallel_action_execution_dispatch_response_false(aioresponses):
         "headers": {},
         "bot": "5f50fd0a56b698ca10d35d2z",
         "status": "SUCCESS",
-        "trigger_info": {"trigger_name": '',"trigger_type": 'implicit'},
+        "trigger_info": {"trigger_id":"","trigger_name": '',"trigger_type": 'implicit'},
         "user_msg": "get intents"
     }
     PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
@@ -1117,7 +1117,7 @@ def test_parallel_action_execution_failure(aioresponses):
         "bot_response": "Parallel Action Executed",
         "bot": "5f50fd0a56b698ca10d35d2z",
         "status": "SUCCESS",
-        "trigger_info": {"trigger_name": '',"trigger_type": 'implicit'},
+        "trigger_info": {"trigger_id":"","trigger_name": '',"trigger_type": 'implicit'},
         "user_msg": "get intents"
     }
     PyscriptActionConfig.objects(name="test_pyscript_action_execution").delete()
@@ -2202,7 +2202,7 @@ def test_http_action_execution(aioresponses):
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id':"",'trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'http_status_code': 200
                    }
 
@@ -2699,7 +2699,7 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                                          "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
     assert log == {'type': 'http_action', 'intent': 'test_run',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
@@ -2819,7 +2819,7 @@ def test_http_action_execution_script_evaluation(aioresponses):
                    'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'bot_response': 'Mayank',
                    'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -2948,7 +2948,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -3098,7 +3098,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -3246,7 +3246,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'}, 'user_msg': 'get intents', 'http_status_code': 200}
+                       'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'}, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
 @responses.activate
@@ -3413,7 +3413,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
                         'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                        'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -3766,7 +3766,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                               'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock',
                               'request_method': 'GET', 'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e',
                               'status': 'SUCCESS', 'fail_reason': None, 'user_msg': 'get intents',
-                              'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                              'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                               'http_status_code': 200}, ignore_order=True)
 
 
@@ -4148,7 +4148,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
                    'status': 'FAILURE', 'fail_reason': 'Got non-200 status code:408 http_response:None',
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408}
 
 
@@ -14514,7 +14514,7 @@ def test_schedule_action_invalid_date():
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
-                   'bot': bot,'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'bot': bot,'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                    'status': 'FAILURE',
                    'user_msg': 'get intents', 'schedule_action': callback_script,
                    'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
@@ -14594,7 +14594,7 @@ def test_schedule_action_invalid_callback():
                    'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
                    'timezone': 'Asia/Kolkata',
                    'execution_info': None,
-                   'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                    'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
 
 
@@ -14681,7 +14681,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'user': '1011'}}
 
@@ -14784,7 +14784,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {}}
 
@@ -14891,7 +14891,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
@@ -14991,7 +14991,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
                        'status': 'SUCCESS',
                        'user_msg': 'get intents', 'schedule_action': 'greet',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                        'execution_info': {'flow': "greet", 'type': 'flow'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
