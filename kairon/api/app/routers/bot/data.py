@@ -448,19 +448,8 @@ async def get_pos_integration_config(
     Fetch POS integration config for a provider and sync_type
     """
     try:
-        documents = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider)
-
-        if not documents:
-            raise AppException("Integration config not found")
-
-        sync_types = [doc.sync_type for doc in documents if doc.sync_type]
-
-        first_doc = documents[0].to_mongo().to_dict()
-        first_doc.pop("_id", None)
-        first_doc["sync_type"] = sync_types
-
-        return Response(message="POS Integration config fetched", data=first_doc)
-
+        config = cognition_processor.fetch_pos_integration_config(provider, current_user.get_bot())
+        return Response(message="POS Integration config fetched", data=config)
     except Exception as e:
         raise AppException(str(e))
 
@@ -474,11 +463,10 @@ async def delete_pos_integration_config(
     Delete POS integration config for a provider and sync_type
     """
     try:
-        integration = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider, sync_type=sync_type).get()
-        integration.delete()
-        return Response(message="POS Integration config deleted", data={"provider": provider, "sync_type": sync_type})
-    except DoesNotExist:
-        raise AppException("Integration config not found")
+        result = cognition_processor.delete_pos_integration_config(current_user.get_bot(), provider, sync_type)
+        return Response(message="POS Integration config deleted", data=result)
+    except Exception as e:
+        raise AppException(str(e))
 
 @router.get("/pos/params", response_model=Response)
 async def pos_config_params():

@@ -461,6 +461,45 @@ class CognitionDataProcessor:
         return integration_endpoint
 
     @staticmethod
+    def fetch_pos_integration_config(provider: str, bot: str) -> Dict:
+        """
+        Helper to fetch POS integration config for a provider and bot
+        """
+        documents = POSIntegrations.objects(bot=bot, provider=provider)
+
+        if not documents:
+            raise AppException("Integration config not found")
+
+        sync_types = [doc.sync_type for doc in documents if doc.sync_type]
+
+        first_doc = documents[0].to_mongo().to_dict()
+        first_doc.pop("_id", None)
+        first_doc["sync_type"] = sync_types
+
+        return first_doc
+
+    @staticmethod
+    def delete_pos_integration_config(bot: str, provider: str, sync_type: str) -> Dict:
+        """
+        Helper to delete POS integration config for a provider and sync_type
+        """
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type)
+        if not integration:
+            raise AppException("Integration config not found")
+        integration.delete()
+        return {"provider": provider, "sync_type": sync_type}
+
+    @staticmethod
+    def get_pos_integration_endpoint(bot: str, provider: str, sync_type: str):
+        """
+        Helper to retrieve POS integration endpoint
+        """
+        integration = POSIntegrations.objects(bot=bot, provider=provider,
+                                              sync_type=sync_type).get()
+        DataUtility.get_integration_endpoint(integration)
+        return DataUtility.get_integration_endpoint(integration)
+
+    @staticmethod
     def preprocess_push_menu_data(bot, json_data, provider):
         """
         Preprocess the JSON data received from Petpooja to extract relevant fields for knowledge base or meta synchronization.

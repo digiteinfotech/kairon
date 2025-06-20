@@ -89,7 +89,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup, BotSyncConfig
+                                             Lookup, BotSyncConfig, POSIntegrations
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1637,6 +1637,75 @@ class TestMongoProcessor:
 
         BotSyncConfig.objects.delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_fetch_pos_integration_config_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type="push_menu",
+            user=user
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type="item_toggle",
+            user=user
+        ).save()
+
+        result = CognitionDataProcessor.fetch_pos_integration_config(provider, bot)
+
+        assert result["bot"] == bot
+        assert result["provider"] == provider
+        assert result["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
+        assert set(result["sync_type"]) == {"push_menu", "item_toggle"}
+        assert result["user"] == user
+        assert "timestamp" in result
+        assert result["meta_config"] == {}
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+
+    def test_fetch_pos_integration_config_failure(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        with pytest.raises(AppException, match="Integration config not found"):
+            CognitionDataProcessor.fetch_pos_integration_config(provider, bot)
+
+    def test_delete_pos_integration_config_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type=sync_type,
+            user=user
+        ).save()
+
+        assert POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).count() == 1
+
+        result = CognitionDataProcessor.delete_pos_integration_config(bot, provider, sync_type)
+
+        assert result == {"provider": provider, "sync_type": sync_type}
+        assert POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).count() == 0
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+    def test_delete_pos_integration_config_failure(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        with pytest.raises(AppException, match="Integration config not found"):
+            CognitionDataProcessor.delete_pos_integration_config(provider, bot, sync_type)
 
     def test_add_bot_sync_config_success(self):
         bot = "test_bot"
