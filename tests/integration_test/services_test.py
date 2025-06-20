@@ -3655,7 +3655,7 @@ def test_upload_doc_content_file_type_validation_failure():
 @responses.activate
 def test_add_pos_integration_config_success():
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -3701,9 +3701,252 @@ def test_add_pos_integration_config_success():
 
 
 @responses.activate
+def test_get_pos_endpoint_push_menu():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/push_menu/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert actual["message"] == "Endpoint fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
+
+@responses.activate
+def test_get_pos_endpoint_item_toggle():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/item_toggle/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert actual["message"] == "Endpoint fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
+@responses.activate
+def test_get_pos_integration_config_success():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "POS Integration config fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+
+    assert actual["data"]["bot"] == str(pytest.bot)
+    assert actual["data"]["provider"] == "petpooja"
+    assert actual["data"]["sync_type"] == ['push_menu', 'item_toggle']
+    assert actual["data"]["config"]["restaurant_name"] == "restaurant1"
+    assert actual["data"]["config"]["branch_name"] == "branch1"
+    assert actual["data"]["config"]["restaurant_id"] == "98765"
+    assert actual["data"]["meta_config"]["access_token"] == "dummy_access_token"
+    assert actual["data"]["meta_config"]["catalog_id"] == "12345"
+
+    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+
+
+@responses.activate
+def test_get_pos_integration_config_not_found():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"] is False
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Integration config not found"
+
+@responses.activate
+def test_delete_pos_integration_config_success():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=petpooja&sync_type=push_menu",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] == "POS Integration config deleted"
+    assert actual["data"]["provider"] == "petpooja"
+    assert actual["data"]["sync_type"] == "push_menu"
+
+@responses.activate
+def test_delete_pos_integration_config_not_found():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=invalid_provider&sync_type=invalid_sync",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["success"] is False
+    assert actual["message"] == "Integration config not found"
+    assert actual["error_code"] == 422
+
+@responses.activate
+def test_get_pos_params():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/pos/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+
+    assert "petpooja" in actual["data"]
+    petpooja_data = actual["data"]["petpooja"]
+
+    assert "required_fields" in petpooja_data
+    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', {'sync_type': ['push_menu', 'item_toggle']} ]
+
+    assert "optional_fields" in petpooja_data
+    assert petpooja_data["optional_fields"] == ["access_token", "catalog_id"]
+
+    assert "disabled_fields" in petpooja_data
+    assert petpooja_data["disabled_fields"] == ["provider"]
+
+
+@responses.activate
 def test_add_pos_integration_config_invalid_provider():
     payload = {
-        "provider": "invalid_provider",
+        "connector_type": "invalid_provider",
         "config": {
             "restaurant_name": "invalid",
             "branch_name": "invalid",
@@ -3734,7 +3977,7 @@ def test_add_pos_integration_config_invalid_provider():
 @responses.activate
 def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
     payload = {
-        "provider": "petpooja",
+        "connector_type": "petpooja",
         "config": {
             "restaurant_name": "restaurant1",
             "branch_name": "branch1",
@@ -3753,7 +3996,7 @@ def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
     )
 
     updated_payload = {
-        "provider": "petpooja",
+        "connector_type": "petpooja",
         "config": {
             "restaurant_name": "updated_restaurant",
             "branch_name": "updated_branch",
@@ -3789,7 +4032,7 @@ def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
 @responses.activate
 def test_add_pos_integration_config_invalid_sync_type():
     payload = {
-        "provider": "petpooja",
+        "connector_type": "petpooja",
         "config": {
             "restaurant_name": "restaurant3",
             "branch_name": "branch3",
@@ -3854,7 +4097,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4028,7 +4271,7 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
         **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4154,7 +4397,7 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
         **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     payload = {
-        "provider": "petpooja",
+        "connector_type": "petpooja",
         "config": {
             "restaurant_name": "restaurant1",
             "branch_name": "branch1",
@@ -4309,7 +4552,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4438,7 +4681,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4569,7 +4812,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4736,7 +4979,7 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -4888,7 +5131,7 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5060,7 +5303,7 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5220,7 +5463,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5387,7 +5630,7 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_enabled(mock_embedding, mock_
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5539,7 +5782,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5677,7 +5920,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -5878,7 +6121,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
         LLMSecret(**secret).save()
 
     payload = {
-      "provider": "petpooja",
+      "connector_type": "petpooja",
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
@@ -33781,7 +34024,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 16
+    assert len(actual["data"]) == 17
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(
