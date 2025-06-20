@@ -795,6 +795,7 @@ class LlmPrompt(EmbeddedDocument):
         default=LlmPromptSource.static.value,
     )
     is_enabled = BooleanField(default=True)
+    query = StringField(null=True)
 
     def validate(self, clean=True):
         if (

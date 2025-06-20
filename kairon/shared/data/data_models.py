@@ -1103,6 +1103,7 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
+    query: Optional[Dict[str, Any]] = None
 
     @root_validator
     def check(cls, values):
