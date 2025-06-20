@@ -23,7 +23,7 @@ async def sync_data(
                                  examples=[CatalogProvider.PETPOOJA.value]),
     bot: Text = Path(description="Bot id"),
     sync_type: Text = Path(description="Sync Type"),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+    current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=DESIGNER_ACCESS),
     token: str = Path(description="JWT token for authentication"),
 ):
     """
@@ -55,7 +55,7 @@ async def rerun_sync(
                                  examples=[CatalogProvider.PETPOOJA.value]),
     bot: Text = Path(description="Bot id"),
     sync_type: Text = Path(description="Sync Type"),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+    current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=DESIGNER_ACCESS),
     token: str = Path(description="JWT token for authentication"),
     execution_id: str = Path(description="Execution id"),
 ):

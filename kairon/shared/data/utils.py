@@ -409,7 +409,7 @@ class DataUtility:
         )
 
         integration_endpoint = urljoin(
-            Utility.environment['model']['agent']['url'],
+            Utility.environment['app']['server_url'],
             f"/api/bot/integration/{integration_config['provider']}/{integration_config['sync_type']}/{integration_config['bot']}/{token}"
         )
         return integration_endpoint

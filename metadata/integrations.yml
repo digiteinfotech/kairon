@@ -110,3 +110,18 @@ live_agents:
     optional_fields:
       - inbox_identifier
     websocket_url: wss://app.chatwoot.com/cable
+
+pos_integrations:
+  petpooja:
+    required_fields:
+      - restaurant_name
+      - branch_name
+      - restaurant_id
+      - sync_type:
+          - push_menu
+          - item_toggle
+    optional_fields:
+      - access_token
+      - catalog_id
+    disabled_fields:
+      - provider

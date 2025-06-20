@@ -2,6 +2,7 @@ import os
 from typing import List
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
+from mongoengine import DoesNotExist
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -18,7 +19,9 @@ from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.data_models import POSIntegrationRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
+from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
@@ -435,3 +438,72 @@ async def add_pos_integration_config(
     )
 
     return Response(message='POS Integration Complete', data=integration_endpoint)
+
+@router.get("/{provider}/integrations", response_model=Response)
+async def get_pos_integration_config(
+    provider: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetch POS integration config for a provider and sync_type
+    """
+    try:
+        documents = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider)
+
+        if not documents:
+            raise AppException("Integration config not found")
+
+        sync_types = [doc.sync_type for doc in documents if doc.sync_type]
+
+        first_doc = documents[0].to_mongo().to_dict()
+        first_doc.pop("_id", None)
+        first_doc["sync_type"] = sync_types
+
+        return Response(message="POS Integration config fetched", data=first_doc)
+
+    except Exception as e:
+        raise AppException(str(e))
+
+@router.delete("/integrations", response_model=Response)
+async def delete_pos_integration_config(
+    provider: str,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Delete POS integration config for a provider and sync_type
+    """
+    try:
+        integration = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider, sync_type=sync_type).get()
+        integration.delete()
+        return Response(message="POS Integration config deleted", data={"provider": provider, "sync_type": sync_type})
+    except DoesNotExist:
+        raise AppException("Integration config not found")
+
+@router.get("/pos/params", response_model=Response)
+async def pos_config_params():
+    """
+    Retrieves pos config parameters.
+
+    Includes required and optional fields for storing the config.
+    """
+    return Response(data=Utility.system_metadata['pos_integrations'])
+
+
+@router.get("/{provider}/{sync_type}/endpoint", response_model=Response)
+async def get_pos_endpoint(
+    provider: str,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieve channel endpoint.
+    """
+    try:
+        integration = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider,
+                                              sync_type=sync_type).get()
+
+        integration_endpoint = DataUtility.get_integration_endpoint(integration)
+        return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
+    except DoesNotExist:
+        raise AppException("Integration config not found")
