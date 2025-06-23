@@ -3331,14 +3331,14 @@ class TestActions:
                                  'llm_type': 'openai',
                                  'process_media': False,
                                  'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                                  'type': 'system', 'source': 'static', 'is_enabled': True},
+                                                  'type': 'system', 'source': 'static', 'is_enabled': True,'query': None,},
                                                  {'name': 'History Prompt', 'type': 'user',
-                                                  'source': 'history', 'is_enabled': True},
+                                                  'source': 'history', 'is_enabled': True,'query': None,},
                                                  {'name': 'Similarity Prompt',
                                                   'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
                                                   'data': 'default',
                                                   'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True,'query': None,}],
                                  'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
@@ -4709,15 +4709,15 @@ class TestActions:
                        'llm_type': 'openai',
                        'process_media': False,
                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                                        'type': 'system', 'source': 'static', 'is_enabled': True,'query': None},
                                        {'name': 'History Prompt', 'type': 'user',
-                                        'source': 'history', 'is_enabled': True},
+                                        'source': 'history', 'is_enabled': True,'query': None},
                                        {'name': 'Similarity Prompt',
                                         'hyperparameters': {'top_results': 30,
                                                             'similarity_threshold': 0.3},
                                         'data': 'default',
                                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'query': None}],
                        'instructions': [],
                        'status': True}
         LLMSecret.objects.delete()
