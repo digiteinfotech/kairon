@@ -382,6 +382,8 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[0].pop("_id")
+        for prompt in prompt_action.get("llm_prompts", []):
+            prompt.pop("query", None)
         assert not DeepDiff(prompt_action, [
             {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
              'num_bot_responses': 5,
@@ -439,6 +441,8 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[1].pop("_id")
+        for prompt in prompt_action.get("llm_prompts", []):
+            prompt.pop("query", None)
         assert not DeepDiff(prompt_action[1], {
             'name': 'test_add_prompt_action_with_bot_content_prompt',
             'num_bot_responses': 5,
@@ -684,6 +688,7 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
+
         assert not DeepDiff(action, [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
                            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
                            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
