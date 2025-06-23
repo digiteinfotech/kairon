@@ -435,3 +435,54 @@ async def add_pos_integration_config(
     )
 
     return Response(message='POS Integration Complete', data=integration_endpoint)
+
+@router.get("/{provider}/integrations", response_model=Response)
+async def get_pos_integration_config(
+    provider: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetch POS integration config for a provider and sync_type
+    """
+    try:
+        config = cognition_processor.fetch_pos_integration_config(provider, current_user.get_bot())
+        return Response(message="POS Integration config fetched", data=config)
+    except Exception as e:
+        raise AppException(str(e))
+
+@router.delete("/integrations", response_model=Response)
+async def delete_pos_integration_config(
+    provider: str,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Delete POS integration config for a provider and sync_type
+    """
+    try:
+        result = cognition_processor.delete_pos_integration_config(current_user.get_bot(), provider, sync_type)
+        return Response(message="POS Integration config deleted", data=result)
+    except Exception as e:
+        raise AppException(str(e))
+
+@router.get("/pos/params", response_model=Response)
+async def pos_config_params():
+    """
+    Retrieves pos config parameters.
+
+    Includes required and optional fields for storing the config.
+    """
+    return Response(data=Utility.system_metadata['pos_integrations'])
+
+
+@router.get("/{provider}/{sync_type}/endpoint", response_model=Response)
+async def get_pos_endpoint(
+    provider: str,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieve channel endpoint.
+    """
+    integration_endpoint = cognition_processor.get_pos_integration_endpoint(current_user.get_bot(), provider, sync_type)
+    return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
