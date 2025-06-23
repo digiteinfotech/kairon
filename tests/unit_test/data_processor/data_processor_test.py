@@ -2195,7 +2195,7 @@ class TestMongoProcessor:
 
         # 2) One log for the parallel action itself (ignored)
         ActionServerLogs(intent="i0", action=cfg.name, sender="s0", bot=bot,
-                         trigger_info={"trigger_id": trigger_id}).save()
+                         trigger_info={"trigger_id": ""}).save()
         # 3) Two logs for the child actions (should be returned)
         ActionServerLogs(intent="i1", action=a1, sender="s1", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
         ActionServerLogs(intent="i2", action=a2, sender="s2", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
@@ -2218,7 +2218,7 @@ class TestMongoProcessor:
         trigger_id = str(ObjectId())  # valid ObjectId, but not in the DB
 
         processor = MongoProcessor()
-        with pytest.raises(AppException, match="Parallel action not found"):
+        with pytest.raises(AppException, match="Logs for Actions in Parallel Action not found"):
             processor.fetch_action_logs_for_parallel_action(trigger_id, bot)
 
     def test_validate_data_push_menu_success(self):

@@ -9198,5 +9198,10 @@ class MongoProcessor:
             .as_pymongo()
         )
         if not logs:
-            raise AppException(f"Loga for Actions in Parallel Action not found")
+            raise AppException("Logs for Actions in Parallel Action not found")
+
+        for log in logs:
+            if "_id" in log and isinstance(log["_id"], ObjectId):
+                log["_id"] = str(log["_id"])
+
         return list(logs)
