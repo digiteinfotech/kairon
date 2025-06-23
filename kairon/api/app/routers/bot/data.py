@@ -2,7 +2,6 @@ import os
 from typing import List
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
-from mongoengine import DoesNotExist
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
@@ -19,9 +18,7 @@ from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.data_models import POSIntegrationRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
-from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
