@@ -1707,6 +1707,50 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Integration config not found"):
             CognitionDataProcessor.delete_pos_integration_config(provider, bot, sync_type)
 
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    def test_get_pos_integration_endpoint_push_menu_success(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type=sync_type,
+            user=user
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        result = CognitionDataProcessor.get_pos_integration_endpoint(bot, provider, sync_type)
+
+        assert f"/{provider}/{sync_type}/{bot}/" in result
+        POSIntegrations.objects(provider="petpooja").delete()
+
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    def test_get_pos_integration_endpoint_item_toggle(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "item_toggle"
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type=sync_type,
+            user=user
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        result = CognitionDataProcessor.get_pos_integration_endpoint(bot, provider, sync_type)
+
+        assert f"/{provider}/{sync_type}/{bot}/" in result
+        POSIntegrations.objects(provider="petpooja").delete()
+
     def test_add_bot_sync_config_success(self):
         bot = "test_bot"
         user = "test_user"

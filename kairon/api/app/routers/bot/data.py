@@ -487,11 +487,5 @@ async def get_pos_endpoint(
     """
     Retrieve channel endpoint.
     """
-    try:
-        integration = POSIntegrations.objects(bot=current_user.get_bot(), provider=provider,
-                                              sync_type=sync_type).get()
-
-        integration_endpoint = DataUtility.get_integration_endpoint(integration)
-        return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
-    except DoesNotExist:
-        raise AppException("Integration config not found")
+    integration_endpoint = cognition_processor.get_pos_integration_endpoint(current_user.get_bot(), provider, sync_type)
+    return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
