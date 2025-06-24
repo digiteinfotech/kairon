@@ -1658,7 +1658,7 @@ class TestMongoProcessor:
             user=user
         ).save()
 
-        result = CognitionDataProcessor.fetch_pos_integration_config(provider, bot)
+        result = CognitionDataProcessor.fetch_pos_integration_config(bot)
 
         assert result["bot"] == bot
         assert result["provider"] == provider
@@ -1668,14 +1668,6 @@ class TestMongoProcessor:
         assert "timestamp" in result
         assert result["meta_config"] == {}
         POSIntegrations.objects(provider= "petpooja").delete()
-
-
-    def test_fetch_pos_integration_config_failure(self):
-        bot = "test_bot"
-        user = "test_user"
-        provider = "petpooja"
-        with pytest.raises(AppException, match="Integration config not found"):
-            CognitionDataProcessor.fetch_pos_integration_config(provider, bot)
 
     def test_delete_pos_integration_config_success(self):
         bot = "test_bot"

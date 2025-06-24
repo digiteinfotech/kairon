@@ -159,8 +159,8 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         provider = kwargs.get('provider')
         sync_type = kwargs.get('sync_type')
         token = kwargs.get('token')
-        data = kwargs.get('data')
-        asyncio.run(CatalogSync(bot, user, provider, sync_type=sync_type, token=token).execute(data=data))
+        log_id = kwargs.get('log_id')
+        asyncio.run(CatalogSync(bot, user, provider, sync_type=sync_type, token=token).execute(log_id=log_id))
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
     elif event_class == EventClass.content_importer:
@@ -3829,7 +3829,7 @@ def test_get_pos_integration_config_success():
     assert str(pytest.bot) in actual["data"]
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
+        url=f"/api/bot/{pytest.bot}/data/integrations",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -3850,20 +3850,6 @@ def test_get_pos_integration_config_success():
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
-
-
-@responses.activate
-def test_get_pos_integration_config_not_found():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["success"] is False
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Integration config not found"
 
 @responses.activate
 def test_delete_pos_integration_config_success():
@@ -4189,9 +4175,12 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
-        provider = "petpooja", data = push_menu_payload
+        provider = "petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4340,9 +4329,12 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
-        provider = "petpooja", data = push_menu_payload
+        provider = "petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4466,9 +4458,12 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token = token,
-        provider = "petpooja", data = item_toggle_payload
+        provider = "petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4900,9 +4895,12 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5051,9 +5049,12 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5220,9 +5221,12 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5376,9 +5380,12 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5552,9 +5559,12 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5703,9 +5713,12 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_enabled(mock_embedding, mock_
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -6026,9 +6039,12 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -6241,9 +6257,12 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    log_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", log_id = log_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()

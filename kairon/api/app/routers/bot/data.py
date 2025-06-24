@@ -436,16 +436,15 @@ async def add_pos_integration_config(
 
     return Response(message='POS Integration Complete', data=integration_endpoint)
 
-@router.get("/{provider}/integrations", response_model=Response)
+@router.get("/integrations", response_model=Response)
 async def get_pos_integration_config(
-    provider: str,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetch POS integration config for a provider and sync_type
     """
     try:
-        config = cognition_processor.fetch_pos_integration_config(provider, current_user.get_bot())
+        config = cognition_processor.fetch_pos_integration_config(current_user.get_bot())
         return Response(message="POS Integration config fetched", data=config)
     except Exception as e:
         raise AppException(str(e))

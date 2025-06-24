@@ -461,14 +461,14 @@ class CognitionDataProcessor:
         return integration_endpoint
 
     @staticmethod
-    def fetch_pos_integration_config(provider: str, bot: str) -> Dict:
+    def fetch_pos_integration_config(bot: str) -> Dict:
         """
         Helper to fetch POS integration config for a provider and bot
         """
-        documents = POSIntegrations.objects(bot=bot, provider=provider)
+        documents = POSIntegrations.objects(bot=bot)
 
         if not documents:
-            raise AppException("Integration config not found")
+            return {}
 
         sync_types = [doc.sync_type for doc in documents if doc.sync_type]
 
