@@ -9191,16 +9191,17 @@ class MongoProcessor:
         :param bot: Bot ID
         :return: List of ActionServerLogs as dicts
         """
-        # Fetch the parallel action config
-        parallel_action = ParallelActionConfig.objects(id=ObjectId(trigger_id), bot=bot, status=True).first()
-        if not parallel_action:
-            raise AppException(f"Parallel action not found")
-
-        # Get all logs matching the action names and bot
-        logs = (
+        logs = list(
             ActionServerLogs
-            .objects(trigger_info__trigger_id=trigger_id, bot=bot, action__in=parallel_action.actions)
+            .objects(trigger_info__trigger_id=trigger_id, bot=bot)
             .order_by("-timestamp")
             .as_pymongo()
         )
-        return list(logs)
+        if not logs:
+            raise AppException("Logs for Actions in Parallel Action not found")
+
+        for log in logs:
+            if "_id" in log and isinstance(log["_id"], ObjectId):
+                log["_id"] = str(log["_id"])
+
+        return logs
