@@ -9191,7 +9191,7 @@ class MongoProcessor:
         :param bot: Bot ID
         :return: List of ActionServerLogs as dicts
         """
-        logs = (
+        logs = list(
             ActionServerLogs
             .objects(trigger_info__trigger_id=trigger_id, bot=bot)
             .order_by("-timestamp")
@@ -9204,4 +9204,4 @@ class MongoProcessor:
             if "_id" in log and isinstance(log["_id"], ObjectId):
                 log["_id"] = str(log["_id"])
 
-        return list(logs)
+        return logs
