@@ -11765,10 +11765,6 @@ def test_get_prompt_action():
     actual_data = actual["data"]
     actual_data[0].pop("_id", None)
 
-    # Remove 'query' key if present in any of the llm_prompts
-    for prompt in actual_data[0].get("llm_prompts", []):
-        prompt.pop("query", None)
-
     expected_data = [{
         'name': 'test_update_prompt_action',
         'num_bot_responses': 5,
@@ -11793,7 +11789,10 @@ def test_get_prompt_action():
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Similarity_analytical Prompt',
@@ -11801,7 +11800,10 @@ def test_get_prompt_action():
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -11809,7 +11811,10 @@ def test_get_prompt_action():
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -11817,7 +11822,10 @@ def test_get_prompt_action():
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -11827,6 +11835,7 @@ def test_get_prompt_action():
     }]
 
     assert not DeepDiff(actual_data, expected_data, ignore_order=True)
+
 
 
 def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
@@ -11908,9 +11917,6 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     prompt_action = actual["data"][1]
     prompt_action.pop("_id", None)
 
-    for prompt in prompt_action.get("llm_prompts", []):
-        prompt.pop("query", None)
-
     expected_action = {
         'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
         'num_bot_responses': 5,
@@ -11935,7 +11941,10 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Similarity Prompt',
@@ -11943,7 +11952,10 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -11951,7 +11963,10 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -11959,7 +11974,10 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -11969,7 +11987,6 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     }
 
     assert not DeepDiff(prompt_action, expected_action, ignore_order=True)
-
 
 def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
@@ -12040,10 +12057,6 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     action_data = actual["data"][2]
     action_data.pop("_id", None)
 
-    # Clean up unexpected `query: None` fields from actual data
-    for prompt in action_data.get("llm_prompts", []):
-        prompt.pop("query", None)
-
     expected_action = {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload',
         'num_bot_responses': 5,
@@ -12068,7 +12081,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Similarity Prompt',
@@ -12076,7 +12092,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -12084,7 +12103,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             },
             {
                 'name': 'Query Prompt',
@@ -12092,7 +12114,10 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -12174,9 +12199,6 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
     prompt_action = actual["data"][3]
     prompt_action.pop("_id", None)
 
-    for prompt in prompt_action.get("llm_prompts", []):
-        prompt.pop("query", None)
-
     expected = {
         'name': 'test_add_prompt_action_with_bot_content_prompt_with_content',
         'num_bot_responses': 5,
@@ -12196,19 +12218,49 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
             'logit_bias': {}
         },
         'llm_prompts': [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-             'source': 'static', 'is_enabled': True},
-            {'name': 'Similarity Prompt', 'data': 'python',
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Query Prompt',
-             'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-             'is_enabled': True},
-            {'name': 'Query Prompt',
-             'data': 'If there is no specific query, assume that user is aking about java programming.',
-             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-             'is_enabled': True}
+            {
+                'name': 'System Prompt',
+                'data': 'You are a personal assistant.',
+                'type': 'system',
+                'source': 'static',
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
+            },
+            {
+                'name': 'Similarity Prompt',
+                'data': 'python',
+                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user',
+                'source': 'bot_content',
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True,
+                'query': {},
+                'collections': [],
+                'result_limit': 10
+            }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
         'set_slots': [],
@@ -12216,7 +12268,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
         'status': True
     }
 
-    assert not DeepDiff(prompt_action, expected, ignore_order=True)
+    assert not DeepDiff(prompt_action, expected, ignore_order=True, ignore_type_in_groups=[(dict, dict)])
 
 
 def test_delete_prompt_action_not_exists():
