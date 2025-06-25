@@ -1638,7 +1638,7 @@ class TestMongoProcessor:
         BotSyncConfig.objects.delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
 
-    def test_fetch_pos_integration_config_success(self):
+    def test_list_pos_integration_configs_success(self):
         bot = "test_bot"
         user = "test_user"
         provider = "petpooja"
@@ -1658,15 +1658,19 @@ class TestMongoProcessor:
             user=user
         ).save()
 
-        result = CognitionDataProcessor.fetch_pos_integration_config(bot)
+        result = CognitionDataProcessor.list_pos_integration_configs(bot)
 
-        assert result["bot"] == bot
-        assert result["provider"] == provider
-        assert result["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
-        assert set(result["sync_type"]) == {"push_menu", "item_toggle"}
-        assert result["user"] == user
-        assert "timestamp" in result
-        assert result["meta_config"] == {}
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+        config = result[0]
+        assert config["bot"] == bot
+        assert config["provider"] == provider
+        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
+        assert set(config["sync_type"]) == {"push_menu", "item_toggle"}
+        assert config["user"] == user
+        assert "timestamp" in config
+        assert config["meta_config"] == {}
         POSIntegrations.objects(provider= "petpooja").delete()
 
     def test_delete_pos_integration_config_success(self):
@@ -1683,12 +1687,50 @@ class TestMongoProcessor:
             user=user
         ).save()
 
-        assert POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).count() == 1
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type="item_toggle",
+            user=user
+        ).save()
+
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
 
         result = CognitionDataProcessor.delete_pos_integration_config(bot, provider, sync_type)
 
-        assert result == {"provider": provider, "sync_type": sync_type}
-        assert POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).count() == 0
+        assert result == {"provider": provider, "deleted_count": 1, "sync_type": sync_type}
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 1
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+    def test_delete_pos_integration_config_no_sync_type_provided_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type=sync_type,
+            user=user
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            provider=provider,
+            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            sync_type="item_toggle",
+            user=user
+        ).save()
+
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
+
+        result = CognitionDataProcessor.delete_pos_integration_config(bot, provider)
+
+        assert result == {"provider": provider, "deleted_count": 2}
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 0
         POSIntegrations.objects(provider= "petpooja").delete()
 
     def test_delete_pos_integration_config_failure(self):

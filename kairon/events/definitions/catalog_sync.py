@@ -10,6 +10,7 @@ from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import SyncType, SYNC_STATUS
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
+from kairon.shared.utils import MailUtility
 
 
 class CatalogSync(EventsBase):
@@ -48,14 +49,14 @@ class CatalogSync(EventsBase):
         Send event to event server
         """
         try:
-            log_id = CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, self.catalog_sync.provider, self.catalog_sync.sync_type, sync_status=SYNC_STATUS.ENQUEUED.value)
+            sync_ref_id = CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, self.catalog_sync.provider, self.catalog_sync.sync_type, sync_status=SYNC_STATUS.ENQUEUED.value)
             payload = {
                 'bot': self.catalog_sync.bot,
                 'user': self.catalog_sync.user,
                 'provider': self.catalog_sync.provider,
                 'sync_type': self.catalog_sync.sync_type,
                 'token': self.catalog_sync.token,
-                'log_id': log_id
+                'sync_ref_id': sync_ref_id
             }
             Utility.request_event_server(EventClass.catalog_integration, payload)
         except Exception as e:
@@ -67,14 +68,23 @@ class CatalogSync(EventsBase):
         Execute the document content import event.
         """
         AccountProcessor.load_system_properties()
-        log_id = kwargs.get("log_id")
+        sync_ref_id = kwargs.get("sync_ref_id")
 
-        if not log_id:
-            logger.error("Missing log_id in event payload")
-            return
+        if not sync_ref_id:
+            e = "Missing sync_ref_id in event payload"
+            execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.catalog_sync.bot)
+            await MailUtility.format_and_send_mail(
+                mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.catalog_sync.bot,
+                executionID=execution_id,
+                sync_status=SYNC_STATUS.ENQUEUED.value, message=str(e), first_name="HG"
+            )
+            CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, sync_status=SYNC_STATUS.FAILED.value,
+                                            exception=str(e),
+                                            status="Failure")
+            raise ValueError("Missing sync_ref_id in event payload")
 
         try:
-            log_doc = CatalogSyncLogs.objects(id=log_id).get()
+            log_doc = CatalogSyncLogs.objects(id=sync_ref_id).get()
             self.catalog_sync.data = log_doc.raw_payload
             initiate_import, stale_primary_keys= await self.catalog_sync.preprocess(request_body=self.catalog_sync.data)
             await self.catalog_sync.execute(data=self.catalog_sync.data, initiate_import = initiate_import,stale_primary_keys = stale_primary_keys)

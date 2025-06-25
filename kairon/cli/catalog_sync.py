@@ -18,7 +18,7 @@ def sync_catalog_content(args):
     logger.info("provider: {}", args.provider)
     logger.info("sync_type: {}", args.sync_type)
     logger.info("token: {}", args.token)
-    logger.info("log_id: {}", args.log_id)
+    logger.info("sync_ref_id: {}", args.sync_ref_id)
 
 
     event = CatalogSync(
@@ -29,7 +29,7 @@ def sync_catalog_content(args):
         token=args.token
     )
 
-    asyncio.run(event.execute(log_id=args.log_id))
+    asyncio.run(event.execute(sync_ref_id=args.sync_ref_id))
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -66,10 +66,10 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                                      type=str,
                                      help="Token for authentication",
                                      action='store')
-    catalog_sync_parser.add_argument('--log_id',
+    catalog_sync_parser.add_argument('--sync_ref_id',
                                      type=str,
                                      required=True,
-                                     help="MongoDB log ID to identify the sync payload",
+                                     help="Sync reference id to identify the sync payload",
                                      action='store')
 
     catalog_sync_parser.set_defaults(func=sync_catalog_content)
