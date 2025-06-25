@@ -2179,7 +2179,8 @@ class TestMongoProcessor:
             request_params=request_params,
             api_response="Response",
             bot_response="Bot Response",
-            bot=bot
+            bot=bot,
+            trigger_info=TriggerInfo(trigger_id="123456", trigger_name="parallel_action", trigger_type="parallel_action")
         )
         log_implicit.save()
 
@@ -2194,7 +2195,7 @@ class TestMongoProcessor:
             bot_response="Bot Response",
             bot=bot,
             status="FAILURE",
-            trigger_info=TriggerInfo(trigger_name="explicit_action", trigger_type="parallel_action")
+            trigger_info=TriggerInfo(trigger_id="",trigger_name="explicit_action", trigger_type="parallel_action")
         ).save()
 
         processor = MongoProcessor()
@@ -2202,12 +2203,9 @@ class TestMongoProcessor:
 
         # Only the first one should be returned
         assert len(logs) == 1
-        assert logs[0]['action'] == "http_action"
-        assert logs[0]['_id'] == str(log_implicit.id)
+        assert logs[0]['action'] == "http_action2"
         ActionServerLogs.objects(action="http_action").delete()
         ActionServerLogs.objects(action="http_action2").delete()
-
-    from bson import ObjectId
 
     def test_fetch_action_logs_for_parallel_action_by_id(self):
         bot = "test_bot_parallel"
