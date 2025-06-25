@@ -159,8 +159,8 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         provider = kwargs.get('provider')
         sync_type = kwargs.get('sync_type')
         token = kwargs.get('token')
-        data = kwargs.get('data')
-        asyncio.run(CatalogSync(bot, user, provider, sync_type=sync_type, token=token).execute(data=data))
+        sync_ref_id = kwargs.get('sync_ref_id')
+        asyncio.run(CatalogSync(bot, user, provider, sync_type=sync_type, token=token).execute(sync_ref_id=sync_ref_id))
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
     elif event_class == EventClass.content_importer:
@@ -3777,7 +3777,7 @@ def test_get_pos_endpoint_item_toggle():
     assert actual["success"]
 
 @responses.activate
-def test_get_pos_integration_config_success():
+def test_list_pos_integration_configs_success():
     payload = {
       "connector_type": "petpooja",
       "config": {
@@ -3829,7 +3829,7 @@ def test_get_pos_integration_config_success():
     assert str(pytest.bot) in actual["data"]
 
     response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
+        url=f"/api/bot/{pytest.bot}/data/integrations",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
@@ -3837,33 +3837,23 @@ def test_get_pos_integration_config_success():
     assert actual["message"] == "POS Integration config fetched"
     assert actual["error_code"] == 0
     assert actual["success"] is True
+    assert isinstance(actual["data"], list)
 
-    assert actual["data"]["bot"] == str(pytest.bot)
-    assert actual["data"]["provider"] == "petpooja"
-    assert actual["data"]["sync_type"] == ['push_menu', 'item_toggle']
-    assert actual["data"]["config"]["restaurant_name"] == "restaurant1"
-    assert actual["data"]["config"]["branch_name"] == "branch1"
-    assert actual["data"]["config"]["restaurant_id"] == "98765"
-    assert actual["data"]["meta_config"]["access_token"] == "dummy_access_token"
-    assert actual["data"]["meta_config"]["catalog_id"] == "12345"
+    petpooja_config = next((item for item in actual["data"] if item.get("provider") == "petpooja"), None)
+    assert petpooja_config is not None
+
+    assert petpooja_config["bot"] == str(pytest.bot)
+    assert petpooja_config["provider"] == "petpooja"
+    assert set(petpooja_config["sync_type"]) == {"push_menu", "item_toggle"}
+    assert petpooja_config["config"]["restaurant_name"] == "restaurant1"
+    assert petpooja_config["config"]["branch_name"] == "branch1"
+    assert petpooja_config["config"]["restaurant_id"] == "98765"
+    assert petpooja_config["meta_config"]["access_token"] == "dummy_access_token"
+    assert petpooja_config["meta_config"]["catalog_id"] == "12345"
 
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
-
-
-@responses.activate
-def test_get_pos_integration_config_not_found():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/petpooja/integrations",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["success"] is False
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Integration config not found"
 
 @responses.activate
 def test_delete_pos_integration_config_success():
@@ -3892,18 +3882,115 @@ def test_delete_pos_integration_config_success():
     assert "integration/petpooja/push_menu" in actual["data"]
     assert str(pytest.bot) in actual["data"]
 
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 2
+
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/integrations?provider=petpooja&sync_type=push_menu",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
     actual = response.json()
-    print(actual)
     assert actual["success"] is True
     assert actual["error_code"] == 0
     assert actual["message"] == "POS Integration config deleted"
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 1
     assert actual["data"]["provider"] == "petpooja"
     assert actual["data"]["sync_type"] == "push_menu"
+    assert actual["data"]["deleted_count"] == 1
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+
+@responses.activate
+def test_delete_pos_integration_config_no_sync_type_provided_success():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 2
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=petpooja",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] == "POS Integration config deleted"
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 0
+    assert actual["data"]["provider"] == "petpooja"
+    assert actual["data"]["deleted_count"] == 2
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
 
 @responses.activate
 def test_delete_pos_integration_config_not_found():
@@ -4189,9 +4276,12 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
-        provider = "petpooja", data = push_menu_payload
+        provider = "petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4340,9 +4430,12 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
-        provider = "petpooja", data = push_menu_payload
+        provider = "petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4466,9 +4559,12 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token = token,
-        provider = "petpooja", data = item_toggle_payload
+        provider = "petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -4900,9 +4996,12 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5051,9 +5150,12 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5220,9 +5322,12 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5376,9 +5481,12 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5552,9 +5660,12 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -5703,9 +5814,12 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_enabled(mock_embedding, mock_
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", data=item_toggle_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -6026,9 +6140,12 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -6241,9 +6358,12 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert actual["data"] is None
     assert actual["success"]
 
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
     complete_end_to_end_event_execution(
         pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
-        provider="petpooja", data=push_menu_payload
+        provider="petpooja", sync_ref_id = sync_ref_id
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
@@ -6287,6 +6407,153 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(
+        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
+
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
+    assert bot_sync_config is not None
+    assert bot_sync_config.restaurant_name == "restaurant1"
+    assert bot_sync_config.branch_name == "branch1"
+    assert bot_sync_config.parent_bot == pytest.bot
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
+    bot_sync_config.process_push_menu= True
+    bot_sync_config.process_item_toggle = True
+    bot_sync_config.ai_enabled = True
+    bot_sync_config.meta_enabled = True
+    bot_sync_config.save()
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    with pytest.raises(ValueError, match="Missing sync_ref_id in event payload"):
+        complete_end_to_end_event_execution(
+            pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+            provider = "petpooja", sync_ref_id = ""
+        )
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():

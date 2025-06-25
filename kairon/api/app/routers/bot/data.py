@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
@@ -436,16 +436,15 @@ async def add_pos_integration_config(
 
     return Response(message='POS Integration Complete', data=integration_endpoint)
 
-@router.get("/{provider}/integrations", response_model=Response)
-async def get_pos_integration_config(
-    provider: str,
+@router.get("/integrations", response_model=Response)
+async def list_pos_integration_configs(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetch POS integration config for a provider and sync_type
     """
     try:
-        config = cognition_processor.fetch_pos_integration_config(provider, current_user.get_bot())
+        config = cognition_processor.list_pos_integration_configs(current_user.get_bot())
         return Response(message="POS Integration config fetched", data=config)
     except Exception as e:
         raise AppException(str(e))
@@ -453,7 +452,7 @@ async def get_pos_integration_config(
 @router.delete("/integrations", response_model=Response)
 async def delete_pos_integration_config(
     provider: str,
-    sync_type: str,
+    sync_type: Optional[str] = None,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """

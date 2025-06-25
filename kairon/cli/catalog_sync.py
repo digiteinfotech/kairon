@@ -18,13 +18,8 @@ def sync_catalog_content(args):
     logger.info("provider: {}", args.provider)
     logger.info("sync_type: {}", args.sync_type)
     logger.info("token: {}", args.token)
-    logger.info("data: {}", args.data)
+    logger.info("sync_ref_id: {}", args.sync_ref_id)
 
-    try:
-        data = json.loads(args.data)
-    except json.JSONDecodeError as e:
-        logger.error("Invalid JSON provided in --data: {}", e)
-        return
 
     event = CatalogSync(
         bot=args.bot,
@@ -34,7 +29,7 @@ def sync_catalog_content(args):
         token=args.token
     )
 
-    asyncio.run(event.execute(data=data))
+    asyncio.run(event.execute(sync_ref_id=args.sync_ref_id))
 
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
@@ -71,10 +66,10 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                                      type=str,
                                      help="Token for authentication",
                                      action='store')
-    catalog_sync_parser.add_argument('--data',
+    catalog_sync_parser.add_argument('--sync_ref_id',
                                      type=str,
                                      required=True,
-                                     help="JSON-formatted catalog data to be synced",
+                                     help="Sync reference id to identify the sync payload",
                                      action='store')
 
     catalog_sync_parser.set_defaults(func=sync_catalog_content)

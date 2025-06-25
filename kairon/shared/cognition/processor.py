@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Text, Dict, Any, List
+from typing import Text, Dict, Any, List, Optional
 import json
 from loguru import logger
 from mongoengine import DoesNotExist, Q
@@ -461,33 +461,42 @@ class CognitionDataProcessor:
         return integration_endpoint
 
     @staticmethod
-    def fetch_pos_integration_config(provider: str, bot: str) -> Dict:
+    def list_pos_integration_configs(bot: str) -> List[Dict]:
         """
-        Helper to fetch POS integration config for a provider and bot
+        Helper to fetch POS integration config for a provider and bot.
+        If provider is 'petpooja', merge all its sync_types into one document.
         """
-        documents = POSIntegrations.objects(bot=bot, provider=provider)
-
+        documents = POSIntegrations.objects(bot=bot)
         if not documents:
-            raise AppException("Integration config not found")
+            return []
 
-        sync_types = [doc.sync_type for doc in documents if doc.sync_type]
+        sync_types = list({doc.sync_type for doc in documents if doc.sync_type})
+        base_doc = documents[0].to_mongo().to_dict()
+        base_doc.pop("_id", None)
+        base_doc["sync_type"] = sync_types
 
-        first_doc = documents[0].to_mongo().to_dict()
-        first_doc.pop("_id", None)
-        first_doc["sync_type"] = sync_types
-
-        return first_doc
+        return [base_doc]
 
     @staticmethod
-    def delete_pos_integration_config(bot: str, provider: str, sync_type: str) -> Dict:
+    def delete_pos_integration_config(bot: str, provider: str, sync_type: Optional[str] = None) -> Dict:
         """
         Helper to delete POS integration config for a provider and sync_type
         """
-        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type)
+        query = {"bot": bot, "provider": provider}
+        if sync_type:
+            query["sync_type"] = sync_type
+
+        integration = POSIntegrations.objects(**query)
         if not integration:
             raise AppException("Integration config not found")
+
+        deleted_count = integration.count()
         integration.delete()
-        return {"provider": provider, "sync_type": sync_type}
+
+        result = {"provider": provider, "deleted_count": deleted_count}
+        if sync_type:
+            result["sync_type"] = sync_type
+        return result
 
     @staticmethod
     def get_pos_integration_endpoint(bot: str, provider: str, sync_type: str):

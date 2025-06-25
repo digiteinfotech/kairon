@@ -507,7 +507,7 @@ class TestCatalogSyncCli:
                     provider="petpooja",
                     sync_type="item_toggle",
                     token="testToken",
-                    data='[{"item_id": "123", "available": true}]'
+                    sync_ref_id="665fc7bfa847e05100b4f321"
                 )
     )
     def test_catalog_sync_all_arguments(self, monkeypatch):
@@ -526,8 +526,8 @@ class TestCatalogSyncCli:
                     provider="petpooja",
                     sync_type="item_toggle",
                     token="testToken",
-                    data='INVALID_JSON'
                 ))
-    def test_catalog_sync_invalid_json_data(self, mock_parse_args, mock_execute):
-        cli()
-        mock_execute.assert_not_called()
+    def test_catalog_sync_missing_sync_ref_id(self, mock_parse_args, mock_execute):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert "'Namespace' object has no attribute 'sync_ref_id'" in str(e.value)

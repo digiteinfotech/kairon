@@ -60,6 +60,7 @@ class CatalogSyncLogProcessor:
         if sync_status in {SYNC_STATUS.FAILED.value, SYNC_STATUS.COMPLETED.value}:
             doc.end_timestamp = datetime.utcnow()
         doc.save()
+        return str(doc.id)
 
     @staticmethod
     def is_sync_in_progress(bot: str, raise_exception=True):
