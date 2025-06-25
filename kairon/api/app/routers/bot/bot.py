@@ -832,7 +832,7 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
     Retrieves action server logs for the bot.
     """
     logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
-    row_cnt = mongo_processor.get_row_count(ActionServerLogs, current_user.get_bot())
+    row_cnt = mongo_processor.get_row_count(ActionServerLogs, current_user.get_bot(),trigger_info__trigger_id="")
     data = {
         "logs": logs,
         "total": row_cnt
