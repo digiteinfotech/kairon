@@ -507,7 +507,7 @@ class TestCatalogSyncCli:
                     provider="petpooja",
                     sync_type="item_toggle",
                     token="testToken",
-                    log_id="665fc7bfa847e05100b4f321"
+                    sync_ref_id="665fc7bfa847e05100b4f321"
                 )
     )
     def test_catalog_sync_all_arguments(self, monkeypatch):
@@ -527,7 +527,7 @@ class TestCatalogSyncCli:
                     sync_type="item_toggle",
                     token="testToken",
                 ))
-    def test_catalog_sync_missing_log_id(self, mock_parse_args, mock_execute):
+    def test_catalog_sync_missing_sync_ref_id(self, mock_parse_args, mock_execute):
         with pytest.raises(AttributeError) as e:
             cli()
-        assert "'Namespace' object has no attribute 'log_id'" in str(e.value)
+        assert "'Namespace' object has no attribute 'sync_ref_id'" in str(e.value)
