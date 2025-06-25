@@ -925,6 +925,45 @@ class TestUtility:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_catalog_sync_status(self, validate_and_send_mail_mock):
+        mail_type = "catalog_sync_status"
+        email = "catalogbot@demo.com"
+        first_name = "catalog_user"
+        bot = "bot_id_123"
+        executionID = "exec_id_456"
+        sync_status = "Completed"
+        message = "Sync operation finished successfully."
+        base_url = Utility.environment["app"]["frontend_url"]
+
+        Utility.email_conf["email"]["templates"]["catalog_sync_status"] = (
+            open("template/emails/catalog_sync_status.html", "rb").read().decode()
+        )
+        Utility.email_conf["email"]["templates"]["catalog_sync_status_subject"] = (
+            "Catalog Sync Status Notification"
+        )
+
+        expected_body = (
+            Utility.email_conf["email"]["templates"]["catalog_sync_status"]
+            .replace("BOT_ID", bot)
+            .replace("EXECUTION_ID", executionID)
+            .replace("SYNC_STATUS", sync_status)
+            .replace("MESSAGE", message)
+            .replace("FIRST_NAME", first_name)  # in case used generically in template
+            .replace("USER_EMAIL", email)
+            .replace("BASE_URL", base_url)
+        )
+        expected_subject = Utility.email_conf["email"]["templates"]["catalog_sync_status_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type, email=email, first_name=first_name
+        )
+
+        validate_and_send_mail_mock.assert_called_once_with(
+            email, expected_subject, expected_body
+        )
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_add_member(self, validate_and_send_mail_mock):
         mail_type = "add_member"
         email = "sampletest@gmail.com"

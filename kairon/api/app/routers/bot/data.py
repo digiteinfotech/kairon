@@ -443,11 +443,8 @@ async def list_pos_integration_configs(
     """
     Fetch POS integration config for a provider and sync_type
     """
-    try:
-        config = cognition_processor.list_pos_integration_configs(current_user.get_bot())
-        return Response(message="POS Integration config fetched", data=config)
-    except Exception as e:
-        raise AppException(str(e))
+    config = cognition_processor.list_pos_integration_configs(current_user.get_bot())
+    return Response(message="POS Integration config fetched", data=config)
 
 @router.delete("/integrations", response_model=Response)
 async def delete_pos_integration_config(
