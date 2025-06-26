@@ -75,8 +75,8 @@ class CatalogSync(EventsBase):
         if not sync_ref_id:
             e = "Missing sync_ref_id in event payload"
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.catalog_sync.bot)
-            integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
-                                                  sync_type=self.sync_type).first()
+            integration = POSIntegrations.objects(bot=self.catalog_sync.bot, provider=self.catalog_sync.provider,
+                                                  sync_type=self.catalog_sync.sync_type).first()
             email = integration.user
             first_name = User.objects(email=email).first().first_name
             await MailUtility.format_and_send_mail(
