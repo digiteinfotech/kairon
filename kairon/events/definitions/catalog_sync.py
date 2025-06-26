@@ -5,11 +5,13 @@ from loguru import logger
 
 from kairon.catalog_sync.definitions.factory import CatalogSyncFactory
 from kairon.events.definitions.base import EventsBase
+from kairon.shared.account.data_objects import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import SyncType, SYNC_STATUS
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
+from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.utils import MailUtility
 
 
@@ -73,10 +75,14 @@ class CatalogSync(EventsBase):
         if not sync_ref_id:
             e = "Missing sync_ref_id in event payload"
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.catalog_sync.bot)
+            integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
+                                                  sync_type=self.sync_type).first()
+            email = integration.user
+            first_name = User.objects(email=email).first().first_name
             await MailUtility.format_and_send_mail(
-                mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.catalog_sync.bot,
+                mail_type="catalog_sync_status", email=email, bot=self.catalog_sync.bot,
                 executionID=execution_id,
-                sync_status=SYNC_STATUS.ENQUEUED.value, message=str(e), first_name="HG"
+                sync_status=SYNC_STATUS.ENQUEUED.value, message=str(e), first_name=first_name
             )
             CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),

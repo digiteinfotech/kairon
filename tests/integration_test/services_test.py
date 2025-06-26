@@ -6563,11 +6563,15 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
             provider = "petpooja", sync_ref_id = ""
         )
 
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
     CatalogProviderMapping.objects(provider="petpooja").delete()
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
     CatalogSyncLogs.objects.delete()
     CognitionData.objects(bot=pytest.bot).delete()
@@ -6725,11 +6729,15 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     cognition_data_docs = CognitionData.objects(bot=str(pytest.bot)).count()
     assert cognition_data_docs == 0
 
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
     CatalogProviderMapping.objects(provider="petpooja").delete()
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
     CatalogSyncLogs.objects.delete()
     CognitionData.objects(bot=pytest.bot).delete()
@@ -6881,11 +6889,15 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 
     assert not latest_log.processed_payload
 
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
     CatalogProviderMapping.objects(provider="petpooja").delete()
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
     CatalogSyncLogs.objects.delete()
     CognitionData.objects(bot=pytest.bot).delete()
