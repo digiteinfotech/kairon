@@ -70,8 +70,9 @@ class MetaProcessor:
 
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            logger.info("Response JSON:", response.json())
-            logger.info("Successfully synced product items to Meta catalog(Push Menu)")
+            response_json = response.json()
+            logger.info(f"[Meta Sync] Response JSON: {json.dumps(response_json, indent=2)}")
+            logger.info("Successfully synced product items to Meta catalog (Push Menu).")
         except Exception as e:
             logger.exception(f"Error syncing product items to Meta catalog for push menu: {str(e)}")
             raise e
@@ -91,8 +92,10 @@ class MetaProcessor:
 
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            logger.info("Response JSON:", response.json())
-            logger.info("Successfully synced product items to Meta catalog(Item Toggle)")
+
+            response_json = response.json()
+            logger.info(f"[Meta Sync] Response JSON: {json.dumps(response_json, indent=2)}")
+            logger.info("Successfully synced product items to Meta catalog (Item Toggle).")
         except Exception as e:
             logger.exception(f"Error syncing product items to Meta catalog for item toggle: {str(e)}")
             raise e
@@ -112,8 +115,10 @@ class MetaProcessor:
             }
             response = await asyncio.to_thread(requests.post, url, headers={}, data=data)
             response.raise_for_status()
-            logger.info("Response JSON:", response.json())
-            logger.info("Successfully deleted data from meta.")
+
+            response_json = response.json()
+            logger.info(f"[Meta Delete] Response JSON: {json.dumps(response_json, indent=2)}")
+            logger.info("Successfully deleted data from Meta.")
         except Exception as e:
             logger.exception(f"Error deleting data from meta: {str(e)}")
             raise e

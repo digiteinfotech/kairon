@@ -1673,6 +1673,16 @@ class TestMongoProcessor:
         assert config["meta_config"] == {}
         POSIntegrations.objects(provider= "petpooja").delete()
 
+    def test_list_pos_integration_configs_empty(self):
+        bot = "test_bot_no_data"
+
+        POSIntegrations.objects(bot=bot).delete()
+
+        result = CognitionDataProcessor.list_pos_integration_configs(bot)
+
+        assert isinstance(result, list)
+        assert result == []
+
     def test_delete_pos_integration_config_success(self):
         bot = "test_bot"
         user = "test_user"
@@ -2409,6 +2419,77 @@ class TestMongoProcessor:
         )
 
         assert validation_summary == {}
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+
+    def test_validate_data_pydantic_validation_error(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        sync_type = 'push_menu'
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "item",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "price",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "quantity",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": 1, "item": "", "quantity": 10},
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            sync_type=sync_type,
+            data=data,
+            bot=bot
+        )
+
+        assert isinstance(validation_summary, dict)
+        assert 1 in validation_summary
+        errors = validation_summary[1]
+        assert isinstance(errors, list)
+        assert len(errors) == 1
+
+        error = errors[0]
+        assert error["status"] == "Column length mismatch"
+        assert error["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert error["actual_columns"] == ["id", "item", "quantity"]
+
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
 

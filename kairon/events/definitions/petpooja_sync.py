@@ -2,6 +2,7 @@ from typing import Text
 
 from kairon.catalog_sync.definitions.base import CatalogSyncBase
 from kairon.meta.processor import MetaProcessor
+from kairon.shared.account.data_objects import User
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SyncType, SYNC_STATUS
 from kairon.shared.data.data_objects import POSIntegrations
@@ -53,9 +54,13 @@ class PetpoojaSync(CatalogSyncBase):
             return True
         except Exception as e:
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
+            integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
+                                                  sync_type=self.sync_type).first()
+            email = integration.user
+            first_name = User.objects(email=email).first().first_name
             await MailUtility.format_and_send_mail(
-                    mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot = self.bot, executionID = execution_id,
-                    sync_status=SYNC_STATUS.VALIDATING_FAILED, message = str(e), first_name = "HG"
+                    mail_type="catalog_sync_status", email=email, bot = self.bot, executionID = execution_id,
+                    sync_status=SYNC_STATUS.VALIDATING_FAILED, message = str(e), first_name = first_name
                 )
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),
@@ -96,10 +101,14 @@ class PetpoojaSync(CatalogSyncBase):
             return initiate_import, stale_primary_keys
         except Exception as e:
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
+            integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
+                                                  sync_type=self.sync_type).first()
+            email = integration.user
+            first_name = User.objects(email=email).first().first_name
             await MailUtility.format_and_send_mail(
-                mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.bot,
+                mail_type="catalog_sync_status", email=email, bot=self.bot,
                 executionID=execution_id,
-                sync_status=sync_status, message=str(e), first_name="HG"
+                sync_status=sync_status, message=str(e), first_name=first_name
             )
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),
@@ -111,6 +120,11 @@ class PetpoojaSync(CatalogSyncBase):
         """
         Execute the document content import event.
         """
+        integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
+                                              sync_type=self.sync_type).first()
+        email = integration.user
+        first_name = User.objects(email=email).first().first_name
+
         self.data = kwargs.get("data", {})
         cognition_processor = CognitionDataProcessor()
         initiate_import = kwargs.get("initiate_import", False)
@@ -150,36 +164,49 @@ class PetpoojaSync(CatalogSyncBase):
             if integrations_doc and 'meta_config' in integrations_doc:
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
+                logger.info(
+                    f"[{self.bot}] Starting Meta sync with catalog_id: {integrations_doc.meta_config.get('catalog_id')}")
                 meta_processor = MetaProcessor(integrations_doc.meta_config.get('access_token'),
                                                integrations_doc.meta_config.get('catalog_id'))
 
                 meta_payload = self.data.get("meta", [])
                 if self.sync_type == SyncType.push_menu:
+                    logger.info(f"[{self.bot}] Preprocessing Meta payload for CREATE: {len(meta_payload)} items")
                     meta_processor.preprocess_data(self.bot, meta_payload, "CREATE", self.provider)
                     await meta_processor.push_meta_catalog()
                     if stale_primary_keys:
+                        logger.info(f"[{self.bot}] Deleting stale items from Meta: {stale_primary_keys}")
                         delete_payload = meta_processor.preprocess_delete_data(stale_primary_keys)
                         await meta_processor.delete_meta_catalog(delete_payload)
+
+                    logger.info(f"[{self.bot}] Meta sync completed successfully (push_menu)")
                     status = "Success"
                 else:
+                    logger.info(f"[{self.bot}] Preprocessing Meta payload for UPDATE")
                     meta_processor.preprocess_data(self.bot, meta_payload, "UPDATE", self.provider)
                     await meta_processor.update_meta_catalog()
+
+                    logger.info(f"[{self.bot}] Meta update completed successfully")
                     status = "Success"
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             sync_status=SYNC_STATUS.COMPLETED.value
+
+            logger.info(f"[{self.bot}] Finalizing sync with execution_id: {execution_id}, sending mail")
             await MailUtility.format_and_send_mail(
-                mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.bot,
+                mail_type="catalog_sync_status", email=email, bot=self.bot,
                 executionID=execution_id,
-                sync_status=sync_status, message="Catalog has been synced successfully", first_name="HG"
+                sync_status=sync_status, message="Catalog has been synced successfully", first_name=first_name
             )
+
+            logger.info(f"[{self.bot}] Mail sent successfully. Sync completed.")
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status, status=status)
         except Exception as e:
-            logger.exception(str(e))
+            logger.exception(f"[{self.bot}] Catalog sync failed: {str(e)}")
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             await MailUtility.format_and_send_mail(
-                mail_type="catalog_sync_status", email="himanshu.gupta@nimblework.com", bot=self.bot,
+                mail_type="catalog_sync_status", email=email, bot=self.bot,
                 executionID=execution_id,
-                sync_status=sync_status, message=str(e), first_name="HG"
+                sync_status=sync_status, message=str(e), first_name=first_name
             )
             if not CatalogSyncLogProcessor.is_meta_enabled(self.bot) and not CatalogSyncLogProcessor.is_ai_enabled(self.bot):
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
