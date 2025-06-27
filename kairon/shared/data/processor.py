@@ -5035,7 +5035,7 @@ class MongoProcessor:
         """
         query = {
             "bot": bot,
-            "trigger_info.trigger_type": "implicit"
+            "trigger_info.trigger_id": ""
         }
 
         for log in (
