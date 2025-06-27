@@ -5717,162 +5717,8 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
-    # CollectionData.objects(collection_name=catalog_data_collection).delete()
-    CollectionData.objects(collection_name=catalog_images_collection).delete()
-    CatalogSyncLogs.objects.delete()
-    # CognitionData.objects(bot=pytest.bot).delete()
-    # CognitionSchema.objects(bot=pytest.bot).delete()
-
-
-@pytest.mark.asyncio
-@responses.activate
-@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
-@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
-@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
-@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_item_toggle_ai_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
-                                        mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
-    mock_collection_exists.return_value = False
-    mock_create_collection.return_value = None
-    mock_collection_upsert.return_value = None
-    mock_format_and_send_mail.return_value = None
-    mock_update_meta_catalog.return_value = None
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
-    LLMSecret.objects.delete()
-    secrets = [
-        {
-            "llm_type": "openai",
-            "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
-            "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-    ]
-
-    for secret in secrets:
-        LLMSecret(**secret).save()
-
-    payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
-        json = payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert actual["message"] == "POS Integration Complete"
-    assert actual["error_code"] == 0
-    assert actual["success"]
-    assert "integration/petpooja/item_toggle" in actual["data"]
-    assert str(pytest.bot) in actual["data"]
-    sync_url = actual["data"]
-    token = sync_url.split(str(pytest.bot) + "/")[1]
-
-    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
-    assert provider_mapping is not None
-    assert provider_mapping.meta_mappings is not None
-    assert provider_mapping.kv_mappings is not None
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
-    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
-    assert pos_integration is not None
-    assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
-
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.catalog_integration}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-
-    item_toggle_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
-
-    with item_toggle_payload_path.open("r", encoding="utf-8") as f:
-        item_toggle_payload = json.load(f)
-
-    response = client.post(
-        url=sync_url,
-        json=item_toggle_payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
-    actual = response.json()
-    assert actual["message"] == "Sync in progress! Check logs."
-    assert actual["error_code"] == 0
-    assert actual["data"] is None
-    assert actual["success"]
-
-    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    sync_ref_id = str(latest_log.id)
-
-    complete_end_to_end_event_execution(
-        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
-        provider="petpooja", sync_ref_id = sync_ref_id
-    )
-
-    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    assert latest_log is not None
-    assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
-    assert hasattr(latest_log, "exception")
-    assert latest_log.exception == "Sync to knowledge vault is not allowed for this bot. Contact Support!!"
-
-    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
-    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
-    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
-    catalog_item_summaries = [
-        {"id": doc.data["id"], "availability": doc.data["availability"]}
-        for doc in catalog_data_docs
-    ]
-
-    expected_items = [
-        {"id": "10539634", "availability": "in stock"},
-        {"id": "10539699", "availability": "in stock"},
-        {"id": "10539580", "availability": "out of stock"},
-    ]
-
-    assert all(item in catalog_item_summaries for item in expected_items)
-
-    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
-    assert cognition_data_docs.count() == 0
-
-    CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
-    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
-    LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
-    # CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
     CatalogSyncLogs.objects.delete()
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
@@ -6724,7 +6570,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     assert latest_log.validation_errors["10539634"][0]["input"] == 45
     assert latest_log.validation_errors["10539634"][0]["status"] == "Invalid DataType"
 
-    assert "Sync to knowledge vault is not allowed for this bot" in latest_log.exception
+    assert "Validation Failed. Check logs" in latest_log.exception
 
     cognition_data_docs = CognitionData.objects(bot=str(pytest.bot)).count()
     assert cognition_data_docs == 0
@@ -7209,6 +7055,183 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(
+        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
+
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+        "access_token":"dummy_access_token",
+        "catalog_id":"12345"
+       }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
+    assert bot_sync_config is not None
+    assert bot_sync_config.restaurant_name == "restaurant1"
+    assert bot_sync_config.branch_name == "branch1"
+    assert bot_sync_config.parent_bot == pytest.bot
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
+    bot_sync_config.process_push_menu = True
+    bot_sync_config.meta_enabled = True
+    bot_sync_config.save()
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_validation_errors_payload_path = Path(
+        "tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
+
+    with push_menu_validation_errors_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_validation_errors_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_validation_errors_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Completed"
+    assert latest_log.status == "Success"
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Validation Failed. Check logs"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["id"], "price": doc.data["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    mock_push_meta_catalog.assert_not_called()
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
