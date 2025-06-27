@@ -43,7 +43,7 @@ class PetpoojaSync(CatalogSyncBase):
                                             sync_status=SYNC_STATUS.INITIATED.value, raw_payload=request)
 
             CatalogSyncLogProcessor.is_sync_type_allowed(self.bot, self.sync_type)
-            if not CatalogSyncLogProcessor.is_catalog_collection_exists(self.bot) and CatalogSyncLogProcessor.is_ai_enabled(self.bot):
+            if not CatalogSyncLogProcessor.is_catalog_collection_exists(self.bot):
                 CatalogSyncLogProcessor.create_catalog_collection(bot=self.bot, user=self.user)
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=SYNC_STATUS.VALIDATING_REQUEST)
             if self.sync_type == SyncType.push_menu:
@@ -89,18 +89,17 @@ class PetpoojaSync(CatalogSyncBase):
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status, processed_payload= self.data)
             stale_primary_keys = CognitionDataProcessor.save_ai_data(self.data, self.bot, self.user, self.sync_type)
             initiate_import = True
-            if CatalogSyncLogProcessor.is_ai_enabled(self.bot):
-                restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(self.bot)
-                catalog_name = f"{restaurant_name}_{branch_name}_catalog"
-                sync_status = SYNC_STATUS.VALIDATING_KNOWLEDGE_VAULT_DATA
-                CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
-                error_summary = cognition_processor.validate_data("id", catalog_name,
-                                                                  self.sync_type.lower(), self.data.get("kv", []), self.bot)
-                if error_summary:
-                    initiate_import = False
-                    sync_status = SYNC_STATUS.SAVE.value
-                    CatalogSyncLogProcessor.add_log(self.bot, self.user, validation_errors=error_summary,
-                                                    sync_status=sync_status, status="Failure")
+            restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(self.bot)
+            catalog_name = f"{restaurant_name}_{branch_name}_catalog"
+            sync_status = SYNC_STATUS.VALIDATING_KNOWLEDGE_VAULT_DATA
+            CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
+            error_summary = cognition_processor.validate_data("id", catalog_name,
+                                                              self.sync_type.lower(), self.data.get("kv", []), self.bot)
+            if error_summary:
+                initiate_import = False
+                sync_status = SYNC_STATUS.SAVE.value
+                CatalogSyncLogProcessor.add_log(self.bot, self.user, validation_errors=error_summary,
+                                                sync_status=sync_status, status="Failure")
             return initiate_import, stale_primary_keys
         except Exception as e:
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
@@ -152,9 +151,16 @@ class PetpoojaSync(CatalogSyncBase):
                 stale_primary_keys = result.get("stale_ids")
             else:
                 sync_status = SYNC_STATUS.COMPLETED.value
-                CatalogSyncLogProcessor.add_log(self.bot, self.user,
-                                                exception="Sync to knowledge vault is not allowed for this bot. Contact Support!!",
-                                                status="Success")
+                status="Success"
+                if not initiate_import:
+                    CatalogSyncLogProcessor.add_log(self.bot, self.user,
+                                                    exception="Validation Failed. Check logs",
+                                                    status=status)
+                else:
+                    CatalogSyncLogProcessor.add_log(self.bot, self.user,
+                                                    exception="Sync to knowledge vault is not allowed for this bot. Contact Support!!",
+                                                    status=status)
+
 
             if not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
                 sync_status = SYNC_STATUS.COMPLETED.value
@@ -164,7 +170,7 @@ class PetpoojaSync(CatalogSyncBase):
 
             integrations_doc = POSIntegrations.objects(bot=self.bot, provider=self.provider,
                                                     sync_type=self.sync_type).first()
-            if integrations_doc and 'meta_config' in integrations_doc:
+            if initiate_import and integrations_doc and 'meta_config' in integrations_doc:
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
                 meta_processor = MetaProcessor(integrations_doc.meta_config.get('access_token'),
