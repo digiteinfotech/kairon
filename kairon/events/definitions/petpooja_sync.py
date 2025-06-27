@@ -9,6 +9,7 @@ from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.utils import MailUtility
 from loguru import logger
+from kairon.exceptions import AppException
 
 
 class PetpoojaSync(CatalogSyncBase):
@@ -36,8 +37,8 @@ class PetpoojaSync(CatalogSyncBase):
         """
         try:
             request = kwargs.get("request_body")
-            CatalogSyncLogProcessor.is_sync_in_progress(self.bot)
             CatalogSyncLogProcessor.is_limit_exceeded(self.bot)
+            CatalogSyncLogProcessor.is_sync_in_progress(self.bot)
             CatalogSyncLogProcessor.add_log(self.bot, self.user, self.provider, self.sync_type,
                                             sync_status=SYNC_STATUS.INITIATED.value, raw_payload=request)
 
@@ -52,6 +53,8 @@ class PetpoojaSync(CatalogSyncBase):
             else:
                 CatalogSyncLogProcessor.validate_item_toggle_request(request)
             return True
+        except AppException:
+            raise
         except Exception as e:
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             integration = POSIntegrations.objects(bot=self.bot, provider=self.provider,
@@ -164,41 +167,28 @@ class PetpoojaSync(CatalogSyncBase):
             if integrations_doc and 'meta_config' in integrations_doc:
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
-                logger.info(
-                    f"[{self.bot}] Starting Meta sync with catalog_id: {integrations_doc.meta_config.get('catalog_id')}")
                 meta_processor = MetaProcessor(integrations_doc.meta_config.get('access_token'),
                                                integrations_doc.meta_config.get('catalog_id'))
 
                 meta_payload = self.data.get("meta", [])
                 if self.sync_type == SyncType.push_menu:
-                    logger.info(f"[{self.bot}] Preprocessing Meta payload for CREATE: {len(meta_payload)} items")
                     meta_processor.preprocess_data(self.bot, meta_payload, "CREATE", self.provider)
                     await meta_processor.push_meta_catalog()
                     if stale_primary_keys:
-                        logger.info(f"[{self.bot}] Deleting stale items from Meta: {stale_primary_keys}")
                         delete_payload = meta_processor.preprocess_delete_data(stale_primary_keys)
                         await meta_processor.delete_meta_catalog(delete_payload)
-
-                    logger.info(f"[{self.bot}] Meta sync completed successfully (push_menu)")
                     status = "Success"
                 else:
-                    logger.info(f"[{self.bot}] Preprocessing Meta payload for UPDATE")
                     meta_processor.preprocess_data(self.bot, meta_payload, "UPDATE", self.provider)
                     await meta_processor.update_meta_catalog()
-
-                    logger.info(f"[{self.bot}] Meta update completed successfully")
                     status = "Success"
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             sync_status=SYNC_STATUS.COMPLETED.value
-
-            logger.info(f"[{self.bot}] Finalizing sync with execution_id: {execution_id}, sending mail")
             await MailUtility.format_and_send_mail(
                 mail_type="catalog_sync_status", email=email, bot=self.bot,
                 executionID=execution_id,
                 sync_status=sync_status, message="Catalog has been synced successfully", first_name=first_name
             )
-
-            logger.info(f"[{self.bot}] Mail sent successfully. Sync completed.")
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status, status=status)
         except Exception as e:
             logger.exception(f"[{self.bot}] Catalog sync failed: {str(e)}")

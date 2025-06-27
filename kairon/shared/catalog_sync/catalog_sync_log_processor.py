@@ -5,6 +5,7 @@ from loguru import logger
 from mongoengine import Q, DoesNotExist
 
 from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
+from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
 from kairon.shared.data.data_models import CognitionSchemaRequest
@@ -78,7 +79,7 @@ class CatalogSyncLogProcessor:
                 Q(sync_status__ne=SYNC_STATUS.ABORTED.value)).get()
 
             if raise_exception:
-                raise Exception("Sync already in progress! Check logs.")
+                raise AppException("Sync already in progress! Check logs.")
             in_progress = True
         except DoesNotExist as e:
             logger.error(e)
@@ -100,7 +101,7 @@ class CatalogSyncLogProcessor:
         ).count()
         if doc_count >= BotSettings.objects(bot=bot).get().catalog_sync_limit_per_day:
             if raise_exception:
-                raise Exception("Daily limit exceeded.")
+                raise AppException("Daily limit exceeded.")
             else:
                 return True
         else:
