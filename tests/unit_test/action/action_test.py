@@ -7,7 +7,9 @@ from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
+from kairon.exceptions import AppException
 from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
@@ -4725,6 +4727,112 @@ class TestActions:
                        'instructions': [],
                        'status': True}
         LLMSecret.objects.delete()
+
+    def test_get_prompt_action_config_with_crud(self):
+        bot = "test_bot_action_test"
+        user = "test_user_action_test"
+        action_name = "kairon_faq_action_crud_test"
+
+        # Clean up before test
+        PromptAction.objects(bot=bot, name=action_name).delete()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        collection_name = "test_collection"
+        crud_prompt = {
+            'name': 'CRUD Prompt',
+            'type': 'user',
+            'source': 'crud',
+            'collections': [collection_name],
+            'is_enabled': True,
+            'result_limit': 10,
+            'query': {"intent": "greet"}
+        }
+
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+             'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query': {}},
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
+             'collections': [], 'result_limit': 10, 'query': {}},
+            {'name': 'Similarity Prompt',
+             "data": "default",
+             'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+             'collections': [], 'result_limit': 10, 'query': {}},
+            crud_prompt
+        ]
+
+        PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+
+        with patch('kairon.shared.data.collection_processor.DataProcessor.save_collection_data') as mock_save:
+            mock_save.return_value = "mock_collection_id"
+
+            k_faq_action_config = ActionUtility.get_faq_action_config(bot, action_name)
+            k_faq_action_config.pop('timestamp')
+
+            crud_prompt_in_config = next(
+                prompt for prompt in k_faq_action_config['llm_prompts'] if prompt['name'] == 'CRUD Prompt')
+            assert crud_prompt_in_config['collections'] == [collection_name]
+            assert crud_prompt_in_config['query'] == {"intent": "greet"}
+            assert crud_prompt_in_config['source'] == "crud"
+
+        LLMSecret.objects.delete()
+
+    def test_add_prompt_action_with_missing_collection_should_fail(self):
+        bot = "test_bot_action_test"
+        user = "test_user_action_test"
+        processor = MongoProcessor()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        missing_collection_name = "non_existing_collection"
+        crud_prompt = {
+            'name': 'CRUD Prompt',
+            'type': 'user',
+            'source': 'crud',
+            'collections': [missing_collection_name],
+            'is_enabled': True,
+            'result_limit': 10,
+            'query': {"intent": "greet"}
+        }
+
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+             'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query': {}},
+            crud_prompt
+        ]
+
+        request = {
+            'name': 'kairon_faq_action_missing_collection_test',
+            'llm_prompts': llm_prompts,
+            'dispatch_response': True
+        }
+
+        with patch('kairon.shared.data.collection_processor.DataProcessor.get_all_collections') as mock_get_collections:
+            mock_get_collections.return_value = []  # Simulate no collections in DB
+
+            with pytest.raises(AppException) as exec_info:
+                processor.add_prompt_action(request, bot, user)
+
+            assert f'Collections not found: [\'{missing_collection_name}\']' in str(exec_info.value)
+
+        LLMSecret.objects.delete()
+
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

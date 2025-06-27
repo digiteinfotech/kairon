@@ -382,29 +382,35 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[0].pop("_id")
-        for prompt in prompt_action.get("llm_prompts", []):
-            prompt.pop("query", None)
-        assert not DeepDiff(prompt_action, [
-            {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
-             'num_bot_responses': 5,
-             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'user_question': {'type': 'from_user_message'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
-                                 'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                 'frequency_penalty': 0.0, 'logit_bias': {}},
-             "process_media": False,
-             'llm_type': 'openai',
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'type': 'system', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'data': 'default',
-                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                              'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}], ignore_order=True)
+        assert not DeepDiff(prompt_action[0], {
+            'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',  # corrected name
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
+                                'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                 'type': 'system', 'source': 'static', 'is_enabled': True,
+                 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Similarity Prompt', 'data': 'default',  # corrected expected value
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}
+            ],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
+        }, ignore_order=True)
 
         LLMSecret.objects.delete()
 
@@ -441,8 +447,6 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[1].pop("_id")
-        for prompt in prompt_action.get("llm_prompts", []):
-            prompt.pop("query", None)
         assert not DeepDiff(prompt_action[1], {
             'name': 'test_add_prompt_action_with_bot_content_prompt',
             'num_bot_responses': 5,
@@ -453,17 +457,25 @@ class TestMongoProcessor:
                                 'frequency_penalty': 0.0, 'logit_bias': {}},
             'llm_type': 'openai',
             "process_media": False,
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                             'type': 'system', 'source': 'static', 'is_enabled': True},
-                            {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                             'is_enabled': True},
-                            {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                 'type': 'system', 'source': 'static', 'is_enabled': True,
+                 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True,
+                 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}
+            ],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
+        }, ignore_order=True)
 
         LLMSecret.objects.delete()
 
@@ -689,22 +701,29 @@ class TestMongoProcessor:
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
 
-        assert not DeepDiff(action, [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
-                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_type': 'openai',
-                          "process_media": False,
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-                           'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                                         {'name': 'gpt_result_type', 'value': '${data.type}',
-                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_add_prompt_action_faq_action_with_default_values',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
+                                'top_p': 0.0, 'n': 1, 'stop': None,
+                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_type': 'openai',
+            'process_media': False,
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
+                 'query': {}, 'collections': [], 'result_limit': 10}
+            ],
+            'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                          {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
         LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
@@ -1066,53 +1085,101 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
-               'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
-               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
-                                   'top_p': 0.0, 'n': 1, 'stop': None,
-                                   'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-               'llm_type': 'openai',
-               "process_media": False,
-               'llm_prompts': [
-                   {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                    'source': 'static', 'is_enabled': True},
-                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            'process_media': False,
+            'llm_prompts': [
+                {
+                    'name': 'System Prompt',
+                    'data': 'You are a personal assistant.',
+                    'type': 'system',
+                    'source': 'static',
+                    'is_enabled': True,
+                    'query': {},
+                    'collections': [],
+                    'result_limit': 10
+                },
+                {
+                    'name': 'Similarity Prompt',
+                    'data': 'Bot_collection',
                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                   'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                   'instructions': 'Answer according to the context',
-                                                                                   'type': 'query',
-                                                                                   'source': 'static',
-                                                                                   'is_enabled': True},
-                   {'name': 'Query Prompt',
+                    'type': 'user',
+                    'source': 'bot_content',
+                    'is_enabled': True,
+                    'query': {},
+                    'collections': [],
+                    'result_limit': 10
+                },
+                {
+                    'name': 'Query Prompt',
+                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                    'instructions': 'Answer according to the context',
+                    'type': 'query',
+                    'source': 'static',
+                    'is_enabled': True,
+                    'query': {},
+                    'collections': [],
+                    'result_limit': 10
+                },
+                {
+                    'name': 'Query Prompt',
                     'data': 'If there is no specific query, assume that user is aking about java programming.',
-                    'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                    'is_enabled': True}], 'instructions': [],
-               'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                             {'name': 'gpt_result_type', 'value': '${data.type}',
-                              'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
-                ignore_order=True)
+                    'instructions': 'Answer according to the context',
+                    'type': 'query',
+                    'source': 'static',
+                    'is_enabled': True,
+                    'query': {},
+                    'collections': [],
+                    'result_limit': 10
+                }
+            ],
+            'instructions': [],
+            'set_slots': [
+                {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}
+            ],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static'}],
+                                'source': 'static',  'query': {},'collections': [],'result_limit': 10}],
                'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
-                   'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                   'llm_type': 'openai',
-                   "process_media": False,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
-                                       'top_p': 0.0, 'n': 1, 'stop': None,
-                                       'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                   'llm_prompts': [
-                       {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True}],
-                   'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-                   'dispatch_response': True, 'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action_again',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'llm_type': 'openai',
+            "process_media": False,
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
+                                'top_p': 0.0, 'n': 1, 'stop': None,
+                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}],
+            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+            'dispatch_response': True, 'status': True}], ignore_order=True)
 
         LLMSecret.objects.delete()
 
@@ -1157,35 +1224,64 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
-                      'failure_message': 'updated_failure_message',
-                      'user_question': {'type': 'from_user_message'},
-                      'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-5-sonnet-20240620'},
-                      'llm_type': 'anthropic',
-                      "process_media": False,
-                      'llm_prompts': [
-                          {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                           'type': 'system',
-                           'source': 'static', 'is_enabled': True},
-                          {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                           'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                           'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                          {'name': 'Query Prompt',
-                           'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                           'instructions': 'Answer according to the context',
-                           'type': 'query',
-                           'source': 'static',
-                           'is_enabled': True},
-                          {'name': 'Query Prompt',
-                           'data': 'If there is no specific query, assume that user is aking about java programming.',
-                           'instructions': 'Answer according to the context', 'type': 'query',
-                           'source': 'static',
-                           'is_enabled': True}], 'instructions': [],
-                      'set_slots': [
-                          {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                          {'name': 'gpt_result_type', 'value': '${data.type}',
-                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
-            ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-5-sonnet-20240620'},
+            'llm_type': 'anthropic',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'Bot_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [
+                {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}
+            ],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
         LLMSecret.objects.delete()
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
@@ -1230,30 +1326,70 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
-               'failure_message': 'updated_failure_message',
-               'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
-                                   'top_p': 0.0, 'n': 1, 'stop': None,
-                                   'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-               'llm_type': 'openai',
-               "process_media": False,
-               'llm_prompts': [
-                   {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                    'source': 'static', 'is_enabled': True},
-                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                   'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                   'instructions': 'Answer according to the context',
-                                                                                   'type': 'query',
-                                                                                   'source': 'static',
-                                                                                   'is_enabled': True},
-                   {'name': 'Query Prompt',
-                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                    'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                    'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-               'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_with_less_hyperparameters',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'Bot_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [],
+            'dispatch_response': True,
+            'status': True
+        }], ignore_order=True)
 
         LLMSecret.objects.delete()
 
@@ -1278,30 +1414,71 @@ class TestMongoProcessor:
 
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
-               'failure_message': 'updated_failure_message',
-               'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-               'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
-                                   'top_p': 0.0, 'n': 1, 'stop': None,
-                                   'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-               'llm_type': 'openai',
-              "process_media": False,
-               'llm_prompts': [
-                   {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                    'source': 'static', 'is_enabled': True},
-                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                    'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                   'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                   'instructions': 'Answer according to the context',
-                                                                                   'type': 'query',
-                                                                                   'source': 'static',
-                                                                                   'is_enabled': True},
-                   {'name': 'Query Prompt',
-                    'data': 'If there is no specific query, assume that user is aking about java programming.',
-                    'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                    'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-               'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_with_less_hyperparameters',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'Bot_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True,
+                 'query': {},
+                 'collections': [],
+                 'result_limit': 10
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [],
+            'dispatch_response': True,
+            'status': True
+        }], ignore_order=True)
+
         LLMSecret.objects.delete()
 
     def test_delete_prompt_action(self):
@@ -6228,6 +6405,8 @@ class TestMongoProcessor:
         assert file_multiflow_story == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  flow_tags:\n  - chatbot_flow\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         zip_file.close()
 
+    import yaml
+
     def test_download_data_files_prompt_action(self, monkeypatch):
         from zipfile import ZipFile
         def _mock_bot_info(*args, **kwargs):
@@ -6268,9 +6447,16 @@ class TestMongoProcessor:
         assert zip_file.getinfo('actions.yml')
         file_info_actions = zip_file.getinfo('actions.yml')
         file_content_actions = zip_file.read(file_info_actions)
-        expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true"
-        assert file_content_actions.__contains__(expected_content)
-        zip_file.close()
+        yaml_content = yaml.safe_load(file_content_actions)
+
+        # Check that the system prompt exists in the yaml
+        prompts = yaml_content['prompt_action'][0]['llm_prompts']
+        system_prompt = next((prompt for prompt in prompts if prompt['name'] == 'System Prompt'), None)
+        assert system_prompt is not None
+        assert system_prompt['data'] == 'You are a personal assistant.'
+        assert system_prompt['source'] == 'static'
+        assert system_prompt['type'] == 'system'
+        assert system_prompt['is_enabled'] is True
 
         LLMSecret.objects.delete()
 
