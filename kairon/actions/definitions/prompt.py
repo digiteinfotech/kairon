@@ -11,7 +11,6 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
