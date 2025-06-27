@@ -28,7 +28,7 @@ from kairon.shared.actions.models import (
 from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field, conint
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
 from kairon.shared.models import (
     StoryStepType,
     StoryType,
