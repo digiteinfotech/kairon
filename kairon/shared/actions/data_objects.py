@@ -772,6 +772,7 @@ class PromptHyperparameter(EmbeddedDocument):
 
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
+    collections = ListField(StringField(), default=[])
     hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
     data = StringField()
     instructions = StringField()
@@ -790,10 +791,13 @@ class LlmPrompt(EmbeddedDocument):
             LlmPromptSource.bot_content.value,
             LlmPromptSource.action.value,
             LlmPromptSource.slot.value,
+            LlmPromptSource.crud.value,
         ],
         default=LlmPromptSource.static.value,
     )
     is_enabled = BooleanField(default=True)
+    query = DictField(default=dict)
+    result_limit = IntField(default=10)
 
     def validate(self, clean=True):
         if (
