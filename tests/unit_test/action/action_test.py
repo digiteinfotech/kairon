@@ -4691,9 +4691,8 @@ class TestActions:
         llm_secret.save()
 
         llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,'collections': [],
-                        'result_limit': 10, 'query':{}},
+                        'source': 'static', 'is_enabled': True},
+                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                        {'name': 'Similarity Prompt',
                         "data": "default",
                         'hyperparameters': {'top_results': 30,
@@ -4775,8 +4774,8 @@ class TestActions:
 
             crud_prompt_in_config = next(
                 prompt for prompt in k_faq_action_config['llm_prompts'] if prompt['name'] == 'CRUD Prompt')
-            assert crud_prompt_in_config['collections'] == [collection_name]
-            assert crud_prompt_in_config['query'] == {"intent": "greet"}
+            assert crud_prompt_in_config['crud_config']['collections'] == [collection_name]
+            assert crud_prompt_in_config['crud_config']['query'] == {'key': 'value'}
             assert crud_prompt_in_config['source'] == "crud"
 
         LLMSecret.objects.delete()
