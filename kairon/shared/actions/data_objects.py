@@ -774,6 +774,23 @@ class CrudConfig(EmbeddedDocument):
     query = DictField(default=dict)
     result_limit = IntField(default=10)
 
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if self.result_limit < 1:
+            raise ValidationError("result_limit must be greater than 0")
+        if self.result_limit > 10:
+            raise ValidationError("result_limit should not exceed 10 for performance reasons")
+        if not self.collections:
+            raise ValidationError("At least one collection must be specified")
+        for collection in self.collections:
+            if not collection or not collection.strip():
+                raise ValidationError("Collection names cannot be empty")
+
+    def clean(self):
+        self.collections = [col.strip() for col in self.collections if col and col.strip()]
+
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
     hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
@@ -807,6 +824,14 @@ class LlmPrompt(EmbeddedDocument):
                 and self.source != LlmPromptSource.static.value
         ):
             raise ValidationError("System prompt must have static source!")
+
+        if self.source == LlmPromptSource.crud.value:
+            if not self.crud_config:
+                raise ValidationError("crud_config is required when source is 'crud'")
+            else:
+                self.crud_config.validate()
+        elif self.crud_config:
+            raise ValidationError("crud_config should only be provided when source is 'crud'")
         if self.hyperparameters:
             self.hyperparameters.validate()
         if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):

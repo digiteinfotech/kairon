@@ -99,7 +99,7 @@ class LlmPromptSource(str, Enum):
     action = "action"
     history = "history"
     tag = "tag"
-    crud= "crud"
+    crud = "crud"
     bot_content = "bot_content"
 
 
