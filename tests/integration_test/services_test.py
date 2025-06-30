@@ -12734,10 +12734,7 @@ def test_get_prompt_action():
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Similarity_analytical Prompt',
@@ -12745,10 +12742,7 @@ def test_get_prompt_action():
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -12756,10 +12750,7 @@ def test_get_prompt_action():
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -12767,10 +12758,7 @@ def test_get_prompt_action():
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -12886,10 +12874,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Similarity Prompt',
@@ -12897,10 +12882,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -12908,10 +12890,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -12919,10 +12898,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -13026,10 +13002,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Similarity Prompt',
@@ -13037,10 +13010,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -13048,10 +13018,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -13059,10 +13026,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],
@@ -13168,10 +13132,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 'data': 'You are a personal assistant.',
                 'type': 'system',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Similarity Prompt',
@@ -13179,10 +13140,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -13190,10 +13148,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             },
             {
                 'name': 'Query Prompt',
@@ -13201,10 +13156,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
-                'is_enabled': True,
-                'query': {},
-                'collections': [],
-                'result_limit': 10
+                'is_enabled': True
             }
         ],
         'instructions': ['Answer in a short manner.', 'Keep it simple.'],

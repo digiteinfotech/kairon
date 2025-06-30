@@ -393,22 +393,23 @@ class TestMongoProcessor:
             'llm_type': 'openai',
             "process_media": False,
             'llm_prompts': [
-                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                 'type': 'system', 'source': 'static', 'is_enabled': True,
-                 'query': {}, 'collections': [], 'result_limit': 10},
-                {'name': 'Similarity Prompt', 'data': 'default',  # corrected expected value
-                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                 'query': {}, 'collections': [], 'result_limit': 10},
-                {'name': 'Query Prompt',
-                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
-                {'name': 'Query Prompt',
-                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}
-            ],
+                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                     'type': 'system', 'source': 'static', 'is_enabled': True},
+
+                    {'name': 'Similarity Prompt', 'data': 'default',
+                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+
+                    {'name': 'Query Prompt',
+                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                     'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                     'is_enabled': True},
+
+                    {'name': 'Query Prompt',
+                     'data': 'If there is no specific query, assume that user is aking about java programming.',
+                     'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                     'is_enabled': True}
+                ],
             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
         }, ignore_order=True)
 
@@ -459,20 +460,18 @@ class TestMongoProcessor:
             "process_media": False,
             'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                 'type': 'system', 'source': 'static', 'is_enabled': True,
-                 'query': {}, 'collections': [], 'result_limit': 10},
+                 'type': 'system', 'source': 'static', 'is_enabled': True},
                 {'name': 'Similarity Prompt', 'data': 'Bot_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                 'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                 'query': {}, 'collections': [], 'result_limit': 10},
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                 {'name': 'Query Prompt',
                  'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                  'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
+                 'is_enabled': True},
                 {'name': 'Query Prompt',
                  'data': 'If there is no specific query, assume that user is aking about java programming.',
                  'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}
+                 'is_enabled': True}
             ],
             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
         }, ignore_order=True)
@@ -713,9 +712,8 @@ class TestMongoProcessor:
             'process_media': False,
             'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                 'source': 'static', 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10},
-                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-                 'query': {}, 'collections': [], 'result_limit': 10}
+                 'source': 'static', 'is_enabled': True},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}
             ],
             'instructions': ['Answer in a short manner.', 'Keep it simple.'],
             'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
@@ -1109,10 +1107,7 @@ class TestMongoProcessor:
                     'data': 'You are a personal assistant.',
                     'type': 'system',
                     'source': 'static',
-                    'is_enabled': True,
-                    'query': {},
-                    'collections': [],
-                    'result_limit': 10
+                    'is_enabled': True
                 },
                 {
                     'name': 'Similarity Prompt',
@@ -1120,10 +1115,7 @@ class TestMongoProcessor:
                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                     'type': 'user',
                     'source': 'bot_content',
-                    'is_enabled': True,
-                    'query': {},
-                    'collections': [],
-                    'result_limit': 10
+                    'is_enabled': True
                 },
                 {
                     'name': 'Query Prompt',
@@ -1131,10 +1123,7 @@ class TestMongoProcessor:
                     'instructions': 'Answer according to the context',
                     'type': 'query',
                     'source': 'static',
-                    'is_enabled': True,
-                    'query': {},
-                    'collections': [],
-                    'result_limit': 10
+                    'is_enabled': True
                 },
                 {
                     'name': 'Query Prompt',
@@ -1142,10 +1131,7 @@ class TestMongoProcessor:
                     'instructions': 'Answer according to the context',
                     'type': 'query',
                     'source': 'static',
-                    'is_enabled': True,
-                    'query': {},
-                    'collections': [],
-                    'result_limit': 10
+                    'is_enabled': True
                 }
             ],
             'instructions': [],
@@ -1160,7 +1146,7 @@ class TestMongoProcessor:
         request = {'name': 'test_edit_prompt_action_faq_action_again',
                'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static',  'query': {},'collections': [],'result_limit': 10}],
+                                'source': 'static'}],
                'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
@@ -1177,7 +1163,7 @@ class TestMongoProcessor:
                                 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
             'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                 'source': 'static', 'is_enabled': True, 'query': {}, 'collections': [], 'result_limit': 10}],
+                 'source': 'static', 'is_enabled': True}],
             'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
             'dispatch_response': True, 'status': True}], ignore_order=True)
 
@@ -1237,40 +1223,28 @@ class TestMongoProcessor:
                  'data': 'You are a personal assistant.',
                  'type': 'system',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
                  'data': 'Bot_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'If there is no specific query, assume that user is aking about java programming.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  }
             ],
             'instructions': [],
@@ -1349,40 +1323,28 @@ class TestMongoProcessor:
                  'data': 'You are a personal assistant.',
                  'type': 'system',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
                  'data': 'Bot_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'If there is no specific query, assume that user is aking about java programming.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  }
             ],
             'instructions': [],
@@ -1437,40 +1399,28 @@ class TestMongoProcessor:
                  'data': 'You are a personal assistant.',
                  'type': 'system',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
                  'data': 'Bot_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  },
                 {'name': 'Query Prompt',
                  'data': 'If there is no specific query, assume that user is aking about java programming.',
                  'instructions': 'Answer according to the context',
                  'type': 'query',
                  'source': 'static',
-                 'is_enabled': True,
-                 'query': {},
-                 'collections': [],
-                 'result_limit': 10
+                 'is_enabled': True
                  }
             ],
             'instructions': [],

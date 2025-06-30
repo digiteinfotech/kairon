@@ -769,10 +769,13 @@ class PromptHyperparameter(EmbeddedDocument):
         if self.top_results > 30:
             raise ValidationError("top_results should not be greater than 30")
 
+class CrudConfig(EmbeddedDocument):
+    collections = ListField(StringField(), default=[])
+    query = DictField(default=dict)
+    result_limit = IntField(default=10)
 
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
-    collections = ListField(StringField(), default=[])
     hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
     data = StringField()
     instructions = StringField()
@@ -796,8 +799,7 @@ class LlmPrompt(EmbeddedDocument):
         default=LlmPromptSource.static.value,
     )
     is_enabled = BooleanField(default=True)
-    query = DictField(default=dict)
-    result_limit = IntField(default=10)
+    crud_config = EmbeddedDocumentField(CrudConfig)
 
     def validate(self, clean=True):
         if (

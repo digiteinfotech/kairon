@@ -1,3 +1,4 @@
+import json
 from typing import List, Any, Dict, Optional, Text, Union
 
 from validators import url
@@ -1094,6 +1095,10 @@ class PromptHyperparameters(BaseModel):
             raise ValueError("top_results should not be greater than 30")
         return values
 
+class CrudConfigRequest(BaseModel):
+    collections: Optional[List[str]] = None
+    query: Optional[Any] = None
+    result_limit: int = 10
 
 class LlmPromptRequest(BaseModel, use_enum_values=True):
     name: str
@@ -1103,17 +1108,22 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
-    query: Optional[Dict[str, Any]] = None
-    collections: Optional[List[str]] = None
-    result_limit: int = 10
+    crud_config: Optional[CrudConfigRequest] = None
 
     @root_validator
     def check(cls, values):
         from kairon.shared.utils import Utility
-
+        crud_config = values.get('crud_config')
+        if crud_config and isinstance(crud_config.query, str):
+            try:
+                crud_config.query = json.loads(crud_config.query)
+            except json.JSONDecodeError:
+                raise ValueError(f"Invalid JSON format in query: {crud_config.query}")
         if (values.get('source') == LlmPromptSource.bot_content.value and
                 Utility.check_empty_string(values.get('data'))):
             values['data'] = "default"
+        if values.get('source') != LlmPromptSource.crud.value:
+            values.pop('crud_config', None)
         return values
 
 

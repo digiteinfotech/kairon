@@ -3306,17 +3306,19 @@ class TestActions:
         )
         llm_secret.save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
-        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query':{}},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True, 'collections': [],
-                        'result_limit': 10, 'query':{}},
-                       {'name': 'Similarity Prompt',
-                        "data": "default",
-                        'hyperparameters': {'top_results': 30,
-                                            'similarity_threshold': 0.3},
-                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}}
-                       ]
+        llm_prompts = [
+                    {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                     'source': 'static', 'is_enabled': True},
+
+                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+
+                    {'name': 'Similarity Prompt',
+                     "data": "default",
+                     'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                     'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                ]
+
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
@@ -3334,16 +3336,14 @@ class TestActions:
                                  'llm_type': 'openai',
                                  'process_media': False,
                                  'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                                  'type': 'system', 'source': 'static', 'is_enabled': True,'collections': [],
-                                                  'result_limit': 10, 'query':{}},
+                                                  'type': 'system', 'source': 'static', 'is_enabled': True},
                                                  {'name': 'History Prompt', 'type': 'user',
-                                                  'source': 'history', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}},
+                                                  'source': 'history', 'is_enabled': True},
                                                  {'name': 'Similarity Prompt',
                                                   'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
                                                   'data': 'default',
                                                   'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collections': [], 'result_limit': 10,
-                                                  'query':{}}],
+                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                                  'instructions': [], 'set_slots': [], 'dispatch_response': True}
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
@@ -4699,7 +4699,7 @@ class TestActions:
                         'hyperparameters': {'top_results': 30,
                                             'similarity_threshold': 0.3},
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}}
+                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
                        ]
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
@@ -4715,15 +4715,15 @@ class TestActions:
                        'llm_type': 'openai',
                        'process_media': False,
                        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                        'type': 'system', 'source': 'static', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}},
+                                        'type': 'system', 'source': 'static', 'is_enabled': True},
                                        {'name': 'History Prompt', 'type': 'user',
-                                        'source': 'history', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}},
+                                        'source': 'history', 'is_enabled': True},
                                        {'name': 'Similarity Prompt',
                                         'hyperparameters': {'top_results': 30,
                                                             'similarity_threshold': 0.3},
                                         'data': 'default',
                                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True,'collections': [], 'result_limit': 10, 'query':{}}],
+                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
                        'instructions': [],
                        'status': True}
         LLMSecret.objects.delete()
@@ -4746,27 +4746,22 @@ class TestActions:
         llm_secret.save()
 
         collection_name = "test_collection"
-        crud_prompt = {
-            'name': 'CRUD Prompt',
-            'type': 'user',
-            'source': 'crud',
-            'collections': [collection_name],
-            'is_enabled': True,
-            'result_limit': 10,
-            'query': {"intent": "greet"}
-        }
+        crud_prompt = {'name': 'CRUD Prompt', 'type': 'user', 'source': 'crud', 'is_enabled': True,
+                 'crud_config': {
+                     'collections': ['test_collection'],
+                     'query': {'key': 'value'},
+                     'result_limit': 10
+                 }}
 
         llm_prompts = [
             {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-             'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query': {}},
-            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True,
-             'collections': [], 'result_limit': 10, 'query': {}},
+             'source': 'static', 'is_enabled': True},
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
             {'name': 'Similarity Prompt',
              "data": "default",
              'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-             'collections': [], 'result_limit': 10, 'query': {}},
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
             crud_prompt
         ]
 
