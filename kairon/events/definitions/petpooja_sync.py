@@ -164,13 +164,14 @@ class PetpoojaSync(CatalogSyncBase):
 
             if not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
                 sync_status = SYNC_STATUS.COMPLETED.value
+                status = "Success"
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                 exception="Sync to Meta is not allowed for this bot. Contact Support!!",
-                                                status="Success")
+                                                status=status)
 
             integrations_doc = POSIntegrations.objects(bot=self.bot, provider=self.provider,
                                                     sync_type=self.sync_type).first()
-            if initiate_import and integrations_doc and 'meta_config' in integrations_doc:
+            if initiate_import and CatalogSyncLogProcessor.is_meta_enabled(self.bot) and integrations_doc and 'meta_config' in integrations_doc:
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
                 meta_processor = MetaProcessor(integrations_doc.meta_config.get('access_token'),
