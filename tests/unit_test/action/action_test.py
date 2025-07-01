@@ -10,6 +10,7 @@ from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.exceptions import AppException
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import LlmPromptSource
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
@@ -44,7 +45,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig
+    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig, LlmPrompt
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -4748,6 +4749,41 @@ class TestActions:
             crud_config.validate()
         except Exception as e:
             pytest.fail(f"Validation raised an unexpected exception: {e}")
+
+    def test_crud_source_missing_crud_config(self):
+        prompt = LlmPrompt(
+            name="CRUD Prompt",
+            instructions="Fetch details from the database and answer the question.",
+            type="user",
+            source=LlmPromptSource.crud.value,  # Source is crud
+            is_enabled=True,
+            crud_config=None  # Missing crud_config
+        )
+
+        with pytest.raises(ValidationError) as exc:
+            prompt.validate()
+
+        assert str(exc.value) == "crud_config is required when source is 'crud'"
+
+    def test_non_crud_source_with_crud_config(self):
+        prompt = LlmPrompt(
+            name="System Prompt",
+            data="You are a personal assistant.",
+            instructions="Answer question based on the context below.",
+            type="system",
+            source="static",  # Not crud
+            is_enabled=True,
+            crud_config=CrudConfig(
+                collections=["product_details"],
+                query={"product_type": "language"},
+                result_limit=2
+            )
+        )
+
+        with pytest.raises(ValidationError) as exc:
+            prompt.validate()
+
+        assert str(exc.value) == "crud_config should only be provided when source is 'crud'"
 
     def test_add_prompt_action_with_missing_collection_should_fail(self):
         bot = "test_bot_action_test"

@@ -13275,6 +13275,59 @@ def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
     assert actual["success"]
     assert actual["error_code"] == 0
 
+def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
+    from fastapi import status
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_invalid_json",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": "this is not json",
+                    "result_limit": 5
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response=response.json()
+    assert response["error_code"] == 422
+    assert any(
+        "Invalid JSON format in query: this is not json" in err["msg"]
+        for err in response["message"]
+    )
 
 def test_delete_prompt_action_not_exists():
     response = client.delete(
