@@ -13167,6 +13167,114 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
 
     assert not DeepDiff(prompt_action, expected, ignore_order=True, ignore_type_in_groups=[(dict, dict)])
 
+def test_add_prompt_action_with_crud(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": {"key": "value"},  # Can also pass as a JSON string to test conversion
+                    "result_limit": 5
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_string_query",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": '{"key": "value"}',  # JSON string to hit the isinstance check
+                    "result_limit": 5
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
 
 def test_delete_prompt_action_not_exists():
     response = client.delete(

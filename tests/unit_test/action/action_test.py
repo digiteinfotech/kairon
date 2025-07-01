@@ -36,7 +36,7 @@ from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet
+from mongoengine import connect, QuerySet, ValidationError
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
@@ -44,7 +44,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters, ParallelActionConfig, DatabaseAction
+    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -4727,58 +4727,27 @@ class TestActions:
                        'status': True}
         LLMSecret.objects.delete()
 
-    def test_get_prompt_action_config_with_crud(self):
-        bot = "test_bot_action_test"
-        user = "test_user_action_test"
-        action_name = "kairon_faq_action_crud_test"
+    def test_crud_config_result_limit_less_than_one(self):
+        crud_config = CrudConfig(collections=['test_collection'], query={}, result_limit=0)
+        with pytest.raises(ValidationError, match="result_limit must be greater than 0"):
+            crud_config.validate()
 
-        # Clean up before test
-        PromptAction.objects(bot=bot, name=action_name).delete()
+    def test_crud_config_result_limit_greater_than_ten(self):
+        crud_config = CrudConfig(collections=['test_collection'], query={}, result_limit=11)
+        with pytest.raises(ValidationError, match="result_limit should not exceed 10 for performance reasons"):
+            crud_config.validate()
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key='value',
-            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
+    def test_crud_config_empty_collections(self):
+        crud_config = CrudConfig(collections=[], query={}, result_limit=5)
+        with pytest.raises(ValidationError, match="At least one collection must be specified"):
+            crud_config.validate()
 
-        collection_name = "test_collection"
-        crud_prompt = {'name': 'CRUD Prompt', 'type': 'user', 'source': 'crud', 'is_enabled': True,
-                 'crud_config': {
-                     'collections': ['test_collection'],
-                     'query': {'key': 'value'},
-                     'result_limit': 10
-                 }}
-
-        llm_prompts = [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-             'source': 'static', 'is_enabled': True},
-            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-            {'name': 'Similarity Prompt',
-             "data": "default",
-             'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
-             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            crud_prompt
-        ]
-
-        PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-
-        with patch('kairon.shared.data.collection_processor.DataProcessor.save_collection_data') as mock_save:
-            mock_save.return_value = "mock_collection_id"
-
-            k_faq_action_config = ActionUtility.get_faq_action_config(bot, action_name)
-            k_faq_action_config.pop('timestamp')
-
-            crud_prompt_in_config = next(
-                prompt for prompt in k_faq_action_config['llm_prompts'] if prompt['name'] == 'CRUD Prompt')
-            assert crud_prompt_in_config['crud_config']['collections'] == [collection_name]
-            assert crud_prompt_in_config['crud_config']['query'] == {'key': 'value'}
-            assert crud_prompt_in_config['source'] == "crud"
-
-        LLMSecret.objects.delete()
+    def test_crud_config_valid_data(self):
+        crud_config = CrudConfig(collections=['valid_collection'], query={"key": "value"}, result_limit=5)
+        try:
+            crud_config.validate()
+        except Exception as e:
+            pytest.fail(f"Validation raised an unexpected exception: {e}")
 
     def test_add_prompt_action_with_missing_collection_should_fail(self):
         bot = "test_bot_action_test"
