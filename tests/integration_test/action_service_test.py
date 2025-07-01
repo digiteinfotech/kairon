@@ -14073,6 +14073,136 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
 
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
+def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses):
+    from uuid6 import uuid7
+    from kairon.shared.actions.data_objects import Actions, PromptAction
+
+    llm_type       = "openai"
+    action_name    = "prompt_action_with_crud"
+    bot            = "5u80fd0a56c908ca10d35d2s"
+    user           = "udit.pandey"
+    api_key        = "keyvalue"
+    user_msg       = "What is the name of prompt?"
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    hyperparams    = Utility.get_default_llm_hyperparameters()
+
+    # --- FULL CLEANUP: remove any document for this bot from prior tests ---
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+
+    # 1) Create the Action entry
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    # 2) Enable FAQ in settings
+    BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+    # 3) Provide an API key
+    LLMSecret(
+        llm_type=llm_type,
+        api_key=api_key,
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+        bot=bot,
+        user=user
+    ).save()
+
+    # 4) Define our two prompts: System + CRUD
+    llm_prompts = [
+        {
+            'name': 'System Prompt',
+            'data': 'You are a personal assistant.',
+            'instructions': 'Answer question based on the context below.',
+            'type': 'system',
+            'source': 'static',
+            'is_enabled': True
+        },
+        {
+            'name': 'CRUD Prompt',
+            'instructions': 'Fetch details from the database and answer the question.',
+            'type': 'user',
+            'source': 'crud',
+            'is_enabled': True,
+            'crud_config': {
+                "collections": ["product_details"],
+                "query": {"product_type": "language"},
+                "result_limit": 2
+            }
+        },
+    ]
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+
+    # --- MOCK the vector DB search so CRUD sees one result ---
+    aioresponses.add(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
+        method="POST", status=200,
+        body={'vector': embedding},
+        payload={
+            'result': [{
+                'id': uuid7().__str__(),
+                'score': 0.85,
+                'payload': {'content': "Python is an interpreted, high-level programming language."}
+            }]
+        }
+    )
+    # MOCK the embedding call itself
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    # --- EXPECTED LLM REQUEST BODY ---
+    expected_body = {
+        'messages': [
+            {'role': 'system', 'content': 'You are a personal assistant.\n'},
+            {
+                'role': 'user',
+                'content': (
+                    "CRUD Prompt:\n"
+                    "{'product_type': 'language'}\n"
+                    "Instructions on how to use CRUD Prompt:\n"
+                    "Fetch details from the database and answer the question.\n \n"
+                    "Q: What is the name of prompt? \nA:"
+                )
+            }
+        ],
+        'hyperparameters': hyperparams,
+        'user': user,
+        'invocation': 'prompt_action'
+    }
+    # MOCK the LLM completion endpoint
+    aioresponses.add(
+        url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
+        method="POST", status=200,
+        body=expected_body,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [
+                    {'message': {'content': generated_text, 'role': 'assistant'}}
+                ]
+            }
+        }
+    )
+
+    # --- FIRE the webhook ---
+    request_object = json.load(open("tests/testing_data/actions/action-request.json"))
+    request_object["tracker"]["slots"]["bot"] = bot
+    request_object["tracker"]["sender_id"] = user
+    request_object["tracker"]["latest_message"]['text'] = user_msg
+    request_object["next_action"] = action_name
+    # give it some prior bot messages so history logic still runs
+    request_object['tracker']['events'] = [
+        {'event': 'bot', 'text': 'hello', 'data': {}},
+        {'event': 'bot', 'text': 'how are you', 'data': {}},
+    ]
+
+    response = client.post("/webhook", json=request_object)
+    resp_json = response.json()
+
+    # --- ASSERT we got our CRUD-driven answer, not the fallback ---
+    assert resp_json['events'] == [
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}
+    ]
+    assert resp_json['responses'][0]['text'] == generated_text
+
+
+@mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
