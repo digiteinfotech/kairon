@@ -773,6 +773,7 @@ class CrudConfig(EmbeddedDocument):
     collections = ListField(StringField(), default=[])
     query = DictField(default=dict)
     result_limit = IntField(default=10)
+    query_source = StringField(choices=["value", "slot"], required=False, null=True)
 
     def validate(self, clean=True):
         if clean:
@@ -781,7 +782,7 @@ class CrudConfig(EmbeddedDocument):
         if self.result_limit < 1:
             raise ValidationError("result_limit must be greater than 0")
         if self.result_limit > 10:
-            raise ValidationError("result_limit should not exceed 10 for performance reasons")
+            raise ValidationError("result_limit should not exceed 10")
         if not self.collections:
             raise ValidationError("At least one collection must be specified")
         for collection in self.collections:

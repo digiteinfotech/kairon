@@ -170,19 +170,23 @@ class DataProcessor:
         query.update({
             f"data__{key}": value for key, value in zip(keys, values) if key and value
         })
+        result_limit = kwargs.pop("result_limit", None)
+        mongo_query = CollectionData.objects(**query)
+        if result_limit is not None:
+            mongo_query = mongo_query.limit(result_limit)
 
-        for value in CollectionData.objects(**query):
+        for value in mongo_query:
             final_data = {}
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
-            is_non_editable=item.pop('is_non_editable')
+            is_non_editable = item.pop('is_non_editable')
             data = item.pop('data')
             data = DataProcessor.prepare_decrypted_data(data, is_secure)
             final_data["_id"] = item["_id"].__str__()
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
-            final_data['is_non_editable']=is_non_editable
+            final_data['is_non_editable'] = is_non_editable
             final_data['data'] = data
             yield final_data
 

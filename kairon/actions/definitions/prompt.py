@@ -6,6 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
@@ -175,19 +176,36 @@ class ActionPrompt(ActionsBase):
                 elif prompt['source'] == LlmPromptSource.crud.value:
                     crud_config = prompt.get('crud_config', {})
                     collections = crud_config.get('collections', [])
-                    query_dict = crud_config.get("query", {})
-                    if isinstance(query_dict, str):
-                        query_dict = json.loads(query_dict)
+                    query_source = crud_config.get('query_source', 'value')
+
+                    if query_source == 'slot':
+                        slot_value = tracker.get_slot(crud_config.get('query'))
+                        if slot_value:
+                            try:
+                                if isinstance(slot_value, dict):
+                                    query_dict = slot_value
+                                else:
+                                    query_dict = json.loads(slot_value)
+                            except (json.JSONDecodeError, TypeError):
+                                raise AppException(f"Invalid JSON format in slot value: {slot_value}")
+                        else:
+                            query_dict = {}
+                    else:
+                        query_dict = crud_config.get("query", {})
+                        if isinstance(query_dict, str):
+                            query_dict = json.loads(query_dict)
 
                     keys = list(query_dict.keys())
                     values = list(query_dict.values())
                     result_limit = crud_config.get('result_limit', 10)
+
                     for collection_name in collections:
                         results_gen = DataProcessor.get_collection_data(
                             bot=self.bot,
                             collection_name=collection_name,
                             key=keys,
-                            value=values
+                            value=values,
+                            result_limit=result_limit
                         )
                         records = list(results_gen)[:result_limit]
                         data_list = [rec["data"] for rec in records]

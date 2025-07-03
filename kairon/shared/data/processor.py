@@ -7969,7 +7969,7 @@ class MongoProcessor:
             if prompt["source"] == "crud":
                 collections_list = DataProcessor.get_all_collections(bot)
                 existing_collections = {item['collection_name'] for item in collections_list}
-                missing_collections = [col for col in prompt.get('collections', []) if col not in existing_collections]
+                missing_collections = [col for col in prompt.get('crud_config').get("collections",[]) if col not in existing_collections]
 
                 if missing_collections:
                     raise AppException(f'Collections not found: {missing_collections}')
