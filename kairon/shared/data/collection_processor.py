@@ -45,6 +45,21 @@ class DataProcessor:
         return decrypted_data
 
     @staticmethod
+    def get_crud_metadata(user: Text, bot: Text, collection_name: Text) -> list:
+        data = CollectionData.objects(user=user, bot=bot, collection_name=collection_name).first()
+        if not data:
+            return []
+
+        data_dict = data.to_mongo().to_dict()
+        nested_data = data_dict.get("data", {})
+
+        if not isinstance(nested_data, dict):
+            return []
+
+        metadata = list(nested_data.keys())
+        return metadata
+
+    @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
