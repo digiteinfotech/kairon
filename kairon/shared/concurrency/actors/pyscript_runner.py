@@ -51,6 +51,7 @@ class PyScriptRunner(BaseActor):
         global_safe['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
         global_safe['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
         global_safe['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
+        global_safe['get_crud_metadata'] = partial(PyscriptSharedUtility.get_crud_metadata, bot=bot)
         global_safe['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
         global_safe['get_db_action_data'] = partial(PyscriptUtility.get_db_action_data, bot=bot,
                                                     predefined_objects=predefined_objects)
