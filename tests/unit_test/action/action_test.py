@@ -9,6 +9,7 @@ from pipedrive.exceptions import UnauthorizedError, BadRequestError
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.exceptions import AppException
 from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.data.data_models import LlmPromptRequest, CrudConfigRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import LlmPromptSource
 from kairon.shared.utils import Utility
@@ -4735,7 +4736,7 @@ class TestActions:
 
     def test_crud_config_result_limit_greater_than_ten(self):
         crud_config = CrudConfig(collections=['test_collection'], query={}, result_limit=11)
-        with pytest.raises(ValidationError, match="result_limit should not exceed 10 for performance reasons"):
+        with pytest.raises(ValidationError, match="result_limit should not exceed 10"):
             crud_config.validate()
 
     def test_crud_config_empty_collections(self):
@@ -4785,6 +4786,66 @@ class TestActions:
 
         assert str(exc.value) == "crud_config should only be provided when source is 'crud'"
 
+    def test_crud_config_query_source_value_with_invalid_json(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query='{"invalid_json"',  # Malformed JSON string
+            result_limit=5,
+            query_source='value'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "Invalid JSON format in query" in str(exc_info.value)
+
+    def test_crud_config_query_source_value_with_invalid_query_type(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query=1234,  # Invalid type
+            result_limit=5,
+            query_source='value'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "When query_source is 'value', query must be a valid JSON object or JSON string." in str(exc_info.value)
+
+    def test_crud_config_query_source_slot_with_invalid_query_type(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query={"slot": "value"},  # Should be a string
+            result_limit=5,
+            query_source='slot'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "When query_source is 'slot', query must be a valid slot name." in str(exc_info.value)
+
     def test_add_prompt_action_with_missing_collection_should_fail(self):
         bot = "test_bot_action_test"
         user = "test_user_action_test"
@@ -4804,10 +4865,13 @@ class TestActions:
             'name': 'CRUD Prompt',
             'type': 'user',
             'source': 'crud',
-            'collections': [missing_collection_name],
             'is_enabled': True,
-            'result_limit': 10,
-            'query': {"intent": "greet"}
+            'crud_config': {
+                'collections': [missing_collection_name],
+                'result_limit': 10,
+                'query': {"intent": "greet"},
+                'query_source':'value'
+            }
         }
 
         llm_prompts = [

@@ -1095,6 +1095,7 @@ class PromptHyperparameters(BaseModel):
             raise ValueError("top_results should not be greater than 30")
         return values
 
+
 class CrudConfigRequest(BaseModel):
     collections: Optional[List[str]] = None
     query: Optional[Any] = None
@@ -1127,10 +1128,10 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
                     except json.JSONDecodeError:
                         raise ValueError(f"Invalid JSON format in query: {crud_config.query}")
                 elif not isinstance(crud_config.query, dict):
-                    raise ValueError(f"When query_source is 'value', query must be a valid JSON object or JSON string.")
+                    raise ValueError("When query_source is 'value', query must be a valid JSON object or JSON string.")
             elif query_source == 'slot':
                 if not isinstance(crud_config.query, str):
-                    raise ValueError(f"When query_source is 'slot', query must be a valid slot name.")
+                    raise ValueError("When query_source is 'slot', query must be a valid slot name.")
         else:
             values.pop('crud_config', None)
 

@@ -13174,7 +13174,22 @@ def test_add_prompt_action_with_crud(monkeypatch):
             user="integration@demo.ai",
             llm_settings=LLMSettings(enable_faq=True),
         )
-
+    add_payload_1 = {
+        "collection_name": "test_collection",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "09876541",
+            "name": "testing_1",
+            "empid": 12345
+        },
+        "status": True
+    }
+    add_resp_1 = client.post(
+        f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload_1
+    )
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
 
     action = {
@@ -13196,8 +13211,9 @@ def test_add_prompt_action_with_crud(monkeypatch):
                 "is_enabled": True,
                 "crud_config": {
                     "collections": ["test_collection"],
-                    "query": {"key": "value"},  # Can also pass as a JSON string to test conversion
-                    "result_limit": 5
+                    "query": {"key": "value"},
+                    "result_limit": 5,
+                    "query_source":"value"
                 }
             }
         ],
@@ -13251,7 +13267,8 @@ def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
                 "crud_config": {
                     "collections": ["test_collection"],
                     "query": '{"key": "value"}',  # JSON string to hit the isinstance check
-                    "result_limit": 5
+                    "result_limit": 5,
+                    "query_source": "value"
                 }
             }
         ],
@@ -13306,7 +13323,8 @@ def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
                 "crud_config": {
                     "collections": ["test_collection"],
                     "query": "this is not json",
-                    "result_limit": 5
+                    "result_limit": 5,
+                    "query_source": "value"
                 }
             }
         ],
@@ -13328,6 +13346,122 @@ def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
         "Invalid JSON format in query: this is not json" in err["msg"]
         for err in response["message"]
     )
+
+
+def test_add_prompt_action_with_crud_query_source_slot_valid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_slot_query",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": "slot_name",  # This is a valid slot name
+                    "result_limit": 5,
+                    "query_source": "slot"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_prompt_action_with_crud_query_source_slot_invalid(monkeypatch):
+    from fastapi import status
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_slot_query_invalid",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": {"slot": "value"},  # Invalid: query must be a string for slot source
+                    "result_limit": 5,
+                    "query_source": "slot"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+
+    assert response["error_code"] == 422
+    assert any(
+        "When query_source is 'slot', query must be a valid slot name." in err["msg"]
+        for err in response["message"]
+    )
+
+
 
 def test_delete_prompt_action_not_exists():
     response = client.delete(
