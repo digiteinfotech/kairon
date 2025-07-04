@@ -171,9 +171,11 @@ class DataProcessor:
             f"data__{key}": value for key, value in zip(keys, values) if key and value
         })
         result_limit = kwargs.pop("result_limit", None)
-        mongo_query = CollectionData.objects(**query)
+
         if result_limit is not None:
-            mongo_query = mongo_query.limit(result_limit)
+            mongo_query = CollectionData.objects(**query).limit(result_limit)
+        else:
+            mongo_query = CollectionData.objects(**query)
 
         for value in mongo_query:
             final_data = {}

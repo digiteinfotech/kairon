@@ -195,8 +195,7 @@ class ActionPrompt(ActionsBase):
                         if isinstance(query_dict, str):
                             query_dict = json.loads(query_dict)
 
-                    keys = list(query_dict.keys())
-                    values = list(query_dict.values())
+                    keys, values = (list(t) for t in zip(*query_dict.items())) if query_dict else ([], [])
                     result_limit = crud_config.get('result_limit', 10)
 
                     for collection_name in collections:
