@@ -1457,7 +1457,6 @@ def test_get_crud_metadata_without_data():
         "data": {
         }
     }
-
     mock_document = MagicMock()
     mock_document.to_mongo.return_value.to_dict.return_value = mock_data
 
