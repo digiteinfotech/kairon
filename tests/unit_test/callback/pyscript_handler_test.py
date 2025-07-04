@@ -820,6 +820,152 @@ def test_pyscript_handler_for_get_data_without_bot():
     }
 
 
+def test_pyscript_handler_for_get_crud_metadata():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+                "aadhar": "29383989838930",
+                "pan": "JJ928392JH",
+                "pincode": 538494
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+    resp = get_crud_metadata("testing_crud_api", sender_id)
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    print(bot_response)
+    assert bot_response['metadata'] == ['mobile_number', 'name', 'aadhar', 'pan', 'pincode']
+    assert data == {
+        'statusCode': 200,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '919876543210',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg',
+            'bot_response': bot_response,
+            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
+                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh', 'aadhar': '29383989838930',
+                                   'pan': 'JJ928392JH', 'pincode': 538494}},
+            'resp': bot_response
+        }
+    }
+
+
+def test_pyscript_handler_for_get_crud_metadata_without_bot():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+                "aadhar": "29383989838930",
+                "pan": "JJ928392JH",
+                "pincode": 538494
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+    resp = get_crud_metadata("testing_crud_api", sender_id)
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_get_crud_metadata_without_collection_name():
+    source_code = '''
+    json_data = {
+            "collection_name": "testing_crud_api",
+            # "is_secure": ["mobile_number"],
+            "is_secure": [],
+            "data": {
+                "mobile_number": "919876543210",
+                "name": "Mahesh",
+                "aadhar": "29383989838930",
+                "pan": "JJ928392JH",
+                "pincode": 538494
+            }
+        }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id,json_data)
+    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+    resp = get_crud_metadata("", sender_id)
+    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'statusDescription': '200 OK',
+        'isBase64Encoded': False,
+        'headers': {'Content-Type': 'application/json; charset=utf-8'},
+        'body': 'Script execution error: Missing collection name',
+    }
+
+
 def test_pyscript_handler_for_update_data():
     source_code = '''
     json_data = {
@@ -1222,6 +1368,106 @@ def test_fetch_collection_data_empty_result():
         results = list(PyscriptSharedUtility.fetch_collection_data({"some_field": "no_match"}))
 
     assert results == []
+
+
+def test_get_crud_metadata_without_bot():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }
+    }
+
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = mock_document
+
+    with pytest.raises(Exception, match="Missing bot id"):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user')
+
+
+def test_get_crud_metadata_without_collection_name():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }
+    }
+
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = mock_document
+
+    with pytest.raises(Exception, match="Missing collection name"):
+        result = PyscriptSharedUtility.get_crud_metadata(collection_name="", bot='test_bot', user='test_user')
+
+
+def test_get_crud_metadata():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }
+    }
+
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = mock_document
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            'metadata': ["mobile_number", "name", "aadhar", "pan", "pincode"]
+        }
+
+
+def test_get_crud_metadata_without_data():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
+        "data": {
+        }
+    }
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = None
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            'metadata': []
+        }
 
 
 def test_fetch_collection_data_without_collection_name():
@@ -2805,6 +3051,143 @@ def test_pyscript_handler_for_add_data_without_bot_in_main_pyscript():
     assert data == {
         'statusCode': 422,
         'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
+    source_code = '''
+        json_data = {
+                "collection_name": "testing_crud_api",
+                # "is_secure": ["mobile_number"],
+                "is_secure": [],
+                "data": {
+                    "mobile_number": "919876543210",
+                    "name": "Mahesh",
+                    "aadhar": "29383989838930",
+                    "pan": "JJ928392JH",
+                    "pincode": 538494
+                }
+            }
+
+        sender_id = "919876543210"
+
+        resp = add_data(sender_id,json_data)
+        resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+        resp = get_crud_metadata("testing_crud_api", sender_id)
+        # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+        # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+        bot_response = resp
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    bot_response = data['body']['bot_response']
+    print(bot_response)
+    assert bot_response['metadata'] == ['mobile_number', 'name', 'aadhar', 'pan', 'pincode']
+    assert data == {
+        'statusCode': 200,
+        'body': {
+            'bot': 'test_bot',
+            'sender_id': '919876543210',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg',
+            'bot_response': bot_response,
+            'json_data': {'collection_name': 'testing_crud_api', 'is_secure': [],
+                          'data': {'mobile_number': '919876543210', 'name': 'Mahesh', 'aadhar': '29383989838930',
+                                   'pan': 'JJ928392JH', 'pincode': 538494}},
+            'resp': bot_response
+        }
+    }
+
+
+def test_pyscript_handler_for_crud_metadata_without_bot_in_main_pyscript():
+    source_code = '''
+        json_data = {
+                "collection_name": "testing_crud_api",
+                # "is_secure": ["mobile_number"],
+                "is_secure": [],
+                "data": {
+                    "mobile_number": "919876543210",
+                    "name": "Mahesh",
+                    "aadhar": "29383989838930",
+                    "pan": "JJ928392JH",
+                    "pincode": 538494
+                }
+            }
+
+        sender_id = "919876543210"
+
+        resp = add_data(sender_id,json_data)
+        resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+        resp = get_crud_metadata("testing_crud_api", sender_id)
+        # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+        # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+        bot_response = resp
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing bot id'
+    }
+
+
+def test_pyscript_handler_for_crud_metadata_without_collection_name_in_main_pyscript():
+    source_code = '''
+        json_data = {
+                "collection_name": "testing_crud_api",
+                # "is_secure": ["mobile_number"],
+                "is_secure": [],
+                "data": {
+                    "mobile_number": "919876543210",
+                    "name": "Mahesh",
+                    "aadhar": "29383989838930",
+                    "pan": "JJ928392JH",
+                    "pincode": 538494
+                }
+            }
+
+        sender_id = "919876543210"
+
+        resp = add_data(sender_id,json_data)
+        resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
+        resp = get_crud_metadata("", sender_id)
+        # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
+        # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+        bot_response = resp
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+                  'slot': {'bot': 'test_bot'},
+                  'intent': 'k_multimedia_msg'
+                  }
+             }
+    data = CallbackUtility.main_pyscript_handler(event, None)
+    print(data)
+    assert data == {
+        'statusCode': 422,
+        'body': 'Script execution error: Missing collection name'
     }
 
 

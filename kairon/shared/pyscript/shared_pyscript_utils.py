@@ -72,6 +72,19 @@ class PyscriptSharedUtility:
         data = list(PyscriptSharedUtility.fetch_collection_data(query))
         return {"data": data}
 
+    @staticmethod
+    def get_crud_metadata(collection_name: Text, user: Text,  bot: Text = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        if not collection_name:
+            raise Exception("Missing collection name")
+
+        metadata = DataProcessor.get_crud_metadata(user, bot, collection_name)
+        return {
+            'metadata': metadata
+        }
+
 
     @staticmethod
     def add_data(user: str, payload: dict, bot: str = None):

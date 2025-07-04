@@ -69,6 +69,7 @@ class CallbackUtility:
         predefined_objects['send_email'] = partial(CallbackScriptUtility.send_email, bot=bot)
         predefined_objects['add_data'] = partial(PyscriptSharedUtility.add_data, bot=bot)
         predefined_objects['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
+        predefined_objects['get_crud_metadata'] = partial(PyscriptSharedUtility.get_crud_metadata, bot=bot)
         predefined_objects['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
         predefined_objects['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
         predefined_objects["generate_id"] = CallbackScriptUtility.generate_id
