@@ -7,7 +7,11 @@ from googleapiclient.http import HttpRequest
 from pipedrive.exceptions import UnauthorizedError, BadRequestError
 
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
+from kairon.exceptions import AppException
 from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.data.data_models import LlmPromptRequest, CrudConfigRequest
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import LlmPromptSource
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
@@ -34,7 +38,7 @@ from typing import Dict, Text, Any, List
 
 import pytest
 import responses
-from mongoengine import connect, QuerySet
+from mongoengine import connect, QuerySet, ValidationError
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.models import ActionType, HttpRequestContentType
@@ -42,7 +46,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters, ParallelActionConfig, DatabaseAction
+    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig, LlmPrompt
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -3304,16 +3308,19 @@ class TestActions:
         )
         llm_secret.save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
-        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True},
-                       {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                       {'name': 'Similarity Prompt',
-                        "data": "default",
-                        'hyperparameters': {'top_results': 30,
-                                            'similarity_threshold': 0.3},
-                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                       ]
+        llm_prompts = [
+                    {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                     'source': 'static', 'is_enabled': True},
+
+                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+
+                    {'name': 'Similarity Prompt',
+                     "data": "default",
+                     'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
+                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                     'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+                ]
+
         PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
@@ -4721,6 +4728,174 @@ class TestActions:
                        'instructions': [],
                        'status': True}
         LLMSecret.objects.delete()
+
+    def test_crud_config_result_limit_less_than_one(self):
+        crud_config = CrudConfig(collections=['test_collection'], query={}, result_limit=0)
+        with pytest.raises(ValidationError, match="result_limit must be greater than 0"):
+            crud_config.validate()
+
+    def test_crud_config_result_limit_greater_than_ten(self):
+        crud_config = CrudConfig(collections=['test_collection'], query={}, result_limit=11)
+        with pytest.raises(ValidationError, match="result_limit should not exceed 10"):
+            crud_config.validate()
+
+    def test_crud_config_empty_collections(self):
+        crud_config = CrudConfig(collections=[], query={}, result_limit=5)
+        with pytest.raises(ValidationError, match="At least one collection must be specified"):
+            crud_config.validate()
+
+    def test_crud_config_valid_data(self):
+        crud_config = CrudConfig(collections=['valid_collection'], query={"key": "value"}, result_limit=5)
+        try:
+            crud_config.validate()
+        except Exception as e:
+            pytest.fail(f"Validation raised an unexpected exception: {e}")
+
+    def test_crud_source_missing_crud_config(self):
+        prompt = LlmPrompt(
+            name="CRUD Prompt",
+            instructions="Fetch details from the database and answer the question.",
+            type="user",
+            source=LlmPromptSource.crud.value,  # Source is crud
+            is_enabled=True,
+            crud_config=None  # Missing crud_config
+        )
+
+        with pytest.raises(ValidationError) as exc:
+            prompt.validate()
+
+        assert str(exc.value) == "crud_config is required when source is 'crud'"
+
+    def test_non_crud_source_with_crud_config(self):
+        prompt = LlmPrompt(
+            name="System Prompt",
+            data="You are a personal assistant.",
+            instructions="Answer question based on the context below.",
+            type="system",
+            source="static",  # Not crud
+            is_enabled=True,
+            crud_config=CrudConfig(
+                collections=["product_details"],
+                query={"product_type": "language"},
+                result_limit=2
+            )
+        )
+
+        with pytest.raises(ValidationError) as exc:
+            prompt.validate()
+
+        assert str(exc.value) == "crud_config should only be provided when source is 'crud'"
+
+    def test_crud_config_query_source_value_with_invalid_json(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query='{"invalid_json"',  # Malformed JSON string
+            result_limit=5,
+            query_source='value'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "Invalid JSON format in query" in str(exc_info.value)
+
+    def test_crud_config_query_source_value_with_invalid_query_type(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query=1234,  # Invalid type
+            result_limit=5,
+            query_source='value'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "When query_source is 'value', query must be a valid JSON object or JSON string." in str(exc_info.value)
+
+    def test_crud_config_query_source_slot_with_invalid_query_type(self):
+        from pydantic import ValidationError
+
+        crud_config = CrudConfigRequest(
+            collections=['test_collection'],
+            query={"slot": "value"},  # Should be a string
+            result_limit=5,
+            query_source='slot'
+        )
+        with pytest.raises(ValidationError) as exc_info:
+            LlmPromptRequest(
+                name="CRUD Prompt",
+                instructions="Fetch details from the database and answer the question.",
+                type="user",
+                source=LlmPromptSource.crud.value,
+                is_enabled=True,
+                crud_config=crud_config
+            )
+        assert "When query_source is 'slot', query must be a valid slot name." in str(exc_info.value)
+
+    def test_add_prompt_action_with_missing_collection_should_fail(self):
+        bot = "test_bot_action_test"
+        user = "test_user_action_test"
+        processor = MongoProcessor()
+        BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        missing_collection_name = "non_existing_collection"
+        crud_prompt = {
+            'name': 'CRUD Prompt',
+            'type': 'user',
+            'source': 'crud',
+            'is_enabled': True,
+            'crud_config': {
+                'collections': [missing_collection_name],
+                'result_limit': 10,
+                'query': {"intent": "greet"},
+                'query_source':'value'
+            }
+        }
+
+        llm_prompts = [
+            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+             'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query': {}},
+            crud_prompt
+        ]
+
+        request = {
+            'name': 'kairon_faq_action_missing_collection_test',
+            'llm_prompts': llm_prompts,
+            'dispatch_response': True
+        }
+
+        with patch('kairon.shared.data.collection_processor.DataProcessor.get_all_collections') as mock_get_collections:
+            mock_get_collections.return_value = []  # Simulate no collections in DB
+
+            with pytest.raises(AppException) as exec_info:
+                processor.add_prompt_action(request, bot, user)
+
+            assert f'Collections not found: [\'{missing_collection_name}\']' in str(exec_info.value)
+
+        LLMSecret.objects.delete()
+
 
     def test_retrieve_config_two_stage_fallback_not_found(self):
         with pytest.raises(ActionFailure, match="Two stage fallback action config not found"):

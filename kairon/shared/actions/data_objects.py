@@ -769,6 +769,28 @@ class PromptHyperparameter(EmbeddedDocument):
         if self.top_results > 30:
             raise ValidationError("top_results should not be greater than 30")
 
+class CrudConfig(EmbeddedDocument):
+    collections = ListField(StringField(), default=[])
+    query = DictField(default=dict)
+    result_limit = IntField(default=10)
+    query_source = StringField(choices=["value", "slot"], required=False, null=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if self.result_limit < 1:
+            raise ValidationError("result_limit must be greater than 0")
+        if self.result_limit > 10:
+            raise ValidationError("result_limit should not exceed 10")
+        if not self.collections:
+            raise ValidationError("At least one collection must be specified")
+        for collection in self.collections:
+            if not collection or not collection.strip():
+                raise ValidationError("Collection names cannot be empty")
+
+    def clean(self):
+        self.collections = [col.strip() for col in self.collections if col and col.strip()]
 
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
@@ -790,10 +812,12 @@ class LlmPrompt(EmbeddedDocument):
             LlmPromptSource.bot_content.value,
             LlmPromptSource.action.value,
             LlmPromptSource.slot.value,
+            LlmPromptSource.crud.value,
         ],
         default=LlmPromptSource.static.value,
     )
     is_enabled = BooleanField(default=True)
+    crud_config = EmbeddedDocumentField(CrudConfig)
 
     def validate(self, clean=True):
         if (
@@ -801,6 +825,14 @@ class LlmPrompt(EmbeddedDocument):
                 and self.source != LlmPromptSource.static.value
         ):
             raise ValidationError("System prompt must have static source!")
+
+        if self.source == LlmPromptSource.crud.value:
+            if not self.crud_config:
+                raise ValidationError("crud_config is required when source is 'crud'")
+            else:
+                self.crud_config.validate()
+        elif self.crud_config:
+            raise ValidationError("crud_config should only be provided when source is 'crud'")
         if self.hyperparameters:
             self.hyperparameters.validate()
         if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):

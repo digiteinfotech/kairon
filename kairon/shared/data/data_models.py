@@ -1,4 +1,5 @@
-from typing import List, Any, Dict, Optional, Text, Union
+import json
+from typing import List, Any, Dict, Optional, Text, Union, Literal
 
 from validators import url
 from validators.utils import ValidationError as ValidationFailure
@@ -1095,6 +1096,12 @@ class PromptHyperparameters(BaseModel):
         return values
 
 
+class CrudConfigRequest(BaseModel):
+    collections: Optional[List[str]] = None
+    query: Optional[Any] = None
+    result_limit: int = 10
+    query_source: Optional[Literal["value", "slot"]] = None
+
 class LlmPromptRequest(BaseModel, use_enum_values=True):
     name: str
     hyperparameters: PromptHyperparameters = None
@@ -1103,14 +1110,34 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
+    crud_config: Optional[CrudConfigRequest] = None
 
     @root_validator
     def check(cls, values):
         from kairon.shared.utils import Utility
+        if values.get('source') == LlmPromptSource.crud.value:
+            crud_config = values.get('crud_config')
+            if not crud_config:
+                raise ValueError("crud_config is required when source is 'crud'")
 
-        if (values.get('source') == LlmPromptSource.bot_content.value and
-                Utility.check_empty_string(values.get('data'))):
+            query_source = crud_config.query_source
+            if query_source == 'value':
+                if isinstance(crud_config.query, str):
+                    try:
+                        crud_config.query = json.loads(crud_config.query)
+                    except json.JSONDecodeError:
+                        raise ValueError(f"Invalid JSON format in query: {crud_config.query}")
+                elif not isinstance(crud_config.query, dict):
+                    raise ValueError("When query_source is 'value', query must be a valid JSON object or JSON string.")
+            elif query_source == 'slot':
+                if not isinstance(crud_config.query, str):
+                    raise ValueError("When query_source is 'slot', query must be a valid slot name.")
+        else:
+            values.pop('crud_config', None)
+
+        if values.get('source') == LlmPromptSource.bot_content.value and Utility.check_empty_string(values.get('data')):
             values['data'] = "default"
+
         return values
 
 
