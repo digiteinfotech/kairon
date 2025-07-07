@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from mongoengine import StringField, DateTimeField, ListField, EmbeddedDocumentField, EmbeddedDocument, \
-    ValidationError, IntField, DynamicDocument, DynamicField, URLField
+    ValidationError, IntField, DynamicDocument, DynamicField, URLField, DictField
 
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -68,3 +68,18 @@ class CustomWidgetsRequestLog(DynamicDocument):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
+
+@auditlogger.log
+@push_notification.apply
+class CustomWidgetsGlobalConfig(Auditlog):
+    global_config = ListField(DictField())
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        'indexes': [
+            {'fields': ['bot'], 'unique': True}
+        ]
+    }
+
