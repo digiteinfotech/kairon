@@ -7,7 +7,7 @@ from mongoengine import DoesNotExist
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
-
+from loguru import logger
 
 
 class DataProcessor:
@@ -48,12 +48,13 @@ class DataProcessor:
     def get_crud_metadata(user: Text, bot: Text, collection_name: Text) -> list:
         data = CollectionData.objects(user=user, bot=bot, collection_name=collection_name).first()
         if not data:
+            logger.warning(f"Collection Data not found: user={user}, bot={bot}, collection_name={collection_name}")
             return []
 
         data_dict = data.to_mongo().to_dict()
         nested_data = data_dict.get("data", {})
-
         if not isinstance(nested_data, dict):
+            logger.warning("Invalid or missing 'data' field in the collection")
             return []
 
         metadata = [
