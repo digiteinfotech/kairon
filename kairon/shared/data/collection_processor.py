@@ -52,7 +52,7 @@ class DataProcessor:
 
         if not documents:
             logger.warning(f"Collection Data not found: user={user}, bot={bot}, collection_name={collection_name}")
-            return []
+            return {"type": "object", "properties": {}}
 
         builder = SchemaBuilder()
         builder.add_schema({"type": "object", "properties": {}})
