@@ -1398,7 +1398,7 @@ def test_get_crud_metadata_without_bot():
     mock_queryset.first.return_value = mock_document
 
     with pytest.raises(Exception, match="Missing bot id"):
-        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user')
+        PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user')
 
 
 def test_get_crud_metadata_without_collection_name():
@@ -1423,7 +1423,7 @@ def test_get_crud_metadata_without_collection_name():
     mock_queryset.first.return_value = mock_document
 
     with pytest.raises(Exception, match="Missing collection name"):
-        result = PyscriptSharedUtility.get_crud_metadata(collection_name="", bot='test_bot', user='test_user')
+        PyscriptSharedUtility.get_crud_metadata(collection_name="", bot='test_bot', user='test_user')
 
 
 def test_get_crud_metadata():
@@ -1457,6 +1457,55 @@ def test_get_crud_metadata():
                 {'field_name': 'pan', 'data_type': 'str'},
                 {'field_name': 'pincode', 'data_type': 'int'}
             ]
+        }
+
+
+def test_get_crud_metadata_with_no_data_field():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00"
+    }
+
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = mock_document
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            'metadata': []
+        }
+
+
+def test_get_crud_metadata_with_invalid_data():
+    mock_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "is_non_editable": [],
+        "timestamp": "2024-08-07T07:03:06.905+00:00",
+        "data": [{
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }]
+    }
+
+    mock_document = MagicMock()
+    mock_document.to_mongo.return_value.to_dict.return_value = mock_data
+
+    mock_queryset = MagicMock()
+    mock_queryset.first.return_value = mock_document
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            'metadata': []
         }
 
 
