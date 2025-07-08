@@ -8902,6 +8902,45 @@ def test_get_collection_data_after_update():
     ]
 
 
+def test_get_collection_metadata():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    assert data == [
+        {'field_name': 'name', 'data_type': 'str'},
+        {'field_name': 'age', 'data_type': 'int'},
+        {'field_name': 'mobile_number', 'data_type': 'str'},
+        {'field_name': 'location', 'data_type': 'str'}
+    ]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/bank_details/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    assert data == [
+        {'field_name': 'account_holder_name', 'data_type': 'str'},
+        {'field_name': 'account_number', 'data_type': 'str'},
+        {'field_name': 'mobile_number', 'data_type': 'str'},
+        {'field_name': 'location', 'data_type': 'str'},
+        {'field_name': 'ifsc', 'data_type': 'str'}
+    ]
+
+
 def test_delete_collection_data_doesnot_exist():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/collection/{pytest.bot}",

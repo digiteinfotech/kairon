@@ -56,7 +56,13 @@ class DataProcessor:
         if not isinstance(nested_data, dict):
             return []
 
-        metadata = list(nested_data.keys())
+        metadata = [
+            {
+                "field_name": key,
+                "data_type": type(value).__name__
+            }
+            for key, value in nested_data.items()
+        ]
         return metadata
 
     @staticmethod
