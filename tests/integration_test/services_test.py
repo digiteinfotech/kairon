@@ -1745,6 +1745,130 @@ def test_delete_multiple_payload_content():
     actual = response.json()
     assert actual["message"] == "Records deleted!"
 
+def test_add_global_widget_config():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+           "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                },
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "mh", "label": "Maharashtra"},
+                        {"value": "mp", "label": "Madhya Pradesh"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config added!"
+    assert actual["data"]
+    pytest.global_widget_id = actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_add_global_widget_config_duplicate_should_fail():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Duplicate Date Range",
+                    "initialStartDate": "2024-01-01",
+                    "initialEndDate": "2024-06-30"
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"A widget configuration already exists for bot '{pytest.bot}'."
+    assert actual["error_code"] == 422
+
+
+def test_get_global_widget_config():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert "global_config" in actual["data"]
+    assert actual["data"]['global_config']["bot"] == pytest.bot
+    assert actual["error_code"] == 0
+
+def test_update_global_widget_config():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "categorical",
+                    "title": "Updated Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "dl", "label": "Delhi"},
+                        {"value": "mh", "label": "Maharashtra"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config updated!"
+    assert actual["error_code"] == 0
+
+def test_delete_global_widget_config():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config removed!"
+    assert actual["error_code"] == 0
+
+def test_update_global_widget_config_should_fail():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "dl", "label": "Delhi"},
+                        {"value": "mh", "label": "Maharashtra"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"No global config found for bot '{pytest.bot}'."
+    assert actual["error_code"] == 422
+
+def test_delete_global_widget_config_should_pass_when_not_exist():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"No global config found for bot '{pytest.bot}'."
+
+
 def test_get_client_config_with_nudge_server_url():
     expected_app_server_url = Utility.environment['app']['server_url']
     expected_nudge_server_url = Utility.environment['nudge']['server_url']

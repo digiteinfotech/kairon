@@ -6,7 +6,8 @@ from loguru import logger
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
-from kairon.shared.custom_widgets.data_objects import CustomWidgets, CustomWidgetsRequestLog, CustomWidgetParameters
+from kairon.shared.custom_widgets.data_objects import CustomWidgets, CustomWidgetsRequestLog, CustomWidgetParameters, \
+    CustomWidgetsGlobalConfig
 
 
 class CustomWidgetsProcessor:
@@ -143,3 +144,39 @@ class CustomWidgetsProcessor:
             request_body.update(filters)
             request_body_eval_log.update(filters)
         return request_body, request_body_eval_log
+
+    @staticmethod
+    def save_global_filter_config(global_config: Dict, bot: Text, user: Text):
+        if CustomWidgetsGlobalConfig.objects(bot=bot).first():
+            raise AppException(f"A widget configuration already exists for bot '{bot}'.")
+
+        global_config['bot'] = bot
+        global_config['user'] = user
+        return CustomWidgetsGlobalConfig(**global_config).save().id.__str__()
+
+    @staticmethod
+    def update_global_filter_config(bot: Text, request_data: dict, user: Text):
+        try:
+            config = CustomWidgetsGlobalConfig.objects.get(bot=bot)
+            request_data['user'] = user
+            config.update(**request_data)
+        except DoesNotExist:
+            raise AppException(f"No global config found for bot '{bot}'.")
+
+    @staticmethod
+    def get_global_filter_config(bot: Text):
+        try:
+            config = CustomWidgetsGlobalConfig.objects.get(bot=bot)
+            config = config.to_mongo().to_dict()
+            config.pop('_id')
+            return config
+        except DoesNotExist:
+            return {}
+
+    @staticmethod
+    def delete_global_filter_config(bot: Text):
+        try:
+            config = CustomWidgetsGlobalConfig.objects.get(bot=bot)
+            config.delete()
+        except DoesNotExist:
+            raise AppException(f"No global config found for bot '{bot}'.")

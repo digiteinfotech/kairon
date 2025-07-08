@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
 
-from typing import List
+from typing import List, Dict, Any
 import validators
 
 
@@ -19,3 +19,9 @@ class CustomWidgetsRequest(BaseModel):
     request_parameters: List[HttpRequestParametersRequest] = None
     dynamic_parameters: str = None
     headers: List[HttpRequestParametersRequest] = None
+
+class GlobalFilterConfigRequest(BaseModel):
+    global_config: List[Dict[str, Any]]
+
+    class Config:
+        extra = 'allow'
