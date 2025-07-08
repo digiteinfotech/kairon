@@ -8915,12 +8915,13 @@ def test_get_collection_metadata():
     assert not actual["message"]
     assert actual["success"]
     data = actual["data"]
-    assert data == [
-        {'field_name': 'name', 'data_type': 'str'},
-        {'field_name': 'age', 'data_type': 'int'},
-        {'field_name': 'mobile_number', 'data_type': 'str'},
-        {'field_name': 'location', 'data_type': 'str'}
-    ]
+    assert data['properties'] == {
+        'name': {'type': 'string'},
+        'age': {'type': 'integer'},
+        'mobile_number': {'type': 'string'},
+        'location': {'type': 'string'}
+    }
+    assert data['required'] == ['age', 'location', 'mobile_number', 'name']
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection/bank_details/metadata",
@@ -8933,13 +8934,13 @@ def test_get_collection_metadata():
     assert not actual["message"]
     assert actual["success"]
     data = actual["data"]
-    assert data == [
-        {'field_name': 'account_holder_name', 'data_type': 'str'},
-        {'field_name': 'account_number', 'data_type': 'str'},
-        {'field_name': 'mobile_number', 'data_type': 'str'},
-        {'field_name': 'location', 'data_type': 'str'},
-        {'field_name': 'ifsc', 'data_type': 'str'}
-    ]
+    assert data['properties'] == {
+        'account_holder_name': {'type': 'string'},
+        'account_number': {'type': 'string'},
+        'mobile_number': {'type': 'string'},
+        'location': {'type': 'string'},
+        'ifsc': {'type': 'string'}
+    }
 
 
 def test_delete_collection_data_doesnot_exist():
