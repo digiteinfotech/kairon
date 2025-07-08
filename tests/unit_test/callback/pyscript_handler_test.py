@@ -857,7 +857,13 @@ def test_pyscript_handler_for_get_crud_metadata():
     print(data)
     bot_response = data['body']['bot_response']
     print(bot_response)
-    assert bot_response['metadata'] == ['mobile_number', 'name', 'aadhar', 'pan', 'pincode']
+    assert bot_response['metadata'] == [
+        {'field_name': 'mobile_number', 'data_type': 'str'},
+        {'field_name': 'name', 'data_type': 'str'},
+        {'field_name': 'aadhar', 'data_type': 'str'},
+        {'field_name': 'pan', 'data_type': 'str'},
+        {'field_name': 'pincode', 'data_type': 'int'}
+    ]
     assert data == {
         'statusCode': 200,
         'statusDescription': '200 OK',
@@ -1444,7 +1450,13 @@ def test_get_crud_metadata():
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
         assert result == {
-            'metadata': ["mobile_number", "name", "aadhar", "pan", "pincode"]
+            'metadata': [
+                {'field_name': 'mobile_number', 'data_type': 'str'},
+                {'field_name': 'name', 'data_type': 'str'},
+                {'field_name': 'aadhar', 'data_type': 'str'},
+                {'field_name': 'pan', 'data_type': 'str'},
+                {'field_name': 'pincode', 'data_type': 'int'}
+            ]
         }
 
 
@@ -3091,7 +3103,13 @@ def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
     print(data)
     bot_response = data['body']['bot_response']
     print(bot_response)
-    assert bot_response['metadata'] == ['mobile_number', 'name', 'aadhar', 'pan', 'pincode']
+    assert bot_response['metadata'] == [
+        {'field_name': 'mobile_number', 'data_type': 'str'},
+        {'field_name': 'name', 'data_type': 'str'},
+        {'field_name': 'aadhar', 'data_type': 'str'},
+        {'field_name': 'pan', 'data_type': 'str'},
+        {'field_name': 'pincode', 'data_type': 'int'}
+    ]
     assert data == {
         'statusCode': 200,
         'body': {
