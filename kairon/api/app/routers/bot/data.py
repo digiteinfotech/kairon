@@ -269,6 +269,19 @@ async def list_collection_data(
     return {"data": list(DataProcessor.list_collection_data(current_user.get_bot()))}
 
 
+@router.get("/collection/{collection_name}/metadata", response_model=Response)
+async def get_collection_metadata(
+        collection_name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data of the bot
+    """
+    return {"data": DataProcessor.get_crud_metadata(current_user.get_user(),
+                                                    current_user.get_bot(),
+                                                    collection_name)}
+
+
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
         collection_name: str,

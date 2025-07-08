@@ -7,7 +7,7 @@ from mongoengine import DoesNotExist
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
-
+from loguru import logger
 
 
 class DataProcessor:
@@ -43,6 +43,29 @@ class DataProcessor:
             else:
                 decrypted_data[key] = value
         return decrypted_data
+
+    @staticmethod
+    def get_crud_metadata(user: Text, bot: Text, collection_name: Text) -> dict:
+        from genson import SchemaBuilder
+
+        documents = CollectionData.objects(user=user, bot=bot, collection_name=collection_name)
+
+        if not documents:
+            logger.warning(f"Collection Data not found: user={user}, bot={bot}, collection_name={collection_name}")
+            return {"type": "object", "properties": {}}
+
+        builder = SchemaBuilder()
+        builder.add_schema({"type": "object", "properties": {}})
+
+        for doc in documents:
+            data_dict = doc.to_mongo().to_dict()
+            nested_data = data_dict.get("data", {})
+            if isinstance(nested_data, dict):
+                builder.add_object(nested_data)
+            else:
+                logger.warning("Invalid or missing 'data' field in a document.")
+
+        return builder.to_schema()
 
     @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
