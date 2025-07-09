@@ -24,6 +24,7 @@ from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.constants import EventClass, EventRequestType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.data_objects import EndPointHistory, Endpoints, BotSettings
@@ -48,6 +49,16 @@ class TestEventDefinitions:
         BotSettings(bot="test_definitions", user="test_user").save()
         BotSettings(bot="test_definitions_bot", user="test_user").save()
         BotSettings(bot="test_faq", user="test_user").save()
+        CollectionData(bot="test_bot", user="test_user_1", collection_name="test_collection_1").save()
+        CollectionData(bot="test_bot", user="test_user_2", collection_name="test_collection_1").save()
+        CollectionData(bot="test_bot", user="test_user_1", collection_name="test_collection_2").save()
+        CollectionData(bot="test_bot", user="test_user_3", collection_name="test_collection_3").save()
+        CollectionData(bot="test_bot", user="test_user_1", collection_name="test_collection_3").save()
+        CollectionData(bot="test_bot_2", user="test_user_1", collection_name="test_collection_1").save()
+        CollectionData(bot="test_bot_2", user="test_user_2", collection_name="test_collection_1").save()
+        CollectionData(bot="test_bot_2", user="test_user_1", collection_name="test_collection_2").save()
+        CollectionData(bot="test_bot_2", user="test_user_2", collection_name="test_collection_2").save()
+
 
     def test_data_importer_presteps_no_training_files(self):
         bot = 'test_definitions'
@@ -1351,3 +1362,29 @@ class TestEventDefinitions:
         result = event.validate()
         assert result is None
         mock_flow_exists.assert_not_called()
+
+
+    @patch("kairon.shared.data.collection_processor.DataProcessor.delete_collection_data_with_user")
+    @patch("kairon.history.processor.HistoryProcessor.delete_user_history")
+    def test_delete_data_called_when_till_date_is_today(self, mock_delete_conversation, mock_delete_data):
+        from datetime import datetime
+        today = datetime.today().date()
+
+        event = DeleteHistoryEvent(bot="test_bot", user="test_user_1", till_date=today, sender_id="aniket.kharkia@nimblework.com")
+        event.execute()
+
+        mock_delete_data.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com")
+        mock_delete_conversation.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com", today)
+
+
+    @patch("kairon.shared.data.collection_processor.DataProcessor.delete_collection_data_with_user")
+    @patch("kairon.history.processor.HistoryProcessor.delete_user_history")
+    def test_delete_data_not_called_when_till_date_is_past(self, mock_delete_conversation, mock_delete_data):
+        from datetime import datetime, timedelta
+        past_date = datetime.today().date() - timedelta(days=3)
+
+        event = DeleteHistoryEvent(bot="test_bot", user="test_user_1", till_date=past_date, sender_id="aniket.kharkia@nimblework.com")
+        event.execute()
+
+        mock_delete_data.assert_not_called()
+        mock_delete_conversation.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com", past_date)

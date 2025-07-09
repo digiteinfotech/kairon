@@ -4,6 +4,7 @@ from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.utils import ChatHistoryUtils
@@ -55,6 +56,7 @@ class DeleteHistoryEvent(EventsBase):
         Execute the event.
         """
         from kairon.history.processor import HistoryProcessor
+        today = datetime.today().date()
         try:
             HistoryDeletionLogProcessor.add_log(
                 self.bot, self.user, self.till_date,
@@ -62,6 +64,8 @@ class DeleteHistoryEvent(EventsBase):
             )
             if not Utility.check_empty_string(self.sender_id):
                 HistoryProcessor.delete_user_history(self.bot, self.sender_id, self.till_date)
+                if self.till_date == today:
+                    DataProcessor.delete_collection_data_with_user(self.bot, self.sender_id)
             else:
                 HistoryProcessor.delete_bot_history(self.bot, self.till_date)
             HistoryDeletionLogProcessor.add_log(

@@ -1261,3 +1261,33 @@ def test_delete_collection_not_found():
         mock_query.delete.assert_called_once()
         assert result == ["Collection nonexistent_collection does not exist!", 0]
 
+
+
+def test_delete_collection_data_success():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_collection_data:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 1
+        mock_collection_data.return_value = mock_query
+
+
+        DataProcessor.delete_collection_data_with_user(bot="test_bot", user="test_user_1")
+
+        mock_collection_data.assert_called_once_with(bot="test_bot", user="test_user_1")
+        mock_query.delete.assert_called_once()
+
+
+
+def test_delete_collection_data_no_records():
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_collection_data:
+        mock_query = MagicMock()
+        mock_query.delete.return_value = 0
+        mock_collection_data.return_value = mock_query
+
+        with pytest.raises(AppException) as exc_info:
+            DataProcessor.delete_collection_data_with_user(bot="test_bot", user="test_user_1")
+
+        assert str(exc_info.value) == "Collection data for user does not exists!"
+        mock_collection_data.assert_called_once_with(bot="test_bot", user="test_user_1")
+        mock_query.delete.assert_called_once()
+
+

@@ -102,6 +102,12 @@ class DataProcessor:
             raise AppException("Collection Data does not exists!")
 
     @staticmethod
+    def delete_collection_data_with_user( bot: Text, user: Text):
+        collection_count = CollectionData.objects(bot=bot, user=user).delete()
+        if collection_count == 0:
+            raise AppException("Collection data for user does not exists!")
+
+    @staticmethod
     def list_collection_data(bot: Text):
         """
         fetches collection data
