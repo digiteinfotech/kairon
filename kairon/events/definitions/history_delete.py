@@ -56,7 +56,6 @@ class DeleteHistoryEvent(EventsBase):
         Execute the event.
         """
         from kairon.history.processor import HistoryProcessor
-        from datetime import datetime
         today = datetime.today().date()
         try:
             HistoryDeletionLogProcessor.add_log(
