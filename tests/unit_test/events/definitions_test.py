@@ -1365,7 +1365,8 @@ class TestEventDefinitions:
 
 
     @patch("kairon.shared.data.collection_processor.DataProcessor.delete_collection_data_with_user")
-    def test_delete_data_called_when_till_date_is_today(self, mock_delete_data):
+    @patch("kairon.history.processor.HistoryProcessor.delete_user_history")
+    def test_delete_data_called_when_till_date_is_today(self, mock_delete_conversation, mock_delete_data):
         from datetime import datetime
         today = datetime.today().date()
 
@@ -1373,10 +1374,12 @@ class TestEventDefinitions:
         event.execute()
 
         mock_delete_data.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com")
+        mock_delete_conversation.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com", today)
 
 
     @patch("kairon.shared.data.collection_processor.DataProcessor.delete_collection_data_with_user")
-    def test_delete_data_not_called_when_till_date_is_past(self, mock_delete_data):
+    @patch("kairon.history.processor.HistoryProcessor.delete_user_history")
+    def test_delete_data_not_called_when_till_date_is_past(self, mock_delete_conversation, mock_delete_data):
         from datetime import datetime, timedelta
         past_date = datetime.today().date() - timedelta(days=3)
 
@@ -1384,3 +1387,4 @@ class TestEventDefinitions:
         event.execute()
 
         mock_delete_data.assert_not_called()
+        mock_delete_conversation.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com", past_date)
