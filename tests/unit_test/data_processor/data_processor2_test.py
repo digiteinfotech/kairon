@@ -1266,10 +1266,10 @@ def test_delete_collection_not_found():
 def test_delete_collection_data_success():
     with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_collection_data:
         mock_query = MagicMock()
-        mock_query.delete.return_value = 1  # simulate 1 records deleted
+        mock_query.delete.return_value = 1
         mock_collection_data.return_value = mock_query
 
-        # Call the function
+
         DataProcessor.delete_collection_data_with_user(bot="test_bot", user="test_user_1")
 
         mock_collection_data.assert_called_once_with(bot="test_bot", user="test_user_1")
@@ -1280,7 +1280,7 @@ def test_delete_collection_data_success():
 def test_delete_collection_data_no_records():
     with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_collection_data:
         mock_query = MagicMock()
-        mock_query.delete.return_value = 0  # simulate 0 records deleted
+        mock_query.delete.return_value = 0
         mock_collection_data.return_value = mock_query
 
         with pytest.raises(AppException) as exc_info:
