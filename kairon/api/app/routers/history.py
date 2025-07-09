@@ -524,7 +524,7 @@ async def total_sessions(
 @router.delete("/delete/{sender}", response_model=Response)
 async def delete_user_chat_history(
         sender: Text,
-        till_date: date = Depends(Utility.get_to_date),
+        till_date: date = Depends(Utility.get_till_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """
@@ -540,7 +540,7 @@ async def delete_user_chat_history(
 
 @router.delete("/bot/delete", response_model=Response)
 async def delete_bot_conversations_history(
-        till_date: date = Depends(Utility.get_to_date),
+        till_date: date = Depends(Utility.get_till_date),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """

@@ -752,6 +752,14 @@ class Utility:
             return date.fromisoformat(request.query_params.get(key))
 
     @staticmethod
+    def get_till_date(request: Request):
+        key = "till_date"
+        if not request.query_params.get(key):
+            return date.today()
+        else:
+            return date.fromisoformat(request.query_params.get(key))
+
+    @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
         six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
         today_date = datetime.utcnow().date()
