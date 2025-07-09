@@ -2,7 +2,7 @@ from enum import Enum
 
 from kairon.shared.data.constant import ACCESS_ROLES
 
-DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback'}
+DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback',"k_multimedia_msg"}
 
 DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'action_default_fallback',
                    'action_deactivate_loop', 'action_revert_fallback_events', 'action_default_ask_affirmation',
