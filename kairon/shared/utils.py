@@ -745,11 +745,11 @@ class Utility:
 
     @staticmethod
     def get_to_date(request: Request):
-        key = "to_date"
-        if not request.query_params.get(key):
+        date_str = request.query_params.get("till_date") or request.query_params.get("to_date")
+        if not date_str:
             return date.today()
         else:
-            return date.fromisoformat(request.query_params.get(key))
+            return date.fromisoformat(date_str)
 
     @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
