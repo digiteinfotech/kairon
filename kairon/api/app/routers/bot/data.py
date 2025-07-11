@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
@@ -428,9 +428,7 @@ async def add_pos_integration_config(
     if request_data.provider not in CatalogSyncClass.__members__.values():
         raise AppException("Invalid Provider")
 
-    CognitionDataProcessor.add_bot_sync_config(request_data, current_user.get_bot(), current_user.get_user())
-
-    integration_endpoint = cognition_processor.save_pos_integration_config(
+    integration_endpoint = await cognition_processor.save_pos_integration_config(
         request_data.dict(), current_user.get_bot(), current_user.get_user(), sync_type
     )
 

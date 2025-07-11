@@ -15,7 +15,7 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField,
+    FloatField, GenericEmbeddedDocumentField,
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
@@ -1092,6 +1092,10 @@ class UserMediaData(Auditlog):
     meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}
 
 
+class PetpoojaSyncConfig(EmbeddedDocument):
+    process_push_menu = BooleanField(default=False)
+    process_item_toggle = BooleanField(default=False)
+
 @auditlogger.log
 @push_notification.apply
 class POSIntegrations(Auditlog):
@@ -1099,12 +1103,13 @@ class POSIntegrations(Auditlog):
     provider = StringField(required=True)
     config = DictField(required=True)
     sync_type = StringField(required=True, default=None)
+    ai_enabled = BooleanField(default=False)
+    meta_enabled = BooleanField(default=False)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
-    meta_config = DictField()
+    sync_options = GenericEmbeddedDocumentField(required=True)
 
     meta = {"indexes": [{"fields": ["bot", "provider"]}]}
-
 
 @auditlogger.log
 @push_notification.apply

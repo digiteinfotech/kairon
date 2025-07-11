@@ -1431,15 +1431,33 @@ class FlowTagChangeRequest(BaseModel):
     tag: str
     type: str
 
-class MetaConfig(BaseModel):
+class PetpoojaMetaConfig(BaseModel):
     access_token: str
     catalog_id: str
+
+class PetpoojaSyncOptions(BaseModel):
+    process_push_menu: bool
+    process_item_toggle: bool
 
 class POSIntegrationRequest(BaseModel):
     provider: str = Field(..., alias="connector_type")
     config: dict
-    meta_config: Optional[MetaConfig]
+    ai_enabled: bool
+    meta_enabled: bool
+    sync_options: Union[PetpoojaSyncOptions]
 
+    @root_validator(pre=True)
+    def validate_sync_options_by_provider(cls, values):
+        provider = values.get("connector_type")
+        sync_options = values.get("sync_options")
+
+        if provider == "petpooja":
+            try:
+                values["sync_options"] = PetpoojaSyncOptions(**sync_options)
+            except Exception as e:
+                raise ValueError(f"Invalid sync_options for petpooja: {e}")
+
+        return values
 
 class ParallelActionRequest(BaseModel):
     """

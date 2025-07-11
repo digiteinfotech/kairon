@@ -3783,12 +3783,18 @@ def test_add_pos_integration_config_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -3808,18 +3814,11 @@ def test_add_pos_integration_config_success():
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
 
@@ -3831,12 +3830,18 @@ def test_get_pos_endpoint_push_menu():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -3869,12 +3874,18 @@ def test_get_pos_endpoint_item_toggle():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -3907,12 +3918,18 @@ def test_list_pos_integration_configs_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -3928,15 +3945,21 @@ def test_list_pos_integration_configs_success():
     assert str(pytest.bot) in actual["data"]
 
     payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "restaurant1",
-            "branch_name": "branch1",
-            "restaurant_id": "98765"
-        },
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765",
         "meta_config": {
-            "access_token": "dummy_access_token",
-            "catalog_id": "12345"
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
+       },
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
         }
     }
 
@@ -3972,10 +3995,9 @@ def test_list_pos_integration_configs_success():
     assert petpooja_config["config"]["restaurant_name"] == "restaurant1"
     assert petpooja_config["config"]["branch_name"] == "branch1"
     assert petpooja_config["config"]["restaurant_id"] == "98765"
-    assert petpooja_config["meta_config"]["access_token"] == "dummy_access_token"
-    assert petpooja_config["meta_config"]["catalog_id"] == "12345"
+    assert petpooja_config["config"]["meta_config"]["access_token"] == "dummy_access_token"
+    assert petpooja_config["config"]["meta_config"]["catalog_id"] == "12345"
 
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
 
@@ -4004,12 +4026,18 @@ def test_delete_pos_integration_config_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -4025,15 +4053,21 @@ def test_delete_pos_integration_config_success():
     assert str(pytest.bot) in actual["data"]
 
     payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "restaurant1",
-            "branch_name": "branch1",
-            "restaurant_id": "98765"
-        },
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765",
         "meta_config": {
-            "access_token": "dummy_access_token",
-            "catalog_id": "12345"
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
+       },
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
         }
     }
 
@@ -4073,12 +4107,18 @@ def test_delete_pos_integration_config_no_sync_type_provided_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
+        "restaurant_id": "98765",
+        "meta_config": {
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
        },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -4094,15 +4134,21 @@ def test_delete_pos_integration_config_no_sync_type_provided_success():
     assert str(pytest.bot) in actual["data"]
 
     payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "restaurant1",
-            "branch_name": "branch1",
-            "restaurant_id": "98765"
-        },
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765",
         "meta_config": {
-            "access_token": "dummy_access_token",
-            "catalog_id": "12345"
+            "access_token":"dummy_access_token",
+            "catalog_id":"12345"
+        }
+       },
+       "ai_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
         }
     }
 
@@ -4179,11 +4225,17 @@ def test_add_pos_integration_config_invalid_provider():
         "config": {
             "restaurant_name": "invalid",
             "branch_name": "invalid",
-            "restaurant_id": "00000"
+            "restaurant_id": "00000",
+            "meta_config": {
+                "access_token": "invalid",
+                "catalog_id": "000"
+            }
         },
-        "meta_config": {
-            "access_token": "invalid",
-            "catalog_id": "000"
+        "ai_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
         }
     }
 
@@ -4199,63 +4251,62 @@ def test_add_pos_integration_config_invalid_provider():
     assert not actual["success"]
 
     CatalogProviderMapping.objects(provider="invalid_provider").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="invalid_provider").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="invalid_provider", sync_type="push_menu").delete()
 
-
-@responses.activate
-def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
-    payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "restaurant1",
-            "branch_name": "branch1",
-            "restaurant_id": "11111"
-        },
-        "meta_config": {
-            "access_token": "access_token_1",
-            "catalog_id": "catalog_1"
-        }
-    }
-
-    client.post(
-        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
-        json=payload,
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
-    )
-
-    updated_payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "updated_restaurant",
-            "branch_name": "updated_branch",
-            "restaurant_id": "22222"
-        },
-        "meta_config": {
-            "access_token": "access_token_2",
-            "catalog_id": "catalog_2"
-        }
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
-        json=updated_payload,
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
-    )
-    actual = response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["message"] == "POS Integration Complete"
-    assert "integration/petpooja/push_menu" in actual["data"]
-    assert str(pytest.bot) in actual["data"]
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-
-    CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
-    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+#
+# @responses.activate
+# def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
+#     payload = {
+#         "connector_type": "petpooja",
+#         "config": {
+#             "restaurant_name": "restaurant1",
+#             "branch_name": "branch1",
+#             "restaurant_id": "11111"
+#         },
+#         "meta_config": {
+#             "access_token": "access_token_1",
+#             "catalog_id": "catalog_1"
+#         }
+#     }
+#
+#     client.post(
+#         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+#         json=payload,
+#         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+#     )
+#
+#     updated_payload = {
+#         "connector_type": "petpooja",
+#         "config": {
+#             "restaurant_name": "updated_restaurant",
+#             "branch_name": "updated_branch",
+#             "restaurant_id": "22222"
+#         },
+#         "meta_config": {
+#             "access_token": "access_token_2",
+#             "catalog_id": "catalog_2"
+#         }
+#     }
+#
+#     response = client.post(
+#         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+#         json=updated_payload,
+#         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+#     )
+#     actual = response.json()
+#     assert actual["success"]
+#     assert actual["error_code"] == 0
+#     assert actual["message"] == "POS Integration Complete"
+#     assert "integration/petpooja/push_menu" in actual["data"]
+#     assert str(pytest.bot) in actual["data"]
+#
+#     bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
+#     assert bot_sync_config.restaurant_name == "restaurant1"
+#     assert bot_sync_config.branch_name == "branch1"
+#
+#     CatalogProviderMapping.objects(provider="petpooja").delete()
+#     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
+#     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
 
 
 @responses.activate
@@ -4265,11 +4316,17 @@ def test_add_pos_integration_config_invalid_sync_type():
         "config": {
             "restaurant_name": "restaurant3",
             "branch_name": "branch3",
-            "restaurant_id": "33333"
+            "restaurant_id": "33333",
+            "meta_config": {
+                "access_token": "access_333",
+                "catalog_id": "333"
+            }
         },
-        "meta_config": {
-            "access_token": "access_333",
-            "catalog_id": "333"
+        "ai_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
         }
     }
 
@@ -4330,12 +4387,18 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -4357,16 +4420,10 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4377,13 +4434,6 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -4439,7 +4489,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -4507,12 +4557,18 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -4534,16 +4590,10 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4593,7 +4643,7 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
     expected_items = [
@@ -4632,18 +4682,23 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
         **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     payload = {
-        "connector_type": "petpooja",
-        "config": {
-            "restaurant_name": "restaurant1",
-            "branch_name": "branch1",
-            "restaurant_id": "98765"
-        },
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765",
         "meta_config": {
-            "access_token": "dummy_access_token",
-            "catalog_id": "12345"
-        }
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
-
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
         json = payload,
@@ -4663,16 +4718,10 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4721,7 +4770,7 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "availability": doc.data["availability"]}
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
         for doc in catalog_data_docs
     ]
     expected_items = [
@@ -4743,7 +4792,6 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -4794,12 +4842,18 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": False,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -4821,16 +4875,10 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4874,7 +4922,6 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -4923,12 +4970,18 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": False,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -4950,16 +5003,10 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5054,12 +5101,18 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -5081,20 +5134,10 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5158,7 +5201,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -5224,12 +5267,18 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": False,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -5251,20 +5300,10 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5312,7 +5351,7 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "availability": doc.data["availability"]}
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
         for doc in catalog_data_docs
     ]
 
@@ -5379,12 +5418,18 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -5406,21 +5451,10 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5484,7 +5518,7 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -5554,12 +5588,18 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": False,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -5581,21 +5621,10 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5643,7 +5672,7 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "availability": doc.data["availability"]}
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
         for doc in catalog_data_docs
     ]
 
@@ -5717,12 +5746,18 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -5744,21 +5779,10 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5822,7 +5846,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -5888,12 +5912,18 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -5915,21 +5945,10 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6026,12 +6045,18 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -6053,22 +6078,10 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6159,7 +6172,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -6230,12 +6243,18 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": False,
+      "sync_options": {
+          "process_push_menu": False,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -6257,16 +6276,10 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6310,12 +6323,14 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
     assert cognition_data_docs.count() == 0
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
+    integration_docs = POSIntegrations.objects(bot=pytest.bot, provider="petpooja")
+
+    for doc in integration_docs:
+        doc.ai_enabled = True
+        doc.meta_enabled = True
+        doc.sync_options["process_push_menu"] = True
+        doc.sync_options["process_item_toggle"] = True
+        doc.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -6366,7 +6381,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
@@ -6436,12 +6451,18 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -6463,16 +6484,10 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6483,13 +6498,6 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -6588,12 +6596,18 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -6615,16 +6629,10 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6635,13 +6643,6 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -6686,7 +6687,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.status == "Failure"
 
     assert latest_log.validation_errors is not None
     assert "10539634" in latest_log.validation_errors
@@ -6756,12 +6757,18 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -6783,16 +6790,10 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6803,13 +6804,6 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -6916,12 +6910,18 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": True
+      }
     }
 
     response = client.post(
@@ -6943,16 +6943,10 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6963,13 +6957,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -7075,12 +7062,18 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": True,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -7102,16 +7095,10 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -7122,13 +7109,6 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
         event_url,
         json={"success": True, "message": "Event triggered successfully!"},
     )
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu= True
-    bot_sync_config.process_item_toggle = True
-    bot_sync_config.ai_enabled = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
 
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -7220,12 +7200,18 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765"
-       },
-       "meta_config": {
-        "access_token":"dummy_access_token",
-        "catalog_id":"12345"
-       }
+        "restaurant_id": "98765",
+        "meta_config": {
+          "access_token": "dummy_access_token",
+          "catalog_id": "12345"
+        },
+      },
+      "ai_enabled": False,
+      "meta_enabled": True,
+      "sync_options": {
+          "process_push_menu": True,
+          "process_item_toggle": False
+      }
     }
 
     response = client.post(
@@ -7247,21 +7233,10 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
     assert provider_mapping.meta_mappings is not None
     assert provider_mapping.kv_mappings is not None
 
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    assert bot_sync_config is not None
-    assert bot_sync_config.restaurant_name == "restaurant1"
-    assert bot_sync_config.branch_name == "branch1"
-    assert bot_sync_config.parent_bot == pytest.bot
-
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-    bot_sync_config.process_push_menu = True
-    bot_sync_config.meta_enabled = True
-    bot_sync_config.save()
+    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -7318,7 +7293,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.status == "Failure"
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Validation Failed. Check logs"
 
@@ -7326,7 +7301,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     catalog_item_summaries = [
-        {"id": doc.data["id"], "price": doc.data["price"]}
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
         for doc in catalog_data_docs
     ]
 
