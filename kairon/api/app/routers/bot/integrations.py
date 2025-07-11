@@ -66,6 +66,11 @@ async def rerun_sync(
     if not sync_log_entry:
         raise AppException(f"Sync log with execution ID {execution_id} not found.")
 
+    if sync_log_entry.sync_type != sync_type:
+        raise AppException(
+            f"Sync type mismatch: requested '{sync_type}' but found '{sync_log_entry.sync_type}' in log."
+        )
+
     request_body = sync_log_entry.raw_payload
 
     event = CatalogSync(

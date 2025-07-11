@@ -1,11 +1,7 @@
 {
-    "type": "POST",
-    "body": {
-        "restID": "njrbv7mu",
-        "inStock": false,
-        "type": "item",
-        "autoTurnOnTime": "custom",
-        "customTurnOnTime": "2025-03-26 12:45:00"
-    },
-    "params": {}
+    "restID": "njrbv7mu",
+    "inStock": false,
+    "type": "item",
+    "autoTurnOnTime": "custom",
+    "customTurnOnTime": "2025-03-26 12:45:00"
 }

@@ -14,7 +14,7 @@ from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
-from kairon.shared.data.data_objects import BotSettings, BotSyncConfig
+from kairon.shared.data.data_objects import BotSettings, PetpoojaSyncConfig, POSIntegrations
 
 
 class TestCatalogSyncLogProcessor:
@@ -153,13 +153,26 @@ class TestCatalogSyncLogProcessor:
         bot = "test"
         user = "test"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
+        POSIntegrations(
+            bot=bot,
+            user=user,
             provider="demo",
-            branch_name="Branch A",
-            branch_bot=bot,
-            user=user
+            config={
+                "restaurant_name":"Test Restaurant",
+                "branch_name": "Branch A",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         expected_collection = "test_restaurant_branch_a_catalog"
@@ -172,38 +185,64 @@ class TestCatalogSyncLogProcessor:
 
         assert CatalogSyncLogProcessor.is_catalog_collection_exists(bot) is True
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
         CognitionSchema.objects.delete()
 
     def test_catalog_collection_exists_false(self):
         bot = "test"
         user = "test"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
+        POSIntegrations(
+            bot=bot,
+            user=user,
             provider="demo",
-            branch_name="Branch A",
-            branch_bot=bot,
-            user=user
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Branch A",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         assert CatalogSyncLogProcessor.is_catalog_collection_exists(bot) is False
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
         CognitionSchema.objects.delete()
 
     def test_create_catalog_collection(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo_provider",
-            branch_name="Test Branch",
-            branch_bot=bot,
-            user=user
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         BotSettings(
@@ -222,7 +261,7 @@ class TestCatalogSyncLogProcessor:
         assert created_schema is not None
         assert created_schema.collection_name == catalog_name
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
         BotSettings.objects.delete()
         CognitionSchema.objects.delete()
 
@@ -283,172 +322,264 @@ class TestCatalogSyncLogProcessor:
     def test_sync_type_allowed_valid_push_menu(self):
         bot = "test_bot"
         user = "test_user"
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            process_push_menu=True,
-            process_item_toggle=False
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.push_menu)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_sync_type_allowed_valid_item_toggle(self):
         bot = "test_bot"
         user = "test_user"
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            process_push_menu=False,
-            process_item_toggle=True
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="item_toggle",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=True
+            )
         ).save()
 
         CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.item_toggle)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_sync_type_push_menu_not_allowed(self):
         bot = "test_bot"
         user = "test_user"
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            process_push_menu=False,
-            process_item_toggle=True
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         with pytest.raises(Exception, match="Push menu processing is disabled for this bot"):
             CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.push_menu)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_sync_type_item_toggle_not_allowed(self):
         bot = "test_bot"
         user = "test_user"
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            process_push_menu=True,
-            process_item_toggle=False
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="item_toggle",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         with pytest.raises(Exception, match="Item toggle is disabled for this bot"):
             CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.item_toggle)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_sync_type_config_missing(self):
         bot = "test_bot"
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
-        with pytest.raises(Exception, match="No bot sync config found for bot"):
+        with pytest.raises(Exception, match="No POS integration config found for this bot"):
             CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.push_menu)
 
     def test_ai_enabled_true(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            ai_enabled=True
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=True,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         result = CatalogSyncLogProcessor.is_ai_enabled(bot)
         assert result is True
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_ai_enabled_false(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            ai_enabled=False
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         result = CatalogSyncLogProcessor.is_ai_enabled(bot)
         assert result is False
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_ai_enabled_no_config(self):
         bot = "test_bot"
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
-        with pytest.raises(Exception, match="No bot sync config found for bot"):
+        with pytest.raises(Exception, match="No POS integration config found for this bot"):
             CatalogSyncLogProcessor.is_ai_enabled(bot)
 
     def test_meta_enabled_true(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            meta_enabled=True
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=True,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         result = CatalogSyncLogProcessor.is_meta_enabled(bot)
         assert result is True
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_meta_enabled_false(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            meta_enabled=False
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         result = CatalogSyncLogProcessor.is_meta_enabled(bot)
         assert result is False
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
     def test_meta_enabled_no_config(self):
         bot = "test_bot"
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
 
-        with pytest.raises(Exception, match="No bot sync config found for bot"):
+        with pytest.raises(Exception, match="No POS integration config found for this bot"):
             CatalogSyncLogProcessor.is_meta_enabled(bot)
 
     def test_get_execution_id_for_bot_returns_latest_pending(self):
@@ -528,13 +659,26 @@ class TestCatalogSyncLogProcessor:
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo_provider",
-            branch_name="Test Branch",
-            branch_bot=bot,
-            user=user
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         CollectionData(
@@ -552,24 +696,37 @@ class TestCatalogSyncLogProcessor:
 
         CatalogSyncLogProcessor.validate_image_configurations(bot, user)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
         CollectionData.objects.delete()
 
     def test_validate_image_configurations_when_catalog_images_missing_global_fallback(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo_provider",
-            branch_name="Test Branch",
-            branch_bot=bot,
-            user=user
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider="demo",
+            config={
+                "restaurant_name": "Test Restaurant",
+                "branch_name": "Test Branch",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=False,
+                process_item_toggle=False
+            )
         ).save()
 
         with pytest.raises(Exception, match="Global fallback image URL not found"):
             CatalogSyncLogProcessor.validate_image_configurations(bot, user)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects.delete()
         CollectionData.objects.delete()

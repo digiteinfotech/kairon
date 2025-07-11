@@ -10,11 +10,12 @@ from pymongo import UpdateOne
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.meta.processor import MetaProcessor
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
-from kairon.shared.data.data_objects import BotSyncConfig, POSIntegrations
+from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.constants import  CatalogSyncClass
 from kairon.shared.data.utils import DataUtility
@@ -431,34 +432,96 @@ class CognitionDataProcessor:
         if not CognitionSchema.objects(collection_name=collection_name).first():
             raise AppException(f"Collection '{collection_name}' does not exist.")
 
-    def save_pos_integration_config(self, configuration: Dict, bot: Text, user: Text, sync_type: Text = None):
+    async def save_pos_integration_config(self, configuration: Dict, bot: Text, user: Text, sync_type: Text = None):
         """
-        save or updates data integration configuration
-        :param configuration: config dict
-        :param bot: bot id
-        :param user: user id
-        :param sync_type: event type
-        :return: None
+        Creates or updates POS integration config for a given bot and provider.
+
+        :param configuration: Input config dictionary (from request)
+        :param bot: Bot ID
+        :param user: User ID
+        :param sync_type: Optional sync type
+        :return: integration endpoint
         """
         self._validate_sync_type(sync_type)
-        try:
-            integration = POSIntegrations.objects(bot=bot, provider=configuration['provider'],
-                                                  sync_type=sync_type).get()
-            integration.config = configuration['config']
-            integration.meta_config = configuration['meta_config']
-        except DoesNotExist:
-            integration = POSIntegrations(**configuration)
-        integration.bot = bot
-        integration.user = user
-        integration.sync_type = sync_type
-        integration.timestamp = datetime.utcnow()
 
-        if 'meta_config' in configuration:
-            integration.meta_config = configuration['meta_config']
+        provider = configuration["provider"]
+        config_data = configuration["config"]
+        ai_enabled = configuration.get("ai_enabled", False)
+        meta_enabled = configuration.get("meta_enabled", False)
+        sync_options = configuration.get("sync_options")
 
+        sync_options = PetpoojaSyncConfig(**sync_options)
+
+        integration = POSIntegrations.objects(
+            bot=bot,
+            provider=provider,
+            sync_type=sync_type
+        ).first()
+
+        if integration and integration.meta_enabled and not meta_enabled:
+            await self.delete_existing_meta_catalog_data(bot, config_data)
+
+        if integration:
+            integration.config = config_data
+            integration.ai_enabled = ai_enabled
+            integration.meta_enabled = meta_enabled
+            integration.sync_options = sync_options
+            integration.timestamp = datetime.utcnow()
+            integration.user = user
+        else:
+            integration = POSIntegrations(
+                bot=bot,
+                user=user,
+                provider=provider,
+                sync_type=sync_type,
+                config=config_data,
+                ai_enabled=ai_enabled,
+                meta_enabled=meta_enabled,
+                sync_options=sync_options,
+                timestamp=datetime.utcnow(),
+            )
         integration.save()
+
+        other_provider_integrations = POSIntegrations.objects(bot=bot, provider=provider, sync_type__ne=sync_type)
+
+        for doc in other_provider_integrations:
+            doc.ai_enabled = ai_enabled
+            doc.meta_enabled = meta_enabled
+            doc.config = config_data
+            doc.sync_options = sync_options
+            doc.timestamp = datetime.utcnow()
+            doc.save()
+
         integration_endpoint = DataUtility.get_integration_endpoint(integration)
         return integration_endpoint
+
+    async def delete_existing_meta_catalog_data(self, bot: str, config_data: Dict):
+        """
+        Deletes metadata items from Meta catalog if meta_enabled is turned off.
+        """
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+        existing_docs = CollectionData.objects(
+            collection_name=catalog_data_collection,
+            bot=bot,
+            status=True
+        )
+
+        meta_ids = [
+            doc.data.get("meta", {}).get("id")
+            for doc in existing_docs
+            if doc.data.get("meta", {}).get("id")
+        ]
+
+        meta_config = config_data.get("meta_config", {})
+        access_token = meta_config.get("access_token")
+        catalog_id = meta_config.get("catalog_id")
+
+        if meta_ids:
+            meta_processor = MetaProcessor(access_token, catalog_id)
+            delete_payload = meta_processor.preprocess_delete_data(meta_ids)
+            await meta_processor.delete_meta_catalog(delete_payload)
 
     @staticmethod
     def list_pos_integration_configs(bot: str) -> List[Dict]:
@@ -567,8 +630,8 @@ class CognitionDataProcessor:
             "kv": doc.kv_mappings
         }
 
-        in_stock = json_data["body"]["inStock"]
-        item_ids = json_data["body"]["itemID"]
+        in_stock = json_data["inStock"]
+        item_ids = json_data["itemID"]
         availability = "in stock" if in_stock else "out of stock"
         processed_data = [{"id": item_id, "availability": availability} for item_id in item_ids]
 
@@ -728,43 +791,52 @@ class CognitionDataProcessor:
     @staticmethod
     def save_ai_data(processed_data: dict, bot: str, user: str, sync_type: str):
         """
-        Save each item in `kv` of the processed payload into CollectionData individually.
+        Save each item in kv + meta of the processed payload into CollectionData,
+        with 'data' stored as {"kv": {...}, "meta": {...}}.
+        Performs partial update for `item_toggle`, full replace otherwise.
         """
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
         catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
-        kv_items = processed_data.get("kv", [])
-        incoming_data_map = {item["id"]: item for item in kv_items}
-        incoming_ids = set(incoming_data_map.keys())
+        kv_items = {item["id"]: item for item in processed_data.get("kv", [])}
+        meta_items = {item["id"]: item for item in processed_data.get("meta", [])}
+        incoming_ids = set(kv_items.keys())
 
         existing_docs = CollectionData.objects(
             collection_name=catalog_data_collection,
             bot=bot,
             status=True
         )
-        existing_data_map = {doc.data.get("id"): doc for doc in existing_docs}
+        existing_data_map = {doc.data.get("kv", {}).get("id"): doc for doc in existing_docs}
         existing_ids = set(existing_data_map.keys())
 
-        for item_id, item in incoming_data_map.items():
-            if item_id in existing_data_map:
-                doc = existing_data_map[item_id]
+        for item_id in incoming_ids:
+            kv = kv_items[item_id]
+            meta = meta_items.get(item_id, {})
+            existing_doc = existing_data_map.get(item_id)
+
+            if existing_doc:
                 if sync_type == SyncType.item_toggle:
-                    for key, value in item.items():
-                        doc.data[key] = value
+                    for key, value in kv.items():
+                        existing_doc.data["kv"][key] = value
+                    for key, value in meta.items():
+                        existing_doc.data["meta"][key] = value
                 else:
-                    doc.data = item
-                doc.timestamp = datetime.utcnow()
-                doc.user = user
-                doc.save()
+                    existing_doc.data = {"kv": kv, "meta": meta}
+
+                existing_doc.timestamp = datetime.utcnow()
+                existing_doc.user = user
+                existing_doc.save()
             else:
                 CollectionData(
                     collection_name=catalog_data_collection,
-                    data=item,
+                    data={"kv": kv, "meta": meta},
                     user=user,
                     bot=bot,
                     timestamp=datetime.utcnow(),
                     status=True
                 ).save()
+
         stale_ids = []
         if sync_type == SyncType.push_menu:
             stale_ids = list(existing_ids - incoming_ids)
@@ -773,7 +845,7 @@ class CognitionDataProcessor:
                     collection_name=catalog_data_collection,
                     bot=bot,
                     status=True,
-                    data__id__in=stale_ids
+                    data__kv__id__in=stale_ids
                 ).delete()
 
         return stale_ids
@@ -815,31 +887,13 @@ class CognitionDataProcessor:
                     kv_mappings=kv
                 ).save()
 
-    @staticmethod
-    def add_bot_sync_config(request_data, bot: Text, user: Text):
-        if request_data.provider.lower() == CatalogSyncClass.petpooja:
-            if BotSyncConfig.objects(branch_bot=bot, provider=CatalogSyncClass.petpooja).first():
-                return
-
-            bot_sync_config = BotSyncConfig(
-                process_push_menu=False,
-                process_item_toggle=False,
-                parent_bot=bot,
-                restaurant_name=request_data.config.get("restaurant_name"),
-                provider=CatalogSyncClass.petpooja,
-                branch_name=request_data.config.get("branch_name"),
-                branch_bot=bot,
-                ai_enabled=False,
-                meta_enabled=False,
-                user=user
-            )
-            bot_sync_config.save()
 
     @staticmethod
     def get_restaurant_and_branch_name(bot: Text):
-        config = BotSyncConfig.objects(branch_bot=bot).first()
-        if not config:
-            raise Exception(f"No bot sync config found for bot: {bot}")
-        restaurant_name = config.restaurant_name.replace(" ", "_")
-        branch_name = config.branch_name.replace(" ", "_")
+        integration = POSIntegrations.objects(bot=bot).first()
+        if not integration:
+            raise Exception(f"No POS integration config found for bot: {bot}")
+
+        restaurant_name = integration.config.get("restaurant_name").replace(" ", "_")
+        branch_name = integration.config.get("branch_name").replace(" ", "_")
         return restaurant_name.lower(), branch_name.lower()

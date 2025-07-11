@@ -151,12 +151,12 @@ class PetpoojaSync(CatalogSyncBase):
                 stale_primary_keys = result.get("stale_ids")
             else:
                 sync_status = SYNC_STATUS.COMPLETED.value
-                status="Success"
                 if not initiate_import:
                     CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                     exception="Validation Failed. Check logs",
                                                     status=status)
                 else:
+                    status = "Success"
                     CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                     exception="Sync to knowledge vault is not allowed for this bot. Contact Support!!",
                                                     status=status)
@@ -171,11 +171,13 @@ class PetpoojaSync(CatalogSyncBase):
 
             integrations_doc = POSIntegrations.objects(bot=self.bot, provider=self.provider,
                                                     sync_type=self.sync_type).first()
-            if initiate_import and CatalogSyncLogProcessor.is_meta_enabled(self.bot) and integrations_doc and 'meta_config' in integrations_doc:
+            if initiate_import and CatalogSyncLogProcessor.is_meta_enabled(self.bot) and integrations_doc and integrations_doc.config.get("meta_config"):
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
-                meta_processor = MetaProcessor(integrations_doc.meta_config.get('access_token'),
-                                               integrations_doc.meta_config.get('catalog_id'))
+                access_token = integrations_doc.config["meta_config"].get("access_token")
+                catalog_id = integrations_doc.config["meta_config"].get("catalog_id")
+
+                meta_processor = MetaProcessor(access_token, catalog_id)
 
                 meta_payload = self.data.get("meta", [])
                 if self.sync_type == SyncType.push_menu:
