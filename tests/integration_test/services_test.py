@@ -77,7 +77,7 @@ from kairon.shared.data.data_objects import (
     ChatClientConfig,
     BotSettings,
     LLMSettings,
-    DemoRequestLogs, UserMediaData, BotSyncConfig, POSIntegrations
+    DemoRequestLogs, UserMediaData, POSIntegrations
 )
 from kairon.events.definitions.catalog_sync import CatalogSync
 from kairon.meta.processor import MetaProcessor
@@ -4253,61 +4253,6 @@ def test_add_pos_integration_config_invalid_provider():
     CatalogProviderMapping.objects(provider="invalid_provider").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="invalid_provider", sync_type="push_menu").delete()
 
-#
-# @responses.activate
-# def test_add_pos_integration_config_does_not_update_existing_bot_sync_config():
-#     payload = {
-#         "connector_type": "petpooja",
-#         "config": {
-#             "restaurant_name": "restaurant1",
-#             "branch_name": "branch1",
-#             "restaurant_id": "11111"
-#         },
-#         "meta_config": {
-#             "access_token": "access_token_1",
-#             "catalog_id": "catalog_1"
-#         }
-#     }
-#
-#     client.post(
-#         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
-#         json=payload,
-#         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
-#     )
-#
-#     updated_payload = {
-#         "connector_type": "petpooja",
-#         "config": {
-#             "restaurant_name": "updated_restaurant",
-#             "branch_name": "updated_branch",
-#             "restaurant_id": "22222"
-#         },
-#         "meta_config": {
-#             "access_token": "access_token_2",
-#             "catalog_id": "catalog_2"
-#         }
-#     }
-#
-#     response = client.post(
-#         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
-#         json=updated_payload,
-#         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
-#     )
-#     actual = response.json()
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "POS Integration Complete"
-#     assert "integration/petpooja/push_menu" in actual["data"]
-#     assert str(pytest.bot) in actual["data"]
-#
-#     bot_sync_config = BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").first()
-#     assert bot_sync_config.restaurant_name == "restaurant1"
-#     assert bot_sync_config.branch_name == "branch1"
-#
-#     CatalogProviderMapping.objects(provider="petpooja").delete()
-#     BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
-#     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
-
 
 @responses.activate
 def test_add_pos_integration_config_invalid_sync_type():
@@ -4342,7 +4287,6 @@ def test_add_pos_integration_config_invalid_sync_type():
     assert not actual["success"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
 
 
@@ -5050,7 +4994,6 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5217,7 +5160,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
     assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     # CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5367,7 +5309,6 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
     assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5540,7 +5481,6 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
         assert cognition_map[item["id"]] == item["price"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     # CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5694,7 +5634,6 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
         assert cognition_map[item["id"]] == item["availability"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5862,7 +5801,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
     assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -5994,7 +5932,6 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -6192,7 +6129,6 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         assert cognition_map[item["id"]] == item["price"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -6401,7 +6337,6 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
         assert cognition_map[item["id"]] == item["price"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
@@ -6545,7 +6480,6 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -6704,7 +6638,6 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -6857,7 +6790,6 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -7007,7 +6939,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -7149,7 +7080,6 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()
@@ -7322,7 +7252,6 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    BotSyncConfig.objects(branch_bot=pytest.bot, provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
     LLMSecret.objects.delete()

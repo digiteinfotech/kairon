@@ -14,7 +14,7 @@ from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
-from kairon.shared.data.data_objects import BotSettings, BotSyncConfig, PetpoojaSyncConfig, POSIntegrations
+from kairon.shared.data.data_objects import BotSettings, PetpoojaSyncConfig, POSIntegrations
 
 
 class TestCatalogSyncLogProcessor:
@@ -152,15 +152,6 @@ class TestCatalogSyncLogProcessor:
     def test_catalog_collection_exists_true(self):
         bot = "test"
         user = "test"
-
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch A",
-            branch_bot=bot,
-            user=user
-        ).save()
 
         POSIntegrations(
             bot=bot,

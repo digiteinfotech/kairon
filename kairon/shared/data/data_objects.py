@@ -1110,18 +1110,3 @@ class POSIntegrations(Auditlog):
     sync_options = GenericEmbeddedDocumentField(required=True)
 
     meta = {"indexes": [{"fields": ["bot", "provider"]}]}
-
-@auditlogger.log
-@push_notification.apply
-class BotSyncConfig(Auditlog):
-    process_push_menu = BooleanField(default=False)
-    process_item_toggle = BooleanField(default=False)
-    parent_bot = StringField(required=True)
-    restaurant_name = StringField(required=True)
-    provider = StringField(required=True)
-    branch_name = StringField(required=True)
-    branch_bot = StringField(required=True)
-    ai_enabled = BooleanField(default=False)
-    meta_enabled = BooleanField(default=False)
-    user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)

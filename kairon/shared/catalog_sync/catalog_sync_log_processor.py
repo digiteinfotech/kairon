@@ -9,7 +9,7 @@ from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
 from kairon.shared.data.data_models import CognitionSchemaRequest
-from kairon.shared.data.data_objects import BotSettings, BotSyncConfig, POSIntegrations
+from kairon.shared.data.data_objects import BotSettings, POSIntegrations
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs, CatalogProviderMapping
 from kairon.shared.models import CognitionMetadataType
 

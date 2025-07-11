@@ -15,7 +15,7 @@ from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
-from kairon.shared.data.data_objects import BotSyncConfig, POSIntegrations, PetpoojaSyncConfig
+from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.constants import  CatalogSyncClass
 from kairon.shared.data.utils import DataUtility
