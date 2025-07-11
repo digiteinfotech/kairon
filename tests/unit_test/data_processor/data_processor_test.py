@@ -1811,6 +1811,110 @@ class TestMongoProcessor:
         POSIntegrations.objects(bot=bot, provider="petpooja").delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
 
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_success(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        
+        configuration = {
+          "provider": "petpooja",
+          "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765",
+            "meta_config": {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            }
+           },
+           "ai_enabled": True,
+           "meta_enabled": True,
+           "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+        processor = CognitionDataProcessor()
+        result = await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        print(result)
+
+        assert "ey" in result
+        assert provider in result
+        assert bot in result
+        assert sync_type in result
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration is not None
+
+        assert integration.config["restaurant_id"] == "98765"
+        assert integration.config["restaurant_name"] == "restaurant1"
+        assert integration.config["branch_name"] == "branch1"
+
+        assert integration.config["meta_config"] == {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+
+        assert integration.meta_enabled is True
+        assert integration.ai_enabled is True
+
+        assert integration.sync_options.process_push_menu is True
+        assert integration.sync_options.process_item_toggle is True
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_updates_existing_record(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345",
+                "meta_config": {
+                    "access_token": "token1",
+                    "catalog_id": "abc"
+                }
+            },
+            "ai_enabled": False,
+            "meta_enabled": False,
+            "sync_options": {
+                "process_push_menu": False,
+                "process_item_toggle": False
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        processor = CognitionDataProcessor()
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        updated_config = configuration.copy()
+        updated_config["config"]["restaurant_id"] = "99999"
+        updated_config["ai_enabled"] = True
+        updated_config["sync_options"] = {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+
+        await processor.save_pos_integration_config(updated_config, bot, user, sync_type)
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration.config["restaurant_id"] == "99999"
+        assert integration.ai_enabled is True
+        assert integration.sync_options.process_push_menu is True
+
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
     def test_list_pos_integration_configs_success(self):
         bot = "test_bot"
         user = "test_user"
@@ -2076,11 +2180,11 @@ class TestMongoProcessor:
         assert restaurant_name == "my_test_restaurant"
         assert branch_name == "main_branch"
 
-        POSIntegrations.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(bot=bot).delete()
 
     def test_get_restaurant_and_branch_name_no_config(self):
         bot = "bot_without_config"
-        POSIntegrations.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(bot=bot).delete()
 
         with pytest.raises(Exception, match=f"No POS integration config found for bot: {bot}"):
             CognitionDataProcessor.get_restaurant_and_branch_name(bot)
