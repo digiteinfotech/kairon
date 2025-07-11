@@ -1482,17 +1482,6 @@ class TestMongoProcessor:
             }
         ).save()
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
-            user=user,
-            process_push_menu=False,
-            process_item_toggle=True
-        ).save()
-
         POSIntegrations(
             bot=bot,
             user=user,
@@ -2087,11 +2076,11 @@ class TestMongoProcessor:
         assert restaurant_name == "my_test_restaurant"
         assert branch_name == "main_branch"
 
-        BotSyncConfig.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(branch_bot=bot).delete()
 
     def test_get_restaurant_and_branch_name_no_config(self):
         bot = "bot_without_config"
-        BotSyncConfig.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(branch_bot=bot).delete()
 
         with pytest.raises(Exception, match=f"No POS integration config found for bot: {bot}"):
             CognitionDataProcessor.get_restaurant_and_branch_name(bot)

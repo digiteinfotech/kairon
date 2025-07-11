@@ -887,25 +887,6 @@ class CognitionDataProcessor:
                     kv_mappings=kv
                 ).save()
 
-    @staticmethod
-    def add_bot_sync_config(request_data, bot: Text, user: Text):
-        if request_data.provider.lower() == CatalogSyncClass.petpooja:
-            if BotSyncConfig.objects(branch_bot=bot, provider=CatalogSyncClass.petpooja).first():
-                return
-
-            bot_sync_config = BotSyncConfig(
-                process_push_menu=False,
-                process_item_toggle=False,
-                parent_bot=bot,
-                restaurant_name=request_data.config.get("restaurant_name"),
-                provider=CatalogSyncClass.petpooja,
-                branch_name=request_data.config.get("branch_name"),
-                branch_bot=bot,
-                ai_enabled=False,
-                meta_enabled=False,
-                user=user
-            )
-            bot_sync_config.save()
 
     @staticmethod
     def get_restaurant_and_branch_name(bot: Text):
