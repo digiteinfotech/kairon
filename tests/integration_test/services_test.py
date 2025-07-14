@@ -3789,7 +3789,7 @@ def test_add_pos_integration_config_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -3836,7 +3836,7 @@ def test_get_pos_endpoint_push_menu():
             "catalog_id": "12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -3880,7 +3880,7 @@ def test_get_pos_endpoint_item_toggle():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -3924,7 +3924,7 @@ def test_list_pos_integration_configs_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -3955,7 +3955,7 @@ def test_list_pos_integration_configs_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -4032,7 +4032,7 @@ def test_delete_pos_integration_config_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -4063,7 +4063,7 @@ def test_delete_pos_integration_config_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -4113,7 +4113,7 @@ def test_delete_pos_integration_config_no_sync_type_provided_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -4144,7 +4144,7 @@ def test_delete_pos_integration_config_no_sync_type_provided_success():
             "catalog_id":"12345"
         }
        },
-       "ai_enabled": True,
+       "smart_catalog_enabled": True,
        "meta_enabled": True,
        "sync_options": {
             "process_push_menu": True,
@@ -4209,7 +4209,8 @@ def test_get_pos_params():
     petpooja_data = actual["data"]["petpooja"]
 
     assert "required_fields" in petpooja_data
-    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', {'sync_type': ['push_menu', 'item_toggle']} ]
+    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', 'smart_catalog_enabled',
+                                                'meta_enabled', 'process_push_menu', 'process_item_toggle', {'sync_type': ['push_menu', 'item_toggle']} ]
 
     assert "optional_fields" in petpooja_data
     assert petpooja_data["optional_fields"] == ["access_token", "catalog_id"]
@@ -4231,7 +4232,7 @@ def test_add_pos_integration_config_invalid_provider():
                 "catalog_id": "000"
             }
         },
-        "ai_enabled": True,
+        "smart_catalog_enabled": True,
         "meta_enabled": True,
         "sync_options": {
             "process_push_menu": True,
@@ -4267,7 +4268,7 @@ def test_add_pos_integration_config_invalid_sync_type():
                 "catalog_id": "333"
             }
         },
-        "ai_enabled": True,
+        "smart_catalog_enabled": True,
         "meta_enabled": True,
         "sync_options": {
             "process_push_menu": True,
@@ -4337,7 +4338,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -4507,7 +4508,7 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -4636,7 +4637,7 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -4792,7 +4793,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": False,
@@ -4920,7 +4921,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": False,
@@ -5012,7 +5013,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -5050,7 +5051,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": True,
@@ -5178,7 +5179,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_disabled(mock_embedding, mock_c
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -5215,7 +5216,7 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": False,
@@ -5327,7 +5328,7 @@ def test_catalog_sync_item_toggle_ai_disabled_meta_disabled(mock_embedding, mock
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -5365,7 +5366,7 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": True,
@@ -5497,7 +5498,7 @@ def test_catalog_sync_push_menu_ai_enabled_meta_disabled(mock_embedding, mock_co
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -5534,7 +5535,7 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": False,
@@ -5653,7 +5654,7 @@ def test_catalog_sync_item_toggle_ai_enabled_meta_disabled(mock_embedding, mock_
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -5691,7 +5692,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled(mock_embedding, mock_co
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -5856,7 +5857,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -5988,7 +5989,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -6185,7 +6186,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": False,
       "sync_options": {
           "process_push_menu": False,
@@ -6262,7 +6263,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     integration_docs = POSIntegrations.objects(bot=pytest.bot, provider="petpooja")
 
     for doc in integration_docs:
-        doc.ai_enabled = True
+        doc.smart_catalog_enabled = True
         doc.meta_enabled = True
         doc.sync_options["process_push_menu"] = True
         doc.sync_options["process_item_toggle"] = True
@@ -6392,7 +6393,7 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -6536,7 +6537,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -6696,7 +6697,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -6848,7 +6849,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -6999,7 +7000,7 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": True,
+      "smart_catalog_enabled": True,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,
@@ -7098,7 +7099,7 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(litellm, "aembedding", autospec=True)
-def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
@@ -7136,7 +7137,7 @@ def test_catalog_sync_push_menu_ai_disabled_meta_enabled_with_validation_errors(
           "catalog_id": "12345"
         },
       },
-      "ai_enabled": False,
+      "smart_catalog_enabled": False,
       "meta_enabled": True,
       "sync_options": {
           "process_push_menu": True,

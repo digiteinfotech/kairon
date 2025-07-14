@@ -167,7 +167,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -206,7 +206,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -237,7 +237,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -336,7 +336,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -365,7 +365,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="item_toggle",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -394,7 +394,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -424,7 +424,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="item_toggle",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -444,7 +444,7 @@ class TestCatalogSyncLogProcessor:
         with pytest.raises(Exception, match="No POS integration config found for this bot"):
             CatalogSyncLogProcessor.is_sync_type_allowed(bot, SyncType.push_menu)
 
-    def test_ai_enabled_true(self):
+    def test_smart_catalog_enabled_true(self):
         bot = "test_bot"
         user = "test_user"
 
@@ -462,7 +462,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=True,
+            smart_catalog_enabled=True,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -470,12 +470,12 @@ class TestCatalogSyncLogProcessor:
             )
         ).save()
 
-        result = CatalogSyncLogProcessor.is_ai_enabled(bot)
+        result = CatalogSyncLogProcessor.is_smart_catalog_enabled(bot)
         assert result is True
 
         POSIntegrations.objects.delete()
 
-    def test_ai_enabled_false(self):
+    def test_smart_catalog_enabled_false(self):
         bot = "test_bot"
         user = "test_user"
 
@@ -493,7 +493,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -501,17 +501,17 @@ class TestCatalogSyncLogProcessor:
             )
         ).save()
 
-        result = CatalogSyncLogProcessor.is_ai_enabled(bot)
+        result = CatalogSyncLogProcessor.is_smart_catalog_enabled(bot)
         assert result is False
 
         POSIntegrations.objects.delete()
 
-    def test_ai_enabled_no_config(self):
+    def test_smart_catalog_enabled_no_config(self):
         bot = "test_bot"
         POSIntegrations.objects.delete()
 
         with pytest.raises(Exception, match="No POS integration config found for this bot"):
-            CatalogSyncLogProcessor.is_ai_enabled(bot)
+            CatalogSyncLogProcessor.is_smart_catalog_enabled(bot)
 
     def test_meta_enabled_true(self):
         bot = "test_bot"
@@ -531,7 +531,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=True,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -562,7 +562,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -673,7 +673,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,
@@ -717,7 +717,7 @@ class TestCatalogSyncLogProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=False,

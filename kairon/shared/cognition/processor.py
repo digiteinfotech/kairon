@@ -446,7 +446,7 @@ class CognitionDataProcessor:
 
         provider = configuration["provider"]
         config_data = configuration["config"]
-        ai_enabled = configuration.get("ai_enabled", False)
+        smart_catalog_enabled = configuration.get("smart_catalog_enabled", False)
         meta_enabled = configuration.get("meta_enabled", False)
         sync_options = configuration.get("sync_options")
 
@@ -463,7 +463,7 @@ class CognitionDataProcessor:
 
         if integration:
             integration.config = config_data
-            integration.ai_enabled = ai_enabled
+            integration.smart_catalog_enabled = smart_catalog_enabled
             integration.meta_enabled = meta_enabled
             integration.sync_options = sync_options
             integration.timestamp = datetime.utcnow()
@@ -475,7 +475,7 @@ class CognitionDataProcessor:
                 provider=provider,
                 sync_type=sync_type,
                 config=config_data,
-                ai_enabled=ai_enabled,
+                smart_catalog_enabled=smart_catalog_enabled,
                 meta_enabled=meta_enabled,
                 sync_options=sync_options,
                 timestamp=datetime.utcnow(),
@@ -485,7 +485,7 @@ class CognitionDataProcessor:
         other_provider_integrations = POSIntegrations.objects(bot=bot, provider=provider, sync_type__ne=sync_type)
 
         for doc in other_provider_integrations:
-            doc.ai_enabled = ai_enabled
+            doc.smart_catalog_enabled = smart_catalog_enabled
             doc.meta_enabled = meta_enabled
             doc.config = config_data
             doc.sync_options = sync_options
