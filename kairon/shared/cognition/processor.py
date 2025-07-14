@@ -493,7 +493,7 @@ class CognitionDataProcessor:
             doc.smart_catalog_enabled = smart_catalog_enabled
             doc.meta_enabled = meta_enabled
             doc.config = config_data
-            doc.meta_config = meta_config,
+            doc.meta_config = meta_config
             doc.sync_options = sync_options
             doc.timestamp = datetime.utcnow()
             doc.save()
