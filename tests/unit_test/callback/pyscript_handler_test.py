@@ -1494,7 +1494,7 @@ def test_get_crud_metadata():
         }
 
 
-def test_get_crud_metadata_with_no_data_field():
+def test_get_crud_metadata_with_no_data():
     data1 = {
         "collection_name": "testing_crud_api",
         "is_secure": [],
@@ -1508,10 +1508,10 @@ def test_get_crud_metadata_with_no_data_field():
         "timestamp": "2024-08-07T07:03:06.905+00:00",
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = None
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = None
 
     mock_queryset = [mock_doc1, mock_doc2]
 
@@ -1536,10 +1536,10 @@ def test_get_crud_metadata_with_invalid_data():
         "data": []
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = []
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = []
 
     mock_queryset = [mock_doc1, mock_doc2]
 
