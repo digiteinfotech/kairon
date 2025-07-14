@@ -1564,10 +1564,10 @@ def test_get_crud_metadata_without_data():
         "data": {}
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = {}
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = {}
 
     mock_queryset = [mock_doc1, mock_doc2]
 
