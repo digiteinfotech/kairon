@@ -1496,7 +1496,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type = "push_menu",
-            ai_enabled= False,
+            smart_catalog_enabled= False,
             meta_enabled = False,
             sync_options = PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -1674,7 +1674,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -1726,7 +1726,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -1793,7 +1793,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -1830,7 +1830,7 @@ class TestMongoProcessor:
                 "catalog_id": "12345"
             }
            },
-           "ai_enabled": True,
+           "smart_catalog_enabled": True,
            "meta_enabled": True,
            "sync_options": {
                 "process_push_menu": True,
@@ -1861,7 +1861,7 @@ class TestMongoProcessor:
         }
 
         assert integration.meta_enabled is True
-        assert integration.ai_enabled is True
+        assert integration.smart_catalog_enabled is True
 
         assert integration.sync_options.process_push_menu is True
         assert integration.sync_options.process_item_toggle is True
@@ -1886,7 +1886,7 @@ class TestMongoProcessor:
                     "catalog_id": "abc"
                 }
             },
-            "ai_enabled": False,
+            "smart_catalog_enabled": False,
             "meta_enabled": False,
             "sync_options": {
                 "process_push_menu": False,
@@ -1900,7 +1900,7 @@ class TestMongoProcessor:
         await processor.save_pos_integration_config(configuration, bot, user, sync_type)
         updated_config = configuration.copy()
         updated_config["config"]["restaurant_id"] = "99999"
-        updated_config["ai_enabled"] = True
+        updated_config["smart_catalog_enabled"] = True
         updated_config["sync_options"] = {
             "process_push_menu": True,
             "process_item_toggle": True
@@ -1910,7 +1910,7 @@ class TestMongoProcessor:
 
         integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
         assert integration.config["restaurant_id"] == "99999"
-        assert integration.ai_enabled is True
+        assert integration.smart_catalog_enabled is True
         assert integration.sync_options.process_push_menu is True
 
         POSIntegrations.objects(bot=bot, provider=provider).delete()
@@ -1932,7 +1932,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -1953,7 +1953,7 @@ class TestMongoProcessor:
                 }
             },
             sync_type="item_toggle",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2001,7 +2001,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2018,7 +2018,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type="item_toggle",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2049,7 +2049,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2066,7 +2066,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type="item_toggle",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2106,7 +2106,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type=sync_type,
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2137,7 +2137,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type=sync_type,
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,
@@ -2167,7 +2167,7 @@ class TestMongoProcessor:
                 "restaurant_id": "123"
             },
             sync_type="push_menu",
-            ai_enabled=False,
+            smart_catalog_enabled=False,
             meta_enabled=False,
             sync_options=PetpoojaSyncConfig(
                 process_push_menu=True,

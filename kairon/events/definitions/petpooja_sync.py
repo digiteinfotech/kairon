@@ -138,13 +138,13 @@ class PetpoojaSync(CatalogSyncBase):
             restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(self.bot)
             catalog_name = f"{restaurant_name}_{branch_name}_catalog"
 
-            if not CatalogSyncLogProcessor.is_ai_enabled(self.bot) and not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
+            if not CatalogSyncLogProcessor.is_smart_catalog_enabled(self.bot) and not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                 exception="Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!",
                                                 status="Success")
                 raise Exception("Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!")
 
-            if initiate_import and CatalogSyncLogProcessor.is_ai_enabled(self.bot):
+            if initiate_import and CatalogSyncLogProcessor.is_smart_catalog_enabled(self.bot):
                 result = await cognition_processor.upsert_data("id", catalog_name,
                                                                    self.sync_type.lower(), knowledge_vault_data,
                                                                    self.bot, self.user)
@@ -207,7 +207,7 @@ class PetpoojaSync(CatalogSyncBase):
                 executionID=execution_id,
                 sync_status=sync_status, message=str(e), first_name=first_name
             )
-            if not CatalogSyncLogProcessor.is_meta_enabled(self.bot) and not CatalogSyncLogProcessor.is_ai_enabled(self.bot):
+            if not CatalogSyncLogProcessor.is_meta_enabled(self.bot) and not CatalogSyncLogProcessor.is_smart_catalog_enabled(self.bot):
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                 sync_status=SYNC_STATUS.COMPLETED.value)
             else:

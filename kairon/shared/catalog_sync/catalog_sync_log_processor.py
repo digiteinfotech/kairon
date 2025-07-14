@@ -260,11 +260,11 @@ class CatalogSyncLogProcessor:
 
 
     @staticmethod
-    def is_ai_enabled(bot: str):
+    def is_smart_catalog_enabled(bot: str):
         config = POSIntegrations.objects(bot=bot).first()
         if not config:
             raise Exception("No POS integration config found for this bot")
-        return config.ai_enabled
+        return config.smart_catalog_enabled
 
     @staticmethod
     def is_meta_enabled(bot: str):
