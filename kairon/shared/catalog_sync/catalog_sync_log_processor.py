@@ -9,7 +9,7 @@ from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import SYNC_STATUS, SyncType
 from kairon.shared.data.data_models import CognitionSchemaRequest
-from kairon.shared.data.data_objects import BotSettings, BotSyncConfig
+from kairon.shared.data.data_objects import BotSettings, POSIntegrations
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs, CatalogProviderMapping
 from kairon.shared.models import CognitionMetadataType
 
@@ -204,14 +204,13 @@ class CatalogSyncLogProcessor:
         Raises:
             ValueError: If any validation fails.
         """
-        body = json_data.get("body", {})
 
-        if "inStock" not in body:
+        if "inStock" not in json_data:
             raise Exception("Missing required field: 'inStock'")
-        if not isinstance(body["inStock"], bool):
+        if not isinstance(json_data["inStock"], bool):
             raise Exception("'inStock' must be a boolean (true or false)")
 
-        if "itemID" not in body:
+        if "itemID" not in json_data:
             raise Exception("Missing required field: 'itemID'")
 
     @staticmethod
@@ -249,29 +248,29 @@ class CatalogSyncLogProcessor:
 
     @staticmethod
     def is_sync_type_allowed(bot: str, sync_type: str):
-        config = BotSyncConfig.objects(branch_bot=bot).first()
+        config = POSIntegrations.objects(bot=bot).first()
         if not config:
-            raise Exception("No bot sync config found for bot")
+            raise Exception("No POS integration config found for this bot")
 
-        if sync_type == SyncType.push_menu and not config.process_push_menu:
+        if sync_type == SyncType.push_menu and not config.sync_options.process_push_menu:
             raise Exception("Push menu processing is disabled for this bot")
 
-        if sync_type == SyncType.item_toggle and not config.process_item_toggle:
+        if sync_type == SyncType.item_toggle and not config.sync_options.process_item_toggle:
             raise Exception("Item toggle is disabled for this bot")
 
 
     @staticmethod
     def is_ai_enabled(bot: str):
-        config = BotSyncConfig.objects(branch_bot=bot).first()
+        config = POSIntegrations.objects(bot=bot).first()
         if not config:
-            raise Exception("No bot sync config found for bot")
+            raise Exception("No POS integration config found for this bot")
         return config.ai_enabled
 
     @staticmethod
     def is_meta_enabled(bot: str):
-        config = BotSyncConfig.objects(branch_bot=bot).first()
+        config = POSIntegrations.objects(bot=bot).first()
         if not config:
-            raise Exception("No bot sync config found for bot")
+            raise Exception("No POS integration config found for this bot")
         return config.meta_enabled
 
     @staticmethod

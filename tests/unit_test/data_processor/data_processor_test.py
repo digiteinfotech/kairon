@@ -89,7 +89,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup, BotSyncConfig, POSIntegrations
+                                             Lookup, POSIntegrations, PetpoojaSyncConfig
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -1482,15 +1482,26 @@ class TestMongoProcessor:
             }
         ).save()
 
-        BotSyncConfig(
-            parent_bot=bot,
-            restaurant_name="Test Restaurant",
-            provider="demo",
-            branch_name="Branch",
-            branch_bot=bot,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            process_push_menu=False,
-            process_item_toggle=True
+            provider = provider,
+            config = {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765",
+                "meta_config": {
+                  "access_token": "dummy_access_token",
+                  "catalog_id": "12345"
+                }
+            },
+            sync_type = "push_menu",
+            ai_enabled= False,
+            meta_enabled = False,
+            sync_options = PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
@@ -1577,7 +1588,7 @@ class TestMongoProcessor:
 
         assert result == expected_result
         CatalogProviderMapping.objects.delete()
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
 
     def test_preprocess_push_menu_data_no_provider_mapping(self):
@@ -1647,19 +1658,29 @@ class TestMongoProcessor:
         bot = "test_bot"
         user = "test_user"
         item_id = "12345"
+        provider = "petpooja"
 
-        bot_sync_config = BotSyncConfig(
-            parent_bot="parent_bot",
-            restaurant_name="TestRestaurant",
-            provider="some_provider",
-            branch_name="TestBranch",
-            branch_bot=bot,
-            ai_enabled=True,
-            meta_enabled=True,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            timestamp=datetime.utcnow()
-        )
-        bot_sync_config.save()
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
         catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -1682,26 +1703,36 @@ class TestMongoProcessor:
         expected_result = "http://global_image_url.com"
         assert result == expected_result
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
 
     def test_resolve_image_link_local(self):
         bot = "test_bot"
         user = "test_user"
         item_id = "12345"
+        provider = "petpooja"
 
-        bot_sync_config = BotSyncConfig(
-            parent_bot="parent_bot",
-            restaurant_name="TestRestaurant",
-            provider="some_provider",
-            branch_name="TestBranch",
-            branch_bot=bot,
-            ai_enabled=True,
-            meta_enabled=True,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            timestamp=datetime.utcnow()
-        )
-        bot_sync_config.save()
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
         catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -1739,26 +1770,36 @@ class TestMongoProcessor:
         expected_result = "http://local_image_url.com"
         assert result == expected_result
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
 
     def test_resolve_image_link_no_image(self):
         bot = "test_bot"
         user = "test_user"
         item_id = "12345"
+        provider = "petpooja"
 
-        bot_sync_config = BotSyncConfig(
-            parent_bot="parent_bot",
-            restaurant_name="TestRestaurant",
-            provider="some_provider",
-            branch_name="TestBranch",
-            branch_bot=bot,
-            ai_enabled=True,
-            meta_enabled=True,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            timestamp=datetime.utcnow()
-        )
-        bot_sync_config.save()
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
         catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
@@ -1767,8 +1808,112 @@ class TestMongoProcessor:
                            match=f"Image URL not found for {item_id} in {catalog_images_collection}"):
             CognitionDataProcessor.resolve_image_link(bot, item_id)
 
-        BotSyncConfig.objects.delete()
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
         CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_success(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        
+        configuration = {
+          "provider": "petpooja",
+          "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765",
+            "meta_config": {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            }
+           },
+           "ai_enabled": True,
+           "meta_enabled": True,
+           "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+        processor = CognitionDataProcessor()
+        result = await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        print(result)
+
+        assert "ey" in result
+        assert provider in result
+        assert bot in result
+        assert sync_type in result
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration is not None
+
+        assert integration.config["restaurant_id"] == "98765"
+        assert integration.config["restaurant_name"] == "restaurant1"
+        assert integration.config["branch_name"] == "branch1"
+
+        assert integration.config["meta_config"] == {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+
+        assert integration.meta_enabled is True
+        assert integration.ai_enabled is True
+
+        assert integration.sync_options.process_push_menu is True
+        assert integration.sync_options.process_item_toggle is True
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_updates_existing_record(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345",
+                "meta_config": {
+                    "access_token": "token1",
+                    "catalog_id": "abc"
+                }
+            },
+            "ai_enabled": False,
+            "meta_enabled": False,
+            "sync_options": {
+                "process_push_menu": False,
+                "process_item_toggle": False
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        processor = CognitionDataProcessor()
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        updated_config = configuration.copy()
+        updated_config["config"]["restaurant_id"] = "99999"
+        updated_config["ai_enabled"] = True
+        updated_config["sync_options"] = {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+
+        await processor.save_pos_integration_config(updated_config, bot, user, sync_type)
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration.config["restaurant_id"] == "99999"
+        assert integration.ai_enabled is True
+        assert integration.sync_options.process_push_menu is True
+
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
 
     def test_list_pos_integration_configs_success(self):
         bot = "test_bot"
@@ -1776,18 +1921,44 @@ class TestMongoProcessor:
         provider = "petpooja"
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
             sync_type="push_menu",
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123",
+                "meta_config": {
+                    "access_token": "dummy_access_token",
+                    "catalog_id": "12345"
+                }
+            },
             sync_type="item_toggle",
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         result = CognitionDataProcessor.list_pos_integration_configs(bot)
@@ -1798,11 +1969,11 @@ class TestMongoProcessor:
         config = result[0]
         assert config["bot"] == bot
         assert config["provider"] == provider
-        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
+        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore", "meta_config": {"access_token": "dummy_access_token", "catalog_id": "12345"}}
         assert set(config["sync_type"]) == {"push_menu", "item_toggle"}
         assert config["user"] == user
         assert "timestamp" in config
-        assert config["meta_config"] == {}
+        assert config["config"] ["meta_config"] == {"access_token": "dummy_access_token", "catalog_id": "12345"}
         POSIntegrations.objects(provider= "petpooja").delete()
 
     def test_list_pos_integration_configs_empty(self):
@@ -1823,18 +1994,36 @@ class TestMongoProcessor:
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
-            sync_type=sync_type,
-            user=user
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
             sync_type="item_toggle",
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
@@ -1853,18 +2042,36 @@ class TestMongoProcessor:
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
-            sync_type=sync_type,
-            user=user
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
             sync_type="item_toggle",
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
@@ -1892,10 +2099,19 @@ class TestMongoProcessor:
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
             sync_type=sync_type,
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         mock_get_bot.return_value = {"account": "test_account_id"}
@@ -1914,10 +2130,19 @@ class TestMongoProcessor:
 
         POSIntegrations(
             bot=bot,
+            user=user,
             provider=provider,
-            config={"restaurant_id": "123", "branch_name": "Bangalore"},
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
             sync_type=sync_type,
-            user=user
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         mock_get_bot.return_value = {"account": "test_account_id"}
@@ -1926,95 +2151,28 @@ class TestMongoProcessor:
 
         assert f"/{provider}/{sync_type}/{bot}/" in result
         POSIntegrations.objects(provider="petpooja").delete()
-
-    def test_add_bot_sync_config_success(self):
-        bot = "test_bot"
-        user = "test_user"
-        request_data = POSIntegrationRequest(
-            connector_type="petpooja",
-            config={
-                "restaurant_name": "restaurant1",
-                "branch_name": "branch1",
-                "restaurant_id": "98765"
-            },
-            meta_config={
-                "access_token": "dummy_access_token",
-                "catalog_id": "12345"
-            }
-        )
-
-        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
-
-        CognitionDataProcessor.add_bot_sync_config(request_data, bot, user)
-
-        bot_sync = BotSyncConfig.objects.get(branch_bot=bot, provider="petpooja")
-        assert bot_sync.restaurant_name == "restaurant1"
-        assert bot_sync.branch_name == "branch1"
-        assert bot_sync.process_push_menu is False
-        assert bot_sync.process_item_toggle is False
-        assert bot_sync.ai_enabled is False
-        assert bot_sync.meta_enabled is False
-        assert bot_sync.user == user
-        assert bot_sync.parent_bot == bot
-
-        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
-
-    def test_add_bot_sync_config_already_exists(self):
-        bot = "test_bot"
-        user = "test_user"
-
-        request_data = POSIntegrationRequest(
-            connector_type="petpooja",
-            config={
-                "restaurant_name": "restaurant1",
-                "branch_name": "branch1",
-                "restaurant_id": "98765"
-            },
-            meta_config={
-                "access_token": "dummy_access_token",
-                "catalog_id": "12345"
-            }
-        )
-
-        existing_config = BotSyncConfig(
-            process_push_menu=True,
-            process_item_toggle=True,
-            parent_bot=bot,
-            restaurant_name="restaurant1",
-            provider="petpooja",
-            branch_name="branch1",
-            branch_bot=bot,
-            ai_enabled=True,
-            meta_enabled=True,
-            user=user
-        )
-        existing_config.save()
-
-        CognitionDataProcessor.add_bot_sync_config(request_data, bot, user)
-
-        configs = BotSyncConfig.objects(branch_bot=bot, provider="petpooja")
-        assert configs.count() == 1
-
-        config = configs.first()
-        assert config.process_push_menu is True
-        assert config.ai_enabled is True
-
-        BotSyncConfig.objects(branch_bot=bot, provider="petpooja").delete()
+        CollectionData.objects().delete()
 
     def test_get_restaurant_and_branch_name_success(self):
         bot = "test_bot"
         user = "test_user"
 
-        BotSyncConfig(
-            parent_bot="parent_bot",
-            restaurant_name="My Test Restaurant",
-            provider="test_provider",
-            branch_name="Main Branch",
-            branch_bot=bot,
-            ai_enabled=True,
-            meta_enabled=False,
+        POSIntegrations(
+            bot=bot,
             user=user,
-            timestamp=datetime.utcnow()
+            provider="petpooja",
+            config={
+                "restaurant_name": "my_test_restaurant",
+                "branch_name": "main_branch",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            ai_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
         ).save()
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
@@ -2022,13 +2180,13 @@ class TestMongoProcessor:
         assert restaurant_name == "my_test_restaurant"
         assert branch_name == "main_branch"
 
-        BotSyncConfig.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(bot=bot).delete()
 
     def test_get_restaurant_and_branch_name_no_config(self):
         bot = "bot_without_config"
-        BotSyncConfig.objects(branch_bot=bot).delete()
+        POSIntegrations.objects(bot=bot).delete()
 
-        with pytest.raises(Exception, match=f"No bot sync config found for bot: {bot}"):
+        with pytest.raises(Exception, match=f"No POS integration config found for bot: {bot}"):
             CognitionDataProcessor.get_restaurant_and_branch_name(bot)
 
     def test_get_live_agent(self):
