@@ -8,7 +8,7 @@ from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from rasa.core.lock_store import LockStore
 from rasa.core.nlg import NaturalLanguageGenerator, TemplatedNaturalLanguageGenerator
 from rasa.core.tracker_store import TrackerStore
-from rasa.shared.core.domain import Domain
+from kairon.shared.core.domain import Domain
 from rasa.utils.endpoints import EndpointConfig
 from rasa.core.agent import Agent
 from typing import List, Any, Dict

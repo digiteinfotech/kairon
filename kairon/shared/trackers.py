@@ -7,7 +7,7 @@ from pymongo.collection import Collection
 from rasa.core.brokers.broker import EventBroker
 from rasa.core.tracker_store import SerializedTrackerAsText
 from rasa.core.tracker_store import TrackerStore
-from rasa.shared.core.domain import Domain
+from kairon.shared.core.domain import Domain
 from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
 

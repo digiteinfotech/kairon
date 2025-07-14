@@ -124,6 +124,19 @@ mapping:
             allowempty: True
           ignored_intents:
             type: any
+  loops:
+    type: "map"
+    required: False
+    mapping:
+      regex;([A-Za-z\u00C0-\u017F\u0400-\u04FF\u0370-\u03FF\u0530-\u058F\u0590-\u05FF\u0600-\u06FF\u0980-\u09FF\u0A80-\u0AFF\u0B80-\u0BFF\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7AF]+):
+        type: "map"
+        mapping:
+          actions:
+            type: "seq"
+            sequence:
+              - type: str
+            required: False
+            allowempty: True
   config:
     type: "map"
     allowempty: True

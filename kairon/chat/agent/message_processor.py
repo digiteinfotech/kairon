@@ -1,9 +1,20 @@
 from __future__ import annotations
 
 import copy
-from typing import Optional, Text, List, Dict, Tuple
-from rasa.shared.core.events import SlotSet
+import logging
+import os
+import tarfile
+from pathlib import Path
+from types import LambdaType
+from typing import Dict, List, Optional, Text, Tuple, Union
+
 import rasa
+import rasa.core.actions.action
+import rasa.core.actions.action
+import rasa.core.tracker_store
+import rasa.core.utils
+import rasa.shared.core.trackers
+import rasa.shared.utils.io
 import structlog
 from rasa.core.actions.action import (
     Action,
@@ -15,32 +26,57 @@ from rasa.core.actions.action import (
 )
 from rasa.core.actions.action import is_retrieval_action
 from rasa.core.actions.forms import FormAction
-from rasa.core.channels import UserMessage, OutputChannel, CollectingOutputChannel
+from rasa.core.channels.channel import (
+    CollectingOutputChannel,
+    OutputChannel,
+    UserMessage,
+)
+from rasa.core.http_interpreter import RasaNLUHttpInterpreter
+from rasa.core.lock_store import LockStore
+from rasa.core.nlg import NaturalLanguageGenerator
 from rasa.core.policies.policy import PolicyPrediction
 from rasa.core.processor import MessageProcessor, logger
-from rasa.exceptions import ActionLimitReached
+from rasa.engine import loader
+from rasa.engine.runner.dask import DaskGraphRunner
+from rasa.engine.runner.interface import GraphRunner
+from kairon.engine.storage.local_model_storage import LocalModelStorage
+from rasa.engine.storage.storage import ModelMetadata
+from rasa.exceptions import ActionLimitReached, ModelNotFound
+from rasa.model import get_latest_model
 from rasa.plugin import plugin_manager
-from rasa.shared.constants import DOCS_URL_POLICIES, UTTER_PREFIX
+from rasa.shared.constants import (
+    ASSISTANT_ID_KEY,
+    DOCS_URL_POLICIES,
+    UTTER_PREFIX,
+)
 from rasa.shared.core.constants import (
-    ACTION_EXTRACT_SLOTS,
     ACTION_SESSION_START_NAME,
     SESSION_START_METADATA_SLOT,
+    ACTION_EXTRACT_SLOTS,
 )
-from rasa.shared.core.domain import Domain
 from rasa.shared.core.events import (
     SlotSet,
     UserUttered,
 )
 from rasa.shared.core.trackers import DialogueStateTracker
 from rasa.shared.data import TrainingType
+from rasa.shared.utils.io import raise_warning
+from rasa.utils.common import TempDirectoryPath, get_temp_dir_name
 from rasa.utils.endpoints import EndpointConfig
 
+from kairon.chat.actions import KRemoteAction
+from kairon.chat.loops import KLoopAction
+from kairon.shared.core.domain import Domain
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.metering_processor import MeteringProcessor
-from kairon.chat.actions import KRemoteAction
-from rasa.shared.utils.io import raise_warning
+from rasa.shared.constants import DEFAULT_DOMAIN_PATH
+import shutil
+
+
+logger = logging.getLogger(__name__)
 
 structlogger = structlog.get_logger()
+MAX_NUMBER_OF_PREDICTIONS = int(os.environ.get("MAX_NUMBER_OF_PREDICTIONS", "10"))
 
 
 class KaironMessageProcessor(MessageProcessor):
@@ -48,6 +84,72 @@ class KaironMessageProcessor(MessageProcessor):
     Class overriding MessageProcessor implementation from rasa.
     This is done to also retrieve model predictions along with the message response.
     """
+
+    def __init__(
+        self,
+        model_path: Union[Text, Path],
+        tracker_store: rasa.core.tracker_store.TrackerStore,
+        lock_store: LockStore,
+        generator: NaturalLanguageGenerator,
+        action_endpoint: Optional[EndpointConfig] = None,
+        max_number_of_predictions: int = MAX_NUMBER_OF_PREDICTIONS,
+        on_circuit_break: Optional[LambdaType] = None,
+        http_interpreter: Optional[RasaNLUHttpInterpreter] = None,
+    ) -> None:
+        """Initializes a `MessageProcessor`."""
+        self.nlg = generator
+        self.tracker_store = tracker_store
+        self.lock_store = lock_store
+        self.max_number_of_predictions = max_number_of_predictions
+        self.on_circuit_break = on_circuit_break
+        self.action_endpoint = action_endpoint
+        self.model_filename, self.model_metadata, self.graph_runner, extracted_path = self._load_model(
+            model_path
+        )
+
+        if self.model_metadata.assistant_id is None:
+            rasa.shared.utils.io.raise_warning(
+                f"The model metadata does not contain a value for the "
+                f"'{ASSISTANT_ID_KEY}' attribute. Check that 'config.yml' "
+                f"file contains a value for the '{ASSISTANT_ID_KEY}' key "
+                f"and re-train the model. Failure to do so will result in "
+                f"streaming events without a unique assistant identifier.",
+                UserWarning,
+            )
+
+        self.model_path = Path(model_path)
+        self.domain = self.model_metadata.domain
+        self.http_interpreter = http_interpreter
+        shutil.rmtree(extracted_path)
+
+    @staticmethod
+    def _load_model(
+        model_path: Union[Text, Path]
+    ) -> Tuple[Text, ModelMetadata, GraphRunner, Text]:
+        """Unpacks a model from a given path using the graph model loader."""
+        try:
+            if os.path.isfile(model_path):
+                model_tar = model_path
+            else:
+                model_file_path = get_latest_model(model_path)
+                if not model_file_path:
+                    raise ModelNotFound(f"No model found at path '{model_path}'.")
+                model_tar = model_file_path
+        except TypeError:
+            raise ModelNotFound(f"Model {model_path} can not be loaded.")
+
+        logger.info(f"Loading model {model_tar}...")
+        temporary_directory = TempDirectoryPath(get_temp_dir_name())
+        try:
+            metadata, runner = loader.load_predict_graph_runner(
+                Path(temporary_directory),
+                Path(model_tar),
+                LocalModelStorage,
+                DaskGraphRunner,
+            )
+            return os.path.basename(model_tar), metadata, runner, temporary_directory
+        except tarfile.ReadError:
+            raise ModelNotFound(f"Model {model_path} can not be loaded.")
 
     async def _handle_message_with_tracker(
         self, message: UserMessage, tracker: DialogueStateTracker
@@ -367,6 +469,9 @@ class KaironMessageProcessor(MessageProcessor):
 
         if action_name_or_text.startswith(UTTER_PREFIX):
             return ActionBotResponse(action_name_or_text)
+
+        if action_name_or_text in domain.loop_names:
+            return KLoopAction(action_name_or_text, action_endpoint)
 
         is_form = action_name_or_text in domain.form_names
         # Users can override the form by defining an action with the same name as the form

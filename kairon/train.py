@@ -3,7 +3,7 @@ import os
 from urllib.parse import urljoin
 
 from loguru import logger as logging
-from rasa.api import train
+from kairon.shared.model_training import train
 from rasa.model import DEFAULT_MODELS_PATH
 from rasa.shared.constants import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH, DEFAULT_DOMAIN_PATH
 from kairon.shared.data.constant import DEFAULT_LLM

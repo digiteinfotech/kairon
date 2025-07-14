@@ -27,7 +27,7 @@ from rasa.shared.constants import (
     DOCS_BASE_URL,
 )
 from rasa.shared.core import events
-from rasa.shared.core.domain import Domain
+from kairon.shared.core.domain import Domain
 from rasa.shared.core.events import (
     Event,
     BotUttered,

@@ -7,7 +7,7 @@ from unittest.mock import Mock, MagicMock
 import pytest
 from mongoengine import connect
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
-from rasa.shared.core.domain import Domain
+from kairon.shared.core.domain import Domain
 from rasa.shared.core.training_data.story_reader.yaml_story_reader import KEY_STORIES, KEY_RULES, KEY_RULE_CONDITION, \
     KEY_RULE_FOR_CONVERSATION_START, KEY_ACTIVE_LOOP, KEY_USER_INTENT, KEY_USER_MESSAGE, KEY_OR, KEY_ACTION, \
     KEY_BOT_END_TO_END_MESSAGE, KEY_CHECKPOINT, KEY_SLOT_NAME, KEY_METADATA

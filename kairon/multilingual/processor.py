@@ -4,7 +4,7 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.multilingual.utils.translator import Translator
 from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.core.training_data.structures import StoryGraph
-from rasa.shared.importers.rasa import Domain
+from kairon.shared.importers.rasa import Domain
 from kairon.shared.account.data_objects import Bot
 from loguru import logger
 import re

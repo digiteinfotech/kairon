@@ -886,7 +886,7 @@ class TestChat:
     async def test_mongotracker_save(self):
         from rasa.shared.core.events import SlotSet, SessionStarted, ActionExecuted, UserUttered, BotUttered, \
             DefinePrevUserUtteredFeaturization
-        from rasa.shared.core.domain import Domain
+        from kairon.shared.core.domain import Domain
         from kairon.shared.trackers import KMongoTrackerStore
 
         domain = Domain.load("./tests/testing_data/use-cases/Hi-Hello/domain.yml")

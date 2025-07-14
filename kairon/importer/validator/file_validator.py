@@ -5,7 +5,7 @@ from typing import Optional, Dict, Text, List
 from loguru import logger
 from rasa.core.training.story_conflict import find_story_conflicts
 from rasa.shared.constants import UTTER_PREFIX
-from rasa.shared.core.domain import Domain
+from kairon.shared.core.domain import Domain
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.generator import TrainingDataGenerator
 from rasa.shared.core.training_data.structures import StoryStep, RuleStep

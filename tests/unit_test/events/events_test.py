@@ -15,7 +15,7 @@ import responses
 from fastapi import UploadFile
 from mongoengine import connect
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH
-from rasa.shared.importers.rasa import RasaFileImporter
+from kairon.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
 from kairon.shared.actions.data_objects import Actions

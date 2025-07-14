@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 from mongoengine import connect
-from rasa.shared.importers.rasa import RasaFileImporter
+from kairon.shared.importers.rasa import RasaFileImporter
 
 from augmentation.paraphrase.paraphrasing import ParaPhrasing
 from kairon.exceptions import AppException

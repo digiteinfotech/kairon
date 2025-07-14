@@ -11,8 +11,8 @@ from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.story_writer.yaml_story_writer import YAMLStoryWriter
 from rasa.shared.core.training_data.structures import StoryStep, Checkpoint, STORY_START, RuleStep, StoryGraph
-from rasa.shared.importers.rasa import Domain
-from rasa.shared.importers.rasa import RasaFileImporter
+from kairon.shared.importers.rasa import Domain
+from kairon.shared.importers.rasa import RasaFileImporter
 from rasa.shared.core.training_data.story_reader.yaml_story_reader import YAMLStoryReader, KEY_RULE_NAME, \
     KEY_RULE_CONDITION, KEY_RULE_FOR_CONVERSATION_START, KEY_STEPS, KEY_WAIT_FOR_USER_INPUT_AFTER_RULE, KEY_STORIES, \
     KEY_USER_INTENT, KEY_USER_MESSAGE, KEY_OR, KEY_ACTION, KEY_BOT_END_TO_END_MESSAGE, KEY_CHECKPOINT, KEY_SLOT_NAME, \

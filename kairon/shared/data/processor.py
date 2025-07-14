@@ -50,7 +50,7 @@ from rasa.shared.core.training_data.story_writer.yaml_story_writer import (
 from rasa.shared.core.training_data.structures import Checkpoint, RuleStep
 from rasa.shared.core.training_data.structures import STORY_START
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
-from rasa.shared.importers.rasa import Domain
+from kairon.shared.core.domain import Domain
 from rasa.shared.nlu.constants import TEXT
 from rasa.shared.nlu.training_data.message import Message
 from rasa.shared.nlu.training_data.training_data import TrainingData

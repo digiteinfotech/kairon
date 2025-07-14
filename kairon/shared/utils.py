@@ -1163,7 +1163,7 @@ class Utility:
             DEFAULT_DATA_PATH,
             DEFAULT_DOMAIN_PATH,
         )
-        from rasa.shared.importers.rasa import Domain
+        from kairon.shared.core.domain import Domain
 
         temp_path = tempfile.mkdtemp()
         data_path = os.path.join(temp_path, DEFAULT_DATA_PATH)
