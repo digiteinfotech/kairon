@@ -1491,11 +1491,11 @@ class TestMongoProcessor:
             config = {
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
-                "restaurant_id": "98765",
-                "meta_config": {
-                  "access_token": "dummy_access_token",
-                  "catalog_id": "12345"
-                }
+                "restaurant_id": "98765"
+            },
+            meta_config= {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type = "push_menu",
             smart_catalog_enabled= False,
@@ -1669,11 +1669,11 @@ class TestMongoProcessor:
             config={
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
-                "restaurant_id": "98765",
-                "meta_config": {
-                    "access_token": "dummy_access_token",
-                    "catalog_id": "12345"
-                }
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type="push_menu",
             smart_catalog_enabled=False,
@@ -1721,11 +1721,11 @@ class TestMongoProcessor:
             config={
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
-                "restaurant_id": "98765",
-                "meta_config": {
-                    "access_token": "dummy_access_token",
-                    "catalog_id": "12345"
-                }
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type="push_menu",
             smart_catalog_enabled=False,
@@ -1788,11 +1788,11 @@ class TestMongoProcessor:
             config={
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
-                "restaurant_id": "98765",
-                "meta_config": {
-                    "access_token": "dummy_access_token",
-                    "catalog_id": "12345"
-                }
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type="push_menu",
             smart_catalog_enabled=False,
@@ -1820,17 +1820,17 @@ class TestMongoProcessor:
         user = "test_user"
         provider = "petpooja"
         sync_type = "push_menu"
-        
+
         configuration = {
           "provider": "petpooja",
           "config": {
             "restaurant_name": "restaurant1",
             "branch_name": "branch1",
             "restaurant_id": "98765",
-            "meta_config": {
-                "access_token": "dummy_access_token",
-                "catalog_id": "12345"
-            }
+           },
+          "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
            },
            "smart_catalog_enabled": True,
            "meta_enabled": True,
@@ -1857,7 +1857,7 @@ class TestMongoProcessor:
         assert integration.config["restaurant_name"] == "restaurant1"
         assert integration.config["branch_name"] == "branch1"
 
-        assert integration.config["meta_config"] == {
+        assert integration.meta_config == {
             "access_token": "dummy_access_token",
             "catalog_id": "12345"
         }
@@ -1883,10 +1883,10 @@ class TestMongoProcessor:
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
                 "restaurant_id": "12345",
-                "meta_config": {
-                    "access_token": "token1",
-                    "catalog_id": "abc"
-                }
+            },
+            "meta_config": {
+                "access_token": "token1",
+                "catalog_id": "abc"
             },
             "smart_catalog_enabled": False,
             "meta_enabled": False,
@@ -1935,10 +1935,10 @@ class TestMongoProcessor:
                 "restaurant_name": "restaurant1",
                 "branch_name": "branch1",
                 "restaurant_id": "12345",
-                "meta_config": {
-                    "access_token": "token1",
-                    "catalog_id": "abc"
-                }
+            },
+            "meta_config": {
+                "access_token": "token1",
+                "catalog_id": "abc"
             },
             "ai_enabled": True,
             "meta_enabled": True,
@@ -2087,11 +2087,11 @@ class TestMongoProcessor:
             provider=provider,
             config={
                 "branch_name": "Bangalore",
-                "restaurant_id": "123",
-                "meta_config": {
-                    "access_token": "dummy_access_token",
-                    "catalog_id": "12345"
-                }
+                "restaurant_id": "123"
+            },
+            meta_config = {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type="push_menu",
             smart_catalog_enabled=False,
@@ -2108,11 +2108,11 @@ class TestMongoProcessor:
             provider=provider,
             config={
                 "branch_name": "Bangalore",
-                "restaurant_id": "123",
-                "meta_config": {
-                    "access_token": "dummy_access_token",
-                    "catalog_id": "12345"
-                }
+                "restaurant_id": "123"
+            },
+            meta_config = {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
             },
             sync_type="item_toggle",
             smart_catalog_enabled=False,
@@ -2131,11 +2131,11 @@ class TestMongoProcessor:
         config = result[0]
         assert config["bot"] == bot
         assert config["provider"] == provider
-        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore", "meta_config": {"access_token": "dummy_access_token", "catalog_id": "12345"}}
+        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
         assert set(config["sync_type"]) == {"push_menu", "item_toggle"}
         assert config["user"] == user
         assert "timestamp" in config
-        assert config["config"] ["meta_config"] == {"access_token": "dummy_access_token", "catalog_id": "12345"}
+        assert config["meta_config"] == {"access_token": "dummy_access_token", "catalog_id": "12345"}
         POSIntegrations.objects(provider= "petpooja").delete()
 
     def test_list_pos_integration_configs_empty(self):
