@@ -530,55 +530,26 @@ class CognitionDataProcessor:
 
     async def delete_existing_kv_catalog_data(self, bot: str):
         """
-        Deletes knowledge vault items from Mongo and Qdrant vector store if smart_catalog_enabled is turned off.
+        Deletes entire knowledge vault collection (Mongo and Qdrant) if smart_catalog_enabled is turned off.
         """
 
         from kairon.shared.llm.processor import LLMProcessor
 
         restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
-        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
         collection_name = f"{restaurant_name}_{branch_name}_catalog"
 
-        existing_docs = CollectionData.objects(
-            collection_name=catalog_data_collection,
-            bot=bot,
-            status=True
-        )
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
+        logger.info(f"Deleted documents from collection '{collection_name}' from MongoDB.")
 
-        kv_ids = [
-            doc.data.get("kv", {}).get("id")
-            for doc in existing_docs
-            if doc.data.get("kv", {}).get("id")
-        ]
-
-        if not kv_ids:
-            return
-
-        stale_docs = CognitionData.objects(
-            bot=bot,
-            collection=collection_name,
-            data__id__in=kv_ids
-        ).as_pymongo()
-
-        doc_ids = []
-        vector_ids = []
-
-        for doc in stale_docs:
-            doc_ids.append(doc["_id"])
-            vector_ids.append(doc["vector_id"])
-
-        CognitionData.objects(id__in=doc_ids).delete()
-        logger.info(f"Deleted {len(doc_ids)} stale KV documents from MongoDB.")
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        logger.info(f"Deleted schema of collection '{collection_name}' from MongoDB.")
 
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-        qdrant_collection = f"{bot}_{collection_name}_faq_embd"
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}"
 
-        await llm_processor.__delete_collection_points__(
-            qdrant_collection,
-            vector_ids,
-            "Cannot delete stale points from Qdrant!"
-        )
-        logger.info(f"Deleted {len(vector_ids)} stale points from Qdrant.")
+        await llm_processor._delete_single_collection(qdrant_collection)
+        logger.info(f"Deleted Qdrant collection '{qdrant_collection}' for bot '{bot}'.")
 
     @staticmethod
     def list_pos_integration_configs(bot: str) -> List[Dict]:

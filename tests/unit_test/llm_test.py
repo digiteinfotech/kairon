@@ -1367,6 +1367,73 @@ class TestLLM:
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
+    @mock.patch.object(AioRestClient, "request", autospec=True)
+    async def test_delete_single_collection_success(self, mock_request):
+        collection_name = "collection_to_delete"
+        bot = "test_delete_single_collection_success"
+        user = "test_new"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_request.return_value = {"status": "ok"}
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        await llm_processor._delete_single_collection(collection_name)
+
+        mock_request.assert_called_once_with(
+            mock.ANY,
+            http_url=f"{llm_processor.db_url}/collections/{collection_name}",
+            request_method="DELETE",
+            headers=llm_processor.headers,
+            return_json=False,
+            timeout=5
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(AioRestClient, "request", autospec=True)
+    async def test_delete_single_collection_failure(self, mock_request):
+        collection_name = "collection_to_delete"
+        bot = "test_delete_single_collection_success"
+        user = "test_new"
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key="openai_key",
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        mock_request.side_effect = Exception("Connection error")
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+
+        with pytest.raises(Exception, match="Connection error"):
+            await llm_processor._delete_single_collection(collection_name)
+
+        mock_request.assert_called_once_with(
+            mock.ANY,
+            http_url=f"{llm_processor.db_url}/collections/{collection_name}",
+            request_method="DELETE",
+            headers=llm_processor.headers,
+            return_json=False,
+            timeout=5
+        )
+        LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
     @patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock)
     async def test_initialize_vector_configs_success(self, mock_execute_request_async):
         bot = "test_bot"

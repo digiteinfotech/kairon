@@ -1977,13 +1977,13 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.auth.AccountProcessor.get_bot")
-    @mock.patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
-    async def test_save_pos_integration_config_triggers_kv_cleanup(self, mock_delete_collection_points, mock_get_bot):
+    @mock.patch.object(LLMProcessor, "_delete_single_collection", autospec=True)
+    async def test_save_pos_integration_config_triggers_kv_cleanup(self, mock_delete_single_collection, mock_get_bot):
         bot = "test_bot"
         user = "test_user"
         provider = "petpooja"
         sync_type = "push_menu"
-        mock_delete_collection_points.return_value = None
+        mock_delete_single_collection.return_value = None
 
         secrets = [
             {
@@ -2020,21 +2020,24 @@ class TestMongoProcessor:
         catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
         catalog_collection = f"{restaurant_name}_{branch_name}_catalog"
 
-        CollectionData(
-            collection_name=catalog_data_collection,
-            data={"kv": {"id": "kv123"}},
-            user=user,
-            bot=bot,
-            status=True
-        ).save()
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
 
-        CollectionData(
-            collection_name=catalog_data_collection,
-            data={"kv": {"id": "kv124"}},
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=catalog_collection,
             user=user,
             bot=bot,
-            status=True
-        ).save()
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
 
         CognitionData(
             data={"id": "kv123"},
@@ -2058,23 +2061,27 @@ class TestMongoProcessor:
 
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 1
 
         await processor.save_pos_integration_config(configuration, bot, user, sync_type)
 
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 1
 
         configuration["smart_catalog_enabled"] = False
         await processor.save_pos_integration_config(configuration, bot, user, sync_type)
 
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 0
         assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 0
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 0
 
-        mock_delete_collection_points.assert_called_once()
+        mock_delete_single_collection.assert_called_once()
 
         POSIntegrations.objects(bot=bot, provider=provider).delete()
         CollectionData.objects(bot=bot, collection_name=catalog_data_collection).delete()
         CognitionData.objects(bot=bot, collection=catalog_collection).delete()
+        CognitionSchema.objects(bot=bot, collection_name=catalog_collection).delete()
         LLMSecret.objects().delete()
 
     def test_list_pos_integration_configs_success(self):
