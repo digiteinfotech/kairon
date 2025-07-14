@@ -17,7 +17,6 @@ from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema,
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
 from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.constants import  CatalogSyncClass
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import CognitionDataType, CognitionMetadataType, VaultSyncType
 from tqdm import tqdm
@@ -446,6 +445,7 @@ class CognitionDataProcessor:
 
         provider = configuration["provider"]
         config_data = configuration["config"]
+        meta_config = configuration.get("meta_config", {})
         smart_catalog_enabled = configuration.get("smart_catalog_enabled", False)
         meta_enabled = configuration.get("meta_enabled", False)
         sync_options = configuration.get("sync_options")
@@ -458,11 +458,15 @@ class CognitionDataProcessor:
             sync_type=sync_type
         ).first()
 
+        if integration and integration.smart_catalog_enabled and not smart_catalog_enabled:
+            await self.delete_existing_kv_catalog_data(bot)
+
         if integration and integration.meta_enabled and not meta_enabled:
-            await self.delete_existing_meta_catalog_data(bot, config_data)
+            await self.delete_existing_meta_catalog_data(bot, meta_config)
 
         if integration:
             integration.config = config_data
+            integration.meta_config = meta_config
             integration.smart_catalog_enabled = smart_catalog_enabled
             integration.meta_enabled = meta_enabled
             integration.sync_options = sync_options
@@ -475,6 +479,7 @@ class CognitionDataProcessor:
                 provider=provider,
                 sync_type=sync_type,
                 config=config_data,
+                meta_config=meta_config,
                 smart_catalog_enabled=smart_catalog_enabled,
                 meta_enabled=meta_enabled,
                 sync_options=sync_options,
@@ -488,6 +493,7 @@ class CognitionDataProcessor:
             doc.smart_catalog_enabled = smart_catalog_enabled
             doc.meta_enabled = meta_enabled
             doc.config = config_data
+            meta_config = meta_config,
             doc.sync_options = sync_options
             doc.timestamp = datetime.utcnow()
             doc.save()
@@ -495,7 +501,7 @@ class CognitionDataProcessor:
         integration_endpoint = DataUtility.get_integration_endpoint(integration)
         return integration_endpoint
 
-    async def delete_existing_meta_catalog_data(self, bot: str, config_data: Dict):
+    async def delete_existing_meta_catalog_data(self, bot: str, meta_config: Dict):
         """
         Deletes metadata items from Meta catalog if meta_enabled is turned off.
         """
@@ -514,7 +520,6 @@ class CognitionDataProcessor:
             if doc.data.get("meta", {}).get("id")
         ]
 
-        meta_config = config_data.get("meta_config", {})
         access_token = meta_config.get("access_token")
         catalog_id = meta_config.get("catalog_id")
 
@@ -522,6 +527,58 @@ class CognitionDataProcessor:
             meta_processor = MetaProcessor(access_token, catalog_id)
             delete_payload = meta_processor.preprocess_delete_data(meta_ids)
             await meta_processor.delete_meta_catalog(delete_payload)
+
+    async def delete_existing_kv_catalog_data(self, bot: str):
+        """
+        Deletes knowledge vault items from Mongo and Qdrant vector store if smart_catalog_enabled is turned off.
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+        collection_name = f"{restaurant_name}_{branch_name}_catalog"
+
+        existing_docs = CollectionData.objects(
+            collection_name=catalog_data_collection,
+            bot=bot,
+            status=True
+        )
+
+        kv_ids = [
+            doc.data.get("kv", {}).get("id")
+            for doc in existing_docs
+            if doc.data.get("kv", {}).get("id")
+        ]
+
+        if not kv_ids:
+            return
+
+        stale_docs = CognitionData.objects(
+            bot=bot,
+            collection=collection_name,
+            data__id__in=kv_ids
+        ).as_pymongo()
+
+        doc_ids = []
+        vector_ids = []
+
+        for doc in stale_docs:
+            doc_ids.append(doc["_id"])
+            vector_ids.append(doc["vector_id"])
+
+        CognitionData.objects(id__in=doc_ids).delete()
+        logger.info(f"Deleted {len(doc_ids)} stale KV documents from MongoDB.")
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        qdrant_collection = f"{bot}_{collection_name}_faq_embd"
+
+        await llm_processor.__delete_collection_points__(
+            qdrant_collection,
+            vector_ids,
+            "Cannot delete stale points from Qdrant!"
+        )
+        logger.info(f"Deleted {len(vector_ids)} stale points from Qdrant.")
 
     @staticmethod
     def list_pos_integration_configs(bot: str) -> List[Dict]:

@@ -1442,6 +1442,7 @@ class PetpoojaSyncOptions(BaseModel):
 class POSIntegrationRequest(BaseModel):
     provider: str = Field(..., alias="connector_type")
     config: dict
+    meta_config: Optional[PetpoojaMetaConfig]
     smart_catalog_enabled: bool
     meta_enabled: bool
     sync_options: Union[PetpoojaSyncOptions]

@@ -9,12 +9,14 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import List
+from unittest import mock
 from urllib.parse import urljoin
 
 import ujson as json
 import yaml
 from bson import ObjectId
 
+from kairon.meta.processor import MetaProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.collection_processor import DataProcessor
@@ -1914,6 +1916,166 @@ class TestMongoProcessor:
         assert integration.sync_options.process_push_menu is True
 
         POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+    async def test_save_pos_integration_config_triggers_meta_cleanup(self, mock_delete_meta_catalog, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        mock_delete_meta_catalog.return_value = None
+
+        processor = CognitionDataProcessor()
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345",
+                "meta_config": {
+                    "access_token": "token1",
+                    "catalog_id": "abc"
+                }
+            },
+            "ai_enabled": True,
+            "meta_enabled": True,
+            "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        catalog_data_collection = "restaurant1_branch1_catalog_data"
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"meta": {"id": "meta123"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"meta": {"id": "meta124"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        configuration["meta_enabled"] = False
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        mock_delete_meta_catalog.assert_called_once()
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    @mock.patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
+    async def test_save_pos_integration_config_triggers_kv_cleanup(self, mock_delete_collection_points, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        mock_delete_collection_points.return_value = None
+
+        secrets = [
+            {
+                "llm_type": "openai",
+                "api_key": "common_openai_key",
+                "models": ["common_openai_model1", "common_openai_model2"],
+                "user": "123",
+                "timestamp": datetime.utcnow()
+            },
+        ]
+
+        for secret in secrets:
+            LLMSecret(**secret).save()
+
+        processor = CognitionDataProcessor()
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345"
+            },
+            "smart_catalog_enabled": True,
+            "meta_enabled": True,
+            "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        restaurant_name = "restaurant1"
+        branch_name = "branch1"
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+        catalog_collection = f"{restaurant_name}_{branch_name}_catalog"
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"kv": {"id": "kv123"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"kv": {"id": "kv124"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        CognitionData(
+            data={"id": "kv123"},
+            vector_id=99,
+            content_type="json",
+            collection=catalog_collection,
+            user=user,
+            bot=bot
+        ).save()
+
+        CognitionData(
+            data={"id": "kv124"},
+            vector_id=99,
+            content_type="json",
+            collection=catalog_collection,
+            user=user,
+            bot=bot
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+
+        configuration["smart_catalog_enabled"] = False
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 0
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 0
+
+        mock_delete_collection_points.assert_called_once()
+
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+        CollectionData.objects(bot=bot, collection_name=catalog_data_collection).delete()
+        CognitionData.objects(bot=bot, collection=catalog_collection).delete()
+        LLMSecret.objects().delete()
 
     def test_list_pos_integration_configs_success(self):
         bot = "test_bot"
