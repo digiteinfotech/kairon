@@ -58,8 +58,7 @@ class DataProcessor:
         builder.add_schema({"type": "object", "properties": {}})
 
         for doc in documents:
-            data_dict = doc.to_mongo().to_dict()
-            nested_data = data_dict.get("data", {})
+            nested_data = getattr(doc, "data", None)
             if isinstance(nested_data, dict):
                 builder.add_object(nested_data)
             else:
