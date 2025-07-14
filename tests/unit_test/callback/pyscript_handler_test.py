@@ -1456,36 +1456,25 @@ def test_get_crud_metadata_without_collection_name():
 
 def test_get_crud_metadata():
     data1 = {
-        "collection_name": "testing_crud_api",
-        "is_secure": [],
-        "is_non_editable": [],
-        "timestamp": "2024-08-07T07:03:06.905+00:00",
-        "data": {
-            "mobile_number": "919876543210",
-            "name": "Mahesh",
-            "aadhar": "29383989838930",
-            "pan": "JJ928392JH",
-            "pincode": 538494
-        }
+        "mobile_number": "919876543210",
+        "name": "Mahesh",
+        "aadhar": "29383989838930",
+        "pan": "JJ928392JH",
+        "pincode": 538494
     }
+
     data2 = {
-        "collection_name": "testing_crud_api",
-        "is_secure": [],
-        "is_non_editable": [],
-        "timestamp": "2024-08-07T07:03:06.905+00:00",
-        "data": {
-            "mobile_number": 919876543210,
-            "name": "Mahesh",
-            "aadhar": 29383989838930,
-            "pan": "JJ928392JH",
-            "pincode": 538494
-        }
+        "mobile_number": 919876543210,
+        "name": "Mahesh",
+        "aadhar": 29383989838930,
+        "pan": "JJ928392JH",
+        "pincode": 538494
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = data1
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = data2
 
     mock_queryset = [mock_doc1, mock_doc2]
 
