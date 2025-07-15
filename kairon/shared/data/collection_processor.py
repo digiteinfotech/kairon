@@ -45,7 +45,7 @@ class DataProcessor:
         return decrypted_data
 
     @staticmethod
-    def get_crud_metadata(user: Text, bot: Text, collection_name: Text) -> dict:
+    def get_crud_metadata(bot: Text, collection_name: Text, **kwargs) -> dict:
         from genson import SchemaBuilder
 
         documents = CollectionData.objects(bot=bot, collection_name=collection_name)

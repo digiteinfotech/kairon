@@ -80,7 +80,7 @@ class PyscriptSharedUtility:
         if not collection_name:
             raise Exception("Missing collection name")
 
-        metadata = DataProcessor.get_crud_metadata(user, bot, collection_name)
+        metadata = DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name, user=user)
         return metadata
 
 

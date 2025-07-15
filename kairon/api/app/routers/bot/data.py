@@ -277,9 +277,7 @@ async def get_collection_metadata(
     """
     Fetches collection data of the bot
     """
-    return {"data": DataProcessor.get_crud_metadata(current_user.get_user(),
-                                                    current_user.get_bot(),
-                                                    collection_name)}
+    return {"data": DataProcessor.get_crud_metadata(bot=current_user.get_bot(), collection_name=collection_name)}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)
