@@ -48,10 +48,10 @@ class DataProcessor:
     def get_crud_metadata(user: Text, bot: Text, collection_name: Text) -> dict:
         from genson import SchemaBuilder
 
-        documents = CollectionData.objects(user=user, bot=bot, collection_name=collection_name)
+        documents = CollectionData.objects(bot=bot, collection_name=collection_name)
 
         if not documents:
-            logger.warning(f"Collection Data not found: user={user}, bot={bot}, collection_name={collection_name}")
+            logger.warning(f"Collection Data not found: bot={bot}, collection_name={collection_name}")
             return {"type": "object", "properties": {}}
 
         builder = SchemaBuilder()
