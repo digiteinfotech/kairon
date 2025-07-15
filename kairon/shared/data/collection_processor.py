@@ -7,7 +7,7 @@ from mongoengine import DoesNotExist
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
-
+from loguru import logger
 
 
 class DataProcessor:
@@ -105,7 +105,7 @@ class DataProcessor:
     def delete_collection_data_with_user( bot: Text, user: Text):
         collection_count = CollectionData.objects(bot=bot, user=user).delete()
         if collection_count == 0:
-            raise AppException("Collection data for user does not exists!")
+            logger.error(f"No collection data found for bot='{bot}', user='{user}' to delete.")
 
     @staticmethod
     def list_collection_data(bot: Text):
