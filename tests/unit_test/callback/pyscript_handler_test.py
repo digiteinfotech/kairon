@@ -1405,10 +1405,10 @@ def test_get_crud_metadata_without_bot():
         }
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = data1
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = data2
 
     mock_queryset = [mock_doc1, mock_doc2]
 
@@ -1444,10 +1444,10 @@ def test_get_crud_metadata_without_collection_name():
         }
     }
     mock_doc1 = MagicMock()
-    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
+    mock_doc1.data = data1
 
     mock_doc2 = MagicMock()
-    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
+    mock_doc2.data = data2
 
     mock_queryset = [mock_doc1, mock_doc2]
     with pytest.raises(Exception, match="Missing collection name"):
