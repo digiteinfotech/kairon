@@ -45,6 +45,28 @@ class DataProcessor:
         return decrypted_data
 
     @staticmethod
+    def get_crud_metadata(bot: Text, collection_name: Text, **kwargs) -> dict:
+        from genson import SchemaBuilder
+
+        documents = CollectionData.objects(bot=bot, collection_name=collection_name)
+
+        if not documents:
+            logger.warning(f"Collection Data not found: bot={bot}, collection_name={collection_name}")
+            return {"type": "object", "properties": {}}
+
+        builder = SchemaBuilder()
+        builder.add_schema({"type": "object", "properties": {}})
+
+        for doc in documents:
+            nested_data = getattr(doc, "data", None)
+            if isinstance(nested_data, dict):
+                builder.add_object(nested_data)
+            else:
+                logger.warning("Invalid or missing 'data' field in a document.")
+
+        return builder.to_schema()
+
+    @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
