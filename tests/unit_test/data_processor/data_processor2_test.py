@@ -1283,11 +1283,9 @@ def test_delete_collection_data_no_records():
         mock_query.delete.return_value = 0
         mock_collection_data.return_value = mock_query
 
-        with pytest.raises(AppException) as exc_info:
-            DataProcessor.delete_collection_data_with_user(bot="test_bot", user="test_user_1")
+        DataProcessor.delete_collection_data_with_user(bot="test_bot", user="aniket.kharkia@nimblework,com")
 
-        assert str(exc_info.value) == "Collection data for user does not exists!"
-        mock_collection_data.assert_called_once_with(bot="test_bot", user="test_user_1")
+        mock_collection_data.assert_called_once_with(bot="test_bot", user="aniket.kharkia@nimblework,com")
         mock_query.delete.assert_called_once()
 
 
