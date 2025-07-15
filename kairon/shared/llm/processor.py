@@ -286,6 +286,19 @@ class LLMProcessor(LLMBase):
         finally:
             await client.cleanup()
 
+    async def _delete_single_collection(self, collection_name: str):
+        client = AioRestClient(False)
+        try:
+            await client.request(
+                http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                request_method="DELETE",
+                headers=self.headers,
+                return_json=False,
+                timeout=5
+            )
+        finally:
+            await client.cleanup()
+
     async def __create_collection__(self, collection_name: Text):
         await AioRestClient().request(http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
                                       request_method="PUT",

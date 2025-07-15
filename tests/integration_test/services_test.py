@@ -3783,11 +3783,11 @@ def test_add_pos_integration_config_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
        },
        "smart_catalog_enabled": True,
        "meta_enabled": True,
@@ -3817,7 +3817,7 @@ def test_add_pos_integration_config_success():
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
@@ -3826,19 +3826,19 @@ def test_add_pos_integration_config_success():
 @responses.activate
 def test_get_pos_endpoint_push_menu():
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
             "access_token": "dummy_access_token",
             "catalog_id": "12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -3870,19 +3870,19 @@ def test_get_pos_endpoint_push_menu():
 @responses.activate
 def test_get_pos_endpoint_item_toggle():
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -3914,19 +3914,19 @@ def test_get_pos_endpoint_item_toggle():
 @responses.activate
 def test_list_pos_integration_configs_success():
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -3945,19 +3945,19 @@ def test_list_pos_integration_configs_success():
     assert str(pytest.bot) in actual["data"]
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -3995,8 +3995,8 @@ def test_list_pos_integration_configs_success():
     assert petpooja_config["config"]["restaurant_name"] == "restaurant1"
     assert petpooja_config["config"]["branch_name"] == "branch1"
     assert petpooja_config["config"]["restaurant_id"] == "98765"
-    assert petpooja_config["config"]["meta_config"]["access_token"] == "dummy_access_token"
-    assert petpooja_config["config"]["meta_config"]["catalog_id"] == "12345"
+    assert petpooja_config["meta_config"]["access_token"] == "dummy_access_token"
+    assert petpooja_config["meta_config"]["catalog_id"] == "12345"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
@@ -4022,19 +4022,19 @@ def test_list_pos_integration_configs_empty():
 @responses.activate
 def test_delete_pos_integration_config_success():
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -4053,19 +4053,19 @@ def test_delete_pos_integration_config_success():
     assert str(pytest.bot) in actual["data"]
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -4103,19 +4103,19 @@ def test_delete_pos_integration_config_success():
 @responses.activate
 def test_delete_pos_integration_config_no_sync_type_provided_success():
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
         "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
-       },
-       "smart_catalog_enabled": True,
-       "meta_enabled": True,
-       "sync_options": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
             "process_push_menu": True,
             "process_item_toggle": True
         }
@@ -4138,11 +4138,11 @@ def test_delete_pos_integration_config_no_sync_type_provided_success():
       "config": {
         "restaurant_name": "restaurant1",
         "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-            "access_token":"dummy_access_token",
-            "catalog_id":"12345"
-        }
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
        },
        "smart_catalog_enabled": True,
        "meta_enabled": True,
@@ -4227,10 +4227,10 @@ def test_add_pos_integration_config_invalid_provider():
             "restaurant_name": "invalid",
             "branch_name": "invalid",
             "restaurant_id": "00000",
-            "meta_config": {
-                "access_token": "invalid",
-                "catalog_id": "000"
-            }
+        },
+        "meta_config": {
+            "access_token": "invalid",
+            "catalog_id": "000"
         },
         "smart_catalog_enabled": True,
         "meta_enabled": True,
@@ -4260,13 +4260,13 @@ def test_add_pos_integration_config_invalid_sync_type():
     payload = {
         "connector_type": "petpooja",
         "config": {
-            "restaurant_name": "restaurant3",
-            "branch_name": "branch3",
-            "restaurant_id": "33333",
-            "meta_config": {
-                "access_token": "access_333",
-                "catalog_id": "333"
-            }
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
         },
         "smart_catalog_enabled": True,
         "meta_enabled": True,
@@ -4328,22 +4328,22 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -4368,7 +4368,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4498,22 +4498,22 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
         **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -4538,7 +4538,7 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4627,22 +4627,22 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
         **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
@@ -4666,7 +4666,7 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4783,22 +4783,22 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": False,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -4823,7 +4823,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -4911,22 +4911,22 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": False,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -4951,7 +4951,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5041,22 +5041,22 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -5081,7 +5081,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5206,22 +5206,22 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": False,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -5246,7 +5246,7 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5356,22 +5356,22 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -5396,7 +5396,7 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5525,22 +5525,22 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": False,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -5565,7 +5565,7 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5682,22 +5682,22 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -5722,7 +5722,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5847,22 +5847,22 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -5887,7 +5887,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -5933,7 +5933,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
@@ -5979,22 +5979,22 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -6019,7 +6019,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6130,7 +6130,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         assert cognition_map[item["id"]] == item["price"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
@@ -6176,22 +6176,22 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": False,
-      "sync_options": {
-          "process_push_menu": False,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -6216,7 +6216,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6338,7 +6338,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
         assert cognition_map[item["id"]] == item["price"]
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
-    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
     LLMSecret.objects.delete()
     CollectionData.objects(collection_name=catalog_data_collection).delete()
     CollectionData.objects(collection_name=catalog_images_collection).delete()
@@ -6383,22 +6383,22 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -6423,7 +6423,7 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6527,22 +6527,22 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -6567,7 +6567,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6687,22 +6687,22 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -6727,7 +6727,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6839,22 +6839,22 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": True
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -6879,7 +6879,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -6990,22 +6990,22 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": True,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
     }
 
     response = client.post(
@@ -7030,7 +7030,7 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
@@ -7127,22 +7127,22 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
         LLMSecret(**secret).save()
 
     payload = {
-      "connector_type": "petpooja",
-      "config": {
-        "restaurant_name": "restaurant1",
-        "branch_name": "branch1",
-        "restaurant_id": "98765",
-        "meta_config": {
-          "access_token": "dummy_access_token",
-          "catalog_id": "12345"
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
         },
-      },
-      "smart_catalog_enabled": False,
-      "meta_enabled": True,
-      "sync_options": {
-          "process_push_menu": True,
-          "process_item_toggle": False
-      }
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
     }
 
     response = client.post(
@@ -7167,7 +7167,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
     assert pos_integration is not None
     assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.config["meta_config"]["access_token"] == "dummy_access_token"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
 
     event_url = urljoin(
         Utility.environment["events"]["server_url"],

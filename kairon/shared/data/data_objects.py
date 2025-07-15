@@ -1102,6 +1102,7 @@ class POSIntegrations(Auditlog):
     bot = StringField(required=True)
     provider = StringField(required=True)
     config = DictField(required=True)
+    meta_config = DictField()
     sync_type = StringField(required=True, default=None)
     smart_catalog_enabled = BooleanField(default=False)
     meta_enabled = BooleanField(default=False)

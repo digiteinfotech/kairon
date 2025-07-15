@@ -171,11 +171,11 @@ class PetpoojaSync(CatalogSyncBase):
 
             integrations_doc = POSIntegrations.objects(bot=self.bot, provider=self.provider,
                                                     sync_type=self.sync_type).first()
-            if initiate_import and CatalogSyncLogProcessor.is_meta_enabled(self.bot) and integrations_doc and integrations_doc.config.get("meta_config"):
+            if initiate_import and CatalogSyncLogProcessor.is_meta_enabled(self.bot) and integrations_doc and integrations_doc.meta_config:
                 sync_status=SYNC_STATUS.SAVE_META.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status)
-                access_token = integrations_doc.config["meta_config"].get("access_token")
-                catalog_id = integrations_doc.config["meta_config"].get("catalog_id")
+                access_token = integrations_doc.meta_config.get("access_token")
+                catalog_id = integrations_doc.meta_config.get("catalog_id")
 
                 meta_processor = MetaProcessor(access_token, catalog_id)
 
