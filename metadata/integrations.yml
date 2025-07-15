@@ -117,14 +117,14 @@ pos_integrations:
       - restaurant_name
       - branch_name
       - restaurant_id
-      - smart_catalog_enabled
-      - meta_enabled
-      - process_push_menu
-      - process_item_toggle
       - sync_type:
           - push_menu
           - item_toggle
     optional_fields:
+      - process_push_menu
+      - process_item_toggle
+      - meta_enabled
+      - smart_catalog_enabled
       - access_token
       - catalog_id
     disabled_fields:

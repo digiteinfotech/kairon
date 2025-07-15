@@ -4209,11 +4209,10 @@ def test_get_pos_params():
     petpooja_data = actual["data"]["petpooja"]
 
     assert "required_fields" in petpooja_data
-    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', 'smart_catalog_enabled',
-                                                'meta_enabled', 'process_push_menu', 'process_item_toggle', {'sync_type': ['push_menu', 'item_toggle']} ]
+    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', {'sync_type': ['push_menu', 'item_toggle']} ]
 
     assert "optional_fields" in petpooja_data
-    assert petpooja_data["optional_fields"] == ["access_token", "catalog_id"]
+    assert petpooja_data["optional_fields"] == ['process_push_menu', 'process_item_toggle', 'meta_enabled',  'smart_catalog_enabled', 'access_token', 'catalog_id']
 
     assert "disabled_fields" in petpooja_data
     assert petpooja_data["disabled_fields"] == ["provider"]

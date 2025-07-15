@@ -4,13 +4,11 @@ import os
 import re
 import shutil
 import tempfile
-import urllib
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import List
 from unittest import mock
-from urllib.parse import urljoin
 
 import ujson as json
 import yaml
@@ -20,8 +18,6 @@ from kairon.meta.processor import MetaProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.collection_processor import DataProcessor
-from kairon.shared.data.data_models import POSIntegrationRequest
-from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
 
