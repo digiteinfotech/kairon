@@ -87,8 +87,8 @@ class PetpoojaSync(CatalogSyncBase):
                 self.data = cognition_processor.preprocess_item_toggle_data(self.bot, request, self.provider)
             sync_status = SYNC_STATUS.PREPROCESSING_COMPLETED
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status, processed_payload= self.data)
-            stale_primary_keys = CognitionDataProcessor.save_ai_data(self.data, self.bot, self.user, self.sync_type)
             initiate_import = True
+            stale_primary_keys = []
             restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(self.bot)
             catalog_name = f"{restaurant_name}_{branch_name}_catalog"
             sync_status = SYNC_STATUS.VALIDATING_KNOWLEDGE_VAULT_DATA
@@ -100,6 +100,8 @@ class PetpoojaSync(CatalogSyncBase):
                 sync_status = SYNC_STATUS.SAVE.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, validation_errors=error_summary,
                                                 sync_status=sync_status, status="Failure")
+            else:
+                stale_primary_keys = CognitionDataProcessor.save_ai_data(self.data, self.bot, self.user, self.sync_type)
             return initiate_import, stale_primary_keys
         except Exception as e:
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
@@ -150,9 +152,9 @@ class PetpoojaSync(CatalogSyncBase):
                                                                    self.bot, self.user)
                 stale_primary_keys = result.get("stale_ids")
             else:
-                sync_status = SYNC_STATUS.COMPLETED.value
+                sync_status = SYNC_STATUS.FAILED.value
                 if not initiate_import:
-                    CatalogSyncLogProcessor.add_log(self.bot, self.user,
+                    CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=sync_status,
                                                     exception="Validation Failed. Check logs",
                                                     status=status)
                 else:

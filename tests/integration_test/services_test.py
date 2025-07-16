@@ -5201,6 +5201,81 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
         },
     ]
 
+    documents = [
+        {
+            '_id': ObjectId('68777e450cbc4ce07e8a814e'),
+            'vector_id': '468c609c-1313-4e47-8629-e26c20bf0e1b',
+            'data': {
+                'id': '10539580',
+                'title': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'facebook_product_category': 'Food and drink > Chicken Meal',
+                'availability': 'in stock'
+            },
+            'content_type': 'json',
+            'collection': 'restaurant1_branch1_catalog',
+            'user': 'integration@demo.ai',
+            'bot': '68777e320cbc4ce07e8a7bb2',
+            'timestamp': datetime(2025, 7, 16, 10, 26, 13, 986000)
+        }
+    ]
+
+    for doc in documents:
+        CognitionData(
+            data=doc["data"],
+            content_type=doc["content_type"],
+            collection=doc["collection"],
+            user=doc["user"],
+            bot=pytest.bot
+        ).save()
+
+    document = {
+        '_id': ObjectId('68777f6c9c7c306038d1b056'),
+        'collection_name': 'restaurant1_branch1_catalog_data',
+        'is_secure': [],
+        'is_non_editable': [],
+        'data': {
+            'kv': {
+                'id': '10539580',
+                'title': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). '
+                               'Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & '
+                               'signature blend, breaded and seasoned to perfection, then deep-fried until '
+                               'deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'facebook_product_category': 'Food and drink > Chicken Meal',
+                'availability': 'in stock'
+            },
+            'meta': {
+                'id': '10539580',
+                'name': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). '
+                               'Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & '
+                               'signature blend, breaded and seasoned to perfection, then deep-fried until '
+                               'deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'availability': 'in stock',
+                'image_url': 'https://picsum.photos/id/237/200/300',
+                'url': 'https://www.kairon.com/',
+                'brand': 'Test Restaurant',
+                'condition': 'new'
+            }
+        },
+        'user': 'integration@demo.ai',
+        'status': True
+    }
+
+    CollectionData(
+        collection_name=document['collection_name'],
+        is_secure=document['is_secure'],
+        is_non_editable=document['is_non_editable'],
+        data=document['data'],
+        user=document['user'],
+        bot=pytest.bot,
+        status=document['status']
+    ).save()
+
     for secret in secrets:
         LLMSecret(**secret).save()
 
@@ -5304,9 +5379,6 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     ]
 
     assert all(item in catalog_item_summaries for item in expected_items)
-
-    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
-    assert cognition_data_docs.count() == 0
 
     CatalogProviderMapping.objects(provider="petpooja").delete()
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
@@ -6620,7 +6692,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     )
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
-    assert latest_log.sync_status == "Completed"
+    assert latest_log.sync_status == "Failed"
     assert latest_log.status == "Failure"
 
     assert latest_log.validation_errors is not None
@@ -7222,7 +7294,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
+    assert latest_log.sync_status == "Failed"
     assert latest_log.status == "Failure"
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Validation Failed. Check logs"
@@ -7230,16 +7302,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
     catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
-    catalog_item_summaries = [
-        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
-        for doc in catalog_data_docs
-    ]
-
-    expected_items = [
-        {"id": "10539634", "price": 8700.0},
-        {"id": "10539699", "price": 3426.0},
-        {"id": "10539580", "price": 3159.0},
-    ]
+    assert catalog_data_docs.count() == 0
 
     assert all(item in catalog_item_summaries for item in expected_items)
 
