@@ -1494,6 +1494,50 @@ def test_get_crud_metadata():
         }
 
 
+def test_get_crud_metadata_with_object_error():
+    import numpy as np
+
+    data1 = {
+        "mobile_number": "919876543210",
+        "name": "Mahesh",
+        "aadhar": "29383989838930",
+        "pan": "JJ928392JH",
+        "pincode": 538494
+    }
+
+    data2 = {
+        "mobile_number": 919876543210,
+        "name": "Mahesh",
+        "aadhar": 29383989838930,
+        "pan": "JJ928392JH",
+        "pincode": 538494
+    }
+    data2["mobile_number"] = np.int64(data2["mobile_number"])
+    data2["aadhar"] = np.int64(data2["aadhar"])
+    mock_doc1 = MagicMock()
+    mock_doc1.data = data1
+
+    mock_doc2 = MagicMock()
+    mock_doc2.data = data2
+
+    mock_queryset = [mock_doc1, mock_doc2]
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            '$schema': 'http://json-schema.org/schema#',
+            'type': 'object',
+            'properties': {
+                'mobile_number': {'type': 'string'},
+                'name': {'type': 'string'},
+                'aadhar': {'type': 'string'},
+                'pan': {'type': 'string'},
+                'pincode': {'type': 'integer'}
+            },
+            'required': ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
+        }
+
+
 def test_get_crud_metadata_with_no_data():
     data1 = {
         "collection_name": "testing_crud_api",
