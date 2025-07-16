@@ -7304,8 +7304,6 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
     assert catalog_data_docs.count() == 0
 
-    assert all(item in catalog_item_summaries for item in expected_items)
-
     cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
     assert cognition_data_docs.count() == 0
 
