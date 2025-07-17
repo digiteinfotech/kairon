@@ -14764,7 +14764,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                          'stories': {'count': 16, 'data': []},
                                          'training_examples': {'count': 192, 'data': []},
-                                         'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
+                                         'domain': {'intents_count': 15, 'actions_count': 23, 'slots_count': 10,
                                                     'utterances_count': 14, 'forms_count': 2, 'entities_count': 8,
                                                     'data': []},
                                          'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
@@ -14818,7 +14818,7 @@ def test_get_data_importer_logs():
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
     assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 11,
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 28, 'actions_count': 41, 'slots_count': 11,
                                                    'utterances_count': 27, 'forms_count': 2, 'entities_count': 9,
                                                    'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
@@ -15201,7 +15201,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -15214,7 +15214,7 @@ def test_get_all_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -18655,7 +18655,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 8
+    assert len(actual["data"]) == 4
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -29478,11 +29478,7 @@ def test_set_templates_with_sysadmin_as_user():
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
         {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False}
     ]
 
     training_examples = TrainingExamples.objects(bot=pytest.bot)
@@ -29615,11 +29611,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
         {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False}
     ]
 
     responses = Responses.objects(bot=bot_id)
