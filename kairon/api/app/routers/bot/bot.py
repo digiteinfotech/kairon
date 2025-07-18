@@ -36,7 +36,7 @@ from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
-    AuditlogActions
+    AuditlogActions, LogTypeEnum
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -670,6 +670,25 @@ async def test_model(
     event.validate()
     event.enqueue()
     return {"message": "Testing in progress! Check logs."}
+
+
+@router.get("/logs/{log_type}", response_model=Response)
+async def fetch_logs(
+    log_type: LogTypeEnum,
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Unified logs fetch endpoint.
+    """
+    query_params = mongo_processor.prepare_log_query_params(request, current_user.bot_account)
+
+    logs, row_cnt = mongo_processor.get_logs_for_any_type(
+        current_user.get_bot(),
+        log_type=log_type,
+        **query_params
+    )
+    return Response(data={"logs": logs, "total": row_cnt})
 
 
 @router.get("/logs/test", response_model=Response)

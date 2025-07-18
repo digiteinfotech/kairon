@@ -262,6 +262,20 @@ class AuditlogActions(str, Enum):
     ACTIVITY = "activity"
     DOWNLOAD = "download"
 
+class LogTypeEnum(str, Enum):
+    content = "content"
+    importer = "importer"
+    history_deletion = "history_deletion"
+    multilingual = "multilingual"
+    catalog = "catalog"
+    custom_widget = "custom_widget"
+    mail_channel = "mail_channel"
+    callback = "callback"
+    llm = "llm"
+    actions = "actions"
+    executor = "executor"
+    agent_handoff = "agent_handoff"
+    audit = "audit"
 
 class LogType(str, Enum):
     multilingual = "multilingual"
