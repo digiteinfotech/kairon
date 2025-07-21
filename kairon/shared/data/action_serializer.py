@@ -176,7 +176,7 @@ class ActionSerializer:
                 is_data_invalid = True
                 continue
 
-            if action_type == "live_agent_action":
+            if action_type == ActionType.live_agent_action.value:
                 if live_agent_error_list := DataValidation.validate_live_agent_action(bot):
                     error_summary[action_type].extend(live_agent_error_list)
                     is_data_invalid = True
