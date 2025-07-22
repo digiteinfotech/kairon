@@ -33814,7 +33814,7 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response = client.get(
-        f"/api/bot/{pytest.bot}/logs/audit/{from_date}/{to_date}?start_idx=0&page_size=100",
+        f"/api/bot/{pytest.bot}/logs/audit?from_date={from_date}&to_date={to_date}&start_idx=0&page_size=100",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
