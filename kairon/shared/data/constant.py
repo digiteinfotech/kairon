@@ -276,6 +276,7 @@ class LogTypeEnum(str, Enum):
     executor = "executor"
     agent_handoff = "agent_handoff"
     audit = "audit"
+    model_test = "model_test"
 
 class LogType(str, Enum):
     multilingual = "multilingual"

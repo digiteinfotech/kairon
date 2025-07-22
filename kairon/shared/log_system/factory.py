@@ -5,6 +5,7 @@ from kairon.shared.log_system.handlers.default_log_handler import DefaultLogHand
 from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogHandler
 from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
 from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
+from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
 
 
 class LogHandlerFactory:
@@ -15,6 +16,7 @@ class LogHandlerFactory:
         "executor": ExecutorLogHandler,
         "agent_handoff": AgentHandoffLogHandler,
         "audit": AuditLogHandler,
+        "model_test": ModelTestingHandler
     }
 
     @staticmethod
