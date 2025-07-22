@@ -5,7 +5,6 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType
 import ast
 
-from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import encrypt_secret
 from kairon.shared.data.constant import DEFAULT_LLM
 
@@ -81,14 +80,6 @@ class DataValidation:
                 data_error.append(f"Payload {idx} must contain fields 'query_type' and 'type'!")
             if item.get('query_type') not in [qtype.value for qtype in DbActionOperationType]:
                 data_error.append(f"Unknown query_type found: {item['query_type']} in payload {idx}")
-        return data_error
-
-    @staticmethod
-    def validate_live_agent_action(bot: str):
-        data_error = []
-        bot_settings = ActionUtility.get_bot_settings(bot=bot)
-        if not bot_settings['live_agent_enabled']:
-            data_error.append("Please Enable Live Agent for the bot before uploading")
         return data_error
 
     @staticmethod

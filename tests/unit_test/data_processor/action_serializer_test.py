@@ -453,7 +453,9 @@ def test_validate_prompt_action():
 
     LLMSecret.objects.delete()
 
-def test_live_agent_action_validation_fail():
+@patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.is_live_agent_service_available')
+def test_live_agent_action_validation_fail(mock_live_agent_check):
+    mock_live_agent_check.return_value = False
     bot = "test_bot"
     actions = {
         "live_agent_action": [{
@@ -462,18 +464,14 @@ def test_live_agent_action_validation_fail():
     "name": "live_agent_action"}]
     }
     other_collections = {}
+    val = ActionSerializer.validate(bot, actions, other_collections)
 
-    # Test when live agent is disabled (should return validation error)
-    with patch("kairon.shared.actions.utils.ActionUtility.get_bot_settings") as mock_get_settings:
-        mock_get_settings.return_value = {"live_agent_enabled": False}
+    assert not val[0]
+    assert val[1]["live_agent_action"] == ["Please Enable Live Agent for bot before uploading"]
 
-        val = ActionSerializer.validate(bot, actions, other_collections)
-
-        assert not val[0]
-        assert val[1]["live_agent_action"] == ["Please Enable Live Agent for the bot before uploading"]
-        assert val[2]["live_agent_action"] == 1
-
-def test_live_agent_action_validation_pass():
+@patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.is_live_agent_service_available')
+def test_live_agent_action_validation_pass(mock_live_agent_check):
+    mock_live_agent_check.return_value = True
     bot = "test_bot"
     actions = {
         "live_agent_action": [{"bot": "test_bot",
@@ -481,15 +479,10 @@ def test_live_agent_action_validation_pass():
     "name": "live_agent_action"}]
     }
     other_collections = {}
+    val = ActionSerializer.validate(bot, actions, other_collections)
 
-    with patch("kairon.shared.actions.utils.ActionUtility.get_bot_settings") as mock_get_settings:
-        mock_get_settings.return_value = {"live_agent_enabled": True}
-
-        val = ActionSerializer.validate(bot, actions, other_collections)
-
-        assert val[0]
-        assert val[1]["live_agent_action"] == []
-        assert val[2]["live_agent_action"] == 1
+    assert val[0]
+    assert not val[1]["live_agent_action"]
 
 def test_action_serializer_validate():
     bot = "my_test_bot"
