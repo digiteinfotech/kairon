@@ -1,4 +1,3 @@
-from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHandler
 from kairon.shared.log_system.handlers.audit_logs_handler import AuditLogHandler
 from kairon.shared.log_system.handlers.callback_logs_handler import CallbackLogHandler
