@@ -14,6 +14,7 @@ from kairon.shared.llm.data_objects import LLMLogs
 from kairon.shared.log_system.factory import LogHandlerFactory
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.multilingual.data_objects import BotReplicationLogs
+from kairon.shared.test.data_objects import ModelTestingLogs
 
 
 class LogExecutor:
@@ -32,6 +33,7 @@ class LogExecutor:
         "agent_handoff": Metering,
         "audit": AuditLogData,
         "action_server_logs": ActionServerLogs,
+        "model_test": ModelTestingLogs
     }
 
     @staticmethod

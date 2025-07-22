@@ -17,7 +17,9 @@ from kairon.shared.log_system.handlers.default_log_handler import DefaultLogHand
 from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogHandler
 from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
 from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
+from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
 from kairon.shared.metering.data_object import Metering
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -40,6 +42,7 @@ common_kwargs = {"user": "test@user.com"}
         ("agent_handoff", AgentHandoffLogHandler),
         ("audit", AuditLogHandler),
         ("unknown_type", DefaultLogHandler),
+        ("model_test", ModelTestingHandler)
     ]
 )
 def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
@@ -58,7 +61,9 @@ def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
         ("executor", ExecutorLogHandler, ExecutorLogs),
         ("agent_handoff", AgentHandoffLogHandler, Metering),
         ("audit", AuditLogHandler, AuditLogData),
-        ("custom_widget", DefaultLogHandler, CustomWidgetsRequestLog)  # fallback default
+        ("custom_widget", DefaultLogHandler, CustomWidgetsRequestLog),
+        ("model_test", ModelTestingHandler, ModelTestingLogs)
+
     ]
 )
 def test_get_logs_with_mocked_handlers(log_type, expected_handler_class, doc_type):
