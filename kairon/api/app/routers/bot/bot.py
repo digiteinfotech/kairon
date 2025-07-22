@@ -671,6 +671,24 @@ async def test_model(
     event.enqueue()
     return {"message": "Testing in progress! Check logs."}
 
+
+@router.get("/logs/test", response_model=Response)
+async def model_testing_logs(
+        log_type: ModelTestType = None, reference_id: str = None,
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    List model testing logs.
+    """
+    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
+
+
 @router.get("/logs/{log_type}", response_model=Response)
 async def fetch_logs(
     log_type: LogTypeEnum,
@@ -689,22 +707,6 @@ async def fetch_logs(
     )
     return Response(data={"logs": logs, "total": row_cnt})
 
-
-@router.get("/logs/test", response_model=Response)
-async def model_testing_logs(
-        log_type: ModelTestType = None, reference_id: str = None,
-        start_idx: int = 0, page_size: int = 10,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
-):
-    """
-    List model testing logs.
-    """
-    logs, row_cnt = ModelTestingLogProcessor.get_logs(current_user.get_bot(), log_type, reference_id, start_idx, page_size)
-    data = {
-        "logs": logs,
-        "total": row_cnt
-    }
-    return Response(data=data)
 
 @router.get("/endpoint", response_model=Response)
 async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
