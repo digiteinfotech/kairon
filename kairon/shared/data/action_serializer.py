@@ -19,6 +19,7 @@ from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFall
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
 
 class ReconfigarableProperty(Enum):
@@ -175,6 +176,10 @@ class ActionSerializer:
                 error_summary[action_type] = [f"Invalid action type: {action_type}."]
                 is_data_invalid = True
                 continue
+
+            if action_type == ActionType.live_agent_action.value and not LiveAgentHandler.is_live_agent_service_available(bot):
+                    error_summary[action_type].append("Please Enable Live Agent for bot before uploading")
+                    is_data_invalid = True
 
             if not isinstance(actions_list, list):
                 error_summary[action_type] = [f"Expected list of actions for {action_type}."]

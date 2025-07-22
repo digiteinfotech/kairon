@@ -453,6 +453,37 @@ def test_validate_prompt_action():
 
     LLMSecret.objects.delete()
 
+@patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.is_live_agent_service_available')
+def test_live_agent_action_validation_fail(mock_live_agent_check):
+    mock_live_agent_check.return_value = False
+    bot = "test_bot"
+    actions = {
+        "live_agent_action": [{
+    "bot": "test_bot",
+    "user": "aniket.kharkia@nimblework.com",
+    "name": "live_agent_action"}]
+    }
+    other_collections = {}
+    val = ActionSerializer.validate(bot, actions, other_collections)
+
+    assert not val[0]
+    assert val[1]["live_agent_action"] == ["Please Enable Live Agent for bot before uploading"]
+
+@patch('kairon.shared.live_agent.live_agent.LiveAgentHandler.is_live_agent_service_available')
+def test_live_agent_action_validation_pass(mock_live_agent_check):
+    mock_live_agent_check.return_value = True
+    bot = "test_bot"
+    actions = {
+        "live_agent_action": [{"bot": "test_bot",
+    "user": "aniket.kharkia@nimblework.com",
+    "name": "live_agent_action"}]
+    }
+    other_collections = {}
+    val = ActionSerializer.validate(bot, actions, other_collections)
+
+    assert val[0]
+    assert not val[1]["live_agent_action"]
+
 def test_action_serializer_validate():
     bot = "my_test_bot"
 
