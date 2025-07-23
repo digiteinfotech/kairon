@@ -30,33 +30,38 @@ class BaseLogHandler(ABC):
     def get_logs_and_count(self):
         pass
 
-    DOC_TYPE_MAPPING = {
-            "content": ContentValidationLogs,
-            "importer": ValidationLogs,
-            "history_deletion": ConversationsHistoryDeleteLogs,
-            "multilingual": BotReplicationLogs,
-            "catalog": CatalogSyncLogs,
-            "custom_widget": CustomWidgetsRequestLog,
-            "mail_channel": MailResponseLog,
-            "callback_logs": CallbackLog,
-            "llm": LLMLogs,
-            "actions": ActionServerLogs,
-            "executor": ExecutorLogs,
-            "agent_handoff": Metering,
-            "audit": AuditLogData,
-            "model_test": ModelTestingLogs
-        }
+    __doc_type_mapping = {
+        "content": ContentValidationLogs,
+        "importer": ValidationLogs,
+        "history_deletion": ConversationsHistoryDeleteLogs,
+        "multilingual": BotReplicationLogs,
+        "catalog": CatalogSyncLogs,
+        "custom_widget": CustomWidgetsRequestLog,
+        "mail_channel": MailResponseLog,
+        "callback_logs": CallbackLog,
+        "llm": LLMLogs,
+        "actions": ActionServerLogs,
+        "executor": ExecutorLogs,
+        "agent_handoff": Metering,
+        "audit": AuditLogData,
+        "model_test": ModelTestingLogs
+    }
+
+    @classmethod
+    def _get_doc_type(cls, log_type: str):
+        return cls.__doc_type_mapping.get(log_type)
 
     @staticmethod
-    def get_logs(bot, log_type, start_idx=0, page_size=10, **kwargs):
+    def get_logs(bot, log_type: str, start_idx: int = 0, page_size: int = 10, **kwargs):
         from kairon.shared.log_system.factory import LogHandlerFactory
-        if log_type not in BaseLogHandler.DOC_TYPE_MAPPING:
+
+        doc_type = BaseLogHandler._get_doc_type(log_type)
+        if not doc_type:
             return [], 0
-        doc_type = BaseLogHandler.DOC_TYPE_MAPPING[log_type]
+
         handler = LogHandlerFactory.get_handler(log_type, doc_type, bot, start_idx, page_size, **kwargs)
         return handler.get_logs_and_count()
 
     @staticmethod
-    def get_logs_count(document: Document, **kwargs):
+    def get_logs_count(document: Document, **kwargs) -> int:
         return document.objects(**kwargs).count()
-

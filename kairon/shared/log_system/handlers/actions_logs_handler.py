@@ -2,8 +2,6 @@ import json
 
 from kairon.shared.log_system.base import BaseLogHandler
 
-
-
 class ActionLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
         query = {"bot": self.bot, "trigger_info.trigger_id": ""}
