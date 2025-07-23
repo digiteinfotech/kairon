@@ -9584,7 +9584,6 @@ def test_callback_get_logs():
         url=f"/api/bot/{pytest.bot}/action/callback_logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     actual = response.json()
 
     assert actual['success']
@@ -9592,6 +9591,18 @@ def test_callback_get_logs():
     assert isinstance(actual['data']['logs'], list)
     assert len(actual['data']['logs']) == 1
     assert actual['data']['total_number_of_pages'] == 1
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/callback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data']['logs'], list)
+    assert len(actual['data']['logs']) == 1
 
 
 def test_callback_action_delete():
@@ -18453,6 +18464,15 @@ def test_get_model_testing_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
 
+def test_get_model_testing_logs_new():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/model_test?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["success"]
 
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)

@@ -11,8 +11,8 @@ from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTe
 class LogHandlerFactory:
     handler_map = {
         "llm": LLMLogHandler,
-        "action_server_logs": ActionLogHandler,
-        "callback_logs": CallbackLogHandler,
+        "actions": ActionLogHandler,
+        "callback": CallbackLogHandler,
         "executor": ExecutorLogHandler,
         "agent_handoff": AgentHandoffLogHandler,
         "audit": AuditLogHandler,

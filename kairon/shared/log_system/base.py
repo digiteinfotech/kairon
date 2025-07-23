@@ -38,7 +38,7 @@ class BaseLogHandler(ABC):
         "catalog": CatalogSyncLogs,
         "custom_widget": CustomWidgetsRequestLog,
         "mail_channel": MailResponseLog,
-        "callback_logs": CallbackLog,
+        "callback": CallbackLog,
         "llm": LLMLogs,
         "actions": ActionServerLogs,
         "executor": ExecutorLogs,

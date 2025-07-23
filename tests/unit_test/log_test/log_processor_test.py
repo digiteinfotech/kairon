@@ -36,8 +36,8 @@ common_kwargs = {"user": "test@user.com"}
     "log_type, expected_class",
     [
         ("llm", LLMLogHandler),
-        ("action_server_logs", ActionLogHandler),
-        ("callback_logs", CallbackLogHandler),
+        ("actions", ActionLogHandler),
+        ("callback", CallbackLogHandler),
         ("executor", ExecutorLogHandler),
         ("agent_handoff", AgentHandoffLogHandler),
         ("audit", AuditLogHandler),
@@ -57,7 +57,7 @@ def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
     [
         ("llm", LLMLogHandler, LLMLogs),
         ("actions", ActionLogHandler, ActionServerLogs),
-        ("callback_logs", CallbackLogHandler, CallbackLog),
+        ("callback", CallbackLogHandler, CallbackLog),
         ("executor", ExecutorLogHandler, ExecutorLogs),
         ("agent_handoff", AgentHandoffLogHandler, Metering),
         ("audit", AuditLogHandler, AuditLogData),
