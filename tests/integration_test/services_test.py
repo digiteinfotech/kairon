@@ -3271,7 +3271,14 @@ def test_upload_doc_content():
         f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/content?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     logs = actual['data']['logs']
@@ -4455,6 +4462,10 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
 def test_get_catalog_sync_logs():
     response = client.get(
         f"/api/bot/{pytest.bot}/catalog/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/catalog?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -7467,6 +7478,10 @@ def test_upload_with_bot_content_valifdate_payload_data():
         f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/importer?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -7937,6 +7952,10 @@ def test_get_executor_logs(get_executor_logs):
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Callback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/executor?task_type=Callback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -8030,6 +8049,10 @@ def test_get_executor_logs(get_executor_logs):
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Event&event_class=model_training",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/executor?task_type=Event&event_class=model_training",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -9561,7 +9584,6 @@ def test_callback_get_logs():
         url=f"/api/bot/{pytest.bot}/action/callback_logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     actual = response.json()
 
     assert actual['success']
@@ -9569,6 +9591,18 @@ def test_callback_get_logs():
     assert isinstance(actual['data']['logs'], list)
     assert len(actual['data']['logs']) == 1
     assert actual['data']['total_number_of_pages'] == 1
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/callback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data']['logs'], list)
+    assert len(actual['data']['logs']) == 1
 
 
 def test_callback_action_delete():
@@ -18430,6 +18464,15 @@ def test_get_model_testing_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
 
+def test_get_model_testing_logs_new():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/model_test?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["success"]
 
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)
@@ -22851,6 +22894,11 @@ def test_list_action_server_logs():
         f"/api/bot/{pytest.bot}/actions/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
 
     actual = response.json()
     assert actual["error_code"] == 0
@@ -22872,6 +22920,10 @@ def test_list_action_server_logs():
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=15",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions?start_idx=0&page_size=15",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -33596,6 +33648,10 @@ def test_multilingual_translate_logs():
         url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/multilingual?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
 
     assert actual["success"]
@@ -33758,6 +33814,7 @@ def test_get_auditlog_for_user_1():
                              + login["data"]["access_token"]
         },
     )
+
     actual = response.json()
 
     assert actual["data"] is not None
@@ -33774,6 +33831,10 @@ def test_get_auditlog_for_bot():
     to_date = datetime.utcnow().date() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/auditlog/data/{from_date}/{to_date}?start_idx=0&page_size=100",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/audit?from_date={from_date}&to_date={to_date}&start_idx=0&page_size=100",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -34020,6 +34081,10 @@ def test_get_llm_logs():
 
     response = client.get(
         f"/api/bot/{pytest.bot}/llm/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
