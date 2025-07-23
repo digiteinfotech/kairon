@@ -175,7 +175,7 @@ from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
-from ..log_system.executor import LogExecutor
+from ..log_system.base import BaseLogHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -9240,7 +9240,7 @@ class MongoProcessor:
             page_size: int = 10,
             **kwargs):
 
-        return LogExecutor.get_logs(
+        return BaseLogHandler.get_logs(
             bot=bot,
             log_type=log_type,
             start_idx=start_idx,

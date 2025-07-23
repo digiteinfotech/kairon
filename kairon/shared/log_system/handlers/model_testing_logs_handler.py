@@ -5,8 +5,6 @@ from ...test.data_objects import ModelTestingLogs
 
 class ModelTestingHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from kairon.shared.log_system.executor import LogExecutor
-
         logs = list(ModelTestingLogs.objects(bot=self.bot).aggregate([
             {"$set": {"data.type": "$type"}},
             {'$group': {'_id': '$reference_id', 'bot': {'$first': '$bot'}, 'user': {'$first': '$user'},
@@ -25,5 +23,5 @@ class ModelTestingHandler(BaseLogHandler):
             {"$sort": {"start_timestamp": -1}}]))[self.start_idx:self.start_idx + self.page_size]
         query={"bot": self.bot,
                "type": "common"}
-        count = LogExecutor.get_logs_count(self.doc_type, **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count

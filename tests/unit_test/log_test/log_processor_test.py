@@ -8,8 +8,8 @@ from kairon.shared.custom_widgets.data_objects import CustomWidgetsRequestLog
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.events.data_objects import ExecutorLogs
 from kairon.shared.llm.data_objects import LLMLogs
+from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.log_system.factory import LogHandlerFactory
-from kairon.shared.log_system.executor import LogExecutor
 from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHandler
 from kairon.shared.log_system.handlers.audit_logs_handler import AuditLogHandler
 from kairon.shared.log_system.handlers.callback_logs_handler import CallbackLogHandler
@@ -56,7 +56,7 @@ def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
     "log_type, expected_handler_class, doc_type",
     [
         ("llm", LLMLogHandler, LLMLogs),
-        ("action_server_logs", ActionLogHandler, ActionServerLogs),
+        ("actions", ActionLogHandler, ActionServerLogs),
         ("callback_logs", CallbackLogHandler, CallbackLog),
         ("executor", ExecutorLogHandler, ExecutorLogs),
         ("agent_handoff", AgentHandoffLogHandler, Metering),
@@ -73,8 +73,8 @@ def test_get_logs_with_mocked_handlers(log_type, expected_handler_class, doc_typ
     mock_handler = MagicMock()
     mock_handler.get_logs_and_count.return_value = (dummy_logs, dummy_count)
 
-    with patch("kairon.shared.log_system.executor.LogHandlerFactory.get_handler", return_value=mock_handler) as mocked_get_handler:
-        logs, count = LogExecutor.get_logs(bot="test_bot", log_type=log_type, start_idx=0, page_size=10)
+    with patch("kairon.shared.log_system.factory.LogHandlerFactory.get_handler", return_value=mock_handler) as mocked_get_handler:
+        logs, count = BaseLogHandler.get_logs(bot="test_bot", log_type=log_type, start_idx=0, page_size=10)
 
         assert logs == dummy_logs
         assert count == dummy_count
