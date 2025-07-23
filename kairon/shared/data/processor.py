@@ -8,7 +8,7 @@ import os
 import uuid
 from collections import ChainMap
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from pathlib import Path
 from typing import Text, Dict, List, Any, Optional
 from urllib.parse import urljoin
@@ -136,7 +136,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME,
+    DEMO_REQUEST_STATUS, RE_VALID_NAME
 )
 from .data_objects import (
     Responses,
@@ -175,6 +175,7 @@ from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
+from ..log_system.base import BaseLogHandler
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -9214,3 +9215,35 @@ class MongoProcessor:
                 log["_id"] = str(log["_id"])
 
         return logs
+
+    @staticmethod
+    def prepare_log_query_params(request, bot_account: str) -> Dict[str, Any]:
+        raw_params = dict(request.query_params)
+        query_params = {}
+
+        for key, value in raw_params.items():
+            if key in {"start_idx", "page_size"}:
+                query_params[key] = int(value)
+            elif key in {"from_date", "to_date"}:
+                query_params[key] = date.fromisoformat(value)
+            else:
+                query_params[key] = value
+
+        query_params["bot_account"] = bot_account
+        return query_params
+
+    @staticmethod
+    def get_logs_for_any_type(
+            bot: Text,
+            log_type: str,
+            start_idx: int = 0,
+            page_size: int = 10,
+            **kwargs):
+
+        return BaseLogHandler.get_logs(
+            bot=bot,
+            log_type=log_type,
+            start_idx=start_idx,
+            page_size=page_size,
+            **kwargs
+        )
