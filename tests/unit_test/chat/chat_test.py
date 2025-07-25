@@ -1077,7 +1077,16 @@ async def test_handle_user_message_disallowed(monkeypatch):
     }
     from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
     messenger = Messenger(page_access_token="dummy_token", is_instagram=True)
-    messenger.post_config = {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": "offer,discount",
+            "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+        },
+        '17859719991451973': {
+            "keywords": "hi,price",
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
     messenger.client = DummyClient()
 
     async def fake_get_username_for_id(self, sender_id):

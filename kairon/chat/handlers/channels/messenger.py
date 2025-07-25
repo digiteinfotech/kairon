@@ -171,6 +171,7 @@ class Messenger:
             comment_id = message["value"]["id"]
             user = message["value"]["from"]["username"]
             metadata["comment_id"] = comment_id
+            metadata["user"] = user
             if static_comment_reply:
                 metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
             if media := message["value"].get("media"):
@@ -185,12 +186,14 @@ class Messenger:
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = MessengerBot(self.client)
-        if self.is_instagram:
-            media_id = metadata.get('media_id')
-            if media_id in self.post_config:
-                keywords = Utility.string_to_list(self.post_config.get(media_id, []))
-                if text.lower() not in [word.lower() for word in keywords]:
-                    return
+        media_id = metadata.get("media_id")
+        media_post_config = self.post_config.get(media_id, {})
+        keywords_str = media_post_config.get("keywords", "")
+        keywords = Utility.string_to_list(keywords_str)
+
+        if self.is_instagram and media_id in self.post_config:
+            if text.lower() not in [word.lower() for word in keywords]:
+                return
 
         await out_channel.send_action(sender_id, sender_action="mark_seen")
         input_channel_name = self.name() if not self.is_instagram else "instagram"
@@ -198,6 +201,11 @@ class Messenger:
             text, out_channel, sender_id, input_channel=input_channel_name, metadata=metadata
         )
         await out_channel.send_action(sender_id, sender_action="typing_on")
+
+        user = metadata.get("user")
+        comment_reply = media_post_config.get("comment_reply", "")
+        comment_reply = f"@{user} {comment_reply}" if comment_reply else comment_reply
+        metadata['static_comment_reply'] = comment_reply or metadata.get('static_comment_reply')
 
         if metadata.get("comment_id") and metadata.get('static_comment_reply'):
             await out_channel.reply_on_comment(**metadata)

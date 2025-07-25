@@ -273,7 +273,20 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                            "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
                                            "verify_token": "kairon-instagram-token",
                                            "is_dev": True,
-                                           "post_config": {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
+                                           "post_config": {
+                                                '17859719991451845': {
+                                                    "keywords": "offer,discount",
+                                                    "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+                                                },
+                                                '17859719991451973': {
+                                                    "keywords": "hi,price",
+                                                    "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+                                                },
+                                                '17859719991451321': {
+                                                    "keywords": "hello,offer"
+                                                }
+                                            },
+                                           # "post_config": {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
                                        }
                                        },
                                       bot, user="test@chat.com")
@@ -820,6 +833,62 @@ def test_chat():
             )
             > 0
     )
+
+
+@responses.activate
+def test_instagram_comment_with_post_specific_reply():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    message = "@kairon_user_123 Hi there! Yes, we offer the best prices on premium quality shoes!"
+    access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
+    responses.add(
+        "POST",
+        f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}",
+        json={}
+    )
+    responses.add(
+        "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
+    )
+
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "kairon_user_123"
+                                        },
+                                        "media": {
+                                            "id": "17859719991451973",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+            time.sleep(5)
+
+            actual = response.json()
+            print(f"Actual response for instagram is {actual}")
+            assert actual == 'success'
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                      channel_type="instagram") > 0
 
 
 def test_chat_verification():
@@ -3936,7 +4005,7 @@ def test_instagram_comment():
                                             "username": "kairon_user_123"
                                         },
                                         "media": {
-                                            "id": "17859719991451973",
+                                            "id": "17859719991451321",
                                             "media_product_type": "REELS"
                                         },
                                         "id": "18009764417219041",
