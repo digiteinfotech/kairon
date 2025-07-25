@@ -1077,7 +1077,7 @@ async def test_handle_user_message_disallowed(monkeypatch):
     }
     from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
     messenger = Messenger(page_access_token="dummy_token", is_instagram=True)
-    messenger.allowed_users = ["allowed_user"]
+    messenger.post_config = {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
     messenger.client = DummyClient()
 
     async def fake_get_username_for_id(self, sender_id):
@@ -1093,12 +1093,159 @@ async def test_handle_user_message_disallowed(monkeypatch):
 
     monkeypatch.setattr(Messenger, "process_message", fake_process_message)
 
-    await messenger._handle_user_message("test text", "sender1", {}, "testbot")
+    await messenger._handle_user_message("test text", "sender1", {"media_id": "17859719991451845"}, "testbot")
 
     assert not process_called
     del Utility.environment['model']
 
 
+@pytest.mark.asyncio
+async def test_get_page_details():
+    from kairon.chat.handlers.channels.messenger import MessengerBot
+
+    mocked_response_data = {
+        "id": "123456789",
+        "name": "Test Page"
+    }
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+
+    messenger = MessengerBot(mock_client)
+    messenger.messenger_client = mock_client
+
+    result = await messenger.get_page_details()
+
+    assert result == {
+        "id": "123456789",
+        "name": "Test Page"
+    }
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/me/?fields=id,name&access_token=dummy-token"
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_user_account_details_from_page(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import MessengerBot
+
+    mocked_response_data = {
+        "instagram_business_account": {
+            "id": "17841457391083123"
+        },
+        "id": "405157032689111"
+    }
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+
+    messenger = MessengerBot(mock_client)
+    messenger.messenger_client = mock_client
+
+    async def fake_get_page_details(self) -> dict:
+        return {"id": "123456789", "name": "Test Page"}
+
+    monkeypatch.setattr(MessengerBot, "get_page_details", fake_get_page_details)
+
+    result = await messenger.get_user_account_details_from_page()
+    print(result)
+    assert result == {
+        'instagram_business_account': {
+            'id': '17841457391083123'
+        },
+        'id': '405157032689111'
+    }
+
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/123456789/?fields=instagram_business_account&access_token=dummy-token"
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_user_media_posts(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import MessengerBot
+
+    mocked_response_data = [
+        {
+            "id": "17859719991451973",
+            "ig_id": "3682168664448337756",
+            "media_product_type": "FEED",
+            "media_type": "IMAGE",
+            "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+            "timestamp": "2025-07-22T07:18:52+0000",
+            "username": "maheshsv17",
+            "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+            "caption": "TEST",
+            "like_count": 0,
+            "comments_count": 0
+        }
+    ]
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+
+    messenger = MessengerBot(mock_client)
+    messenger.messenger_client = mock_client
+
+    async def fake_get_user_account_details_from_page(self) -> dict:
+        return {
+            'instagram_business_account': {
+                'id': '17841457391083123'
+            },
+            'id': '405157032689111'
+        }
+
+    monkeypatch.setattr(MessengerBot,
+                        "get_user_account_details_from_page",
+                        fake_get_user_account_details_from_page)
+
+    result = await messenger.get_user_media_posts()
+    print(result)
+    assert result == [
+        {
+            "id": "17859719991451973",
+            "ig_id": "3682168664448337756",
+            "media_product_type": "FEED",
+            "media_type": "IMAGE",
+            "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+            "timestamp": "2025-07-22T07:18:52+0000",
+            "username": "maheshsv17",
+            "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+            "caption": "TEST",
+            "like_count": 0,
+            "comments_count": 0
+        }
+    ]
+
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/17841457391083123/media/?fields=id,ig_id,media_product_type,media_type,"
+        "media_url,thumbnail_url,timestamp,username,permalink,caption,like_count,comments_count"
+        "&access_token=dummy-token"
+    )
 
 
 @pytest.mark.asyncio
@@ -1136,10 +1283,8 @@ async def test_get_username_for_id(monkeypatch):
     assert username == "testuser"
 
 
-
-
 @pytest.mark.asyncio
-async def test_allowed_users_set_in_dev(monkeypatch):
+async def test_post_config_set_in_dev(monkeypatch):
     class DummyRequest:
         def __init__(self):
             self.headers = {"X-Hub-Signature": "dummy_signature"}
@@ -1168,7 +1313,7 @@ async def test_allowed_users_set_in_dev(monkeypatch):
     dummy_config = {
         "config": {
             "is_dev": True,
-            "allowed_users": "user1,user2",
+            "post_config": {"17859719991451973": "hi,price", "17859719991451845": "offer,discount"},
             "app_secret": "dummy_secret",
             "page_access_token": "dummy_page_token",
             "verify_token": "dummy_verify_token",
@@ -1214,9 +1359,7 @@ async def test_allowed_users_set_in_dev(monkeypatch):
     assert result == "success", "handle_message should return 'success'"
 
     assert captured_messenger is not None, "Messenger instance should be created"
-    assert captured_messenger.allowed_users == ["user1", "user2"], (
-        "allowed_users should be set to ['user1', 'user2']"
-    )
+    assert captured_messenger.post_config == {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
 
 
 @pytest.mark.asyncio

@@ -272,6 +272,8 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
                                            "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
                                            "verify_token": "kairon-instagram-token",
+                                           "is_dev": True,
+                                           "post_config": {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
                                        }
                                        },
                                       bot, user="test@chat.com")
@@ -3850,6 +3852,57 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
 
 
 @responses.activate
+def test_get_instagram_user_posts(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
+
+    access_token = chat_client_config["config"]["headers"]["authorization"][
+        "access_token"
+    ]
+    token_type = chat_client_config["config"]["headers"]["authorization"]["token_type"]
+
+    async def fake_get_user_media_posts(self):
+        return [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+    monkeypatch.setattr(MessengerBot, "get_user_media_posts", fake_get_user_media_posts)
+
+    response = client.get(
+        f"/api/bot/{bot}/user/posts",
+        headers={"Authorization": token_type + " " + token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual == [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+
+@responses.activate
 def test_instagram_comment():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
@@ -3883,7 +3936,7 @@ def test_instagram_comment():
                                             "username": "kairon_user_123"
                                         },
                                         "media": {
-                                            "id": "18013303267972611",
+                                            "id": "17859719991451973",
                                             "media_product_type": "REELS"
                                         },
                                         "id": "18009764417219041",
@@ -3935,7 +3988,7 @@ def test_instagram_comment_with_parent_comment():
                                             "username": "_hdg_photography"
                                         },
                                         "media": {
-                                            "id": "18013303267972611",
+                                            "id": "17859719991451973",
                                             "media_product_type": "REELS"
                                         },
                                         "id": "18009764417219042",
