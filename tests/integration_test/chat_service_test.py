@@ -3953,7 +3953,6 @@ def test_get_instagram_user_posts(monkeypatch):
         headers={"Authorization": token_type + " " + token},
     )
     actual = response.json()
-    print(actual)
     assert actual == [
             {
                 "id": "17859719991451973",
