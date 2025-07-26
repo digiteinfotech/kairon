@@ -206,6 +206,7 @@ class Messenger:
         comment_reply = media_post_config.get("comment_reply", "")
         comment_reply = f"@{user} {comment_reply}" if comment_reply else comment_reply
         metadata['static_comment_reply'] = comment_reply or metadata.get('static_comment_reply')
+        out_channel.metadata = metadata
 
         if metadata.get("comment_id") and metadata.get('static_comment_reply'):
             await out_channel.reply_on_comment(**metadata)
@@ -248,6 +249,14 @@ class MessengerBot(OutputChannel):
             self, recipient_id: Text, text: Text, **kwargs: Any
     ) -> None:
         """Send a message through this channel."""
+        comment_id = self.metadata.pop("comment_id")
+        bot = self.metadata.pop("bot")
+        user = self.metadata.pop("user")
+
+        if comment_id and not self.metadata.get("static_comment_reply"):
+            self.metadata['static_comment_reply'] = f"@{user} {text}"
+            await self.reply_on_comment(comment_id, bot, **self.metadata)
+            return
 
         for message_part in text.strip().split("\n\n"):
             self.send(recipient_id, FBText(text=message_part))
