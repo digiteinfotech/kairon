@@ -249,13 +249,10 @@ class MessengerBot(OutputChannel):
             self, recipient_id: Text, text: Text, **kwargs: Any
     ) -> None:
         """Send a message through this channel."""
-        comment_id = self.metadata.pop("comment_id")
-        bot = self.metadata.pop("bot")
-        user = self.metadata.pop("user")
 
-        if comment_id and not self.metadata.get("static_comment_reply"):
-            self.metadata['static_comment_reply'] = f"@{user} {text}"
-            await self.reply_on_comment(comment_id, bot, **self.metadata)
+        if self.metadata.get("comment_id") and not self.metadata.get("static_comment_reply"):
+            self.metadata['static_comment_reply'] = f"@{self.metadata.get('user')} {text}"
+            await self.reply_on_comment(**self.metadata)
             return
 
         for message_part in text.strip().split("\n\n"):

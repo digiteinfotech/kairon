@@ -1109,6 +1109,57 @@ async def test_handle_user_message_disallowed(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_send_text_message_with_specific_comment_reply():
+    from kairon.chat.handlers.channels.messenger import MessengerBot
+
+    metadata = {
+        "comment_id": "486906914341111",
+        "user": "mahesh_sattala",
+        "recipient_id": "486906914342222",
+        "text": "Comment Reply",
+        "static_comment_reply": None,
+        "bot": "48690691434bot"
+    }
+
+    mocked_response_data = {
+        "success": True,
+        "data": None,
+        "message": "Successfully sent comment reply",
+        "status": 200
+    }
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.post = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+
+    messenger = MessengerBot(mock_client)
+    messenger.messenger_client = mock_client
+    messenger.metadata = metadata
+    messenger.reply_on_comment = AsyncMock(return_value=None)
+
+    result = await messenger.send_text_message(**metadata)
+
+    assert result is None
+    messenger.reply_on_comment.assert_called_once_with(
+        **{
+            "comment_id": "486906914341111",
+            "user": "mahesh_sattala",
+            "recipient_id": "486906914342222",
+            "text": "Comment Reply",
+            "static_comment_reply": "@mahesh_sattala Comment Reply",
+            "bot": "48690691434bot"
+        }
+    )
+
+
+@pytest.mark.asyncio
 async def test_get_page_details():
     from kairon.chat.handlers.channels.messenger import MessengerBot
 
