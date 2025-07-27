@@ -11,6 +11,16 @@ from kairon.shared.models import User
 router = APIRouter()
 
 
+@router.get("/{bot}/user/posts")
+async def get_user_posts(
+        request: Request,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+    from kairon.chat.handlers.channels.messenger import InstagramHandler
+    handler = InstagramHandler(bot=current_user.get_bot(), user=current_user.get_user(), request=request)
+    return await handler.get_user_posts()
+
+
 @router.get("/{channel}/{bot}/{token}")
 async def handle_validation_request_for_channel(
         request: Request,
