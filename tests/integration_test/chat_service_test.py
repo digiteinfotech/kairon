@@ -283,7 +283,7 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                                     "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
                                                 },
                                                 '17859719991451321': {
-                                                    "keywords": "hello,offer"
+                                                    "keywords": ["hello", "offer"]
                                                 }
                                             },
                                        }
@@ -848,6 +848,10 @@ def test_instagram_comment_with_post_specific_reply():
     )
     responses.add(
         "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
+    )
+    responses.add(
+        "GET", f"https://graph.facebook.com/v2.12/6489091794524304?fields=username&access_token={access_token}",
+        json={"username": "kairon_user_123"}
     )
 
     with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
@@ -3921,7 +3925,7 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
 
 @responses.activate
 def test_get_instagram_user_posts(monkeypatch):
-    from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
 
     access_token = chat_client_config["config"]["headers"]["authorization"][
         "access_token"
@@ -3945,7 +3949,7 @@ def test_get_instagram_user_posts(monkeypatch):
             }
         ]
 
-    monkeypatch.setattr(MessengerBot, "get_user_media_posts", fake_get_user_media_posts)
+    monkeypatch.setattr(InstagramProcessor, "get_user_media_posts", fake_get_user_media_posts)
 
     response = client.get(
         f"/api/bot/{bot}/user/posts",

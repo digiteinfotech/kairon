@@ -16,9 +16,9 @@ async def get_user_posts(
         request: Request,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
-    from kairon.chat.handlers.channels.messenger import InstagramHandler
-    handler = InstagramHandler(bot=current_user.get_bot(), user=current_user.get_user(), request=request)
-    return await handler.get_user_posts()
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+    processor = InstagramProcessor(bot=current_user.get_bot(), user=current_user.get_user())
+    return await processor.get_user_media_posts()
 
 
 @router.get("/{channel}/{bot}/{token}")

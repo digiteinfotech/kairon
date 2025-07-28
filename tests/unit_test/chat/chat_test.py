@@ -1077,13 +1077,14 @@ async def test_handle_user_message_disallowed(monkeypatch):
     }
     from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
     messenger = Messenger(page_access_token="dummy_token", is_instagram=True)
+    messenger.allowed_users = ["allowed_user"]
     messenger.post_config = {
         '17859719991451845': {
-            "keywords": "offer,discount",
+            "keywords": ["offer", "discount"],
             "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
         },
         '17859719991451973': {
-            "keywords": "hi,price",
+            "keywords": ["hi", "price"],
             "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
         }
     }
@@ -1109,8 +1110,10 @@ async def test_handle_user_message_disallowed(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_get_page_details():
-    from kairon.chat.handlers.channels.messenger import MessengerBot
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+@patch("kairon.shared.channels.instagram.processor.MessengerClient")
+async def test_get_page_details(mock_messenger_client_cls, mock_get_config):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
 
     mocked_response_data = {
         "id": "123456789",
@@ -1121,30 +1124,37 @@ async def test_get_page_details():
     mock_response.json.return_value = mocked_response_data
 
     mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session.get.return_value = mock_response
 
     mock_client = MagicMock()
     mock_client.auth_args = {'access_token': 'dummy-token'}
     mock_client.graph_url = 'https://graph.facebook.com/v18.0'
     mock_client.session = mock_session
 
-    messenger = MessengerBot(mock_client)
-    messenger.messenger_client = mock_client
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
+    mock_messenger_client_cls.return_value = mock_client
 
-    result = await messenger.get_page_details()
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    result = await processor.get_page_details()
 
     assert result == {
         "id": "123456789",
         "name": "Test Page"
     }
+
     mock_session.get.assert_called_once_with(
         "https://graph.facebook.com/v18.0/me/?fields=id,name&access_token=dummy-token"
     )
 
 
 @pytest.mark.asyncio
-async def test_get_user_account_details_from_page(monkeypatch):
-    from kairon.chat.handlers.channels.messenger import MessengerBot
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+async def test_get_user_account_details_from_page_instagram(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
 
     mocked_response_data = {
         "instagram_business_account": {
@@ -1163,23 +1173,22 @@ async def test_get_user_account_details_from_page(monkeypatch):
     mock_client.auth_args = {'access_token': 'dummy-token'}
     mock_client.graph_url = 'https://graph.facebook.com/v18.0'
     mock_client.session = mock_session
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
 
-    messenger = MessengerBot(mock_client)
-    messenger.messenger_client = mock_client
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    processor.messenger_client = mock_client
 
     async def fake_get_page_details(self) -> dict:
         return {"id": "123456789", "name": "Test Page"}
 
-    monkeypatch.setattr(MessengerBot, "get_page_details", fake_get_page_details)
+    monkeypatch.setattr(InstagramProcessor, "get_page_details", fake_get_page_details)
 
-    result = await messenger.get_user_account_details_from_page()
-    print(result)
-    assert result == {
-        'instagram_business_account': {
-            'id': '17841457391083123'
-        },
-        'id': '405157032689111'
-    }
+    result = await processor.get_user_account_details_from_page()
+    assert result == mocked_response_data
 
     mock_session.get.assert_called_once_with(
         "https://graph.facebook.com/v18.0/123456789/?fields=instagram_business_account&access_token=dummy-token"
@@ -1187,8 +1196,9 @@ async def test_get_user_account_details_from_page(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_get_user_media_posts(monkeypatch):
-    from kairon.chat.handlers.channels.messenger import MessengerBot
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+async def test_get_user_media_posts_instagram(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
 
     mocked_response_data = [
         {
@@ -1196,7 +1206,7 @@ async def test_get_user_media_posts(monkeypatch):
             "ig_id": "3682168664448337756",
             "media_product_type": "FEED",
             "media_type": "IMAGE",
-            "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+            "media_url": "https://example.com/image.jpg",
             "timestamp": "2025-07-22T07:18:52+0000",
             "username": "maheshsv17",
             "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
@@ -1216,11 +1226,16 @@ async def test_get_user_media_posts(monkeypatch):
     mock_client.auth_args = {'access_token': 'dummy-token'}
     mock_client.graph_url = 'https://graph.facebook.com/v18.0'
     mock_client.session = mock_session
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
 
-    messenger = MessengerBot(mock_client)
-    messenger.messenger_client = mock_client
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    processor.messenger_client = mock_client
 
-    async def fake_get_user_account_details_from_page(self) -> dict:
+    async def fake_get_user_account_details_from_page(self):
         return {
             'instagram_business_account': {
                 'id': '17841457391083123'
@@ -1228,31 +1243,16 @@ async def test_get_user_media_posts(monkeypatch):
             'id': '405157032689111'
         }
 
-    monkeypatch.setattr(MessengerBot,
+    monkeypatch.setattr(InstagramProcessor,
                         "get_user_account_details_from_page",
                         fake_get_user_account_details_from_page)
 
-    result = await messenger.get_user_media_posts()
-    print(result)
-    assert result == [
-        {
-            "id": "17859719991451973",
-            "ig_id": "3682168664448337756",
-            "media_product_type": "FEED",
-            "media_type": "IMAGE",
-            "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
-            "timestamp": "2025-07-22T07:18:52+0000",
-            "username": "maheshsv17",
-            "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
-            "caption": "TEST",
-            "like_count": 0,
-            "comments_count": 0
-        }
-    ]
+    result = await processor.get_user_media_posts()
+    assert result == mocked_response_data
 
     mock_session.get.assert_called_once_with(
-        "https://graph.facebook.com/v18.0/17841457391083123/media/?fields=id,ig_id,media_product_type,media_type,"
-        "media_url,thumbnail_url,timestamp,username,permalink,caption,like_count,comments_count"
+        "https://graph.facebook.com/v18.0/17841457391083123/media/?fields=id,ig_id,media_product_type,"
+        "media_type,media_url,thumbnail_url,timestamp,username,permalink,caption,like_count,comments_count"
         "&access_token=dummy-token"
     )
 
@@ -1322,6 +1322,7 @@ async def test_post_config_set_in_dev(monkeypatch):
     dummy_config = {
         "config": {
             "is_dev": True,
+            "allowed_users": ["user1", "user2"],
             "post_config": {"17859719991451973": ["hi", "price"], "17859719991451845": ["offer", "discount"]},
             "app_secret": "dummy_secret",
             "page_access_token": "dummy_page_token",
@@ -1368,6 +1369,9 @@ async def test_post_config_set_in_dev(monkeypatch):
     assert result == "success", "handle_message should return 'success'"
 
     assert captured_messenger is not None, "Messenger instance should be created"
+    assert captured_messenger.allowed_users == ["user1", "user2"], (
+        "allowed_users should be set to ['user1', 'user2']"
+    )
     assert captured_messenger.post_config == {"17859719991451973": ["hi", "price"],
                                               "17859719991451845": ["offer", "discount"]}
 
@@ -1396,6 +1400,16 @@ async def test_comment_with_static_comment_reply(monkeypatch):
     monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: "Thanks for commenting!")
     monkeypatch.setattr(messenger, "get_user_id", lambda: "sender123")
     messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
 
     await messenger.comment(message, metadata, bot)
 
@@ -1407,6 +1421,54 @@ async def test_comment_with_static_comment_reply(monkeypatch):
     messenger._handle_user_message.assert_awaited_once_with(
         "This is a test comment", "sender123", metadata, bot
     )
+
+
+@pytest.mark.asyncio
+async def test_comment_with_post_comment_reply(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import Messenger, ChatDataProcessor
+    message = {
+        "field": "comments",
+        "value": {
+            "id": "comment123",
+            "text": "This is a test comment",
+            "from": {"username": "test_user"},
+            "media": {
+                "id": "17859719991451845",
+                "media_product_type": "FEED"
+            }
+        }
+    }
+    metadata = {}
+    bot = "test_bot"
+
+    messenger = Messenger(page_access_token="dummy_token")
+
+    monkeypatch.setattr(messenger, "_is_comment", lambda msg: True)
+    monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: "Thanks for commenting!")
+    monkeypatch.setattr(messenger, "get_user_id", lambda: "sender123")
+    messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": "Grab our latest offers and discounts on shoes!"
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
+
+    await messenger.comment(message, metadata, bot)
+
+    assert metadata["comment_id"] == "comment123"
+    assert metadata["static_comment_reply"] == "@test_user Grab our latest offers and discounts on shoes!"
+    assert metadata["media_id"] == "17859719991451845"
+    assert metadata["media_product_type"] == "FEED"
+
+    messenger._handle_user_message.assert_awaited_once_with(
+        "This is a test comment", "sender123", metadata, bot
+    )
+
 
 @pytest.mark.asyncio
 async def test_comment_without_static_comment_reply(monkeypatch):
@@ -1429,15 +1491,26 @@ async def test_comment_without_static_comment_reply(monkeypatch):
     monkeypatch.setattr(messenger, "get_user_id", lambda: "sender789")
 
     messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": ""
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": ""
+        }
+    }
 
     await messenger.comment(message, metadata, bot)
 
     assert metadata["comment_id"] == "comment789"
-    assert "static_comment_reply" not in metadata
+    assert metadata["static_comment_reply"] is None
 
     messenger._handle_user_message.assert_awaited_once_with(
         "Another test comment", "sender789", metadata, bot
     )
+
 
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.UserMedia.upload_media_content_sync")

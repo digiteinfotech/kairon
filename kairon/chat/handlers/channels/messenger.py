@@ -40,7 +40,8 @@ class Messenger:
         self.client = MessengerClient(page_access_token)
         self.last_message: Dict[Text, Any] = {}
         self.is_instagram = is_instagram
-        self.post_config = None
+        self.allowed_users = []
+        self.post_config = {}
 
     def get_user_id(self) -> Text:
         sender_id = self.last_message.get("sender", {}).get("id", "")
@@ -172,11 +173,18 @@ class Messenger:
             user = message["value"]["from"]["username"]
             metadata["comment_id"] = comment_id
             metadata["user"] = user
-            if static_comment_reply:
-                metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
             if media := message["value"].get("media"):
                 metadata["media_id"] = media.get("id")
                 metadata["media_product_type"] = media.get("media_product_type")
+
+            media_id = metadata.get("media_id")
+            media_post_config = self.post_config.get(media_id, {})
+            metadata['keywords'] = media_post_config.get("keywords", [])
+            media_comment_reply = media_post_config.get("comment_reply", "")
+
+            static_comment_reply = f"@{user} {static_comment_reply}" if static_comment_reply else None
+            metadata["static_comment_reply"] = f"@{user} {media_comment_reply}" \
+                if media_comment_reply else static_comment_reply
 
             if not parent_id:
                 await self._handle_user_message(text, self.get_user_id(), metadata, bot)
@@ -186,13 +194,16 @@ class Messenger:
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = MessengerBot(self.client)
-        media_id = metadata.get("media_id")
-        media_post_config = self.post_config.get(media_id, {})
-        keywords = media_post_config.get("keywords", [])
 
-        if self.is_instagram and media_id in self.post_config:
-            if text.lower() not in [word.lower() for word in keywords]:
-                return
+        if self.is_instagram:
+            if self.allowed_users and isinstance(self.allowed_users, list):
+                username = await out_channel.get_username_for_id(sender_id)
+                if username not in self.allowed_users:
+                    return
+
+            if metadata.get("media_id") in self.post_config:
+                if text.lower() not in map(str.lower, metadata.get("keywords")):
+                    return
 
         await out_channel.send_action(sender_id, sender_action="mark_seen")
         input_channel_name = self.name() if not self.is_instagram else "instagram"
@@ -200,11 +211,6 @@ class Messenger:
             text, out_channel, sender_id, input_channel=input_channel_name, metadata=metadata
         )
         await out_channel.send_action(sender_id, sender_action="typing_on")
-
-        user = metadata.get("user")
-        comment_reply = media_post_config.get("comment_reply", "")
-        comment_reply = f"@{user} {comment_reply}" if comment_reply else comment_reply
-        metadata['static_comment_reply'] = comment_reply or metadata.get('static_comment_reply')
 
         if metadata.get("comment_id") and metadata.get('static_comment_reply'):
             await out_channel.reply_on_comment(**metadata)
@@ -270,38 +276,6 @@ class MessengerBot(OutputChannel):
             f"{self.messenger_client.graph_url}/{sender_id}?{params}"
         )
         return resp.json().get('username')
-
-    async def get_user_media_posts(self):
-        #   GET USER INSTAGRAM POSTS
-        account_details = await self.get_user_account_details_from_page()
-        ig_user_id = account_details.get('instagram_business_account', {}).get('id')
-        params = (f"fields=id,ig_id,media_product_type,media_type,media_url,thumbnail_url,timestamp,username,permalink,"
-                  f"caption,like_count,comments_count&access_token={self.messenger_client.auth_args['access_token']}")
-        resp = self.messenger_client.session.get(
-            f"{self.messenger_client.graph_url}/{ig_user_id}/media/?{params}"
-        )
-        user_posts = resp.json()
-        return user_posts
-
-    async def get_user_account_details_from_page(self):
-        #   GET USER ACCOUNT DETAILS FROM PAGE
-        page_details = await self.get_page_details()
-        page_id = page_details.get('id')
-        params = f"fields=instagram_business_account&access_token={self.messenger_client.auth_args['access_token']}"
-        resp = self.messenger_client.session.get(
-            f"{self.messenger_client.graph_url}/{page_id}/?{params}"
-        )
-        account_details = resp.json()
-        return account_details
-
-    async def get_page_details(self):
-        #   GET PAGE DETAILS
-        params = f"fields=id,name&access_token={self.messenger_client.auth_args['access_token']}"
-        resp = self.messenger_client.session.get(
-            f"{self.messenger_client.graph_url}/me/?{params}"
-        )
-        page_details = resp.json()
-        return page_details
 
     async def send_image_url(
             self, recipient_id: Text, image: Text, **kwargs: Any
@@ -572,7 +546,9 @@ class InstagramHandler(MessengerHandler):
         messenger = Messenger(page_access_token, is_instagram=True)
 
         if messenger_conf["config"].get("is_dev"):
+            allowed_users = messenger_conf["config"].get("allowed_users", [])
             post_config = messenger_conf["config"].get("post_config", {})
+            messenger.allowed_users = allowed_users
             messenger.post_config = post_config
 
         metadata = self.get_metadata(self.request) or {}
@@ -586,14 +562,3 @@ class InstagramHandler(MessengerHandler):
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
         actor.execute(messenger.handle, await self.request.json(), metadata, self.bot)
         return msg
-
-    async def get_user_posts(self):
-        messenger_conf = ChatDataProcessor.get_channel_config("instagram", self.bot, mask_characters=False)
-
-        page_access_token = messenger_conf["config"]["page_access_token"]
-        messenger = Messenger(page_access_token, is_instagram=True)
-
-        out_channel = MessengerBot(messenger.client)
-        user_posts = await out_channel.get_user_media_posts()
-
-        return user_posts
