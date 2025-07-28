@@ -275,18 +275,17 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                            "is_dev": True,
                                            "post_config": {
                                                 '17859719991451845': {
-                                                    "keywords": "offer,discount",
+                                                    "keywords": ["offer", "discount"],
                                                     "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
                                                 },
                                                 '17859719991451973': {
-                                                    "keywords": "hi,price",
+                                                    "keywords": ["hi", "price"],
                                                     "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
                                                 },
                                                 '17859719991451321': {
                                                     "keywords": "hello,offer"
                                                 }
                                             },
-                                           # "post_config": {'17859719991451845': 'offer,discount', '17859719991451973': 'hi,price'}
                                        }
                                        },
                                       bot, user="test@chat.com")

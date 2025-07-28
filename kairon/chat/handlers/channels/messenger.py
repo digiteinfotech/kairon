@@ -188,8 +188,7 @@ class Messenger:
         out_channel = MessengerBot(self.client)
         media_id = metadata.get("media_id")
         media_post_config = self.post_config.get(media_id, {})
-        keywords_str = media_post_config.get("keywords", "")
-        keywords = Utility.string_to_list(keywords_str)
+        keywords = media_post_config.get("keywords", [])
 
         if self.is_instagram and media_id in self.post_config:
             if text.lower() not in [word.lower() for word in keywords]:
@@ -206,7 +205,6 @@ class Messenger:
         comment_reply = media_post_config.get("comment_reply", "")
         comment_reply = f"@{user} {comment_reply}" if comment_reply else comment_reply
         metadata['static_comment_reply'] = comment_reply or metadata.get('static_comment_reply')
-        out_channel.metadata = metadata
 
         if metadata.get("comment_id") and metadata.get('static_comment_reply'):
             await out_channel.reply_on_comment(**metadata)
@@ -249,11 +247,6 @@ class MessengerBot(OutputChannel):
             self, recipient_id: Text, text: Text, **kwargs: Any
     ) -> None:
         """Send a message through this channel."""
-
-        if self.metadata.get("comment_id") and not self.metadata.get("static_comment_reply"):
-            self.metadata['static_comment_reply'] = f"@{self.metadata.get('user')} {text}"
-            await self.reply_on_comment(**self.metadata)
-            return
 
         for message_part in text.strip().split("\n\n"):
             self.send(recipient_id, FBText(text=message_part))
