@@ -76,8 +76,5 @@ class BaseLogHandler(ABC):
                 log_dict["_id"] = str(log_dict["_id"])
             if "data" in log_dict and log_dict["data"] and "_id" in log_dict["data"]:
                 log_dict["data"]["_id"] = str(log_dict["data"]["_id"])
-            for ts_key in ["timestamp", "start_timestamp", "end_timestamp"]:
-                if isinstance(log_dict.get(ts_key), datetime):
-                    log_dict[ts_key] = log_dict[ts_key].isoformat()
             logs.append(log_dict)
         return logs
