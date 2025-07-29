@@ -1,5 +1,3 @@
-import json
-
 from kairon.shared.log_system.base import BaseLogHandler
 
 
@@ -11,6 +9,6 @@ class CallbackLogHandler(BaseLogHandler):
             if value:
                 query["callback_name" if field == "name" else field] = value
         logs_cursor = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(self.page_size).exclude("id")
-        logs = json.loads(logs_cursor.to_json())
+        logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
