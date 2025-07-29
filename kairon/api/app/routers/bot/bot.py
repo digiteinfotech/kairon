@@ -2,7 +2,7 @@ import os
 from datetime import date, datetime
 from typing import List, Optional, Dict, Text
 
-from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -704,6 +704,23 @@ async def fetch_logs(
         current_user.get_bot(),
         log_type=log_type,
         **query_params
+    )
+    return Response(data={"logs": logs, "total": row_cnt})
+
+
+@router.get("/logs/{log_type}/search", response_model=Response)
+async def search_logs(
+    log_type: LogTypeEnum,
+    key: List[str] = Query([]),
+    value: List[str] = Query([]),
+    current_user: User = Security(Authentication.get_current_user_and_bot)
+):
+
+    query = mongo_processor.sanitize_query_filter(log_type, key, value)
+    logs, row_cnt = mongo_processor.get_logs_for_search_query(
+        current_user.get_bot(),
+        log_type=log_type,
+        **query
     )
     return Response(data={"logs": logs, "total": row_cnt})
 

@@ -14,3 +14,31 @@ class ExecutorLogHandler(BaseLogHandler):
         logs = json.loads(logs_cursor.to_json())
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
+
+    def get_logs_for_search_query(self):
+        from_date = self.kwargs.pop("from_date", None)
+        to_date = self.kwargs.pop("to_date", None)
+
+        query = {"bot": self.bot}
+
+        for field in ["event_class", "task_type"]:
+            value = self.kwargs.pop(field, None)
+            if value:
+                query[field] = value
+
+        if from_date:
+            query["timestamp__gte"] = from_date
+        if to_date:
+            query["timestamp__lte"] = to_date
+
+        query.update(self.kwargs)
+
+        logs_cursor = (
+            self.doc_type.objects(**query)
+            .order_by("-timestamp")
+            .exclude("_id")
+        )
+        logs = json.loads(logs_cursor.to_json())
+        count = self.get_logs_count(self.doc_type, **query)
+        return logs, count
+
