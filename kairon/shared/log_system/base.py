@@ -52,16 +52,23 @@ class BaseLogHandler(ABC):
     def _get_doc_type(cls, log_type: str):
         return cls.__doc_type_mapping.get(log_type)
 
+    @classmethod
+    def _get_doc_type(cls, log_type: str):
+        return cls.__doc_type_mapping.get(log_type)
+
     @staticmethod
-    def get_logs(bot, log_type: str, start_idx: int = 0, page_size: int = 10, **kwargs):
+    def get_logs_count(document: Document, **kwargs) -> int:
+        return document.objects(**kwargs).count()
+
+    @classmethod
+    def _get_handler(cls, log_type: str, bot: str, start_idx: int = 0, page_size: int = 10, **kwargs):
         from kairon.shared.log_system.factory import LogHandlerFactory
 
-        doc_type = BaseLogHandler._get_doc_type(log_type)
+        doc_type = cls._get_doc_type(log_type)
         if not doc_type:
-            return [], 0
+            return None
 
-        handler = LogHandlerFactory.get_handler(log_type, doc_type, bot, start_idx, page_size, **kwargs)
-        return handler.get_logs_and_count()
+        return LogHandlerFactory.get_handler(log_type, doc_type, bot, start_idx, page_size, **kwargs)
 
     @staticmethod
     def get_logs_count(document: Document, **kwargs) -> int:
@@ -78,3 +85,14 @@ class BaseLogHandler(ABC):
                 log_dict["data"]["_id"] = str(log_dict["data"]["_id"])
             logs.append(log_dict)
         return logs
+    def get_logs(bot, log_type: str, start_idx: int = 0, page_size: int = 10, **kwargs):
+        handler = BaseLogHandler._get_handler(log_type, bot, start_idx, page_size, **kwargs)
+        return handler.get_logs_and_count() if handler else ([], 0)
+
+    @staticmethod
+    def get_logs_search_result(bot, log_type: str, **kwargs):
+        handler = BaseLogHandler._get_handler(log_type, bot, 0, 10, **kwargs)
+        if log_type == "mail_channel":
+            return handler.get_logs_for_search_query_for_unix_time() if handler else ([], 0)
+        return handler.get_logs_for_search_query() if handler else ([], 0)
+
