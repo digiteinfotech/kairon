@@ -176,6 +176,7 @@ from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
 from ..log_system.base import BaseLogHandler
+from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 
@@ -9247,3 +9248,49 @@ class MongoProcessor:
             page_size=page_size,
             **kwargs
         )
+    @staticmethod
+    def get_logs_for_search_query(
+            bot: Text,
+            log_type: str,
+            **kwargs):
+        return BaseLogHandler.get_logs_search_result(
+            bot = bot,
+            log_type = log_type,
+            **kwargs
+        )
+
+    @staticmethod
+    def sanitize_query_filter(log_type: str, keys: List[str], values: List[str]) -> dict:
+        """
+        Sanitize and validate keys and values for the log_type using existing utility functions.
+        """
+        doc_type = BaseLogHandler._get_doc_type(log_type)
+        if doc_type is None:
+            raise ValueError(f"Unsupported log type: {log_type}")
+        valid_fields = doc_type._fields.keys()
+
+        sanitized = {}
+
+        for k, v in zip(keys, values):
+            if k in {"from_date", "to_date"}:
+                clean_value = date.fromisoformat(v)
+            else:
+                if len(keys) != len(values):
+                    raise ValueError("Number of keys and values must match.")
+
+                if Utility.check_empty_string(k):
+                    raise ValueError("Search key cannot be empty or blank.")
+
+                if k not in valid_fields:
+                    raise ValueError(f"Invalid query key: '{k}' for log_type: '{log_type}'")
+
+                if not Utility.special_match(k, RE_VALID_NAME):
+                    raise ValueError(f"Invalid key name: '{k}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
+
+                if Utility.check_empty_string(v):
+                    raise ValueError("Search value cannot be empty or blank.")
+
+                clean_value = Utility.sanitize_text(v)
+
+            sanitized[k] = clean_value
+        return sanitized
