@@ -15,6 +15,7 @@ from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.data.constant import EVENT_STATUS
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -693,4 +694,70 @@ async def test_send_template_message_success_with_flow():
 
         mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
         mock_add_event_log.assert_not_called()
+
+@pytest.mark.parametrize("should_fail", [False, True])
+def test_resend_broadcast_status_transition(should_fail):
+    retry_count = 1
+    event_id = "64d23a6b3cd4567a12345678"
+    reference_id = "test_reference_id"
+
+
+    dummy_log = MagicMock()
+    dummy_log.errors = [{"code": 1001}]
+    dummy_log.template_name = "template_1"
+    dummy_log.language_code = "en"
+    dummy_log.namespace = "namespace_1"
+    dummy_log.template_params = ["param1"]
+    dummy_log.recipient = "recipient1"
+    dummy_log.template = {"name": "template_data"}
+
+    with patch.object(MessageBroadcastProcessor, 'get_settings', return_value={"retry_count": retry_count - 1}), \
+         patch.object(MessageBroadcastProcessor, 'extract_message_ids_from_broadcast_logs', return_value={"log1": dummy_log}), \
+         patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template', return_value=("template_data", None)), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast') as mock_initiate_broadcast, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
+         patch.object(MessageBroadcastProcessor, 'update_retry_count', return_value={"retry_count": retry_count}):
+
+        if should_fail:
+            mock_initiate_broadcast.side_effect = Exception("Sending failed")
+        else:
+            mock_initiate_broadcast.return_value = (0, [])
+
+
+        broadcast = WhatsappBroadcast(
+            config={},
+            bot="test_bot",
+            user="test_user",
+            event_id=event_id,
+            reference_id=reference_id
+        )
+
+
+        broadcast.resend_broadcast()
+
+
+        calls = mock_add_event_log.call_args_list
+        inprogress_key = f"retry_count_{retry_count}_status"
+
+
+        inprogress_logged = any(
+            call.kwargs.get(inprogress_key) == EVENT_STATUS.INPROGRESS.value
+            for call in calls
+        )
+        final_status = EVENT_STATUS.FAIL.value if should_fail else EVENT_STATUS.COMPLETED.value
+
+        final_logged = any(
+            call.kwargs.get(inprogress_key) == final_status
+            for call in calls
+        )
+
+        assert inprogress_logged, "Expected INPROGRESS status to be logged"
+        assert final_logged, f"Expected {final_status} status to be logged"
+
+
+        final_call_kwargs = calls[-1].kwargs
+        assert f"template_{retry_count}" in final_call_kwargs
+        assert f"failure_count_{retry_count}" in final_call_kwargs
+        assert final_call_kwargs[inprogress_key] == final_status
+
 

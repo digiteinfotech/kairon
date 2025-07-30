@@ -360,9 +360,18 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template = log.template if hasattr(log, "template") else template
             message_list.append((template_id, recipient, retry_count, template, language_code, components, namespace))
 
+        status_count_key = f"retry_count_{retry_count}_status"
+        MessageBroadcastProcessor.add_event_log(
+            self.bot, MessageBroadcastLogType.common.value, self.reference_id, **{status_count_key: EVENT_STATUS.INPROGRESS.value}
+        )
 
-        _, non_sent_recipients = self.initiate_broadcast(message_list, is_resend=True)
-        failure_cnt = len(non_sent_recipients)
+        try :
+            _, non_sent_recipients = self.initiate_broadcast(message_list, is_resend=True)
+            failure_cnt = len(non_sent_recipients)
+            status = EVENT_STATUS.COMPLETED.value
+        except Exception as e:
+            failure_cnt = len(message_list)
+            status = EVENT_STATUS.FAIL.value
 
         kwargs = {
             f"template_exception_{retry_count}": template_exception,
@@ -370,7 +379,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             f"failure_count_{retry_count}": failure_cnt,
             f"resend_count_{retry_count}": total,
             f"skipped_count_{retry_count}": skipped_count,
-            f"retry_{retry_count}_timestamp": datetime.utcnow()
+            f"retry_{retry_count}_timestamp": datetime.utcnow(),
+            f"retry_count_{retry_count}_status" : status
         }
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, **kwargs

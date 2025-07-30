@@ -96,7 +96,8 @@ class MessageBroadcastProcessor:
         if status:
             log.status = status
         for key, value in kwargs.items():
-            if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
+            force_update = key.startswith("retry_count_") and key.endswith("_status")
+            if (force_update or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
 
