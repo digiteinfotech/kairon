@@ -369,7 +369,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             _, non_sent_recipients = self.initiate_broadcast(message_list, is_resend=True)
             failure_cnt = len(non_sent_recipients)
             status = EVENT_STATUS.COMPLETED.value
-        except Exception as _:
+        except Exception:
             failure_cnt = len(message_list)
             status = EVENT_STATUS.FAIL.value
 
