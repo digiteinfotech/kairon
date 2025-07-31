@@ -711,7 +711,7 @@ async def fetch_logs(
 @router.get("/logs/{log_type}/search", response_model=Response)
 async def search_logs(
     log_type: LogTypeEnum,
-    key: List[str] = Query(defult=[]),
+    key: List[str] = Query(default=[]),
     value: List[str] = Query(default=[]),
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
