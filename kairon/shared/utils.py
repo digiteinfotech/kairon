@@ -144,8 +144,9 @@ class Utility:
 
     @staticmethod
     def sanitize_text(value: str) -> str:
-        value = re.sub(r'<[^>]*>', '', value)
-        value = re.sub(r'[;$><}{()]', '', value)
+        if not value or not isinstance(value, str):
+            return ""
+        value = re.sub(r'<[^>]*>|[;$><}{()\'"`\\|&]', '', value)
         return value.strip()
 
     @staticmethod
