@@ -23188,11 +23188,16 @@ def test_get_mail_channel_logs():
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/mail_channel/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=FAILURE",
+        f"/api/bot/{pytest.bot}/logs/mail_channel/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
     print("actions:", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 
 def test_feedback():
