@@ -1,4 +1,6 @@
 import os
+from datetime import date
+
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +23,8 @@ from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTe
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
+from kairon.shared.data.processor import MongoProcessor
+mongo_processor = MongoProcessor()
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -82,3 +86,38 @@ def test_get_logs_with_mocked_handlers(log_type, expected_handler_class, doc_typ
         mocked_get_handler.assert_called_once_with(
             log_type, doc_type, "test_bot", 0, 10
         )
+
+@pytest.mark.parametrize(
+    "log_type, keys, values, expected",
+    [
+        ("actions", ["from_date", "to_date", "status"], ["2025-01-01", "2025-07-30", "Success"], {
+            "from_date": date(2025, 1, 1),
+            "to_date": date(2025, 7, 30),
+            "status": "Success"
+        }),
+        ("audit", ["action"], ["save"], {
+            "action": "save"
+        }),
+    ]
+)
+def test_sanitize_query_filter_valid(log_type, keys, values, expected):
+    result = mongo_processor.sanitize_query_filter(log_type, keys, values)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "log_type, keys, values, expected_exception, expected_message",
+    [
+        ("unknown_type", ["status"], ["Success"], ValueError, "Unsupported log type: unknown_type"),
+        ("actions", ["status"], [], ValueError, "Number of keys and values must match."),
+        ("actions", [""], ["Success"], ValueError, "Search key cannot be empty or blank."),
+        ("actions", ["non_existing_key"], ["Success"], ValueError, "Invalid query key: 'non_existing_key'"),
+        ("actions", ["sta tus"], ["Success"], ValueError, "Invalid query key: 'sta tus' for log_type: 'actions'"),
+        ("actions", ["status"], [""], ValueError, "Search value cannot be empty or blank."),
+        ("actions", ["from_date"], ["not-a-date"], ValueError, "Invalid isoformat string"),
+    ]
+)
+def test_sanitize_query_filter_invalid(log_type, keys, values, expected_exception, expected_message):
+    with pytest.raises(expected_exception) as exc:
+        mongo_processor.sanitize_query_filter(log_type, keys, values)
+    assert expected_message in str(exc.value)

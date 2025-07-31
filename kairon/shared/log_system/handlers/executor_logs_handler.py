@@ -20,11 +20,6 @@ class ExecutorLogHandler(BaseLogHandler):
 
         query = {"bot": self.bot}
 
-        for field in ["event_class", "task_type"]:
-            value = self.kwargs.pop(field, None)
-            if value:
-                query[field] = value
-
         if from_date:
             query["timestamp__gte"] = from_date
         if to_date:
