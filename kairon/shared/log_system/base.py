@@ -52,10 +52,6 @@ class BaseLogHandler(ABC):
     def _get_doc_type(cls, log_type: str):
         return cls.__doc_type_mapping.get(log_type)
 
-    @classmethod
-    def _get_doc_type(cls, log_type: str):
-        return cls.__doc_type_mapping.get(log_type)
-
     @staticmethod
     def get_logs_count(document: Document, **kwargs) -> int:
         return document.objects(**kwargs).count()
@@ -71,10 +67,6 @@ class BaseLogHandler(ABC):
         return LogHandlerFactory.get_handler(log_type, doc_type, bot, start_idx, page_size, **kwargs)
 
     @staticmethod
-    def get_logs_count(document: Document, **kwargs) -> int:
-        return document.objects(**kwargs).count()
-
-    @staticmethod
     def convert_logs_cursor_to_dict(logs_cursor):
         logs = []
         for log in logs_cursor:
@@ -85,6 +77,8 @@ class BaseLogHandler(ABC):
                 log_dict["data"]["_id"] = str(log_dict["data"]["_id"])
             logs.append(log_dict)
         return logs
+
+    @staticmethod
     def get_logs(bot, log_type: str, start_idx: int = 0, page_size: int = 10, **kwargs):
         handler = BaseLogHandler._get_handler(log_type, bot, start_idx, page_size, **kwargs)
         return handler.get_logs_and_count() if handler else ([], 0)

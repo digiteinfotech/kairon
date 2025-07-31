@@ -43,6 +43,6 @@ class AgentHandoffLogHandler(BaseLogHandler):
             .order_by("-timestamp")
             .exclude("id")
         )
-        logs = json.loads(logs_cursor.to_json())
-        count = self.get_logs_count(self.doc_type, **query)
+        logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
+        count = self.get_logs_count(self.doc_type,  **query)
         return logs, count

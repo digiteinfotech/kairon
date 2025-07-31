@@ -40,8 +40,8 @@ class DefaultLogHandler(BaseLogHandler):
             .exclude("bot", "user", "id")
         )
 
-        logs = json.loads(logs_cursor.to_json())
-        count = self.get_logs_count(self.doc_type, **query)
+        logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
+        count = self.get_logs_count(self.doc_type,  **query)
         return logs, count
 
     def get_logs_for_search_query_for_unix_time(self):
@@ -51,6 +51,7 @@ class DefaultLogHandler(BaseLogHandler):
         query = {"bot": self.bot}
         query.update(self.kwargs)
         sort_field = "-start_timestamp"
+
         def to_unix_timestamp(dt):
             return int(datetime.combine(dt, datetime.min.time()).timestamp())
 
@@ -65,6 +66,6 @@ class DefaultLogHandler(BaseLogHandler):
             .exclude("bot", "user", "id")
         )
 
-        logs = json.loads(logs_cursor.to_json())
-        count = self.get_logs_count(self.doc_type, **query)
+        logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
+        count = self.get_logs_count(self.doc_type,  **query)
         return logs, count
