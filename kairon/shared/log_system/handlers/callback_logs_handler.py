@@ -16,20 +16,11 @@ class CallbackLogHandler(BaseLogHandler):
     def get_logs_for_search_query(self):
         from_date = self.kwargs.pop("from_date", None)
         to_date = self.kwargs.pop("to_date", None)
-
         query = {"bot": self.bot}
-
-        for field in ["name", "sender_id", "channel", "identifier"]:
-            value = self.kwargs.pop(field, None)
-            if value:
-                mapped_field = "callback_name" if field == "name" else field
-                query[mapped_field] = value
-
         if from_date:
             query["timestamp__gte"] = from_date
         if to_date:
             query["timestamp__lte"] = to_date
-
         query.update(self.kwargs)
 
         logs_cursor = (

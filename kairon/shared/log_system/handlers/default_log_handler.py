@@ -1,5 +1,4 @@
 from kairon.shared.log_system.base import BaseLogHandler
-import json
 from datetime import datetime
 
 

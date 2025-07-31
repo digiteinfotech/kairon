@@ -9267,6 +9267,8 @@ class MongoProcessor:
         doc_type = BaseLogHandler._get_doc_type(log_type)
         if doc_type is None:
             raise ValueError(f"Unsupported log type: {log_type}")
+        if len(keys) != len(values):
+            raise ValueError("Number of keys and values must match.")
         valid_fields = doc_type._fields.keys()
 
         sanitized = {}
@@ -9275,9 +9277,6 @@ class MongoProcessor:
             if k in {"from_date", "to_date"}:
                 clean_value = date.fromisoformat(v)
             else:
-                if len(keys) != len(values):
-                    raise ValueError("Number of keys and values must match.")
-
                 if Utility.check_empty_string(k):
                     raise ValueError("Search key cannot be empty or blank.")
 
