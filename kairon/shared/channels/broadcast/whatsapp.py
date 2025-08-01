@@ -380,7 +380,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             f"resend_count_{retry_count}": total,
             f"skipped_count_{retry_count}": skipped_count,
             f"retry_{retry_count}_timestamp": datetime.utcnow(),
-            f"retry_count_{retry_count}_status" : status
+            f"retry_count_{retry_count}_status" : status,
+            "retry_count": retry_count
         }
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.common.value, self.reference_id, **kwargs
