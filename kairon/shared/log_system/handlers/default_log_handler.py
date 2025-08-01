@@ -36,6 +36,8 @@ class DefaultLogHandler(BaseLogHandler):
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by(sort_field)
+            .skip(self.start_idx)
+            .limit(self.page_size)
             .exclude("bot", "user", "id")
         )
 

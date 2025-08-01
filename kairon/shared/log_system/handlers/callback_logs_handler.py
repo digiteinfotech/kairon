@@ -26,6 +26,8 @@ class CallbackLogHandler(BaseLogHandler):
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by("-timestamp")
+            .skip(self.start_idx)
+            .limit(self.page_size)
             .exclude("id")
         )
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
