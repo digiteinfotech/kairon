@@ -143,13 +143,6 @@ class Utility:
             return Utility.pwd_context.hash(password)
 
     @staticmethod
-    def sanitize_text(value: str) -> str:
-        if not value or not isinstance(value, str):
-            return ""
-        value = re.sub(r'<[^>]*>|[;$><}{()\'"`\\|&]', '', value)
-        return value.strip()
-
-    @staticmethod
     def check_empty_string(value: str):
         """
         checks for empty string

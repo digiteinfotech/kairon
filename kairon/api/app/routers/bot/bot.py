@@ -711,11 +711,10 @@ async def fetch_logs(
 @router.get("/logs/{log_type}/search", response_model=Response)
 async def search_logs(
     log_type: LogTypeEnum,
-    key: List[str] = Query(default=[]),
-    value: List[str] = Query(default=[]),
+    request: Request,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
-    query = mongo_processor.sanitize_query_filter(log_type, key, value)
+    query = mongo_processor.sanitize_query_filter(log_type, request)
     logs, row_cnt = mongo_processor.get_logs_for_search_query(
         current_user.get_bot(),
         log_type=log_type,
