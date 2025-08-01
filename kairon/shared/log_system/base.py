@@ -84,8 +84,8 @@ class BaseLogHandler(ABC):
         return handler.get_logs_and_count() if handler else ([], 0)
 
     @staticmethod
-    def get_logs_search_result(bot, log_type: str, **kwargs):
-        handler = BaseLogHandler._get_handler(log_type, bot, 0, 10, **kwargs)
+    def get_logs_search_result(bot, log_type: str, start_idx: int = 0, page_size: int = 10, **kwargs):
+        handler = BaseLogHandler._get_handler(log_type, bot, start_idx, page_size, **kwargs)
         if log_type == "mail_channel":
             return handler.get_logs_for_search_query_for_unix_time() if handler else ([], 0)
         return handler.get_logs_for_search_query() if handler else ([], 0)

@@ -3366,9 +3366,11 @@ def test_upload_doc_content():
 
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
+
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/content/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=Success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/content/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
     response_json = search_response.json()
     assert response_json["success"] is True
@@ -4568,8 +4570,9 @@ def test_get_catalog_sync_logs():
     print(response)
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
+
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/catalog/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=Success",
+        f"/api/bot/{pytest.bot}/logs/catalog/search?from_date={from_date}&to_date={to_date}&status=Success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
@@ -7592,8 +7595,9 @@ def test_upload_with_bot_content_valifdate_payload_data():
     print(actual)
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
+
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/importer/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=Success",
+        f"/api/bot/{pytest.bot}/logs/importer/search?from_date={from_date}&to_date={to_date}&status=Success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
@@ -8197,8 +8201,8 @@ def test_search_executor_logs(get_executor_logs):
     to_date = from_date + timedelta(days=2)
 
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/executor/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=Success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/executor/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
 
     response_json = search_response.json()
@@ -9772,10 +9776,12 @@ def test_callback_get_logs():
 
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
+
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/callback/search?key=from_date&key=to_date&value={from_date}&value={to_date}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/callback/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
+
     response_json = search_response.json()
     print("callback", response_json)
     assert response_json["success"] is True
@@ -23103,7 +23109,8 @@ def test_list_action_server_logs():
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/actions/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=SUCCESS",
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=SUCCESS",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
@@ -23118,9 +23125,11 @@ def test_list_action_server_logs():
     assert data['total'] == 6
 
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/actions/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=FAILURE",
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=FAILURE",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
     response_json = search_response.json()
     print("actions:", response_json)
 
@@ -23188,8 +23197,9 @@ def test_get_mail_channel_logs():
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/mail_channel/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/mail_channel/search"
+        f"?from_date={from_date}&to_date={to_date}&status=success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
     response_json = search_response.json()
     print("actions:", response_json)
@@ -33470,9 +33480,10 @@ def test_get_end_user_metrics(monkeypatch):
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/agent_handoff/search?key=from_date&key=to_date&value={from_date}&value={to_date}",
+        f"/api/bot/{pytest.bot}/logs/agent_handoff/search?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
     response_json = search_response.json()
     print("agent", response_json)
     assert response_json["success"] is True
@@ -33952,9 +33963,10 @@ def test_multilingual_translate_logs():
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/multilingual/search?key=from_date&key=to_date&key=status&value={from_date}&value={to_date}&value=Success",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/multilingual/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
     )
+
     response_json = search_response.json()
     print("multilingual", response_json)
     assert response_json["success"] is True
@@ -34141,9 +34153,12 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.UPDATE.value) > 5
 
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/audit/search?key=from_date&key=to_date&value={from_date}&value={to_date}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        f"/api/bot/{pytest.bot}/logs/audit/search"
+        f"?from_date={from_date}&to_date={to_date}"
+        f"&start_idx=0&page_size=10",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
+
     response_json = search_response.json()
     print("audit", response_json)
     assert response_json["success"] is True
@@ -34409,9 +34424,10 @@ def test_get_llm_logs():
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/llm/search?key=from_date&key=to_date&value={from_date}&value={to_date}",
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
     actual = search_response.json()
     assert actual["success"]
     assert actual["error_code"] == 0

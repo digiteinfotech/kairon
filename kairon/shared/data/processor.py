@@ -9242,40 +9242,53 @@ class MongoProcessor:
             **kwargs):
 
         return BaseLogHandler.get_logs(
-            bot=bot,
-            log_type=log_type,
-            start_idx=start_idx,
-            page_size=page_size,
+            bot = bot,
+            log_type = log_type,
+            start_idx = start_idx,
+            page_size = page_size,
             **kwargs
         )
     @staticmethod
     def get_logs_for_search_query(
             bot: Text,
             log_type: str,
+            start_idx: int = 0,
+            page_size: int = 10,
             **kwargs):
         return BaseLogHandler.get_logs_search_result(
             bot = bot,
             log_type = log_type,
+            start_idx = start_idx,
+            page_size = page_size,
             **kwargs
         )
 
     @staticmethod
-    def sanitize_query_filter(log_type: str, keys: List[str], values: List[str]) -> dict:
+    def sanitize_query_filter(log_type: str, request) -> dict:
         """
-        Sanitize and validate keys and values for the log_type using existing utility functions.
+        Sanitize and validate query parameters for the given log type.
         """
         doc_type = BaseLogHandler._get_doc_type(log_type)
         if doc_type is None:
             raise ValueError(f"Unsupported log type: {log_type}")
-        if len(keys) != len(values):
-            raise ValueError("Number of keys and values must match.")
+
+        raw_params = dict(request.query_params)
         valid_fields = doc_type._fields.keys()
 
         sanitized = {}
 
-        for k, v in zip(keys, values):
+        for k, v in raw_params.items():
             if k in {"from_date", "to_date"}:
-                clean_value = date.fromisoformat(v)
+                try:
+                    sanitized[k] = date.fromisoformat(v)
+                except ValueError:
+                    raise ValueError(f"Invalid date format for '{k}': '{v}'. Use YYYY-MM-DD.")
+
+            elif k in {"start_idx", "page_size"}:
+                if not v.isdigit():
+                    raise ValueError(f"'{k}' must be a valid integer.")
+                sanitized[k] = int(v)
+
             else:
                 if Utility.check_empty_string(k):
                     raise ValueError("Search key cannot be empty or blank.")
@@ -9284,12 +9297,16 @@ class MongoProcessor:
                     raise ValueError(f"Invalid query key: '{k}' for log_type: '{log_type}'")
 
                 if not Utility.special_match(k, RE_VALID_NAME):
-                    raise ValueError(f"Invalid key name: '{k}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
+                    raise ValueError(
+                        f"Invalid key name: '{k}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
+
+                if not Utility.special_match(v, RE_VALID_NAME):
+                    raise ValueError(
+                        f"Invalid key name: '{v}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
 
                 if Utility.check_empty_string(v):
-                    raise ValueError("Search value cannot be empty or blank.")
+                    raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
 
-                clean_value = Utility.sanitize_text(v)
+                sanitized[k] = v
 
-            sanitized[k] = clean_value
         return sanitized
