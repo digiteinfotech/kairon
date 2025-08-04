@@ -197,8 +197,7 @@ class Messenger:
 
         if self.is_instagram:
             if self.allowed_users and isinstance(self.allowed_users, list):
-                username = await out_channel.get_username_for_id(sender_id)
-                if username not in self.allowed_users:
+                if metadata.get("user") not in self.allowed_users:
                     return
 
             if metadata.get("media_id") in self.post_config:
