@@ -272,6 +272,7 @@ ChatDataProcessor.save_channel_config({"connector_type": "instagram",
                                            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
                                            "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
                                            "verify_token": "kairon-instagram-token",
+                                           "static_comment_reply": "Thank You, Check your dm!",
                                            "is_dev": True,
                                            "post_config": {
                                                 '17859719991451845': {
@@ -835,9 +836,92 @@ def test_chat():
 
 
 @responses.activate
-def test_instagram_comment_with_post_specific_reply():
+def test_instagram_comment_with_both_static_and_post_specific_reply():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
+
+    message = "@kairon_user_123 Hi there! Yes, we offer the best prices on premium quality shoes!"
+    access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
+    responses.add(
+        "POST",
+        f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}",
+        json={}
+    )
+    responses.add(
+        "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
+    )
+    responses.add(
+        "GET", f"https://graph.facebook.com/v2.12/6489091794524304?fields=username&access_token={access_token}",
+        json={"username": "kairon_user_123"}
+    )
+
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "kairon_user_123"
+                                        },
+                                        "media": {
+                                            "id": "17859719991451973",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+            time.sleep(5)
+
+            actual = response.json()
+            print(f"Actual response for instagram is {actual}")
+            assert actual == 'success'
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                      channel_type="instagram") > 0
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+def test_instagram_comment_with_post_specific_reply(mock_get_config):
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    mock_get_config.return_value = {
+        'bot': '689097feb37ee2678aedd0cd',
+        'connector_type': 'instagram',
+        'config': {
+            'app_secret': 'cdb69bc72e2ccb7a869f20cbb6b0229a',
+            'page_access_token': 'EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD',
+            'verify_token': 'kairon-instagram-token',
+            'is_dev': True,
+            'post_config': {
+                '17859719991451845': {
+                    'keywords': ['offer', 'discount'],
+                    'comment_reply': 'Grab our latest offers and discounts on shoes before they run out!'
+                },
+                '17859719991451973': {
+                    'keywords': ['hi', 'price'],
+                    'comment_reply': 'Hi there! Yes, we offer the best prices on premium quality shoes!'
+                },
+                '17859719991451321': {
+                    'keywords': ['hello', 'offer']}}},
+        'meta_config': {}
+    }
 
     message = "@kairon_user_123 Hi there! Yes, we offer the best prices on premium quality shoes!"
     access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
@@ -3975,6 +4059,62 @@ def test_get_instagram_user_posts(monkeypatch):
 
 @responses.activate
 def test_instagram_comment():
+    def _mock_validate_hub_signature(*args, **kwargs):
+        return True
+
+    message = "@kairon_user_123 Thanks for reaching us, please check your inbox"
+    access_token = "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD"
+    responses.add(
+        "POST",
+        f"https://graph.facebook.com/v2.12/18009764417219041/replies?message={message}&access_token={access_token}",
+        json={}
+    )
+    responses.add(
+        "POST", f"https://graph.facebook.com/v2.12/me/messages?access_token={access_token}", json={}
+    )
+
+    with patch.object(LiveAgentHandler, "check_live_agent_active", _mock_check_live_agent_active):
+        with patch.object(InstagramHandler, "validate_hub_signature", _mock_validate_hub_signature):
+            response = client.post(
+                f"/api/bot/instagram/{bot}/{token}",
+                headers={"hub.verify_token": "valid"},
+                json={
+                    "entry": [
+                        {
+                            "id": "17841456706109718",
+                            "time": 1707144192,
+                            "changes": [
+                                {
+                                    "value": {
+                                        "from": {
+                                            "id": "6489091794524304",
+                                            "username": "kairon_user_123"
+                                        },
+                                        "media": {
+                                            "id": "17859719991451321",
+                                            "media_product_type": "REELS"
+                                        },
+                                        "id": "18009764417219041",
+                                        "text": "Hi"
+                                    },
+                                    "field": "comments"
+                                }
+                            ]
+                        }
+                    ],
+                    "object": "instagram"
+                })
+            time.sleep(5)
+
+            actual = response.json()
+            print(f"Actual response for instagram is {actual}")
+            assert actual == 'success'
+            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
+                                                      channel_type="instagram") > 0
+
+
+@responses.activate
+def test_instagram_comment_without_post_comment():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True
 
