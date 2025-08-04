@@ -40,7 +40,8 @@ class Messenger:
         self.client = MessengerClient(page_access_token)
         self.last_message: Dict[Text, Any] = {}
         self.is_instagram = is_instagram
-        self.allowed_users = None
+        self.allowed_users = []
+        self.post_config = {}
 
     def get_user_id(self) -> Text:
         sender_id = self.last_message.get("sender", {}).get("id", "")
@@ -171,11 +172,19 @@ class Messenger:
             comment_id = message["value"]["id"]
             user = message["value"]["from"]["username"]
             metadata["comment_id"] = comment_id
-            if static_comment_reply:
-                metadata["static_comment_reply"] = f"@{user} {static_comment_reply}"
+            metadata["user"] = user
             if media := message["value"].get("media"):
                 metadata["media_id"] = media.get("id")
                 metadata["media_product_type"] = media.get("media_product_type")
+
+            media_id = metadata.get("media_id")
+            media_post_config = self.post_config.get(media_id, {})
+            metadata['keywords'] = media_post_config.get("keywords", [])
+            media_comment_reply = media_post_config.get("comment_reply", "")
+
+            static_comment_reply = f"@{user} {static_comment_reply}" if static_comment_reply else None
+            metadata["static_comment_reply"] = f"@{user} {media_comment_reply}" \
+                if media_comment_reply else static_comment_reply
 
             if not parent_id:
                 await self._handle_user_message(text, self.get_user_id(), metadata, bot)
@@ -185,10 +194,15 @@ class Messenger:
     ) -> None:
         """Pass on the text to the dialogue engine for processing."""
         out_channel = MessengerBot(self.client)
-        if self.is_instagram and isinstance(self.allowed_users, list):
-            username = await out_channel.get_username_for_id(sender_id)
-            if username and (username not in self.allowed_users):
-                return
+
+        if self.is_instagram:
+            if self.allowed_users and isinstance(self.allowed_users, list):
+                if metadata.get("user") not in self.allowed_users:
+                    return
+
+            if metadata.get("media_id") in self.post_config:
+                if text.lower() not in map(str.lower, metadata.get("keywords")):
+                    return
 
         await out_channel.send_action(sender_id, sender_action="mark_seen")
         input_channel_name = self.name() if not self.is_instagram else "instagram"
@@ -531,8 +545,10 @@ class InstagramHandler(MessengerHandler):
         messenger = Messenger(page_access_token, is_instagram=True)
 
         if messenger_conf["config"].get("is_dev"):
-            allowed_users_str = messenger_conf["config"].get("allowed_users", "")
-            messenger.allowed_users = Utility.string_to_list(allowed_users_str)
+            allowed_users = messenger_conf["config"].get("allowed_users", [])
+            post_config = messenger_conf["config"].get("post_config", {})
+            messenger.allowed_users = allowed_users
+            messenger.post_config = post_config
 
         metadata = self.get_metadata(self.request) or {}
         metadata.update({
