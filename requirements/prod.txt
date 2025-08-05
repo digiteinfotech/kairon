@@ -32,7 +32,7 @@ pyTelegramBotAPI==4.26.0
 APScheduler==3.9.1.post1
 croniter==2.0.7
 faiss-cpu==1.8.0.post1
-tiktoken==0.7.0
+tiktoken==0.10.0
 RestrictedPython>=7.3
 AccessControl>=7.2
 timeout-decorator==0.5.0
