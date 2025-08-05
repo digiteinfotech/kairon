@@ -30961,7 +30961,8 @@ def test_update_analytics_settings():
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
-                              'catalog_sync_limit_per_day': 5}
+                              'catalog_sync_limit_per_day': 5,
+                              'max_instagram_user_posts': 5}
 
 
 def test_delete_channels_config():
