@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from mongoengine import Document
 
@@ -65,3 +66,15 @@ class BaseLogHandler(ABC):
     @staticmethod
     def get_logs_count(document: Document, **kwargs) -> int:
         return document.objects(**kwargs).count()
+
+    @staticmethod
+    def convert_logs_cursor_to_dict(logs_cursor):
+        logs = []
+        for log in logs_cursor:
+            log_dict = log.to_mongo().to_dict()
+            if "_id" in log_dict:
+                log_dict["_id"] = str(log_dict["_id"])
+            if "data" in log_dict and log_dict["data"] and "_id" in log_dict["data"]:
+                log_dict["data"]["_id"] = str(log_dict["data"]["_id"])
+            logs.append(log_dict)
+        return logs

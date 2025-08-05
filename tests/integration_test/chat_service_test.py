@@ -4008,6 +4008,56 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
 
 
 @responses.activate
+def test_get_instagram_user_posts(monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    access_token = chat_client_config["config"]["headers"]["authorization"][
+        "access_token"
+    ]
+    token_type = chat_client_config["config"]["headers"]["authorization"]["token_type"]
+
+    async def fake_get_user_media_posts(self):
+        return [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+    monkeypatch.setattr(InstagramProcessor, "get_user_media_posts", fake_get_user_media_posts)
+
+    response = client.get(
+        f"/api/bot/{bot}/user/posts",
+        headers={"Authorization": token_type + " " + token},
+    )
+    actual = response.json()
+    assert actual == [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+
+@responses.activate
 def test_instagram_comment():
     def _mock_validate_hub_signature(*args, **kwargs):
         return True

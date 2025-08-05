@@ -95,8 +95,10 @@ class MessageBroadcastProcessor:
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
             log.status = status
+        retry_count = kwargs.get("retry_count")
+        force_update = f"retry_count_{retry_count}_status"
         for key, value in kwargs.items():
-            if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
+            if (force_update == key or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
 

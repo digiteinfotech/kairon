@@ -2956,7 +2956,7 @@ class TestEventExecution:
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_1': 1, 'skipped_count_1': 0}
+            'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 0}
 
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
@@ -3319,7 +3319,7 @@ class TestEventExecution:
                        'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_1': 1, 'skipped_count_1': 0}
+            'resend_count_1': 1,'retry_count_1_status': 'Completed','retry_count': 1, 'skipped_count_1': 0}
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
@@ -3678,7 +3678,7 @@ class TestEventExecution:
                        'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_1': 1, 'skipped_count_1': 0, 'failure_count_1': 0}
+            'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 0, 'failure_count_1': 0}
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
         ).get().campaign_id == reference_id
@@ -4117,7 +4117,7 @@ class TestEventExecution:
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_1': 1, 'skipped_count_1': 1}
+            'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 1}
 
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
@@ -4672,7 +4672,7 @@ class TestEventExecution:
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
                        'retry_count': 1, 'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_2': 1, 'skipped_count_2': 0}
+            'resend_count_2': 1,'retry_count_2_status': 'Completed', 'retry_count': 2, 'skipped_count_2': 0}
 
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
@@ -5234,7 +5234,7 @@ class TestEventExecution:
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
                        'retry_count': 1, 'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
-            'resend_count_2': 1, 'skipped_count_2': 0}
+            'resend_count_2': 1,'retry_count_2_status': 'Completed', 'retry_count': 2, 'skipped_count_2': 0}
 
         assert ChannelLogs.objects(
             bot=bot, message_id='wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==', status="sent"
