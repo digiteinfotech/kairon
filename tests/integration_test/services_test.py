@@ -1967,6 +1967,77 @@ def test_get_llm_metadata_bot_specific_model_exists():
     LLMSecret.objects.delete()
 
 
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+def test_get_instagram_user_posts(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    mock_get_config.return_value = {
+        'bot': '689097feb37ee2678aedd0cd',
+        'connector_type': 'instagram',
+        'config': {
+            'app_secret': 'cdb69bc72e2ccb7a869f20cbb6b0229a',
+            'page_access_token': 'EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD',
+            'verify_token': 'kairon-instagram-token',
+            'is_dev': True,
+            'post_config': {
+                '17859719991451845': {
+                    'keywords': ['offer', 'discount'],
+                    'comment_reply': 'Grab our latest offers and discounts on shoes before they run out!'
+                },
+                '17859719991451973': {
+                    'keywords': ['hi', 'price'],
+                    'comment_reply': 'Hi there! Yes, we offer the best prices on premium quality shoes!'
+                },
+                '17859719991451321': {
+                    'keywords': ['hello', 'offer']}}},
+        'meta_config': {}
+    }
+
+    async def fake_get_user_media_posts(self):
+        return {"data": [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]}
+
+    monkeypatch.setattr(InstagramProcessor, "get_user_media_posts", fake_get_user_media_posts)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/user/posts",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert actual['data'] == [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):
     config = {
@@ -30780,7 +30851,8 @@ def test_get_bot_settings():
                               'content_importer_limit_per_day': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
-                              'catalog_sync_limit_per_day': 5}
+                              'catalog_sync_limit_per_day': 5,
+                              'max_instagram_user_posts': 5}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)

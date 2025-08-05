@@ -932,6 +932,7 @@ class BotSettings(Auditlog):
     live_agent_enabled = BooleanField(default=False)
     max_actions_per_parallel_action = IntField(default=5)
     catalog_sync_limit_per_day = IntField(default=5)
+    max_instagram_user_posts = IntField(default=5)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
