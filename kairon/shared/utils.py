@@ -2273,6 +2273,18 @@ class Utility:
             return []
         return [item.strip() for item in dilim_sep_string.split(delimilter) if item.strip()]
 
+    @staticmethod
+    def load_billablebots_onstartup():
+        from kairon.chat.agent_processor import AgentProcessor
+        from kairon.shared.data.data_objects import BotSettings
+        bot_list = BotSettings.objects(is_billed=True).only("bot")
+        logger.info(f"Total number of billable bots {len(bot_list)}")
+        for botObj in bot_list:
+            try:
+                AgentProcessor.reload(botObj.bot)
+                logger.info(f"Model loaded onStartup for botid: {botObj.bot}")
+            except Exception as ex:
+                logger.exception(f"Failure while loadig model: {ex}")
 
 class StoryValidator:
     @staticmethod

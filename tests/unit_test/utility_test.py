@@ -39,7 +39,7 @@ from kairon.shared.constants import ElementTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import STORY_EVENT
-from kairon.shared.data.data_objects import EventConfig, Slots, DemoRequestLogs
+from kairon.shared.data.data_objects import EventConfig, Slots, DemoRequestLogs, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
@@ -752,6 +752,38 @@ class TestUtility:
             AppException, match="No model trained yet. Please train a model to test"
         ):
             Utility.is_model_file_exists("invalid_bot")
+
+    @pytest.fixture(autouse=True)
+    def loguru_caplog_bridge(self):
+        from loguru import logger
+        import logging
+        class PropagateHandler(logging.Handler):
+            def emit(self, record):
+                logging.getLogger(record.name).handle(record)
+
+        logger.remove()
+        logger.add(PropagateHandler(), format="{message}")
+
+    def test_loadBillableBotModels_onstartup_exception(self, caplog):
+        BotSettings(bot="test1",user="test", is_billed=True).save()
+
+        from kairon.shared.utils import Utility
+        Utility.load_billablebots_onstartup()
+        assert "Failure while loadig model: Bot has not been trained yet!" in caplog.text
+
+    def test_loadBillableBotModels_onstartup(self, caplog, monkeypatch):
+        import logging
+        with caplog.at_level(logging.INFO):
+            def monkeypatch_reload(*args,**kwargs):
+                pass
+
+            from kairon.chat.agent_processor import AgentProcessor
+            monkeypatch.setattr(
+                AgentProcessor, "reload", monkeypatch_reload
+            )
+            from kairon.shared.utils import Utility
+            Utility.load_billablebots_onstartup()
+            assert "Model loaded onStartup for botid: test1" in caplog.text
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)

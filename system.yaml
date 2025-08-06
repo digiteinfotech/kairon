@@ -82,6 +82,7 @@ model:
     custom:
       - kairon.shared.nlu.classifier.openai.OpenAIClassifier
       - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+  load_isbilled_models: true
 
 
 action:

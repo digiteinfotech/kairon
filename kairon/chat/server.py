@@ -72,6 +72,11 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
+    load_isbilled_models = Utility.environment.get("model")['load_isbilled_models']
+    if load_isbilled_models:
+        from threading import Thread
+        t = Thread(target=Utility.load_billablebots_onstartup, daemon=True)
+        t.start()
     yield
     disconnect()
 
