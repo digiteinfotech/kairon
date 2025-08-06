@@ -264,3 +264,14 @@ async def bsp_upload_media(
     provider = BusinessServiceProviderFactory.get_instance(bsp_type)(current_user.get_bot(), current_user.get_user())
     external_media_id = await provider.upload_media(current_user.get_bot(), bsp_type, media_id)
     return Response(data={"external_media_id": external_media_id})
+
+
+@router.get("/user/posts", response_model=Response)
+async def get_user_posts(
+        request: Request,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+    processor = InstagramProcessor(bot=current_user.get_bot(), user=current_user.get_user())
+    user_posts = await processor.get_user_media_posts()
+    return Response(data=user_posts["data"])
