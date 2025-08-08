@@ -2744,6 +2744,63 @@ def test_pyscript_handler_create_callback_in_pyscript():
     assert len(bot_response) > 32
     CallbackConfig.objects(bot='test_bot', name='callback_py_1').delete()
 
+from unittest.mock import patch, MagicMock
+
+@patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
+def test_create_callback_defaults_name_to_callback_name(mock_create_entry):
+    # Arrange
+    mock_create_entry.return_value = ("http://callback.url", "some-id", False)
+
+    callback_name = "my_callback"
+    data = {
+        "callback_name": callback_name,
+        "metadata": {},
+        "bot": "test_bot",
+        "sender_id": "sender_123",
+        "channel": "test_channel",
+        # 'name' is intentionally omitted to test the default behavior
+    }
+
+    # Act
+    CallbackScriptUtility.create_callback(**data)
+
+    # Assert
+    mock_create_entry.assert_called_once()
+    args, kwargs = mock_create_entry.call_args
+
+    # We're checking that 'name' passed to create_entry is the same as callback_name
+    assert kwargs["name"] == callback_name
+
+from unittest.mock import patch, MagicMock
+
+@patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
+def test_create_callback_passing_name_to_callback_name(mock_create_entry):
+    # Arrange
+    mock_create_entry.return_value = ("http://callback.url", "some-id", False)
+
+    callback_name = "my_callback"
+    data = {
+        "callback_name": callback_name,
+        "metadata": {},
+        "bot": "test_bot",
+        "sender_id": "sender_123",
+        "channel": "test_channel",
+        "name":"ganesh"
+        # 'name' is intentionally omitted to test the default behavior
+    }
+
+    # Act
+    CallbackScriptUtility.create_callback(**data)
+
+    # Assert
+    mock_create_entry.assert_called_once()
+    args, kwargs = mock_create_entry.call_args
+
+    # We're checking that 'name' passed to create_entry is the same as callback_name
+    assert kwargs["name"] != callback_name
+
+
+
 
 def test_pyscript_handler_create_callback_in_pyscript_standalone():
     CallbackConfig.create_entry(bot='test_bot',
