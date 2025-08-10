@@ -2797,7 +2797,21 @@ def test_create_callback_passing_name_to_callback_name(mock_create_entry):
     # We're checking that 'name' passed to create_entry is the same as callback_name
     assert kwargs["name"] != callback_name
 
+@patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
+def test_create_callback_raises_if_callback_name_missing(mock_create_entry):
+    data = {
+        "callback_name": None,  # Missing value
+        "metadata": {},
+        "bot": "test_bot",
+        "sender_id": "sender_123",
+        "channel": "test_channel",
+    }
 
+    with pytest.raises(ValueError) as excinfo:
+        CallbackScriptUtility.create_callback(**data)
+
+    assert "'callback name' must be provided and cannot be empty" in str(excinfo.value)
+    mock_create_entry.assert_not_called()
 
 
 
