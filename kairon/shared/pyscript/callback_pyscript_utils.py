@@ -306,9 +306,7 @@ class CallbackScriptUtility:
     @staticmethod
     def create_callback(callback_name: str, metadata: dict, bot: str, sender_id: str, channel: str,
                         name: str = None):
-        if not callback_name:
-            raise ValueError("'callback name' must be provided and cannot be empty")
-
+        
         if not name:
             name=callback_name
         callback_url, identifier, standalone = CallbackData.create_entry(
