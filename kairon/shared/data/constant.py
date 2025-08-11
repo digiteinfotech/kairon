@@ -296,7 +296,7 @@ LOG_TYPE_METADATA = {
         {"id": "status", "header": "logsPage.fileProcessingStatus", "cellComponent": "StatusCell"}
     ],
 
-    LogTypeEnum.agent_handoff: [
+    LogTypeEnum.live_agent: [
         {"id": "agent_type", "header": "logsPage.agentType", "cellComponent": "ClickableNameCell"},
         {"id": "sender_id", "header": "logsPage.senderId", "cellComponent": "SimpleCell"},
         {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimestampOrInProgress", "cellComponent": "TimestampCell"}
