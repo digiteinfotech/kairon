@@ -4589,7 +4589,7 @@ def test_get_catalog_sync_logs():
     to_date = from_date + timedelta(days=1)
 
     search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/catalog/search?from_date={from_date}&to_date={to_date}&status=Success",
+        f"/api/bot/{pytest.bot}/logs/catalog/search?from_date={from_date}&to_date={to_date}&sync_status=Completed",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
