@@ -136,7 +136,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA
 )
 from .data_objects import (
     Responses,
@@ -9234,6 +9234,10 @@ class MongoProcessor:
         return query_params
 
     @staticmethod
+    def get_metadata_for_any_log_type(bot: Text):
+        return LOG_TYPE_METADATA
+
+    @staticmethod
     def get_logs_for_any_type(
             bot: Text,
             log_type: str,
@@ -9264,6 +9268,10 @@ class MongoProcessor:
         )
 
     @staticmethod
+    def get_field_ids_for_log_type(log_type):
+        return {col["id"] for col in LOG_TYPE_METADATA.get(log_type, []) if "id" in col}
+
+    @staticmethod
     def sanitize_query_filter(log_type: str, request) -> dict:
         """
         Sanitize and validate query parameters for the given log type.
@@ -9273,7 +9281,7 @@ class MongoProcessor:
             raise ValueError(f"Unsupported log type: {log_type}")
 
         raw_params = dict(request.query_params)
-        valid_fields = doc_type._fields.keys()
+        valid_fields = MongoProcessor.get_field_ids_for_log_type(log_type)
 
         sanitized = {}
 
