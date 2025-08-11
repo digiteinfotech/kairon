@@ -688,6 +688,16 @@ async def model_testing_logs(
     }
     return Response(data=data)
 
+@router.get("/logs/metadata", response_model=Response)
+async def fetch_metadata_for_logs(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Metdata of logs fetch endpoint.
+    """
+
+    metadata = mongo_processor.get_metadata_for_any_log_type(current_user.get_bot())
+    return Response(data={"metadata": metadata})
 
 @router.get("/logs/{log_type}", response_model=Response)
 async def fetch_logs(

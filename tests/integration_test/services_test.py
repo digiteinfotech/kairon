@@ -3266,6 +3266,23 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     LLMSecret.objects.delete()
 
 @responses.activate
+def test_fetch_metadata_for_logs_positive():
+    """
+    Positive test: Verify metadata for logs is fetched successfully.
+    """
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert response.status_code == 200
+    json_data = response.json()
+    assert "data" in json_data
+    assert "metadata" in json_data["data"]
+    assert isinstance(json_data["data"]["metadata"], dict)
+    assert len(json_data["data"]["metadata"]) > 0
+
+@responses.activate
 def test_upload_doc_content():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
