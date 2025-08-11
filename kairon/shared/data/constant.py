@@ -296,7 +296,7 @@ LOG_TYPE_METADATA = {
         {"id": "status", "header": "logsPage.fileProcessingStatus", "cellComponent": "StatusCell"}
     ],
 
-    LogTypeEnum.live_agent: [
+    LogTypeEnum.agent_handoff: [
         {"id": "agent_type", "header": "logsPage.agentType", "cellComponent": "ClickableNameCell"},
         {"id": "sender_id", "header": "logsPage.senderId", "cellComponent": "SimpleCell"},
         {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimestampOrInProgress", "cellComponent": "TimestampCell"}
@@ -384,13 +384,6 @@ LOG_TYPE_METADATA = {
         {"id": "sender_id", "header": "common.senderId", "cellComponent": "SimpleCell"},
         {"id": "timestamp", "accessorFunction": "formatUnixTimestamp", "header": "logsPage.timestamp", "cellComponent": "TimestampCell"},
         {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell"}
-    ],
-
-    LogTypeEnum.agent_handoff: [
-        {"id": "sender_id", "header": "logsPage.senderId", "cellComponent": "ClickableCell"},
-        {"id": "data", "accessorFunction": "extractUserInput", "header": "logsPage.storyName", "cellComponent": "SimpleCell"},
-        {"id": "data", "accessorFunction": "extractBotResponse", "header": "common.response", "cellComponent": "AgentResponseCell"},
-        {"id": "timestamp", "accessorFunction": "formatUnixTimestampFromSeconds", "header": "logsPage.timestamp", "cellComponent": "TimestampCell"}
     ],
 
     LogTypeEnum.catalog: [
