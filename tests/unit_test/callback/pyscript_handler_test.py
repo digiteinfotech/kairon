@@ -20,6 +20,7 @@ from pymongo import MongoClient
 
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
@@ -2747,7 +2748,7 @@ def test_pyscript_handler_create_callback_in_pyscript():
 
 @patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
 def test_create_callback_defaults_name_to_callback_name(mock_create_entry):
-    # Arrange
+
     mock_create_entry.return_value = ("http://callback.url", "some-id", False)
 
     callback_name = "my_callback"
@@ -2757,23 +2758,17 @@ def test_create_callback_defaults_name_to_callback_name(mock_create_entry):
         "bot": "test_bot",
         "sender_id": "sender_123",
         "channel": "test_channel",
-        # 'name' is intentionally omitted to test the default behavior
     }
 
-    # Act
     CallbackScriptUtility.create_callback(**data)
-
-    # Assert
     mock_create_entry.assert_called_once()
     args, kwargs = mock_create_entry.call_args
 
-    # We're checking that 'name' passed to create_entry is the same as callback_name
     assert kwargs["name"] == callback_name
 
 
 @patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
 def test_create_callback_passing_name_to_callback_name(mock_create_entry):
-    # Arrange
     mock_create_entry.return_value = ("http://callback.url", "some-id", False)
 
     callback_name = "my_callback"
@@ -2784,30 +2779,24 @@ def test_create_callback_passing_name_to_callback_name(mock_create_entry):
         "sender_id": "sender_123",
         "channel": "test_channel",
         "name":"ganesh"
-        # 'name' is intentionally omitted to test the default behavior
     }
 
-    # Act
     CallbackScriptUtility.create_callback(**data)
-
-    # Assert
     mock_create_entry.assert_called_once()
     args, kwargs = mock_create_entry.call_args
-
-    # We're checking that 'name' passed to create_entry is the same as callback_name
     assert kwargs["name"] != callback_name
 
 @patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
 def test_create_callback_raises_if_callback_name_missing(mock_create_entry):
     data = {
-        "callback_name": None,  # Missing value
+        "callback_name": None,
         "metadata": {},
         "bot": "test_bot",
         "sender_id": "sender_123",
         "channel": "test_channel",
     }
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AppException) as excinfo:
         CallbackScriptUtility.create_callback(**data)
 
     assert "'callback name' must be provided and cannot be empty" in str(excinfo.value)

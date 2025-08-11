@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
+from kairon.exceptions import AppException
 
 from kairon.shared.chat.user_media import UserMedia
 
@@ -307,7 +308,7 @@ class CallbackScriptUtility:
     def create_callback(callback_name: str, metadata: dict, bot: str, sender_id: str, channel: str,
                         name: str = None):
         if not callback_name:
-            raise ValueError("'callback name' must be provided and cannot be empty")
+            raise AppException("'callback name' must be provided and cannot be empty")
 
         if not name:
             name=callback_name
