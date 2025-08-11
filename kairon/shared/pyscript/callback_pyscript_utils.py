@@ -26,7 +26,6 @@ from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
-from kairon.exceptions import AppException
 
 from kairon.shared.chat.user_media import UserMedia
 

@@ -2749,7 +2749,7 @@ def test_pyscript_handler_create_callback_in_pyscript():
 @patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
 def test_create_callback_defaults_name_to_callback_name(mock_create_entry):
 
-    mock_create_entry.return_value = ("http://callback.url", "some-id", False)
+    mock_create_entry.return_value = ("http://callback.url", "test-id", False)
 
     callback_name = "my_callback"
     data = {
@@ -2769,7 +2769,7 @@ def test_create_callback_defaults_name_to_callback_name(mock_create_entry):
 
 @patch("kairon.shared.callback.data_objects.CallbackData.create_entry")
 def test_create_callback_passing_name_to_callback_name(mock_create_entry):
-    mock_create_entry.return_value = ("http://callback.url", "some-id", False)
+    mock_create_entry.return_value = ("http://callback.url", "test-id", False)
 
     callback_name = "my_callback"
     data = {
