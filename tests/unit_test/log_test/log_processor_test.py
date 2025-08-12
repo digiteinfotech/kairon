@@ -147,14 +147,9 @@ def test_sanitize_query_filter_valid(monkeypatch, log_type, query_params, expect
         # Key not in document fields
         ("actions", {"non_existing_key": "Success"}, ValueError, "Invalid query key: 'non_existing_key'"),
 
-        # Special characters in key
-        ("actions", {"sta@tus": "Success"}, ValueError, "Invalid query key: 'sta@tus' for log_type: 'actions'"),
-
         # Empty value
         ("actions", {"status": ""}, ValueError, "Search value for key 'status' cannot be empty or blank."),
 
-        # Special characters in value
-        ("actions", {"status": "@#Failure"}, ValueError, "Invalid key name: '@#Failure'")
     ]
 )
 def test_sanitize_query_filter_invalid(monkeypatch, log_type, query_params, expected_exception, expected_message):

@@ -36,7 +36,7 @@ from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
-    AuditlogActions, LogTypeEnum
+    AuditlogActions, LogTypes
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -701,7 +701,7 @@ async def fetch_metadata_for_logs(
 
 @router.get("/logs/{log_type}", response_model=Response)
 async def fetch_logs(
-    log_type: LogTypeEnum,
+    log_type: LogTypes,
     request: Request,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -720,7 +720,7 @@ async def fetch_logs(
 
 @router.get("/logs/{log_type}/search", response_model=Response)
 async def search_logs(
-    log_type: LogTypeEnum,
+    log_type: LogTypes,
     request: Request,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
