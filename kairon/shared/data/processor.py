@@ -9252,6 +9252,7 @@ class MongoProcessor:
             page_size = page_size,
             **kwargs
         )
+
     @staticmethod
     def get_logs_for_search_query(
             bot: Text,
@@ -9303,14 +9304,6 @@ class MongoProcessor:
 
                 if k not in valid_fields:
                     raise ValueError(f"Invalid query key: '{k}' for log_type: '{log_type}'")
-
-                if not Utility.special_match(k, RE_VALID_NAME):
-                    raise ValueError(
-                        f"Invalid key name: '{k}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
-
-                if not Utility.special_match(v, RE_VALID_NAME):
-                    raise ValueError(
-                        f"Invalid key name: '{v}'. Allowed: letters, numbers, spaces, hyphens, underscores.")
 
                 if Utility.check_empty_string(v):
                     raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
