@@ -2,7 +2,7 @@ import os
 from datetime import date, datetime
 from typing import List, Optional, Dict, Text
 
-from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -36,7 +36,7 @@ from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
-    AuditlogActions, LogTypeEnum
+    AuditlogActions, LogTypes
 from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -688,10 +688,20 @@ async def model_testing_logs(
     }
     return Response(data=data)
 
+@router.get("/logs/metadata", response_model=Response)
+async def fetch_metadata_for_logs(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Metdata of logs fetch endpoint.
+    """
+
+    metadata = mongo_processor.get_metadata_for_any_log_type(current_user.get_bot())
+    return Response(data={"metadata": metadata})
 
 @router.get("/logs/{log_type}", response_model=Response)
 async def fetch_logs(
-    log_type: LogTypeEnum,
+    log_type: LogTypes,
     request: Request,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
@@ -704,6 +714,21 @@ async def fetch_logs(
         current_user.get_bot(),
         log_type=log_type,
         **query_params
+    )
+    return Response(data={"logs": logs, "total": row_cnt})
+
+
+@router.get("/logs/{log_type}/search", response_model=Response)
+async def search_logs(
+    log_type: LogTypes,
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    query = mongo_processor.sanitize_query_filter(log_type, request)
+    logs, row_cnt = mongo_processor.get_logs_for_search_query(
+        current_user.get_bot(),
+        log_type=log_type,
+        **query
     )
     return Response(data={"logs": logs, "total": row_cnt})
 

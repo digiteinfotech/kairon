@@ -6,7 +6,7 @@ import shutil
 import tarfile
 import tempfile
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
 from unittest.mock import patch, AsyncMock
@@ -34,6 +34,7 @@ from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
+from kairon.shared.channels.mail.data_objects import MailResponseLog
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
@@ -3265,6 +3266,23 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     LLMSecret.objects.delete()
 
 @responses.activate
+def test_fetch_metadata_for_logs_positive():
+    """
+    Positive test: Verify metadata for logs is fetched successfully.
+    """
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert response.status_code == 200
+    json_data = response.json()
+    assert "data" in json_data
+    assert "metadata" in json_data["data"]
+    assert isinstance(json_data["data"]["metadata"], dict)
+    assert len(json_data["data"]["metadata"]) > 0
+
+@responses.activate
 def test_upload_doc_content():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
@@ -3363,6 +3381,22 @@ def test_upload_doc_content():
     assert logs[0]['validation_errors'] == {}
     assert logs[0]['exception'] == ''
 
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/content/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+
     cognition_data= CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload")
 
     assert cognition_data.count() == 20
@@ -3375,7 +3409,6 @@ def test_upload_doc_content():
         'profit': 54.98
     }
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload").delete()
-
 
 @responses.activate
 def test_upload_doc_content_append():
@@ -4551,7 +4584,22 @@ def test_get_catalog_sync_logs():
     assert log['sync_type'] == 'push_menu'
     assert log['status'] == 'Success'
     assert log['sync_status'] == 'Completed'
+    print(response)
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
 
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/catalog/search?from_date={from_date}&to_date={to_date}&sync_status=Completed",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print(response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 @pytest.mark.asyncio
 @responses.activate
@@ -7561,6 +7609,24 @@ def test_upload_with_bot_content_valifdate_payload_data():
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["end_timestamp"]
 
+    print(actual)
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/importer/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print("importer:", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 2
+
     response = client.get(
         f"/api/bot/{pytest.bot}/data/cognition",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -8017,7 +8083,6 @@ def get_executor_logs():
                       }
                       )
 
-
 def test_get_executor_logs(get_executor_logs):
     response = client.get(
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Callback",
@@ -8148,6 +8213,57 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]['from_executor'] is True
     assert actual["data"]["logs"][0]['bot'] == pytest.bot
 
+def test_search_executor_logs(get_executor_logs):
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = from_date + timedelta(days=2)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/executor/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("executor:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+
+    logs = data["logs"]
+    assert data["total"] == len(logs)
+    assert all(log.get("status") == "Success" for log in logs)
+
+    # Group by task_type and assert structure
+    for log in logs:
+        task_type = log.get("task_type")
+        assert task_type in {"Callback", "Action", "Event"}
+
+        assert "event_class" in log
+        assert "data" in log
+        assert "timestamp" in log
+        assert "executor_log_id" in log
+
+        if task_type == "Callback":
+            assert log["event_class"] == "pyscript_evaluator"
+            assert isinstance(log["data"], dict)
+            assert "source_code" in log["data"]
+            assert "predefined_objects" in log["data"]
+            assert isinstance(log["data"]["predefined_objects"], dict)
+            assert "bot_response" in str(log.get("response", {}))  # response body nested
+
+        elif task_type == "Action":
+            assert log["event_class"] in {"pyscript_evaluator", "scheduler_evaluator"}
+            assert isinstance(log["data"], dict)
+            assert "source_code" in log["data"]
+            assert "predefined_objects" in log["data"]
+
+        elif task_type == "Event":
+            assert log["event_class"] in {"model_testing", "model_training"}
+            assert isinstance(log["data"], list)
+            assert all(isinstance(entry, dict) and "name" in entry and "value" in entry for entry in log["data"])
 
 def test_update_user_details_with_invalid_onboarding_status():
     response = client.post(
@@ -9675,6 +9791,23 @@ def test_callback_get_logs():
     assert isinstance(actual['data']['logs'], list)
     assert len(actual['data']['logs']) == 1
 
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/callback/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("callback", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 1
 
 def test_callback_action_delete():
     response = client.delete(
@@ -22972,6 +23105,7 @@ def test_list_action_server_logs():
 
 
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 10
@@ -22989,6 +23123,40 @@ def test_list_action_server_logs():
     assert any([log["status"] == "FAILURE" for log in actual["data"]["logs"]])
     assert any([log["status"] == "SUCCESS" for log in actual["data"]["logs"]])
 
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=SUCCESS",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print("actions:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 6
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=FAILURE",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("actions:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 4
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=15",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -23010,6 +23178,53 @@ def test_list_action_server_logs():
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 1
     assert actual["data"]["total"] == 11
+
+
+def test_get_mail_channel_logs():
+    MailResponseLog(
+        sender_id="chocoboyxp@gmail.com",
+        uid=4337,
+        responses=[
+            {
+                "recipient_id": "spandan.mondal@nimblework.com",
+                "text": "How may i help you?"
+            }
+        ],
+        slots={
+            "doc_url": "None",
+            "document": "None",
+            "video": "None",
+            "audio": "None",
+            "image": "None",
+            "kairon_action_response": "None",
+            "bot": "67e24b3847fb806ba96ff494",
+            "session_started_metadata": "{'channel': 'mail', 'tabname': 'default', 'is_integration_user': False, 'bot': '64a43ce6af92e374371ed5bd', 'account': 1048, 'channel_type': 'chat_client'}",
+            "bot_response": "How may i help you?"
+        },
+        bot=pytest.bot,
+        user="spandan.mondal@nimblework.com",
+        status="success"
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/mail_channel",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/mail_channel/search"
+        f"?from_date={from_date}&to_date={to_date}&status=success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    print("actions:", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 
 def test_feedback():
@@ -33278,6 +33493,22 @@ def test_get_end_user_metrics(monkeypatch):
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
+
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/agent_handoff/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("agent", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -33726,7 +33957,7 @@ def test_multilingual_translate_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 2
@@ -33746,6 +33977,21 @@ def test_multilingual_translate_logs():
     assert actual["data"]["logs"][1]["start_timestamp"]
     assert actual["data"]["logs"][1]["end_timestamp"]
 
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/multilingual/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("multilingual", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 def test_multilingual_language_support(monkeypatch):
     def _mock_supported_languages(*args, **kwargs):
@@ -33911,7 +34157,7 @@ def test_get_auditlog_for_bot():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-
+    print(actual)
     audit_log_data = actual["data"]["logs"]
 
     assert audit_log_data is not None
@@ -33922,6 +34168,22 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.SAVE.value) > 5
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 3
     assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/audit/search"
+        f"?from_date={from_date}&to_date={to_date}"
+        f"&start_idx=0&page_size=10",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("audit", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 
 @mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
@@ -34161,6 +34423,29 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = search_response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
