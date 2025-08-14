@@ -8,7 +8,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
 from loguru import logger
-
+from typing import List
 
 class DataProcessor:
 
@@ -73,7 +73,7 @@ class DataProcessor:
         return builder.to_schema()
 
     @staticmethod
-    def save_collection_data(payload: Dict, user: Text, bot: Text):
+    def  save_collection_data(payload: Dict, user: Text, bot: Text):
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
         is_secure = payload.get('is_secure')
@@ -286,5 +286,47 @@ class DataProcessor:
             message = f"Collection {name} does not exist!"
         return [message, result]
 
+    @staticmethod
+    def save_bulk_collection_data(payloads: List[Dict], user: Text, bot: Text, collection_name: Text) -> Dict:
+        collection_docs = []
+        errors = []
+        collection_name=collection_name
+
+        for index, payload in enumerate(payloads):
+            try:
+                data = payload.get("data")
+                is_secure = payload.get("is_secure")
+                is_non_editable = payload.get("is_non_editable")
+
+                DataProcessor.validate_collection_payload(collection_name, is_secure, data)
+                encrypted_data = DataProcessor.prepare_encrypted_data(data, is_secure)
+
+                collection_obj = CollectionData(
+                    collection_name=collection_name,
+                    data=encrypted_data,
+                    is_secure=is_secure,
+                    is_non_editable=is_non_editable,
+                    user=user,
+                    bot=bot,
+                )
+                collection_docs.append(collection_obj)
+            except Exception as e:
+                errors.append({
+                    "index": index,
+                    "collection_name": payload.get("collection_name"),
+                    "error": str(e)
+                })
+
+        if collection_docs:
+            try:
+                CollectionData.objects.insert(collection_docs, load_bulk=False)
+            except Exception as e:
+                errors.append({
+                    "bulk_insert_error": str(e)
+                })
+
+        return {
+            "errors": errors
+        }
 
 

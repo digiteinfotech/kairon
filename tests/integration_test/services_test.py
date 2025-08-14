@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
 import litellm
@@ -29,6 +29,7 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
@@ -168,6 +169,11 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         table_name = kwargs.get('table_name')
         overwrite = kwargs.get('overwrite', False)
         DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
+    elif event_class==EventClass.upload_file_handler:
+        type=kwargs.get("type")
+        collection_name=kwargs.get("collection_name")
+        overwrite=kwargs.get("overwrite")
+        UploadHandler(bot, user, type, collection_name=collection_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -2297,6 +2303,265 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
+
+def test_bulk_save_success():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "test_data",
+                "is_secure": ["name"],
+                "is_non_editable": ["email"],
+                "data": {
+                    "name": "Aniket",
+                    "email": "aniket@example.com"
+                }
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Bulk save completed"
+    assert actual["success"]
+    assert "data" in actual
+    CollectionData.objects(collection_name="test_bulk_save_success").delete()
+
+
+def test_bulk_save_with_missing_is_secure_key():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "user",
+                "is_secure": ["name", "aadhar"],  # aadhar missing from data
+                "data": {
+                    "name": "Aniket",
+                    "email": "aniket@example.com"
+                }
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{
+        "loc": ["body", "collections", 0, "__root__"],
+        "msg": "is_secure contains keys that are not present in data",
+        "type": "value_error"
+    }]
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_data_none():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "user",
+                "is_secure": ["name"],
+                "data": None
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["data"] is None
+
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "data cannot be empty and should be of type dict!" in error_messages
+    assert "none is not an allowed value" in error_messages
+
+
+def test_bulk_save_with_empty_collection_name():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "  ",
+                "data": {"name": "Aniket"},
+                "is_secure": [],
+                "is_non_editable": []
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]["msg"] == "collection_name should not be empty!"
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_non_editable_key_missing_in_data():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "user",
+                "data": {
+                    "name": "Aniket",
+                },
+                "is_secure": [],
+                "is_non_editable": ["email"]
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"][0]["msg"] == "is_non_editable contains keys that are not present in data"
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_invalid_types():
+    request_body = {
+        "collections": [
+            {
+                "collection_name": "user",
+                "data": {"name": "Aniket"},
+                "is_secure": "name",  # should be a list
+                "is_non_editable": []
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "is_secure should be list of keys!" in error_messages
+    assert "value is not a valid list" in error_messages
+
+
+@responses.activate
+def test_upload_file_content_success():
+    # Arrange
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.upload_file_handler}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/upload/crud_data/test_collection_data?overwrite=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "File content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, type="crud_data", collection_name="test_collection_data", overwrite=False
+    )
+
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/file_upload?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 1
+    assert logs[0]['file_name'] == 'Salesstore.csv'
+    assert logs[0]['status'] == 'Success'
+    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['is_uploaded']
+    assert logs[0]['start_timestamp'] is not None
+    assert logs[0]['end_timestamp'] is not None
+    assert logs[0]['upload_errors'] == {}
+    assert logs[0]['exception'] == ''
+
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/file_upload/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+
+
+@patch("kairon.api.app.routers.bot.data.UploadHandler")
+def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler):
+    """Test that file upload does not enqueue event when validation fails."""
+
+    # Arrange
+    mock_event_instance = MagicMock()
+    mock_event_instance.validate.return_value = False
+    mock_upload_handler.return_value = mock_event_instance
+
+    files = {
+        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/upload/crud_data/test_collection?overwrite=true",
+        files=files,
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"] is True
+    assert actual["message"] == "File content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    mock_event_instance.enqueue.assert_not_called()
 
 @pytest.mark.asyncio
 @responses.activate
@@ -36205,4 +36470,3 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
-

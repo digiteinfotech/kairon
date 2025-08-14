@@ -20,6 +20,8 @@ from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogH
 from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
 from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
 from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
+from kairon.shared.log_system.handlers.file_upload_logs_handler import FileUploadHandler
+from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility
@@ -46,7 +48,8 @@ common_kwargs = {"user": "test@user.com"}
         ("agent_handoff", AgentHandoffLogHandler),
         ("audit", AuditLogHandler),
         ("unknown_type", DefaultLogHandler),
-        ("model_test", ModelTestingHandler)
+        ("model_test", ModelTestingHandler),
+        ("file_upload", FileUploadHandler)
     ]
 )
 def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
@@ -66,7 +69,8 @@ def test_log_handler_factory_returns_correct_handler(log_type, expected_class):
         ("agent_handoff", AgentHandoffLogHandler, Metering),
         ("audit", AuditLogHandler, AuditLogData),
         ("custom_widget", DefaultLogHandler, CustomWidgetsRequestLog),
-        ("model_test", ModelTestingHandler, ModelTestingLogs)
+        ("model_test", ModelTestingHandler, ModelTestingLogs),
+        ("file_upload", FileUploadHandler, UploadHandlerLogs)
 
     ]
 )
