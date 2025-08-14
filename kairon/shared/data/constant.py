@@ -356,10 +356,10 @@ LOG_TYPE_METADATA = {
 
     LogTypes.llm: [
         {"id": "llm_call_id", "header": "logsPage.llmCallId", "cellComponent": "ClickableNameCell"},
-        {"id": "metadata", "accessorFunction": "getUserFromMetadata", "header": "common.user", "cellComponent": "UserCell"},
+        {"id": "user", "accessorFunction": "getUserFromMetadata", "header": "common.user", "cellComponent": "UserCell"},
         {"id": "model_params", "accessorFunction": "getModelFromModelParams", "header": "logsPage.llmModel", "cellComponent": "SimpleCell"},
         {"id": "cost", "header": "logsPage.cost", "cellComponent": "SimpleCell"},
-        {"id": "metadata", "accessorFunction": "getInvocationFromMetadata", "header": "logsPage.invocation", "cellComponent": "SimpleCell"}
+        {"id": "invocation", "accessorFunction": "getInvocationFromMetadata", "header": "logsPage.invocation", "cellComponent": "SimpleCell"}
     ],
 
     LogTypes.content: [
