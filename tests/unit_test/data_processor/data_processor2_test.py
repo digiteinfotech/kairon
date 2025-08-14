@@ -7,11 +7,12 @@ import pytest
 from mongoengine import DoesNotExist
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
-
+import shutil
 from kairon.exceptions import AppException
-from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1289,3 +1290,219 @@ def test_delete_collection_data_no_records():
         mock_query.delete.assert_called_once()
 
 
+@pytest.fixture
+def valid_payload():
+    return [
+        {
+            "collection_name": "test_collection",
+            "data": {"field1": "value1"},
+            "is_secure": ["field1"],
+            "is_non_editable": ["field1"]
+        },
+        {
+            "collection_name": "test_collection_2",
+            "data": {"fieldA": "valueA"},
+            "is_secure": [],
+            "is_non_editable": []
+        }
+    ]
+
+
+def test_bulk_save_success(valid_payload):
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects, \
+         patch('kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload') as mock_validate, \
+         patch('kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data', side_effect=lambda d, s: d):
+        mock_objects.insert.return_value = [MagicMock(), MagicMock()]
+
+        result = DataProcessor.save_bulk_collection_data(valid_payload, user="test_user", bot="test_bot", collection_name="test_bulk_save")
+
+        assert result["errors"] == []
+        mock_objects.insert.assert_called_once()
+        assert mock_validate.call_count == 2
+
+
+def test_bulk_save_with_validation_error(valid_payload):
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload", side_effect=[None, Exception("Invalid data")]), \
+         patch("kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data", side_effect=lambda d, s: d):
+
+        mock_objects.insert.return_value = [MagicMock()]
+
+        result = DataProcessor.save_bulk_collection_data(valid_payload, user="test_user", bot="test_bot", collection_name="test_bulk_save")
+
+        assert "errors" in result
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["index"] == 1
+        assert "Invalid data" in result["errors"][0]["error"]
+        mock_objects.insert.assert_called_once()
+        assert len(mock_objects.insert.call_args[0][0]) == 1  # One valid doc inserted
+
+
+def test_bulk_insert_fails(valid_payload):
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload") as mock_validate, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data", side_effect=lambda d, s: d):
+
+        mock_objects.insert.side_effect = Exception("DB insert failed")
+
+        result = DataProcessor.save_bulk_collection_data(valid_payload, user="test_user", bot="test_bot", collection_name="test_bulk_save")
+
+        assert len(result["errors"]) == 1
+        assert "bulk_insert_error" in result["errors"][0]
+        assert "DB insert failed" in result["errors"][0]["bulk_insert_error"]
+        mock_objects.insert.assert_called_once()
+
+
+
+def test_no_valid_documents():
+    payloads = [
+        {
+            "collection_name": "",
+            "data": {},
+            "is_secure": [],
+            "is_non_editable": []
+        }
+    ]
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload", side_effect=Exception("Invalid name")):
+
+        result = DataProcessor.save_bulk_collection_data(payloads, user="test_user", bot="test_bot", collection_name="test_bulk_save")
+
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["index"] == 0
+        assert "Invalid name" in result["errors"][0]["error"]
+        mock_objects.insert.assert_not_called()
+
+
+from types import SimpleNamespace
+import io
+
+def test_file_handler_save_and_validate_success(tmp_path):
+    bot = "test_bot"
+    user = "test_user"
+
+    # Prepare fake CSV file
+    file_content = SimpleNamespace(
+        filename="test.csv",
+        content_type="text/csv",
+        file=io.BytesIO(b"col1,col2\nval1,val2")
+    )
+
+    instance = MongoProcessor()
+
+    error_message = instance.file_handler_save_and_validate(
+        bot=bot,
+        user=user,
+        file_content=file_content,
+        type=UploadHandlerClass.crud_data
+    )
+
+    # Verify file exists
+    content_dir = os.path.join("file_content_upload_records", bot)
+    file_path = os.path.join(content_dir, file_content.filename)
+    assert os.path.exists(file_path)
+
+    # No errors for valid CSV
+    assert error_message == {}
+
+    # Cleanup
+    shutil.rmtree(content_dir)
+
+
+def test_file_handler_save_and_validate_invalid_type(tmp_path):
+    bot = "test_bot"
+    user = "test_user"
+
+    # Prepare non-CSV file
+    file_content = SimpleNamespace(
+        filename="test.txt",
+        content_type="text/plain",
+        file=io.BytesIO(b"some text content")
+    )
+
+    instance = MongoProcessor()
+
+    error_message = instance.file_handler_save_and_validate(
+        bot=bot,
+        user=user,
+        file_content=file_content,
+        type=UploadHandlerClass.crud_data
+    )
+
+    content_dir = os.path.join("file_content_upload_records", bot)
+    file_path = os.path.join(content_dir, file_content.filename)
+    assert os.path.exists(file_path)
+
+    # Expect file type error
+    assert "File type error" in error_message
+
+    # Cleanup
+    shutil.rmtree(content_dir)
+
+
+def test_file_upload_validate_schema_and_log_success(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    file_content = SimpleNamespace(
+        filename="test.csv",
+        content_type="text/csv",
+        file=io.BytesIO(b"col1,col2\nval1,val2")
+    )
+
+    instance = MongoProcessor()
+
+    # Force schema validation to pass
+    monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {})
+
+    logged = []
+    monkeypatch.setattr(
+        "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.add_log",
+        lambda **kwargs: logged.append(kwargs)
+    )
+
+    result = instance.file_upload_validate_schema_and_log(
+        bot=bot,
+        user=user,
+        file_content=file_content,
+        type=UploadHandlerClass.crud_data,
+        collection_name="test_collection"
+    )
+
+    assert result is True
+    assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
+    assert not any(log.get("status") == "Failure" for log in logged)
+
+
+def test_file_upload_validate_schema_and_log_failure(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    file_content = SimpleNamespace(
+        filename="test.csv",
+        content_type="text/csv",
+        file=io.BytesIO(b"col1,col2\nval1,val2")
+    )
+
+    instance = MongoProcessor()
+
+    # Force schema validation to fail
+    monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {"error": "bad schema"})
+
+    logged = []
+    monkeypatch.setattr(
+        "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.add_log",
+        lambda **kwargs: logged.append(kwargs)
+    )
+
+    result = instance.file_upload_validate_schema_and_log(
+        bot=bot,
+        user=user,
+        file_content=file_content,
+        type=UploadHandlerClass.crud_data,
+        collection_name="test_collection"
+    )
+
+    assert result is False
+    assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
+    assert any(log.get("status") == "Failure" for log in logged)
