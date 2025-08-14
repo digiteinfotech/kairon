@@ -1,3 +1,5 @@
+from lib2to3.fixes.fix_operator import invocation
+
 from kairon.shared.log_system.base import BaseLogHandler
 
 class LLMLogHandler(BaseLogHandler):
@@ -11,8 +13,15 @@ class LLMLogHandler(BaseLogHandler):
     def get_logs_for_search_query(self):
         from_date = self.kwargs.pop("from_date", None)
         to_date = self.kwargs.pop("to_date", None)
+        user = self.kwargs.pop("user", None)
+        invocation = self.kwargs.pop("invocation", None)
 
         query = {"metadata__bot": self.bot}
+
+        if user:
+            query["metadata__user"] = user
+        if invocation:
+            query["metadata__invocation"] = invocation
 
         if from_date:
             query["start_time__gte"] = from_date
