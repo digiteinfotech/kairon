@@ -11,6 +11,8 @@ from mongoengine import connect
 from kairon import cli
 from kairon.cli.catalog_sync import sync_catalog_content
 from kairon.cli.content_importer import import_doc_content
+from kairon.cli.upload_handler import import_file_content
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.cli.conversations_deletion import initiate_history_deletion_archival
 from kairon.cli.delete_logs import delete_logs
 from kairon.cli.importer import validate_and_import
@@ -531,3 +533,61 @@ class TestCatalogSyncCli:
         with pytest.raises(AttributeError) as e:
             cli()
         assert "'Namespace' object has no attribute 'sync_ref_id'" in str(e.value)
+
+class TestUploadHandlerCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        """
+        Initialize environment connection for testing.
+        """
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_file_content))
+    def test_file_importer_no_arguments(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'bot'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli"))
+    def test_file_importer_no_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert str(e.value).__contains__("'Namespace' object has no attribute 'user'")
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                                                collection_name="documents", overwrite=False))
+    def test_file_importer_with_defaults(self, monkeypatch):
+        def mock_file_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(UploadHandler, "execute", mock_file_content_importer)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                                                collection_name="test_collection", overwrite=True))
+    def test_file_importer_all_arguments(self, monkeypatch):
+        def mock_file_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(UploadHandler, "execute", mock_file_content_importer)
+        cli()
+
+    @mock.patch('argparse.ArgumentParser.parse_args',
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                                                collection_name="test_collection", overwrite="yes"))
+    def test_file_importer_overwrite_as_string_argument(self, monkeypatch):
+        """
+        Test CLI command where 'overwrite' is passed as a string instead of a boolean.
+        Verifies how the command handles incorrect argument types.
+        """
+        def mock_file_content_importer(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(UploadHandler, "execute", mock_file_content_importer)
+        cli()

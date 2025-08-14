@@ -8,6 +8,7 @@ from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
 from kairon.events.definitions.model_testing import ModelTestingEvent
 from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.events.definitions.multilingual import MultilingualEvent
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from kairon.events.definitions.catalog_sync import CatalogSync
@@ -26,7 +27,8 @@ class EventFactory:
         EventClass.content_importer: DocContentImporterEvent,
         EventClass.mail_channel_read_mails: MailReadEvent,
         EventClass.agentic_flow: AgenticFlowEvent,
-        EventClass.catalog_integration: CatalogSync
+        EventClass.catalog_integration: CatalogSync,
+        EventClass.upload_file_handler: UploadHandler
     }
 
     @staticmethod

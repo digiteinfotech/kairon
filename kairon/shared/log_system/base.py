@@ -17,6 +17,7 @@ from kairon.shared.llm.data_objects import LLMLogs
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.multilingual.data_objects import BotReplicationLogs
 from kairon.shared.test.data_objects import ModelTestingLogs
+from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
 
 
 class BaseLogHandler(ABC):
@@ -45,7 +46,8 @@ class BaseLogHandler(ABC):
         "executor": ExecutorLogs,
         "agent_handoff": Metering,
         "audit": AuditLogData,
-        "model_test": ModelTestingLogs
+        "model_test": ModelTestingLogs,
+        "file_upload": UploadHandlerLogs
     }
 
     @classmethod

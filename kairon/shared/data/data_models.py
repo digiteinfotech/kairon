@@ -1268,11 +1268,14 @@ class CollectionDataRequest(BaseModel):
 
         if non_editable:
             non_editable_set = set(non_editable)
+            data_keys = set(data.keys())
             if not non_editable_set.issubset(data_keys):
                 raise ValueError("is_non_editable contains keys that are not present in data")
 
         return values
 
+class BulkCollectionDataRequest(BaseModel):
+    collections: List[CollectionDataRequest]
 
 class CognitiveDataRequest(BaseModel):
     data: Any
