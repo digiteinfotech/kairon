@@ -2525,7 +2525,7 @@ def test_upload_file_content_success():
 
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/file_upload/search"
-        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        f"?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )
     response_json = search_response.json()
@@ -2535,6 +2535,7 @@ def test_upload_file_content_success():
     data = response_json["data"]
     assert "logs" in data
     assert isinstance(data["logs"], list)
+    CollectionData.objects(collection_name="test_collection_data").delete()
 
 
 @patch("kairon.api.app.routers.bot.data.UploadHandler")
