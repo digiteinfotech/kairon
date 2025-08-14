@@ -86,9 +86,14 @@ class EventClass(str, Enum):
     mail_channel_read_mails = "email_channel_read_mails"
     agentic_flow = "agentic_flow"
     catalog_integration = "catalog_integration"
+    upload_file_handler = "upload_file_handler"
 
 class CatalogSyncClass(str, Enum):
     petpooja = "petpooja"
+
+class UploadHandlerClass(str, Enum):
+    broadcast = "broadcast"
+    crud_data = "crud_data"
 
 class EventRequestType(str, Enum):
     trigger_async = "trigger_async"
