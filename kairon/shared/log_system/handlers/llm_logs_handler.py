@@ -1,5 +1,3 @@
-from lib2to3.fixes.fix_operator import invocation
-
 from kairon.shared.log_system.base import BaseLogHandler
 
 class LLMLogHandler(BaseLogHandler):
