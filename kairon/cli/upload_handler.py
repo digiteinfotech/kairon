@@ -51,5 +51,9 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                                    default=False,
                                    action='store_true',
                                    help="Overwrites existing data if true, else appends.")
+    file_importer_parser.add_argument('type',
+                                      type=str,
+                                      action='store',
+                                      help="The upload type of the data provided")
 
     file_importer_parser.set_defaults(func=import_file_content)
