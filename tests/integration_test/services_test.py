@@ -913,7 +913,6 @@ def test_api_login_with_recaptcha(monkeypatch):
         ]
     )
 
-
 @responses.activate
 def test_api_login_with_recaptcha_failed(monkeypatch):
     email = "integration@demo.ai"
@@ -35504,8 +35503,22 @@ def test_delete_organization(monkeypatch):
         data={"username": email, "password": "Welcome@10"},
     )
     login = response.json()
+    response = client.post(
+        f"/api/account/organization",
+        headers={
+            "Authorization": login["data"]["token_type"]
+                             + " "
+                             + login["data"]["access_token"]
+        },
+        json={
+            "data": {
+                "name": "test_delete_org"
+            }
+        }
+    )
+    org_id= response.json()["data"]["org_id"]
     response = client.delete(
-        f"/api/account/organization/updated_sample",
+        f"/api/account/organization/{org_id}",
         headers={
             "Authorization": login["data"]["token_type"]
                              + " "
