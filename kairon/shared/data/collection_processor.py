@@ -183,8 +183,7 @@ class DataProcessor:
         qs = CollectionData.objects(**filters_dict)
 
         data = list(unique_everseen(qs, key=lambda doc: json.dumps(doc.data, sort_keys=True)))
-        single_key = all(len(d.data) == 1 for d in data)
-        data = [next(iter(doc.data.values())) if single_key else doc.data for doc in data]
+        data = [doc.data for doc in data]
 
         return data
 
