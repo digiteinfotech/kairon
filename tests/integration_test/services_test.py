@@ -34491,7 +34491,6 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
     assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
-    assert False
 
 
 def test_add_custom_widget_invalid_config():
