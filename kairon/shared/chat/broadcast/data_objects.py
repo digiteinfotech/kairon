@@ -1,5 +1,5 @@
 from mongoengine import Document, StringField, DateTimeField, DynamicDocument, EmbeddedDocument, \
-    EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField
+    EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
 from kairon import Utility
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -87,6 +87,7 @@ class MessageBroadcastSettings(Auditlog):
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
+    collection_config = DictField(default={})
     pyscript = StringField()
     flowname = StringField()
     template_name = StringField(default=None)

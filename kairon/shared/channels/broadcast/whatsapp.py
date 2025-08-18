@@ -17,6 +17,7 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, Mess
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
@@ -31,6 +32,10 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         if self.config["broadcast_type"] == MessageBroadcastType.dynamic.value:
             logger.debug("Skipping get_recipients as broadcast_type is dynamic!")
+            return
+
+        if self.config.get('collection_config'):
+            logger.debug("Skipping get_recipients as collection_config is present!")
             return
 
         try:
@@ -243,19 +248,103 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_exception=template_exception
         )
 
+    def __prepare_template_params(self, raw_template):
+        collection_config = self.config.get("collection_config", {})
+
+        collection_names = collection_config.get("collections", [])
+        filters = collection_config.get("filters_list", [])
+
+        crud_data = DataProcessor.get_collection_data_with_filters(
+            self.bot, collection_names, filters
+        )
+
+        field_mapping = collection_config.get("field_mapping", [])
+        media_types = {"image", "document", "video"}
+        MOBILE_KEYS = [
+            "mobile_number", "phone_number", "mobile", "phone",
+            "contact_number", "contact", "whatsapp_number"
+        ]
+
+        example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
+
+        def get_default_text(section_type, field_name):
+            """Get default text from example_map."""
+            example = example_map.get(section_type, {})
+            if "header_text" in example:
+                return example["header_text"][0]
+            elif "body_text" in example:
+                return example["body_text"][0][0]
+            return f"<{field_name}>"
+
+        def get_default_media(section_type, param_type):
+            """Get default media link from example_map."""
+            example = example_map.get(section_type, {})
+            if "header_handle" in example:
+                return example["header_handle"][0]
+            elif "body_handle" in example:
+                return example["body_handle"][0][0]
+            return example.get(param_type, {}).get("link", f"<{param_type}_link>")
+
+        def extract_mobile(record):
+            for key in MOBILE_KEYS:
+                if key in record and record[key]:
+                    return record[key]
+            return None
+
+        template_params = []
+        recipients = []
+
+        for record in crud_data:
+            record_params = []
+            for comp in field_mapping:
+                section_type = comp.get("type", "").upper()
+                params = []
+                for param in comp.get("parameters", []):
+                    param_type = param.get("type", "text")
+
+                    if param_type == "text":
+                        field_name = param.get("text")
+                        value = record.get(field_name) or get_default_text(section_type, field_name)
+                        params.append({"type": "text", "text": str(value)})
+
+                    elif param_type in media_types:
+                        field_name = param.get(param_type, {}).get("link")
+                        media_link = record.get(field_name) if field_name else None
+                        if not media_link:
+                            media_link = get_default_media(section_type, param_type)
+                        params.append({"type": param_type, param_type: {"link": str(media_link)}})
+
+                    else:
+                        params.append(param)
+
+                record_params.append({"parameters": params, "type": comp["type"]})
+
+            template_params.append(record_params)
+            if mobile := extract_mobile(record):
+                recipients.append(mobile)
+
+        return template_params, recipients
+
     def __send_using_configuration(self, recipients: List):
-        total = len(recipients)
 
         for i, template_config in enumerate(self.config['template_config']):
 
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            template_params = self._get_template_parameters(template_config)
             raw_template, template_exception = self.__get_template(template_id, lang)
 
-            # if there's no template body, pass params as None for all recipients
-            template_params = template_params * len(recipients) if template_params else [template_params] * len(recipients)
+            #   prepare template_params, recipients for collection_config
+            if self.config.get('collection_config'):
+                template_params, recipients = self.__prepare_template_params(raw_template)
+            else:
+                template_params = self._get_template_parameters(template_config)
+
+                # if there's no template body, pass params as None for all recipients
+                template_params = template_params * len(recipients) if template_params \
+                    else [template_params] * len(recipients)
+
+            total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
             evaluation_log = {
                 f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
@@ -270,14 +359,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
                     message_list.append((template_id, recipient, lang, t_params, namespace, None))
 
-
             _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
 
-
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
-                event_id=self.event_id, nonsent_recipients=non_sent_recipients, **evaluation_log
+                event_id=self.event_id, nonsent_recipients=non_sent_recipients,
+                template_params=template_params, recipients=recipients, **evaluation_log
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
