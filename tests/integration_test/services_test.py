@@ -8622,6 +8622,44 @@ def test_save_collection_data_with_valid_data():
     assert actual["success"]
 
 
+def test_get_collections_metadata():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/metadata?collection_names=user,bank_details",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"] == {
+        '$schema': 'http://json-schema.org/schema#',
+        'type': 'object',
+        'properties': {'name': {'type': 'string'},
+                       'age': {'type': 'integer'},
+                       'mobile_number': {'type': 'string'},
+                       'location': {'type': 'string'},
+                       'account_holder_name': {'type': 'string'},
+                       'account_number': {'type': 'string'},
+                       'ifsc': {'type': 'string'}
+                       },
+        'required': ['location', 'mobile_number']
+    }
+    assert actual["success"]
+
+
+def test_get_collections_metadata_with_no_collections():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'type': 'object', 'properties': {}}
+    assert actual["success"]
+
+
 def test_list_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection",
@@ -10463,6 +10501,7 @@ def test_list_broadcast():
                 "name": "test_broadcast",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "collection_config": {},
                 "recipients_config": {"recipients": "919876543210,919012345678"},
                 "retry_count": 3,
                 "template_config": [{"template_id": "sales_template", "language": "en"}],
@@ -30835,6 +30874,7 @@ def test_list_broadcast_config():
                 "name": "first_scheduler_dynamic",
                 "connector_type": "whatsapp",
                 "broadcast_type": "dynamic",
+                "collection_config": {},
                 "scheduler_config": {
                     "expression_type": "cron",
                     "schedule": "21 11 * * *",
@@ -30849,6 +30889,7 @@ def test_list_broadcast_config():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
@@ -30898,6 +30939,7 @@ def test_list_broadcast_():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],

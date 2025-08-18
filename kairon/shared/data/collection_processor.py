@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-from typing import Dict, Text
+from typing import Dict, Text, List
 
 from mongoengine import DoesNotExist
 
@@ -43,6 +43,34 @@ class DataProcessor:
             else:
                 decrypted_data[key] = value
         return decrypted_data
+
+    @staticmethod
+    def get_collections_metadata(bot: Text, collection_names: List[Text], **kwargs) -> dict:
+        from genson import SchemaBuilder
+        from genson.schema.node import SchemaGenerationError
+
+        documents = CollectionData.objects(bot=bot, collection_name__in=collection_names)
+
+        if not documents:
+            logger.warning(f"Collection Data not found: bot={bot}, collection_names={collection_names}")
+            return {"type": "object", "properties": {}}
+
+        builder = SchemaBuilder()
+        builder.add_schema({"type": "object", "properties": {}})
+
+        for doc in documents:
+            nested_data = getattr(doc, "data", None)
+            if isinstance(nested_data, dict):
+                try:
+                    builder.add_object(nested_data)
+                except SchemaGenerationError as e:
+                    logger.warning(
+                        f"Skipping document with invalid data structure: {nested_data}. Reason: {str(e)}"
+                    )
+            else:
+                logger.warning("Invalid or missing 'data' field in a document.")
+
+        return builder.to_schema()
 
     @staticmethod
     def get_crud_metadata(bot: Text, collection_name: Text, **kwargs) -> dict:
@@ -134,6 +162,31 @@ class DataProcessor:
         collection_count = CollectionData.objects(bot=bot, user=user).delete()
         if collection_count == 0:
             logger.error(f"No collection data found for bot='{bot}', user='{user}' to delete.")
+
+    @staticmethod
+    def get_collection_data_with_filters(bot: Text, collection_names: List[str], filters: List[Dict]) -> List[Dict]:
+        from more_itertools import unique_everseen
+
+        filters_dict = {
+            "bot": bot,
+            "collection_name__in": collection_names
+        }
+
+        for f in filters:
+            column = f.get("column")
+            condition = f.get("condition")
+            value = f.get("value")
+
+            field_name = f"data__{column}" + (f"__{condition}" if condition else "")
+            filters_dict[field_name] = value
+
+        qs = CollectionData.objects(**filters_dict)
+
+        data = list(unique_everseen(qs, key=lambda doc: json.dumps(doc.data, sort_keys=True)))
+        single_key = all(len(d.data) == 1 for d in data)
+        data = [next(iter(doc.data.values())) if single_key else doc.data for doc in data]
+
+        return data
 
     @staticmethod
     def list_collection_data(bot: Text):

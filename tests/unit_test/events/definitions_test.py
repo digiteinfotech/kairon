@@ -1010,6 +1010,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
@@ -1056,6 +1057,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
@@ -1101,6 +1103,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     def test_update_message_broadcast_invalid_config(self):
@@ -1141,6 +1144,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     def test_delete_message_broadcast_event_server_failure(self):
@@ -1162,6 +1166,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate
@@ -1190,6 +1195,7 @@ class TestEventDefinitions:
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
+                          'collection_config': {},
                           'template_config': [{'language': 'en', 'template_id': 'brochure_pdf'}]}
 
     @responses.activate

@@ -1035,6 +1035,483 @@ class TestEventExecution:
         assert logs[0]['status'] == 'Success'
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
+    @pytest.fixture()
+    def mock_collection_data(self):
+        from kairon.shared.cognition.data_objects import CollectionData
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mayank",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Ganesh",
+                "whatsapp_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Ganesh",
+                "whatsapp_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543001",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543002",
+                "crop": "wheat",
+                "status": "stage-3",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Aniket",
+                "whatsapp_number": "9876543003",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_collection_config_with_multiple_data(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send, mock_get_partner_auth_token,
+            mock_collection_data
+    ):
+        bot = 'test_bot'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule_with_multiple_data",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {},
+            "collection_config": {
+                "collections": ["crop_details", "details"],
+                "filters_list": [
+                    {
+                        "column": "age",
+                        "condition": "lte",
+                        "value": "26"
+                    },
+                    {
+                        "column": "age",
+                        "condition": "gt",
+                        "value": "22"
+                    },
+                    {
+                        "column": "name",
+                        "condition": "nin",
+                        "value": [
+                            "Mahesh",
+                            "Hitesh"
+                        ]
+                    }
+                ],
+                "field_mapping": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "name"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "status"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Hi {{1}}, Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! This is the status of crop - {{1}}, As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {
+            "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        from kairon.shared.cognition.data_objects import CollectionData
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        collection_data = CollectionData.objects(
+            **{'bot': 'test_bot', 'collection_name__in': ['crop_details', 'details'],
+               'data__age__lte': '26', 'data__age__gt': '22', 'data__name__nin': ['Mahesh', 'Hitesh']}
+        )
+        assert len(collection_data) == 3
+        print(logs)
+        print("*" * 1000)
+        assert len(logs[0]) == logs[1] == 3
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][2].pop("reference_id")
+        logged_config = logs[0][2].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        assert logged_config == config
+        logs[0][2]['recipients'] = set(logs[0][2]['recipients'])
+        logs[0][2].pop('timestamp')
+        print(logs[0][2])
+        assert logs[0][2] == {
+            'log_type': 'common',
+            'bot': 'test_bot',
+            'status': 'Completed',
+            'user': 'test_user',
+            'event_id': event_id,
+            'recipients': {'9876543001', '9876543003'},
+            'failure_cnt': 0,
+            'total': 2,
+            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
+                                 {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
+                                [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+                                 {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
+            'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+        }
+        print(logs[0][1])
+        assert logs[0][1] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543001',
+            'template_params': [{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
+                                {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+        logs[0][0].pop("timestamp")
+        print(logs[0][0])
+        assert logs[0][0] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543003',
+            'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+                                {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+
+        settings = list(MessageBroadcastProcessor.list_settings(bot, status=False,
+                                                                name="one_time_schedule_with_multiple_data"))
+        assert len(settings) == 1
+        assert settings[0]["status"] is False
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_collection_config(self, mock_is_exist, mock_channel_config,
+                                                              mock_get_bot_settings, mock_send,
+                                                              mock_get_partner_auth_token, mock_collection_data):
+        bot = 'test_bot'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule_with_collection_config",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {},
+            "collection_config": {
+                "collections": ["crop_details", "details"],
+                "filters_list": [
+                    {
+                        "column": "age",
+                        "condition": "lte",
+                        "value": "26"
+                    },
+                    {
+                        "column": "age",
+                        "condition": "gt",
+                        "value": "22"
+                    },
+                    {
+                        "column": "name",
+                        "condition": "nin",
+                        "value": [
+                            "Mahesh",
+                            "Hitesh",
+                            "Ganesh"
+                        ]
+                    }
+                ],
+                "field_mapping": [
+                  {
+                    "type": "header",
+                    "parameters": [
+                      {
+                        "type": "text",
+                        "text": "name"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "body",
+                    "parameters": [
+                      {
+                        "type": "text",
+                        "text": "status"
+                      }
+                    ]
+                  }
+                ]
+              },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Hi {{1}}, Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! This is the status of crop - {{1}}, As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        print(logs)
+        print("*"*1000)
+        assert len(logs[0]) == logs[1] == 5
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        print(logs[0][1])
+        assert logs[0][1] == {
+            'log_type': 'common',
+            'bot': 'test_bot',
+            'status': 'Completed',
+            'user': 'test_user',
+            'event_id': event_id,
+            'recipients': {'9876543003'},
+            'failure_cnt': 0,
+            'total': 1,
+            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+                                 {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
+            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+        }
+        logs[0][0].pop("timestamp")
+        print(logs[0][0])
+        assert logs[0][0] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543003',
+            'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+                                {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+
+        settings = list(MessageBroadcastProcessor.list_settings(bot, status=False,
+                                                                name="one_time_schedule_with_collection_config"))
+        assert len(settings) == 1
+        assert settings[0]["status"] is False
+
     def test_trigger_model_testing_event_run_tests_on_model_no_model_found_1(self):
         bot = 'test_events_bot'
         user = 'test_user'
@@ -1480,8 +1957,10 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        config['collection_config'] = {}
         assert logged_config == config
         logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        logs[0][1].pop('template_params')
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
                               'user': 'test_user', 'recipients': {'', '918958030541'},
                               'failure_cnt': 0, 'total': 2,
@@ -1592,6 +2071,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        config['collection_config'] = {}
         assert logged_config == config
         logs[0][2]['recipients'] = set(logs[0][2]['recipients'])
         assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
@@ -1690,6 +2170,7 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         assert not logged_config.pop("recipients_config")
         config.pop("recipients_config")
+        config['collection_config'] = {}
         assert logged_config == config
         assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
                               'exception': "Failed to evaluate recipients: 'recipients'"
@@ -1788,6 +2269,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        config['collection_config'] = {}
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
@@ -1924,6 +2406,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        config['collection_config'] = {}
         assert logged_config == config
         logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
@@ -2095,6 +2578,7 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         logged_config.pop("timestamp")
         logged_config.pop("_id")
+        config['collection_config'] = {}
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
@@ -2294,6 +2778,7 @@ class TestEventExecution:
             "pyscript": script,
             "retry_count": 0,
             "template_name": "brochure_pdf",
+            'collection_config': {},
             "language_code": "hi"
         }
         template = [
@@ -2379,6 +2864,7 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         logged_config.pop("timestamp")
         logged_config.pop("_id")
+        logged_config['collection_config'] = {}
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
@@ -2531,6 +3017,7 @@ class TestEventExecution:
             "name": "one_time_schedule", "broadcast_type": "dynamic",
             "connector_type": "whatsapp",
             "pyscript": script,
+            'collection_config': {},
             "retry_count": 0
         }
 
@@ -2557,6 +3044,7 @@ class TestEventExecution:
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
+        logged_config['collection_config'] = {}
         assert logged_config.pop("template_config") == []
         assert logged_config == config
         logs[0][0].pop("timestamp", None)
@@ -2581,7 +3069,7 @@ class TestEventExecution:
         script = textwrap.dedent(script)
         config = {
             "name": "one_time_schedule", "broadcast_type": "dynamic",
-            "connector_type": "whatsapp", "pyscript": script,
+            "connector_type": "whatsapp", "pyscript": script, 'collection_config': {},
             "retry_count": 0
         }
 
@@ -2614,6 +3102,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config['collection_config'] = {}
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
@@ -2954,6 +3443,7 @@ class TestEventExecution:
             'config': {'_id': event_id, 'name': 'test_broadcast', 'connector_type': 'whatsapp',
                        'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
+                       'collection_config': {},
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 0}
@@ -3316,7 +3806,7 @@ class TestEventExecution:
             'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
                        'broadcast_type': 'dynamic', 'template_config': [],
                        'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
-                       'retry_count': 0,
+                       'retry_count': 0, 'collection_config': {},
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_1': 1,'retry_count_1_status': 'Completed','retry_count': 1, 'skipped_count_1': 0}
@@ -3675,7 +4165,7 @@ class TestEventExecution:
             'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
                        'broadcast_type': 'dynamic', 'template_config': [],
                        'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
-                       'retry_count': 0,
+                       'retry_count': 0, 'collection_config': {},
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 0, 'failure_count_1': 0}
@@ -4115,6 +4605,7 @@ class TestEventExecution:
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
+                       'collection_config': {},
                        'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_1': 1,'retry_count_1_status': 'Completed', 'retry_count': 1, 'skipped_count_1': 1}
@@ -4670,6 +5161,7 @@ class TestEventExecution:
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                       'collection_config': {},
                        'retry_count': 1, 'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_2': 1,'retry_count_2_status': 'Completed', 'retry_count': 2, 'skipped_count_2': 0}
@@ -5232,6 +5724,7 @@ class TestEventExecution:
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543211,919012345678,919012341234'},
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                       'collection_config': {},
                        'retry_count': 1, 'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
                        'user': 'test_user', 'status': False, 'pyscript_timeout': 21600},
             'resend_count_2': 1,'retry_count_2_status': 'Completed', 'retry_count': 2, 'skipped_count_2': 0}
