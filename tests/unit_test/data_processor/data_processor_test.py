@@ -137,6 +137,175 @@ class TestMongoProcessor:
             return nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config
 
         return _read_and_get_data
+    
+    @pytest.fixture()
+    def mock_collection_data(self):
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mayank",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "23"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot", 
+            user="test_user_1", 
+            collection_name="crop_details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543001",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543002",
+                "crop": "wheat",
+                "status": "stage-3",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Aniket",
+                "mobile_number": "9876543003",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
+
+    def test_get_collection_data_with_filters_list(self, mock_collection_data):
+        collection_names = ["crop_details", "details"]
+        filters = [
+            {
+                "column": "age",
+                "condition": "gte",
+                "value": "26"
+            },
+            {
+                "column": "name",
+                "condition": "iendswith",
+                "value": "esh"
+            },
+        ]
+        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
+                                                                collection_names=collection_names,
+                                                                filters=filters)
+        assert len(result) == 4
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+            {'name': 'Hitesh', 'mobile_number': '9876543001', 'crop': 'Okra', 'status': 'stage-4', 'age': '27'},
+            {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
+        ]
+
+        collection_names = ["details"]
+        filters = [
+            {
+                "column": "age",
+                "condition": "lt",
+                "value": "26"
+            },
+            {
+                "column": "age",
+                "condition": "gt",
+                "value": "20"
+            },
+            {
+                "column": "name",
+                "condition": "nin",
+                "value": ["Mahesh", "Hitesh"]
+            },
+        ]
+        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
+                                                                collection_names=collection_names,
+                                                                filters=filters)
+        assert len(result) == 2
+        assert result == [
+            {'name': 'Mayank', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '22'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '23'}
+        ]
+
+        collection_names = ["details", "crop_details"]
+        filters = [
+            {
+                "column": "age",
+                "condition": "",
+                "value": "26"
+            }
+        ]
+        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
+                                                                collection_names=collection_names,
+                                                                filters=filters)
+        assert len(result) == 3
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+            {'name': 'Aniket', 'mobile_number': '9876543003', 'crop': 'Okra', 'status': 'stage-4', 'age': '26'}
+        ]
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
