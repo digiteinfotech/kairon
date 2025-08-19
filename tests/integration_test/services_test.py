@@ -8660,6 +8660,18 @@ def test_get_collections_metadata_with_no_collections():
     assert actual["success"]
 
 
+def test_get_collections_metadata_with_collection_not_present():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/metadata?collection_names=userdata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["data"] == {'type': 'object', 'properties': {}}
+    assert actual["success"]
+
 def test_list_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection",
