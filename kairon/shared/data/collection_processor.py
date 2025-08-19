@@ -1,7 +1,8 @@
 from datetime import datetime
 import json
+from fastapi import HTTPException
 from typing import Dict, Text
-
+import re
 from mongoengine import DoesNotExist
 
 from kairon import Utility
@@ -14,7 +15,7 @@ class DataProcessor:
 
     @staticmethod
     def validate_collection_payload(collection_name, is_secure, data):
-        if not collection_name:
+        if not collection_name.strip():
             raise AppException("collection name is empty")
 
         if not isinstance(is_secure, list):
@@ -73,7 +74,7 @@ class DataProcessor:
         return builder.to_schema()
 
     @staticmethod
-    def  save_collection_data(payload: Dict, user: Text, bot: Text):
+    def save_collection_data(payload: Dict, user: Text, bot: Text):
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')
         is_secure = payload.get('is_secure')
@@ -287,7 +288,7 @@ class DataProcessor:
         return [message, result]
 
     @staticmethod
-    def save_bulk_collection_data(payloads: List[Dict], user: Text, bot: Text, collection_name: Text) -> Dict:
+    def save_bulk_collection_data(payloads: List[Dict], user: Text, bot: Text, collection_name: Text):
         collection_docs = []
         errors = []
         collection_name=collection_name
@@ -313,20 +314,39 @@ class DataProcessor:
             except Exception as e:
                 errors.append({
                     "index": index,
-                    "collection_name": payload.get("collection_name"),
                     "error": str(e)
                 })
 
+        if errors:
+            raise AppException(f"Errors in bulk insert: {errors}")
+
         if collection_docs:
             try:
-                CollectionData.objects.insert(collection_docs, load_bulk=False)
+                CollectionData.objects.insert(collection_docs)
             except Exception as e:
-                errors.append({
-                    "bulk_insert_error": str(e)
-                })
-
+                raise AppException(f"Bulk insert failed: {str(e)}")
         return {
-            "errors": errors
+            "status" : "success",
+            "errors" : []
         }
+
+    @staticmethod
+    def validate_collection_name(collection_name):
+        try:
+            if not collection_name or not collection_name.strip():
+                raise ValueError("Collection name cannot be empty.")
+            if len(collection_name) > 64:
+                raise ValueError("Collection name cannot exceed 64 characters.")
+            if not re.match(r"^[A-Za-z][A-Za-z0-9_-]*$", collection_name):
+                raise ValueError(
+                    "Collection name must start with a letter and contain only letters, numbers, underscores, or hyphens.")
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=str(e))
+
+    @staticmethod
+    def validate_file_type(file_content):
+        valid_csv_types = ["text/csv"]
+        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
+            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
 
 

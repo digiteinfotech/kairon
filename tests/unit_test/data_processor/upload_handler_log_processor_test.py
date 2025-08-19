@@ -82,9 +82,9 @@ class TestUploadHandlerLogProcessor:
         bot = 'test_bot'
         try:
             bot_settings = BotSettings.objects(bot=bot).get()
-            bot_settings.content_importer_limit_per_day = 0
+            bot_settings.system_limits["file_upload_limit"] = 0
         except:
-            bot_settings = BotSettings(bot=bot, content_importer_limit_per_day=0, user="test_user")
+            bot_settings = BotSettings(bot=bot, system_limits={"file_upload_limit": 0}, user="test_user")
         bot_settings.save()
         with pytest.raises(AppException):
             assert UploadHandlerLogProcessor.is_limit_exceeded(bot)
@@ -92,14 +92,14 @@ class TestUploadHandlerLogProcessor:
     def test_is_limit_exceeded(self, monkeypatch):
         bot = 'test_bot'
         bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.content_importer_limit_per_day = 3
+        bot_settings.system_limits["file_upload_limit"] = 3
         bot_settings.save()
         assert not UploadHandlerLogProcessor.is_limit_exceeded(bot, False)
 
     def test_is_limit_exceeded_false(self, monkeypatch):
         bot = 'test_bot'
         bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.content_importer_limit_per_day = 6
+        bot_settings.system_limits["file_upload_limit"] = 6
         bot_settings.save()
         assert not UploadHandlerLogProcessor.is_limit_exceeded(bot)
 

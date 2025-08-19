@@ -3,6 +3,7 @@ from typing import List
 from loguru import logger
 from rasa.cli import SubParsersAction
 from kairon.events.definitions.upload_handler import UploadHandler
+from kairon.shared.constants import UploadHandlerClass
 
 
 def import_file_content(args):
@@ -13,14 +14,15 @@ def import_file_content(args):
     logger.info("user: {}", args.user)
     logger.info("collection_name: {}", args.collection_name)
     logger.info("overwrite: {}", args.overwrite)
-    logger.info("type: {}", args.type)
+    upload_type = getattr(args, "type", UploadHandlerClass.crud_data.value)
+    logger.info("type: {}", upload_type)
 
     UploadHandler(
         args.bot,
         args.user,
         collection_name=args.collection_name,
         overwrite=args.overwrite,
-        type=args.type
+        type=upload_type
     ).execute()
 
 

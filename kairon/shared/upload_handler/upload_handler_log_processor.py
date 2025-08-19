@@ -83,10 +83,10 @@ class UploadHandlerLogProcessor:
         today = datetime.today()
         today_start = today.replace(hour=0, minute=0, second=0)
 
-        doc_count = UploadHandlerLogs.objects(
+        file_count = UploadHandlerLogs.objects(
             bot=bot, start_timestamp__gte=today_start
         ).count()
-        if doc_count >= BotSettings.objects(bot=bot).get().content_importer_limit_per_day:
+        if file_count >= BotSettings.objects(bot=bot).get().system_limits["file_upload_limit"]:
             if raise_exception:
                 raise AppException("Daily upload limit exceeded.")
             return True
