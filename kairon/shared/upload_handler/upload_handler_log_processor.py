@@ -3,6 +3,7 @@ from loguru import logger
 from mongoengine import Q, DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
 from kairon.shared.data.constant import EVENT_STATUS
 from typing import Text
@@ -93,17 +94,11 @@ class UploadHandlerLogProcessor:
         return False
 
     @staticmethod
-    def get_logs(bot: str, start_idx: int = 0, page_size: int = 10):
-        for log in UploadHandlerLogs.objects(bot=bot).order_by("-start_timestamp").skip(start_idx).limit(page_size):
-            log = log.to_mongo().to_dict()
-            log.pop('_id')
-            log.pop('bot')
-            log.pop('user')
-            yield log
-
-    @staticmethod
     def get_latest_event_file_name(bot: str):
-        return next(UploadHandlerLogProcessor.get_logs(bot)).get("file_name", "")
+        logs,count=BaseLogHandler.get_logs(bot, "file_upload")
+        if not logs:
+            return ""
+        return logs[0].get("file_name", "")
 
     @staticmethod
     def delete_enqueued_event_log(bot: str):

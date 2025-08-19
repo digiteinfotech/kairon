@@ -2337,7 +2337,7 @@ def test_bulk_save_with_missing_is_secure_key():
         "payload": [
             {
                 "collection_name": "user",
-                "is_secure": ["name", "aadhar"],  # aadhar missing from data
+                "is_secure": ["name", "aadhar"],
                 "data": {
                     "name": "Aniket",
                     "email": "aniket@example.com"
@@ -2448,7 +2448,7 @@ def test_bulk_save_with_invalid_types():
             {
                 "collection_name": "user",
                 "data": {"name": "Aniket"},
-                "is_secure": "name",  # should be a list
+                "is_secure": "name",
                 "is_non_editable": []
             }
         ]
@@ -2470,7 +2470,6 @@ def test_bulk_save_with_invalid_types():
 
 @responses.activate
 def test_upload_file_content_success():
-    # Arrange
     event_url = urljoin(
         Utility.environment["events"]["server_url"],
         f"/api/events/execute/{EventClass.upload_file_handler}",
@@ -2542,7 +2541,6 @@ def test_upload_file_content_success():
 def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler):
     """Test that file upload does not enqueue event when validation fails."""
 
-    # Arrange
     mock_event_instance = MagicMock()
     mock_event_instance.validate.return_value = False
     mock_upload_handler.return_value = mock_event_instance

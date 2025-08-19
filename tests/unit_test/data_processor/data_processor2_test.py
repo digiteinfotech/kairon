@@ -1402,15 +1402,12 @@ def test_file_handler_save_and_validate_success(tmp_path):
         type=UploadHandlerClass.crud_data
     )
 
-    # Verify file exists
     content_dir = os.path.join("file_content_upload_records", bot)
     file_path = os.path.join(content_dir, file_content.filename)
     assert os.path.exists(file_path)
 
-    # No errors for valid CSV
     assert error_message == {}
 
-    # Cleanup
     shutil.rmtree(content_dir)
 
 
@@ -1418,7 +1415,6 @@ def test_file_handler_save_and_validate_invalid_type(tmp_path):
     bot = "test_bot"
     user = "test_user"
 
-    # Prepare non-CSV file
     file_content = SimpleNamespace(
         filename="test.txt",
         content_type="text/plain",
@@ -1437,11 +1433,8 @@ def test_file_handler_save_and_validate_invalid_type(tmp_path):
     content_dir = os.path.join("file_content_upload_records", bot)
     file_path = os.path.join(content_dir, file_content.filename)
     assert os.path.exists(file_path)
-
-    # Expect file type error
     assert "File type error" in error_message
 
-    # Cleanup
     shutil.rmtree(content_dir)
 
 
@@ -1457,7 +1450,6 @@ def test_file_upload_validate_schema_and_log_success(monkeypatch):
 
     instance = MongoProcessor()
 
-    # Force schema validation to pass
     monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {})
 
     logged = []
@@ -1491,7 +1483,6 @@ def test_file_upload_validate_schema_and_log_failure(monkeypatch):
 
     instance = MongoProcessor()
 
-    # Force schema validation to fail
     monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {"error": "bad schema"})
 
     logged = []
@@ -1515,7 +1506,6 @@ def test_file_upload_validate_schema_and_log_failure(monkeypatch):
 def test_validate_collection_name_valid():
     instance = DataProcessor()
 
-    # valid names should not raise exception
     assert instance.validate_collection_name("ValidName") is None
     assert instance.validate_collection_name("Valid_Name123") is None
     assert instance.validate_collection_name("Valid-Name") is None
@@ -1582,17 +1572,17 @@ class DummyFile:
 
 def test_validate_file_type_valid_content_type(monkeypatch):
     file_content = DummyFile("data.txt", "text/csv")
-    DataProcessor.validate_file_type(file_content)  # Should not raise
+    DataProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_valid_extension(monkeypatch):
     file_content = DummyFile("data.csv", "application/json")
-    DataProcessor.validate_file_type(file_content)  # Should not raise
+    DataProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_valid_both(monkeypatch):
     file_content = DummyFile("data.csv", "text/csv")
-    DataProcessor.validate_file_type(file_content)  # Should not raise
+    DataProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_invalid(monkeypatch):
@@ -1604,4 +1594,4 @@ def test_validate_file_type_invalid(monkeypatch):
 
 def test_validate_file_type_case_insensitive_extension(monkeypatch):
     file_content = DummyFile("report.CSV", "application/json")
-    DataProcessor.validate_file_type(file_content)  # Should not raise
+    DataProcessor.validate_file_type(file_content)
