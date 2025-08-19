@@ -8968,10 +8968,6 @@ class MongoProcessor:
         :param type: The Class type of the file to validate against
         :return: True if the schema is valid, else False
         """
-        # Validate and collect errors
-        error_message = self.file_handler_save_and_validate(bot, user, file_content, type)
-
-        # Log initial event
         UploadHandlerLogProcessor.add_log(
             bot=bot,
             user=user,
@@ -8982,7 +8978,8 @@ class MongoProcessor:
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
-        # Log result
+        error_message = self.file_handler_save_and_validate(bot, user, file_content, type)
+
         if error_message:
             UploadHandlerLogProcessor.add_log(
                 bot=bot,
@@ -9002,8 +8999,7 @@ class MongoProcessor:
         Saves the training file and performs validation.
 
         :param bot: The bot ID
-        :param doc_content: The file to be saved and validated
-        :param table_name: table name
+        :param file_content: The file to be saved and validated
         :return: A dictionary of error messages if validation fails
         """
         valid_csv_types = ["text/csv"]
@@ -9016,11 +9012,9 @@ class MongoProcessor:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file_content.file, buffer)
 
-        # Rewind the file to read content
         file_content.file.seek(0)
 
         if type == UploadHandlerClass.crud_data:
-            # Validate CSV file type
             if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
                 error_message[
                     'File type error'] = f"Invalid file type: {file_content.content_type}. Please upload a CSV file."

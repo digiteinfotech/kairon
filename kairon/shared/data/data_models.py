@@ -1275,7 +1275,7 @@ class CollectionDataRequest(BaseModel):
         return values
 
 class BulkCollectionDataRequest(BaseModel):
-    collections: List[CollectionDataRequest]
+    payload: List[CollectionDataRequest]
 
 class CognitiveDataRequest(BaseModel):
     data: Any
