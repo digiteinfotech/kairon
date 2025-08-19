@@ -193,6 +193,18 @@ class TestMongoProcessor:
             user="test_user_1",
             collection_name="crop_details",
             data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
                 "name": "Ganesh",
                 "mobile_number": "9876543001",
                 "crop": "Paddy",
