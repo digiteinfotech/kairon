@@ -56,10 +56,10 @@ class TestFileImporter:
         result = file_importer.preprocess()
 
         assert isinstance(result, dict)
-        assert "collections" in result
-        assert len(result["collections"]) == 20
+        assert "payload" in result
+        assert len(result["payload"]) == 20
 
-        first_item = result["collections"][0]
+        first_item = result["payload"][0]
         assert first_item["collection_name"] == "test_collection"
         assert isinstance(first_item["data"], dict)
         assert first_item["data"]["order_id"] == "67"
