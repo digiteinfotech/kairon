@@ -39,12 +39,12 @@ class FileImporter:
                     "data": clean_row
                 })
 
-        return {"collections": data}
+        return {"payload": data}
 
     def import_data(self, collections_data):
         if collections_data:
             DataProcessor.save_bulk_collection_data(
-                payloads=[collection for collection in collections_data["collections"]],
+                payloads=[collection for collection in collections_data["payload"]],
                 user=self.user,
                 bot=self.bot,
                 collection_name=self.collection_name
