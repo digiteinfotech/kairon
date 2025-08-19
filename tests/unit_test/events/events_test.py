@@ -1130,6 +1130,7 @@ class TestEventExecution:
                 "name": "Aniket",
                 "whatsapp_number": "9876543003",
                 "crop": "Okra",
+                "video_link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4",
                 "status": "stage-4",
                 "age": "26"
             }
@@ -1266,7 +1267,6 @@ class TestEventExecution:
         )
         assert len(collection_data) == 3
         print(logs)
-        print("*" * 1000)
         assert len(logs[0]) == logs[1] == 3
         logs[0][1].pop("timestamp")
         reference_id = logs[0][2].pop("reference_id")
@@ -1509,6 +1509,631 @@ class TestEventExecution:
 
         settings = list(MessageBroadcastProcessor.list_settings(bot, status=False,
                                                                 name="one_time_schedule_with_collection_config"))
+        assert len(settings) == 1
+        assert settings[0]["status"] is False
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_collection_config_with_default_values(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send,
+            mock_get_partner_auth_token, mock_collection_data
+    ):
+        bot = 'test_bot'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule_with_collection_config_default_values",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {},
+            "collection_config": {
+                "collections": ["crop_details", "details"],
+                "filters_list": [
+                    {
+                        "column": "age",
+                        "condition": "lte",
+                        "value": "26"
+                    },
+                    {
+                        "column": "age",
+                        "condition": "gt",
+                        "value": "22"
+                    },
+                    {
+                        "column": "name",
+                        "condition": "nin",
+                        "value": [
+                            "Mahesh",
+                            "Hitesh",
+                            "Ganesh"
+                        ]
+                    }
+                ],
+                "field_mapping": [
+                  {
+                    "type": "header",
+                    "parameters": [
+                      {
+                        "type": "text",
+                        "text": "invalid_name"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "body",
+                    "parameters": [
+                      {
+                        "type": "text",
+                        "text": "invalid_status"
+                      }
+                    ]
+                  }
+                ]
+              },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Hi {{1}}, Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! This is the status of crop - {{1}}, As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+        template = [
+            {
+                "example": {
+                    "header_text": [
+                        "Default CROP name"
+                    ]
+                },
+                "format": "TEXT",
+                "text": "{{1}}",
+                "type": "HEADER"
+            },
+            {
+                "example": {
+                    "body_text": [
+                        [
+                            "Default NAME"
+                        ]
+                    ]
+                },
+                "text": "Hi {{1}} ,\nwe have introduced telemetry analytics on kAIron.",
+                "type": "BODY"
+            },
+            {
+                "text": "This message is sent by kairon",
+                "type": "FOOTER"
+            }
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {"contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        print(logs)
+        print("*"*1000)
+        assert len(logs[0]) == logs[1] == 7
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        print(logs[0][1])
+        assert logs[0][1] == {
+            'log_type': 'common',
+            'bot': 'test_bot',
+            'status': 'Completed',
+            'user': 'test_user',
+            'event_id': event_id,
+            'recipients': {'9876543003'},
+            'failure_cnt': 0,
+            'total': 1,
+            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
+                                 {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}]],
+            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+        }
+        logs[0][0].pop("timestamp")
+        print(logs[0][0])
+        assert logs[0][0] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543003',
+            'template_params': [{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
+                                {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+
+        settings = list(MessageBroadcastProcessor.list_settings(
+            bot, status=False, name="one_time_schedule_with_collection_config_default_values"
+        ))
+        assert len(settings) == 1
+        assert settings[0]["status"] is False
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_collection_config_with_media_default_values(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send,
+            mock_get_partner_auth_token, mock_collection_data
+    ):
+        bot = 'test_bot'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule_with_collection_config_media_default_values",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {},
+            "collection_config": {
+                "collections": ["crop_details", "details"],
+                "filters_list": [
+                    {
+                        "column": "age",
+                        "condition": "lte",
+                        "value": "26"
+                    },
+                    {
+                        "column": "age",
+                        "condition": "gt",
+                        "value": "22"
+                    },
+                    {
+                        "column": "name",
+                        "condition": "nin",
+                        "value": [
+                            "Mahesh",
+                            "Hitesh",
+                            "Ganesh"
+                        ]
+                    }
+                ],
+                "field_mapping": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": "invalid_doc_name"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "name"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Hi {{1}}, Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! This is the status of crop - {{1}}, As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+        template = [
+            {
+                "example": {
+                    "header_handle": [
+                        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+                    ]
+                },
+                "format": "DOCUMENT",
+                "type": "HEADER"
+            },
+            {
+                "example": {
+                    "body_text": [
+                        [
+                            "Mahesh"
+                        ]
+                    ]
+                },
+                "text": "Hi {{1}},\n\nThank You.",
+                "type": "BODY"
+            },
+            {
+                "text": "Powered by kAIron",
+                "type": "FOOTER"
+            }
+
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {
+            "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        print(logs)
+        assert len(logs[0]) == logs[1] == 9
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        print(logs[0][1])
+        assert logs[0][1] == {
+            'log_type': 'common',
+            'bot': 'test_bot',
+            'status': 'Completed',
+            'user': 'test_user',
+            'event_id': event_id,
+            'recipients': {'9876543003'},
+            'failure_cnt': 0,
+            'total': 1,
+            'template_params': [[{
+                'parameters': [
+                    {'type': 'document',
+                     'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
+                'type': 'header'},
+                {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}]],
+            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+        }
+        logs[0][0].pop("timestamp")
+        print(logs[0][0])
+        assert logs[0][0] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543003',
+            'template_params': [{
+                'parameters': [
+                    {'type': 'document',
+                     'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
+                'type': 'header'},
+                {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+
+        settings = list(MessageBroadcastProcessor.list_settings(
+            bot, status=False, name="one_time_schedule_with_collection_config_media_default_values"
+        ))
+        assert len(settings) == 1
+        assert settings[0]["status"] is False
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_collection_config_with_video_and_default_text(
+            self, mock_is_exist, mock_channel_config, mock_get_bot_settings, mock_send,
+            mock_get_partner_auth_token, mock_collection_data
+    ):
+        bot = 'test_bot'
+        user = 'test_user'
+        config = {
+            "name": "one_time_schedule_with_collection_config_with_video_and_default_text",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {},
+            "collection_config": {
+                "collections": ["crop_details", "details"],
+                "filters_list": [
+                    {
+                        "column": "age",
+                        "condition": "lte",
+                        "value": "26"
+                    },
+                    {
+                        "column": "age",
+                        "condition": "gt",
+                        "value": "22"
+                    },
+                    {
+                        "column": "name",
+                        "condition": "nin",
+                        "value": [
+                            "Mahesh",
+                            "Hitesh",
+                            "Ganesh"
+                        ]
+                    }
+                ],
+                "field_mapping": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "video",
+                                "video": {
+                                    "link": "video_link"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "default"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "TEXT",
+                "text": "Hi {{1}}, Kisan Suvidha Program Follow-up",
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! This is the status of crop - {{1}}, As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            },
+            {
+                "buttons": [
+                    {
+                        "text": "Connect to Agronomist",
+                        "type": "QUICK_REPLY"
+                    }
+                ],
+                "type": "BUTTONS"
+            }
+        ]
+        template = [
+            {
+              "example": {
+                "body_text": [
+                  [
+                    "Mahesh"
+                  ]
+                ]
+              },
+              "text": "HI{{1}},\nTesting video",
+              "type": "BODY"
+            },
+            {
+              "example": {
+                "header_handle": [
+                  "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4"
+                ]
+              },
+              "format": "VIDEO",
+              "type": "HEADER"
+            }
+          ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 8,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {
+            "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        print(logs)
+        assert logs[1] == 11
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        print(logs[0][1])
+        assert logs[0][1] == {
+            'log_type': 'common',
+            'bot': 'test_bot',
+            'status': 'Completed',
+            'user': 'test_user',
+            'event_id': event_id,
+            'recipients': {'9876543003'},
+            'failure_cnt': 0,
+            'total': 1,
+            'template_params': [[{
+                'parameters': [
+                    {'type': 'video',
+                     'video': {
+                         'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
+                'type': 'header'},
+                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
+            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+        }
+        logs[0][0].pop("timestamp")
+        print(logs[0][0])
+        assert logs[0][0] == {
+            'reference_id': reference_id,
+            'log_type': 'send',
+            'bot': 'test_bot',
+            'status': 'Success',
+            'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+            'recipient': '9876543003',
+            'template_params': [{
+                'parameters': [
+                    {'type': 'video',
+                     'video': {
+                         'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
+                'type': 'header'},
+                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}],
+            'event_id': event_id,
+            'template_name': 'brochure_pdf',
+            'language_code': 'hi',
+            'namespace': None,
+            'retry_count': 0,
+            'status_code': 200,
+            'template': template,
+            'template_exception': None
+        }
+
+        settings = list(MessageBroadcastProcessor.list_settings(
+            bot, status=False, name="one_time_schedule_with_collection_config_with_video_and_default_text"
+        ))
         assert len(settings) == 1
         assert settings[0]["status"] is False
 

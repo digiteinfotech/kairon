@@ -250,77 +250,80 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
     def __prepare_template_params(self, raw_template):
         collection_config = self.config.get("collection_config", {})
-
         collection_names = collection_config.get("collections", [])
         filters = collection_config.get("filters_list", [])
+        field_mapping = collection_config.get("field_mapping", [])
 
         crud_data = DataProcessor.get_collection_data_with_filters(
             self.bot, collection_names, filters
         )
 
-        field_mapping = collection_config.get("field_mapping", [])
+        example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
         media_types = {"image", "document", "video"}
-        MOBILE_KEYS = [
+        mobile_keys = {
             "mobile_number", "phone_number", "mobile", "phone",
             "contact_number", "contact", "whatsapp_number"
-        ]
+        }
 
-        example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
-
-        def get_default_text(section_type, field_name):
-            """Get default text from example_map."""
+        def _default_text(section_type: str, field_name: str) -> str:
+            """Fetch default text value from example_map."""
             example = example_map.get(section_type, {})
-            if "header_text" in example:
-                return example["header_text"][0]
-            elif "body_text" in example:
-                return example["body_text"][0][0]
-            return f"<{field_name}>"
+            return (
+                    example.get("header_text", [None])[0]
+                    or (example.get("body_text", [[None]])[0][0])
+                    or f"<{field_name}>"
+            )
 
-        def get_default_media(section_type, param_type):
-            """Get default media link from example_map."""
+        def _default_media(section_type: str, param_type: str) -> str:
+            """Fetch default media link from example_map."""
             example = example_map.get(section_type, {})
-            if "header_handle" in example:
-                return example["header_handle"][0]
-            elif "body_handle" in example:
-                return example["body_handle"][0][0]
-            return example.get(param_type, {}).get("link", f"<{param_type}_link>")
+            return (
+                    example.get("header_handle", [None])[0]
+                    or (example.get("body_handle", [[None]])[0][0])
+                    or example.get(param_type, {}).get("link", f"<{param_type}_link>")
+            )
 
-        def extract_mobile(record):
-            for key in MOBILE_KEYS:
-                if key in record and record[key]:
+        def _extract_mobile(record: dict) -> str | None:
+            """Find recipient mobile number from possible keys."""
+            for key in mobile_keys:
+                if record.get(key):
                     return record[key]
             return None
 
-        template_params = []
-        recipients = []
+        def _build_param(param: dict, record: dict, section_type: str) -> dict:
+            """Build a single parameter dict based on type."""
+            param_type = param.get("type", "text")
+
+            if param_type == "text":
+                field_name = param.get("text")
+                value = record.get(field_name) or _default_text(section_type, field_name)
+                return {"type": "text", "text": str(value)}
+
+            if param_type in media_types:
+                field_name = param.get(param_type, {}).get("link")
+                media_link = record.get(field_name) if field_name else None
+                media_link = media_link or _default_media(section_type, param_type)
+                return {"type": param_type, param_type: {"link": str(media_link)}}
+
+            return param
+
+        template_params, recipients = [], []
 
         for record in crud_data:
-            record_params = []
-            for comp in field_mapping:
-                section_type = comp.get("type", "").upper()
-                params = []
-                for param in comp.get("parameters", []):
-                    param_type = param.get("type", "text")
-
-                    if param_type == "text":
-                        field_name = param.get("text")
-                        value = record.get(field_name) or get_default_text(section_type, field_name)
-                        params.append({"type": "text", "text": str(value)})
-
-                    elif param_type in media_types:
-                        field_name = param.get(param_type, {}).get("link")
-                        media_link = record.get(field_name) if field_name else None
-                        if not media_link:
-                            media_link = get_default_media(section_type, param_type)
-                        params.append({"type": param_type, param_type: {"link": str(media_link)}})
-
-                    else:
-                        params.append(param)
-
-                record_params.append({"parameters": params, "type": comp["type"]})
+            record_params = [
+                {
+                    "type": comp["type"],
+                    "parameters": [
+                        _build_param(param, record, comp.get("type", "").upper())
+                        for param in comp.get("parameters", [])
+                    ],
+                }
+                for comp in field_mapping
+            ]
 
             template_params.append(record_params)
-            if mobile := extract_mobile(record):
+
+            if mobile := _extract_mobile(record):
                 recipients.append(mobile)
 
         return template_params, recipients
@@ -333,6 +336,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             namespace = template_config.get("namespace")
             lang = template_config["language"]
             raw_template, template_exception = self.__get_template(template_id, lang)
+            print(raw_template, template_exception)
 
             #   prepare template_params, recipients for collection_config
             if self.config.get('collection_config'):
