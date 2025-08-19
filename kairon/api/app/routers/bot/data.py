@@ -1,4 +1,4 @@
-import os
+import os, re
 from typing import List, Optional, Text
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
@@ -14,7 +14,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ActorType, CatalogSyncClass
+from kairon.shared.constants import ActorType, CatalogSyncClass, UploadHandlerClass
 from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollectionDataRequest
 from kairon.shared.data.collection_processor import DataProcessor
@@ -22,6 +22,7 @@ from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
+from kairon.upload_handlers.definitions.factory import UploadHandlerFactory
 
 router = APIRouter()
 processor = MongoProcessor()
@@ -370,10 +371,9 @@ async def upload_doc_content(
         event.enqueue()
     return {"message": "Document content upload in progress! Check logs."}
 
-@router.post("/upload/{type}/{collection_name}", response_model=Response)
+@router.post("/upload/crud_data/{collection_name}", response_model=Response)
 async def upload_file_content(
     file_content: UploadFile,
-    type: Text = Path(description="Upload class type"),
     collection_name: str = Path(..., description="Collection name"),
     overwrite: bool = False,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -381,10 +381,12 @@ async def upload_file_content(
     """
     Handles the upload of file content for processing, validation, and eventual storage.
     """
+    DataProcessor.validate_file_type(file_content)
+    DataProcessor.validate_collection_name(collection_name)
     event = UploadHandler(
         bot=current_user.get_bot(),
         user=current_user.get_user(),
-        type=type,
+        type=UploadHandlerClass.crud_data,
         overwrite=overwrite,
         collection_name=collection_name
     )
@@ -392,7 +394,7 @@ async def upload_file_content(
     if is_event_data:
         event.enqueue(bot=current_user.get_bot(),
                       user=current_user.get_user(),
-                      type=type,
+                      type=UploadHandlerClass.crud_data,
                       overwrite=overwrite,
                       collection_name=collection_name)
     return {"message": "File content upload in progress! Check logs."}
@@ -530,7 +532,7 @@ async def save_bulk_collection_data(
     Returns list of inserted IDs and any failed records.
     """
     result = DataProcessor.save_bulk_collection_data(
-        payloads=[collection.dict() for collection in request.collections],
+        payloads=[collection.dict() for collection in request.payload],
         user=current_user.get_user(),
         bot=current_user.get_bot(),
         collection_name=collection_name
