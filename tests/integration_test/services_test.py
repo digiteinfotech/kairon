@@ -2306,7 +2306,7 @@ def test_default_values():
 
 def test_bulk_save_success():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "test_data",
                 "is_secure": ["name"],
@@ -2334,7 +2334,7 @@ def test_bulk_save_success():
 
 def test_bulk_save_with_missing_is_secure_key():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "user",
                 "is_secure": ["name", "aadhar"],  # aadhar missing from data
@@ -2355,7 +2355,7 @@ def test_bulk_save_with_missing_is_secure_key():
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == [{
-        "loc": ["body", "collections", 0, "__root__"],
+        "loc": ["body", "payload", 0, "__root__"],
         "msg": "is_secure contains keys that are not present in data",
         "type": "value_error"
     }]
@@ -2365,7 +2365,7 @@ def test_bulk_save_with_missing_is_secure_key():
 
 def test_bulk_save_with_data_none():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "user",
                 "is_secure": ["name"],
@@ -2393,7 +2393,7 @@ def test_bulk_save_with_data_none():
 
 def test_bulk_save_with_empty_collection_name():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "  ",
                 "data": {"name": "Aniket"},
@@ -2418,7 +2418,7 @@ def test_bulk_save_with_empty_collection_name():
 
 def test_bulk_save_with_non_editable_key_missing_in_data():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "user",
                 "data": {
@@ -2444,7 +2444,7 @@ def test_bulk_save_with_non_editable_key_missing_in_data():
 
 def test_bulk_save_with_invalid_types():
     request_body = {
-        "collections": [
+        "payload": [
             {
                 "collection_name": "user",
                 "data": {"name": "Aniket"},
@@ -31334,6 +31334,7 @@ def test_get_bot_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'content_importer_limit_per_day': 5,
+                              'system_limits': {'file_upload_limit': 5},
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
@@ -31443,6 +31444,7 @@ def test_update_analytics_settings():
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'content_importer_limit_per_day': 5,
+                              'system_limits': {'file_upload_limit': 5},
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
