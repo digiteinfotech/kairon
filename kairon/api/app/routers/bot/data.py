@@ -1,5 +1,5 @@
-import os, re
-from typing import List, Optional, Text
+import os
+from typing import List, Optional
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
@@ -22,7 +22,6 @@ from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
-from kairon.upload_handlers.definitions.factory import UploadHandlerFactory
 
 router = APIRouter()
 processor = MongoProcessor()

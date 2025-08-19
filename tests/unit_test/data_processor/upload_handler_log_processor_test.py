@@ -2,6 +2,7 @@ import pytest, os
 from mongoengine import connect
 from unittest.mock import patch, MagicMock
 from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -69,7 +70,7 @@ class TestUploadHandlerLogProcessor:
         UploadHandlerLogProcessor.add_log(bot, user,
                                          status='Success',
                                          event_status=EVENT_STATUS.COMPLETED.value)
-        log = list(UploadHandlerLogProcessor.get_logs(bot))
+        log, count = list(BaseLogHandler.get_logs(bot, "file_upload"))
         assert not log[0].get('exception')
         assert log[0]['collection_name']
         assert log[0]['start_timestamp']
@@ -102,11 +103,6 @@ class TestUploadHandlerLogProcessor:
         bot_settings.system_limits["file_upload_limit"] = 6
         bot_settings.save()
         assert not UploadHandlerLogProcessor.is_limit_exceeded(bot)
-
-    def test_get_logs(self):
-        bot = 'test_bot'
-        logs = list(UploadHandlerLogProcessor.get_logs(bot))
-        assert len(logs) == 1
 
     def test_get_latest_event_file_name(self):
         result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot")
