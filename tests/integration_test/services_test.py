@@ -8667,7 +8667,6 @@ def test_get_collections_metadata_with_collection_not_present():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["data"] == {'type': 'object', 'properties': {}}
     assert actual["success"]
