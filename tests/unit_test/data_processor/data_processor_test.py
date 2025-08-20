@@ -318,6 +318,19 @@ class TestMongoProcessor:
             {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
         ]
 
+        collection_name = "crop_details"
+        filters = []
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 4
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+            {'name': 'Hitesh', 'mobile_number': '9876543001', 'crop': 'Okra', 'status': 'stage-4', 'age': '27'},
+            {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
+        ]
+
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
         story_name = "story with slot"
