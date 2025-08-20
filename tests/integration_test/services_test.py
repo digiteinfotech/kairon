@@ -8622,55 +8622,6 @@ def test_save_collection_data_with_valid_data():
     assert actual["success"]
 
 
-def test_get_collections_metadata():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/metadata?collection_names=user,bank_details",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["error_code"] == 0
-    assert actual["data"] == {
-        '$schema': 'http://json-schema.org/schema#',
-        'type': 'object',
-        'properties': {'name': {'type': 'string'},
-                       'age': {'type': 'integer'},
-                       'mobile_number': {'type': 'string'},
-                       'location': {'type': 'string'},
-                       'account_holder_name': {'type': 'string'},
-                       'account_number': {'type': 'string'},
-                       'ifsc': {'type': 'string'}
-                       },
-        'required': ['location', 'mobile_number']
-    }
-    assert actual["success"]
-
-
-def test_get_collections_metadata_with_no_collections():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/metadata",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["error_code"] == 0
-    assert actual["data"] == {'type': 'object', 'properties': {}}
-    assert actual["success"]
-
-
-def test_get_collections_metadata_with_collection_not_present():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/metadata?collection_names=userdata",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 0
-    assert actual["data"] == {'type': 'object', 'properties': {}}
-    assert actual["success"]
-
 def test_list_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection",

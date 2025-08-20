@@ -248,22 +248,17 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_exception=template_exception
         )
 
-    def __prepare_template_params(self, raw_template):
+    def __prepare_template_params(self, raw_template, template_id):
         collection_config = self.config.get("collection_config", {})
-        collection_names = collection_config.get("collections", [])
+        collection_name = collection_config.get("collection")
         filters = collection_config.get("filters_list", [])
-        field_mapping = collection_config.get("field_mapping", [])
+        field_mapping = collection_config.get("field_mapping", {}).get(template_id)
+        number_field = collection_config.get("number_field")
 
-        crud_data = DataProcessor.get_collection_data_with_filters(
-            self.bot, collection_names, filters
-        )
+        crud_data = DataProcessor.get_broadcast_collection_data(self.bot, collection_name, filters)
 
         example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
         media_types = {"image", "document", "video"}
-        mobile_keys = {
-            "mobile_number", "phone_number", "mobile", "phone",
-            "contact_number", "contact", "whatsapp_number"
-        }
 
         def _default_text(section_type: str, field_name: str) -> str:
             """Fetch default text value from example_map."""
@@ -283,27 +278,36 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     or example.get(param_type, {}).get("link", f"<{param_type}_link>")
             )
 
-        def _extract_mobile(record: dict) -> str | None:
-            """Find recipient mobile number from possible keys."""
-            for key in mobile_keys:
-                if record.get(key):
-                    return record[key]
-            return None
+        def _map_field_value(value: str, record: dict, section_type: str, param_type: str) -> str:
+            """Resolve placeholder {field} → actual value or default."""
+            import re
+            PLACEHOLDER_PATTERN = re.compile(r"^{(.+)}$")  # matches "{field_name}"
+
+            match = PLACEHOLDER_PATTERN.match(value)
+            if not match:
+                return value
+            field_name = match.group(1)
+
+            if param_type == "text":
+                return record.get(field_name) or _default_text(section_type, field_name)
+            if param_type in media_types:
+                media_link = record.get(field_name)
+                return media_link or _default_media(section_type, param_type)
+            return value
 
         def _build_param(param: dict, record: dict, section_type: str) -> dict:
             """Build a single parameter dict based on type."""
             param_type = param.get("type", "text")
 
-            if param_type == "text":
-                field_name = param.get("text")
-                value = record.get(field_name) or _default_text(section_type, field_name)
-                return {"type": "text", "text": str(value)}
+            if param_type == "text" and "text" in param:
+                text_val = param["text"]
+                resolved = _map_field_value(text_val, record, section_type, "text")
+                return {"type": "text", "text": str(resolved)}
 
-            if param_type in media_types:
-                field_name = param.get(param_type, {}).get("link")
-                media_link = record.get(field_name) if field_name else None
-                media_link = media_link or _default_media(section_type, param_type)
-                return {"type": param_type, param_type: {"link": str(media_link)}}
+            if param_type in media_types and param_type in param:
+                link_val = param[param_type].get("link", "")
+                resolved_link = _map_field_value(link_val, record, section_type, param_type)
+                return {"type": param_type, param_type: {"link": str(resolved_link)}}
 
             return param
 
@@ -323,7 +327,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
             template_params.append(record_params)
 
-            if mobile := _extract_mobile(record):
+            if mobile := record.get(number_field):
                 recipients.append(mobile)
 
         return template_params, recipients
@@ -336,15 +340,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             namespace = template_config.get("namespace")
             lang = template_config["language"]
             raw_template, template_exception = self.__get_template(template_id, lang)
-            print(raw_template, template_exception)
 
-            #   prepare template_params, recipients for collection_config
             if self.config.get('collection_config'):
-                template_params, recipients = self.__prepare_template_params(raw_template)
+                template_params, recipients = self.__prepare_template_params(raw_template, template_id)
             else:
                 template_params = self._get_template_parameters(template_config)
 
-                # if there's no template body, pass params as None for all recipients
                 template_params = template_params * len(recipients) if template_params \
                     else [template_params] * len(recipients)
 

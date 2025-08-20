@@ -269,19 +269,6 @@ async def list_collection_data(
     return {"data": list(DataProcessor.list_collection_data(current_user.get_bot()))}
 
 
-@router.get("/collection/metadata", response_model=Response)
-async def get_collections_metadata(
-        collection_names: Optional[str] = Query(default="", description="Comma-separated collection names"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
-):
-    """
-    Fetches collections metadata of the bot
-    """
-    collection_names = Utility.string_to_list(collection_names)
-    return {"data": DataProcessor.get_collections_metadata(bot=current_user.get_bot(),
-                                                           collection_names=collection_names)}
-
-
 @router.get("/collection/{collection_name}/metadata", response_model=Response)
 async def get_collection_metadata(
         collection_name: str,
