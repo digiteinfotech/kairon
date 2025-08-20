@@ -281,7 +281,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         def _map_field_value(value: str, record: dict, section_type: str, param_type: str) -> str:
             """Resolve placeholder {field} → actual value or default."""
             import re
-            PLACEHOLDER_PATTERN = re.compile(r"^{(.+)}$")  # matches "{field_name}"
+            PLACEHOLDER_PATTERN = re.compile(r"^{(.+)}$")
 
             match = PLACEHOLDER_PATTERN.match(value)
             if not match:
