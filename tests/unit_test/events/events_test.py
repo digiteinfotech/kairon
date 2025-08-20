@@ -1190,26 +1190,28 @@ class TestEventExecution:
                         ]
                     }
                 ],
-                "field_mapping": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "text",
-                                "text": "{name}"
-                            }
-                        ]
-                    },
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {
-                                "type": "text",
-                                "text": "{status}"
-                            }
-                        ]
-                    }
-                ]
+                "field_mapping": {
+                    "brochure_pdf": [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{name}"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{status}"
+                                }
+                            ]
+                        }
+                    ]
+                }
             },
             "retry_count": 0,
             "template_config": [
@@ -1394,26 +1396,28 @@ class TestEventExecution:
                         ]
                     }
                 ],
-                "field_mapping": [
-                  {
-                    "type": "header",
-                    "parameters": [
-                      {
-                        "type": "text",
-                        "text": "{name}"
-                      }
+                "field_mapping": {
+                    "brochure_pdf": [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{name}"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "stage-4"
+                                }
+                            ]
+                        }
                     ]
-                  },
-                  {
-                    "type": "body",
-                    "parameters": [
-                      {
-                        "type": "text",
-                        "text": "stage-4"
-                      }
-                    ]
-                  }
-                ]
+                }
               },
             "retry_count": 0,
             "template_config": [
@@ -1568,26 +1572,28 @@ class TestEventExecution:
                         ]
                     }
                 ],
-                "field_mapping": [
-                  {
-                    "type": "header",
-                    "parameters": [
-                      {
-                        "type": "text",
-                        "text": "{invalid_name}"
-                      }
+                "field_mapping": {
+                    "brochure_pdf": [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{invalid_name}"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "Default NAME"
+                                }
+                            ]
+                        }
                     ]
-                  },
-                  {
-                    "type": "body",
-                    "parameters": [
-                      {
-                        "type": "text",
-                        "text": "Default NAME"
-                      }
-                    ]
-                  }
-                ]
+                }
               },
             "retry_count": 0,
             "template_config": [
@@ -1770,28 +1776,30 @@ class TestEventExecution:
                         ]
                     }
                 ],
-                "field_mapping": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "{invalid_doc_name}"
+                "field_mapping": {
+                    "brochure_pdf": [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "document",
+                                    "document": {
+                                        "link": "{invalid_doc_name}"
+                                    }
                                 }
-                            }
-                        ]
-                    },
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {
-                                "type": "text",
-                                "text": "{name}"
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        },
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{name}"
+                                }
+                            ]
+                        }
+                    ]
+                }
             },
             "retry_count": 0,
             "template_config": [
@@ -1984,28 +1992,30 @@ class TestEventExecution:
                         ]
                     }
                 ],
-                "field_mapping": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "video",
-                                "video": {
-                                    "link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4"
+                "field_mapping": {
+                    "brochure_pdf": [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "video",
+                                    "video": {
+                                        "link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4"
+                                    }
                                 }
-                            }
-                        ]
-                    },
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {
-                                "type": "text",
-                                "text": "{default}"
-                            }
-                        ]
-                    }
-                ]
+                            ]
+                        },
+                        {
+                            "type": "body",
+                            "parameters": [
+                                {
+                                    "type": "text",
+                                    "text": "{default}"
+                                }
+                            ]
+                        }
+                    ]
+                }
             },
             "retry_count": 0,
             "template_config": [
