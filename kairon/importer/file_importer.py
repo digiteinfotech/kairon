@@ -28,8 +28,16 @@ class FileImporter:
             csv_reader = csv.DictReader(csv_file)
 
             for row in csv_reader:
-                # Normalize keys (lowercase) and trim spaces
-                clean_row = {key.lower().strip(): value.strip() for key, value in row.items()}
+                clean_row = {}
+                for key, value in row.items():
+                    norm_key = key.lower().strip() if isinstance(key, str) else key
+                    if isinstance(value, str):
+                        norm_val = value.strip()
+                    elif value is None:
+                        norm_val = ""
+                    else:
+                        norm_val = value
+                    clean_row[norm_key] = norm_val
 
 
                 data.append({
