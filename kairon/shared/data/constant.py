@@ -277,6 +277,7 @@ class LogTypes(str, Enum):
     agent_handoff = "agent_handoff"
     audit = "audit"
     model_test = "model_test"
+    agentic_flow = "agentic_flow"
 
 LOG_TYPE_METADATA = {
     LogTypes.actions: [
