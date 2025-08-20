@@ -28,7 +28,7 @@ def import_file_content(args):
 
 def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
     """
-    Add subparser for the 'fil-importer' CLI command.
+    Add subparser for the 'file-importer' CLI command.
     """
     file_importer_parser = subparsers.add_parser(
         "file-importer",
