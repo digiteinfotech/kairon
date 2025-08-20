@@ -164,12 +164,12 @@ class DataProcessor:
             logger.error(f"No collection data found for bot='{bot}', user='{user}' to delete.")
 
     @staticmethod
-    def get_collection_data_with_filters(bot: Text, collection_names: List[str], filters: List[Dict]) -> List[Dict]:
+    def get_broadcast_collection_data(bot: Text, collection_name: str, filters: List[Dict]) -> List[Dict]:
         from more_itertools import unique_everseen
 
         filters_dict = {
             "bot": bot,
-            "collection_name__in": collection_names
+            "collection_name": collection_name
         }
 
         for f in filters:

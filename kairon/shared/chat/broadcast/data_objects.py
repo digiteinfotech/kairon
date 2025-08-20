@@ -87,7 +87,7 @@ class MessageBroadcastSettings(Auditlog):
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
-    collection_config = DictField(default={})
+    collection_config = DictField(default=dict)
     pyscript = StringField()
     flowname = StringField()
     template_name = StringField(default=None)
