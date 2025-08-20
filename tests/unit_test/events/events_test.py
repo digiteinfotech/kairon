@@ -1065,10 +1065,10 @@ class TestEventExecution:
         CollectionData(
             bot="test_bot",
             user="test_user_1",
-            collection_name="details",
+            collection_name="crop_details",
             data={
                 "name": "Ganesh",
-                "whatsapp_number": "9876543001",
+                "mobile_number": "9876543001",
                 "crop": "Paddy",
                 "status": "stage-2",
                 "age": "26"
@@ -1092,7 +1092,7 @@ class TestEventExecution:
             collection_name="crop_details",
             data={
                 "name": "Ganesh",
-                "whatsapp_number": "9876543001",
+                "mobile_number": "9876543001",
                 "crop": "Paddy",
                 "status": "stage-2",
                 "age": "26"
@@ -1128,7 +1128,20 @@ class TestEventExecution:
             collection_name="details",
             data={
                 "name": "Aniket",
-                "whatsapp_number": "9876543003",
+                "mobile_number": "9876543003",
+                "crop": "Okra",
+                "video_link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Aniket",
+                "mobile_number": "9876543003",
                 "crop": "Okra",
                 "video_link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4",
                 "status": "stage-4",
@@ -1155,7 +1168,8 @@ class TestEventExecution:
             "connector_type": "whatsapp",
             "recipients_config": {},
             "collection_config": {
-                "collections": ["crop_details", "details"],
+                "collection": "crop_details",
+                "number_field": "mobile_number",
                 "filters_list": [
                     {
                         "column": "age",
@@ -1182,7 +1196,7 @@ class TestEventExecution:
                         "parameters": [
                             {
                                 "type": "text",
-                                "text": "name"
+                                "text": "{name}"
                             }
                         ]
                     },
@@ -1191,7 +1205,7 @@ class TestEventExecution:
                         "parameters": [
                             {
                                 "type": "text",
-                                "text": "status"
+                                "text": "{status}"
                             }
                         ]
                     }
@@ -1262,7 +1276,7 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         collection_data = CollectionData.objects(
-            **{'bot': 'test_bot', 'collection_name__in': ['crop_details', 'details'],
+            **{'bot': 'test_bot', 'collection_name': 'crop_details',
                'data__age__lte': '26', 'data__age__gt': '22', 'data__name__nin': ['Mahesh', 'Hitesh']}
         )
         assert len(collection_data) == 3
@@ -1357,7 +1371,8 @@ class TestEventExecution:
             "connector_type": "whatsapp",
             "recipients_config": {},
             "collection_config": {
-                "collections": ["crop_details", "details"],
+                "collection": "crop_details",
+                "number_field": "mobile_number",
                 "filters_list": [
                     {
                         "column": "age",
@@ -1385,7 +1400,7 @@ class TestEventExecution:
                     "parameters": [
                       {
                         "type": "text",
-                        "text": "name"
+                        "text": "{name}"
                       }
                     ]
                   },
@@ -1394,7 +1409,7 @@ class TestEventExecution:
                     "parameters": [
                       {
                         "type": "text",
-                        "text": "status"
+                        "text": "stage-4"
                       }
                     ]
                   }
@@ -1461,7 +1476,6 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         print(logs)
-        print("*"*1000)
         assert len(logs[0]) == logs[1] == 5
         logs[0][1].pop("timestamp")
         reference_id = logs[0][1].pop("reference_id")
@@ -1531,7 +1545,8 @@ class TestEventExecution:
             "connector_type": "whatsapp",
             "recipients_config": {},
             "collection_config": {
-                "collections": ["crop_details", "details"],
+                "collection": "crop_details",
+                "number_field": "mobile_number",
                 "filters_list": [
                     {
                         "column": "age",
@@ -1559,7 +1574,7 @@ class TestEventExecution:
                     "parameters": [
                       {
                         "type": "text",
-                        "text": "invalid_name"
+                        "text": "{invalid_name}"
                       }
                     ]
                   },
@@ -1568,7 +1583,7 @@ class TestEventExecution:
                     "parameters": [
                       {
                         "type": "text",
-                        "text": "invalid_status"
+                        "text": "Default NAME"
                       }
                     ]
                   }
@@ -1662,7 +1677,6 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         print(logs)
-        print("*"*1000)
         assert len(logs[0]) == logs[1] == 7
         logs[0][1].pop("timestamp")
         reference_id = logs[0][1].pop("reference_id")
@@ -1733,7 +1747,8 @@ class TestEventExecution:
             "connector_type": "whatsapp",
             "recipients_config": {},
             "collection_config": {
-                "collections": ["crop_details", "details"],
+                "collection": "crop_details",
+                "number_field": "mobile_number",
                 "filters_list": [
                     {
                         "column": "age",
@@ -1762,7 +1777,7 @@ class TestEventExecution:
                             {
                                 "type": "document",
                                 "document": {
-                                    "link": "invalid_doc_name"
+                                    "link": "{invalid_doc_name}"
                                 }
                             }
                         ]
@@ -1772,7 +1787,7 @@ class TestEventExecution:
                         "parameters": [
                             {
                                 "type": "text",
-                                "text": "name"
+                                "text": "{name}"
                             }
                         ]
                     }
@@ -1946,7 +1961,8 @@ class TestEventExecution:
             "connector_type": "whatsapp",
             "recipients_config": {},
             "collection_config": {
-                "collections": ["crop_details", "details"],
+                "collection": "crop_details",
+                "number_field": "mobile_number",
                 "filters_list": [
                     {
                         "column": "age",
@@ -1975,7 +1991,7 @@ class TestEventExecution:
                             {
                                 "type": "video",
                                 "video": {
-                                    "link": "video_link"
+                                    "link": "https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4"
                                 }
                             }
                         ]
@@ -1985,7 +2001,7 @@ class TestEventExecution:
                         "parameters": [
                             {
                                 "type": "text",
-                                "text": "default"
+                                "text": "{default}"
                             }
                         ]
                     }

@@ -250,7 +250,7 @@ class TestMongoProcessor:
         ).save()
 
     def test_get_collection_data_with_filters_list(self, mock_collection_data):
-        collection_names = ["crop_details", "details"]
+        collection_name = "crop_details"
         filters = [
             {
                 "column": "age",
@@ -263,9 +263,9 @@ class TestMongoProcessor:
                 "value": "esh"
             },
         ]
-        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
-                                                                collection_names=collection_names,
-                                                                filters=filters)
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
         assert len(result) == 4
         assert result == [
             {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
@@ -274,7 +274,7 @@ class TestMongoProcessor:
             {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
         ]
 
-        collection_names = ["details"]
+        collection_name = "details"
         filters = [
             {
                 "column": "age",
@@ -292,16 +292,16 @@ class TestMongoProcessor:
                 "value": ["Mahesh", "Hitesh"]
             },
         ]
-        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
-                                                                collection_names=collection_names,
-                                                                filters=filters)
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
         assert len(result) == 2
         assert result == [
             {'name': 'Mayank', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '22'},
             {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '23'}
         ]
 
-        collection_names = ["details", "crop_details"]
+        collection_name = "crop_details"
         filters = [
             {
                 "column": "age",
@@ -309,14 +309,13 @@ class TestMongoProcessor:
                 "value": "26"
             }
         ]
-        result = DataProcessor.get_collection_data_with_filters(bot="test_bot",
-                                                                collection_names=collection_names,
-                                                                filters=filters)
-        assert len(result) == 3
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 2
         assert result == [
             {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
             {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
-            {'name': 'Aniket', 'mobile_number': '9876543003', 'crop': 'Okra', 'status': 'stage-4', 'age': '26'}
         ]
 
     def test_add_complex_story_with_slot(self):
