@@ -528,7 +528,6 @@ async def save_bulk_collection_data(
 ):
     """
     Saves collection data in bulk.
-    Returns list of inserted IDs and any failed records.
     """
     result = DataProcessor.save_bulk_collection_data(
         payloads=[collection.dict() for collection in request.payload],
