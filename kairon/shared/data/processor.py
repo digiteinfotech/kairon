@@ -8972,9 +8972,6 @@ class MongoProcessor:
             bot=bot,
             user=user,
             file_name=file_content.filename,
-            type=type,
-            collection_name=collection_name,
-            is_uploaded=True,
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
@@ -8987,6 +8984,7 @@ class MongoProcessor:
                 file_name=file_content.filename,
                 type=type,
                 upload_errors=error_message,
+                collection_name=collection_name,
                 status="Failure",
                 event_status=EVENT_STATUS.COMPLETED.value,
             )
@@ -9016,11 +9014,16 @@ class MongoProcessor:
 
         if type == UploadHandlerClass.crud_data:
             if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
-                error_message[
-                    'File type error'] = f"Invalid file type: {file_content.content_type}. Please upload a CSV file."
+                error_message['File type error'] = f"Invalid file type: {file_content.content_type}. Please upload a CSV file."
                 return error_message
 
         return error_message
+
+    @staticmethod
+    def validate_file_type(file_content):
+        valid_csv_types = ["text/csv"]
+        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
+            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
 
     def get_column_datatype_dict(self, bot, table_name):
         from ..cognition.processor import CognitionDataProcessor

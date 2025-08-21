@@ -1572,26 +1572,26 @@ class DummyFile:
 
 def test_validate_file_type_valid_content_type(monkeypatch):
     file_content = DummyFile("data.txt", "text/csv")
-    DataProcessor.validate_file_type(file_content)
+    MongoProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_valid_extension(monkeypatch):
     file_content = DummyFile("data.csv", "application/json")
-    DataProcessor.validate_file_type(file_content)
+    MongoProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_valid_both(monkeypatch):
     file_content = DummyFile("data.csv", "text/csv")
-    DataProcessor.validate_file_type(file_content)
+    MongoProcessor.validate_file_type(file_content)
 
 
 def test_validate_file_type_invalid(monkeypatch):
     file_content = DummyFile("data.txt", "application/json")
     with pytest.raises(AppException) as exc:
-        DataProcessor.validate_file_type(file_content)
+        MongoProcessor.validate_file_type(file_content)
     assert "Invalid file type" in str(exc.value)
 
 
 def test_validate_file_type_case_insensitive_extension(monkeypatch):
     file_content = DummyFile("report.CSV", "application/json")
-    DataProcessor.validate_file_type(file_content)
+    MongoProcessor.validate_file_type(file_content)

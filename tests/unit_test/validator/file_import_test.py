@@ -1,8 +1,9 @@
 import os
 import pytest
-from mongoengine import connect
+from mongoengine import connect, DoesNotExist
 from kairon import Utility
 from kairon.events.definitions.crud_file_upload import CrudFileUploader
+from kairon.exceptions import AppException
 from kairon.importer.file_importer import FileImporter
 
 class TestFileImporter:
@@ -28,6 +29,13 @@ class TestFileImporter:
             overwrite=False,
             collection_name="test_collection"
         )
+
+    def test_validate(self, uploader_instance):
+        file_content = {
+            "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
+        }
+        with pytest.raises(DoesNotExist):
+            uploader_instance.validate(file_content=file_content)
 
     def test_create_payload(self,uploader_instance):
 
@@ -66,3 +74,33 @@ class TestFileImporter:
         assert first_item["data"]["order_priority"] == "Low"
         assert first_item["data"]["profit"] == "54.98"
         assert first_item["data"]["sales"] == "12.34"
+
+    def test_import_data(self, sample_csv_file):
+
+        file_importer = FileImporter(
+            path=sample_csv_file,
+            bot="test_bot",
+            user="test_user",
+            file_received="Salesstore.csv",
+            collection_name="test_collection",
+            overwrite=False
+        )
+        converted_dict = file_importer.preprocess()
+        file_importer.import_data(converted_dict)
+
+    def test_import_data_with_empty_collection_name(self, sample_csv_file):
+
+        file_importer = FileImporter(
+            path=sample_csv_file,
+            bot="test_bot",
+            user="test_user",
+            file_received="Salesstore.csv",
+            collection_name="",
+            overwrite=False
+        )
+        converted_dict = file_importer.preprocess()
+        with pytest.raises(AppException) as exec_info:
+            file_importer.import_data(converted_dict)
+
+        assert "errors in bulk insert" in str(exec_info.value).lower()
+        assert "collection name is empty" in str(exec_info.value).lower()

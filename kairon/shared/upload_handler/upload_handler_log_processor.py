@@ -26,35 +26,39 @@ class UploadHandlerLogProcessor:
         status: str = None,
         event_status: str = EVENT_STATUS.INITIATED.value,
     ):
-        try:
-            doc = UploadHandlerLogs.objects(bot=bot).filter(
-                Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
-                Q(event_status__ne=EVENT_STATUS.FAIL.value)
-            ).get()
-        except DoesNotExist:
-            doc = UploadHandlerLogs(
-                bot=bot,
-                user=user,
-                file_name=file_name,
-                type=type,
-                collection_name=collection_name,
-                is_uploaded=is_uploaded,
-                start_timestamp=datetime.utcnow()
-            )
+        update_fields = {
+            "event_status": event_status,
+        }
 
-        doc.event_status = event_status
-        if exception:
-            doc.exception = exception
-        if status:
-            doc.status = status
-        if upload_errors:
-            doc.upload_errors = upload_errors
+        if file_name is not None:
+            update_fields["file_name"] = file_name
+        if type is not None:
+            update_fields["type"] = type
+        if collection_name is not None:
+            update_fields["collection_name"] = collection_name
+        if exception is not None:
+            update_fields["exception"] = exception
+        if status is not None:
+            update_fields["status"] = status
+        if upload_errors is not None:
+            update_fields["upload_errors"] = upload_errors
         if is_uploaded:
-            doc.is_uploaded = True
-        if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            update_fields["is_uploaded"] = True
 
-        doc.save()
+        if event_status == EVENT_STATUS.INITIATED.value:
+            update_fields["start_timestamp"] = datetime.utcnow()
+        if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
+            update_fields["end_timestamp"] = datetime.utcnow()
+
+        UploadHandlerLogs.objects(
+            bot=bot,
+            event_status__nin=[EVENT_STATUS.COMPLETED.value, EVENT_STATUS.FAIL.value],
+        ).update_one(
+            set__bot=bot,
+            set__user=user,
+            **{f"set__{k}": v for k, v in update_fields.items()},
+            upsert=True,
+        )
 
     @staticmethod
     def is_event_in_progress(bot: str, collection_name: Text, raise_exception=True):
