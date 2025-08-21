@@ -36,6 +36,7 @@ class CrudFileUploader(UploadHandlerBase):
         file_content = kwargs.get("file_content")
         UploadHandlerLogProcessor.is_limit_exceeded(self.bot)
         UploadHandlerLogProcessor.is_event_in_progress(self.bot, self.collection_name)
+        UploadHandlerLogProcessor.add_log(bot=self.bot, user=self.user, file_name=file_content.filename, type=self.type, collection_name=self.collection_name, is_uploaded=True, event_status=EVENT_STATUS.INITIATED.value)
         is_event_data = MongoProcessor().file_upload_validate_schema_and_log(bot=self.bot, user=self.user, file_content=file_content, type=self.type, collection_name=self.collection_name)
         return is_event_data
 
@@ -70,7 +71,7 @@ class CrudFileUploader(UploadHandlerBase):
             UploadHandlerLogProcessor.add_log(self.bot, self.user,
                                                 exception=str(e),
                                                 status=validation_status,
-                                                event_status=EVENT_STATUS.FAIL.value)
+                                                event_status=EVENT_STATUS.COMPLETED.value)
         finally:
             if path:
                 Utility.delete_directory(path)

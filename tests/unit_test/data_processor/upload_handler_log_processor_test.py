@@ -79,6 +79,34 @@ class TestUploadHandlerLogProcessor:
         assert log[0].get('status') == 'Success'
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
+    def test_add_log_with_exception_sets_fields(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        file_name = "Salesstore.csv"
+        type = "crud_data"
+        collection_name = 'test_collection'
+
+        UploadHandlerLogProcessor.add_log(bot, user, file_name=file_name, type=type, collection_name=collection_name)
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user=user,
+            exception="File format not supported",
+            upload_errors={"File type error" : "Invalid file type"},
+            event_status=EVENT_STATUS.COMPLETED.value,
+            status="Failure"
+        )
+
+        log, count = list(BaseLogHandler.get_logs(bot, "file_upload"))
+
+        assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert log[0]['exception'] == "File format not supported"
+        assert log[0]['start_timestamp']
+        assert log[0]['collection_name']
+        assert log[0]['upload_errors']["File type error"] == "Invalid file type"
+        assert log[0]["status"] == "Failure"
+        assert log[0]['end_timestamp'] is not None
+        assert log[0]['start_timestamp'] is not None
+
     def test_is_limit_exceeded_exception(self, monkeypatch):
         bot = 'test_bot'
         try:

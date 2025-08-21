@@ -367,10 +367,4 @@ class DataProcessor:
         except Exception as e:
             raise HTTPException(status_code=422, detail=str(e))
 
-    @staticmethod
-    def validate_file_type(file_content):
-        valid_csv_types = ["text/csv"]
-        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
-            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
-
 
