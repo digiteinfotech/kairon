@@ -297,7 +297,7 @@ LOG_TYPE_METADATA = {
     LogTypes.agent_handoff: [
         {"id": "agent_type", "header": "logsPage.agentType", "cellComponent": "ClickableNameCell"},
         {"id": "sender_id", "header": "logsPage.senderId", "cellComponent": "SimpleCell"},
-        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimestampOrInProgress", "cellComponent": "AuditLogsTimestampInProgressCell"}
+        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimeOrInProgress", "cellComponent": "AuditLogsTimestampInProgressCell"}
     ],
 
     LogTypes.history_deletion: [
@@ -332,7 +332,7 @@ LOG_TYPE_METADATA = {
         {"header": "common.user", "id": "user", "cellComponent": "SimpleCell"},
         {"header": "logsPage.entityType", "id": "entity", "cellComponent": "SimpleCell"},
         {"header": "logsPage.actionType", "id": "action", "cellComponent": "SimpleCell"},
-        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatStartTimeOrInProgress", "cellComponent": "AuditLogsTimestampInProgressCell"},
+        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimeOrInProgress", "cellComponent": "AuditLogsTimestampInProgressCell"},
         {"header": "common.details", "id": "data", "cellComponent": "DetailsCell"}
     ],
 
@@ -379,7 +379,7 @@ LOG_TYPE_METADATA = {
     ],
 
     LogTypes.mail_channel: [
-        {"id": "uid", "header": "logsPage.uniqueId", "cellComponent": "ClickableFallbackCell"},
+        {"id": "uid", "header": "logsPage.uniqueId", "cellComponent": "ClickableNameCell"},
         {"id": "sender_id", "header": "common.senderId", "cellComponent": "SimpleCell"},
         {"id": "timestamp", "accessorFunction": "formatUnixTimestamp", "header": "logsPage.timestamp", "cellComponent": "SimpleCell"},
         {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell"}
