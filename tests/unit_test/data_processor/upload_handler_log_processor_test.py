@@ -63,6 +63,7 @@ class TestUploadHandlerLogProcessor:
 
         result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2")
         assert not result
+
     def test_add_log_success(self):
         bot = 'test_bot'
         user = 'test_user'
@@ -70,7 +71,7 @@ class TestUploadHandlerLogProcessor:
         UploadHandlerLogProcessor.add_log(bot, user,
                                          status='Success',
                                          event_status=EVENT_STATUS.COMPLETED.value)
-        log, count = list(BaseLogHandler.get_logs(bot, "file_upload"))
+        log, count = BaseLogHandler.get_logs(bot, "file_upload")
         assert not log[0].get('exception')
         assert log[0]['collection_name']
         assert log[0]['start_timestamp']
@@ -96,7 +97,7 @@ class TestUploadHandlerLogProcessor:
             status="Failure"
         )
 
-        log, count = list(BaseLogHandler.get_logs(bot, "file_upload"))
+        log, count = BaseLogHandler.get_logs(bot, "file_upload")
 
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
         assert log[0]['exception'] == "File format not supported"

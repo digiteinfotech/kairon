@@ -5,6 +5,7 @@ from kairon import Utility
 from kairon.events.definitions.crud_file_upload import CrudFileUploader
 from kairon.exceptions import AppException
 from kairon.importer.file_importer import FileImporter
+from types import SimpleNamespace
 
 class TestFileImporter:
 
@@ -31,11 +32,10 @@ class TestFileImporter:
         )
 
     def test_validate(self, uploader_instance):
-        file_content = {
-            "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
-        }
-        with pytest.raises(DoesNotExist):
-            uploader_instance.validate(file_content=file_content)
+        with open("tests/testing_data/file_content_upload/Salesstore.csv", "rb") as fh:
+            file_ns = SimpleNamespace(filename="Salesstore.csv", content_type="text/csv", file=fh)
+            with pytest.raises(DoesNotExist):
+                uploader_instance.validate(file_content=file_ns)
 
     def test_create_payload(self,uploader_instance):
 
