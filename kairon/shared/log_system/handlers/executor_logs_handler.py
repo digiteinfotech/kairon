@@ -1,6 +1,6 @@
 from kairon.shared.log_system.base import BaseLogHandler
 import calendar
-from datetime import datetime
+from datetime import datetime,timedelta
 
 
 class ExecutorLogHandler(BaseLogHandler):
@@ -38,7 +38,7 @@ class ExecutorLogHandler(BaseLogHandler):
         if from_date:
             query["timestamp__gte"] = from_date
         if to_date:
-            query["timestamp__lte"] = to_date
+            query["timestamp__lte"] = to_date + timedelta(days=1)
 
         query.update(self.kwargs)
 
