@@ -1,5 +1,5 @@
 from ..base import BaseLogHandler
-from datetime import datetime
+from datetime import datetime,timedelta
 import calendar
 
 
@@ -34,7 +34,7 @@ class AgentHandoffLogHandler(BaseLogHandler):
         if from_date:
             query["timestamp__gte"] = from_date
         if to_date:
-            query["timestamp__lte"] = to_date
+            query["timestamp__lte"] = to_date + timedelta(days=1)
 
         query.update(self.kwargs)
 

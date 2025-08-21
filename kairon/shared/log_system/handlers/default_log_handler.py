@@ -1,5 +1,5 @@
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import datetime
+from datetime import datetime,timedelta
 
 
 class DefaultLogHandler(BaseLogHandler):
@@ -24,13 +24,13 @@ class DefaultLogHandler(BaseLogHandler):
             if from_date:
                 query["timestamp__gte"] = from_date
             if to_date:
-                query["timestamp__lte"] = to_date
+                query["timestamp__lte"] = to_date + timedelta(days=1)
             sort_field = "-timestamp"
         else:
             if from_date:
                 query["start_timestamp__gte"] = from_date
             if to_date:
-                query["start_timestamp__lte"] = to_date
+                query["start_timestamp__lte"] = to_date + timedelta(days=1)
             sort_field = "-start_timestamp"
 
         logs_cursor = (
