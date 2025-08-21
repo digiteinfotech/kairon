@@ -1,5 +1,5 @@
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import datetime
+from datetime import datetime,timedelta
 import calendar
 
 class LLMLogHandler(BaseLogHandler):
@@ -42,7 +42,7 @@ class LLMLogHandler(BaseLogHandler):
         if from_date:
             query["start_time__gte"] = from_date
         if to_date:
-            query["start_time__lte"] = to_date
+            query["start_time__lte"] = to_date + timedelta(days=1)
 
         for k, v in filters.items():
             query.setdefault(k, v)
