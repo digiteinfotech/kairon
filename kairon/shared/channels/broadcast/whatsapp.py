@@ -18,7 +18,7 @@ from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
 from kairon.shared.data.collection_processor import DataProcessor
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, MEDIA_TYPES
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
 from mongoengine import DoesNotExist
@@ -258,7 +258,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         crud_data = DataProcessor.get_broadcast_collection_data(self.bot, collection_name, filters)
 
         example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
-        media_types = {"image", "document", "video"}
 
         def _default_text(section_type: str, field_name: str) -> str:
             """Fetch default text value from example_map."""
@@ -290,7 +289,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
             if param_type == "text":
                 return record.get(field_name) or _default_text(section_type, field_name)
-            if param_type in media_types:
+            if param_type in MEDIA_TYPES:
                 media_link = record.get(field_name)
                 return media_link or _default_media(section_type, param_type)
             return value
@@ -304,7 +303,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 resolved = _map_field_value(text_val, record, section_type, "text")
                 return {"type": "text", "text": str(resolved)}
 
-            if param_type in media_types and param_type in param:
+            if param_type in MEDIA_TYPES and param_type in param:
                 link_val = param[param_type].get("link", "")
                 resolved_link = _map_field_value(link_val, record, section_type, param_type)
                 return {"type": param_type, param_type: {"link": str(resolved_link)}}
