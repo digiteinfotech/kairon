@@ -23726,7 +23726,7 @@ def test_list_action_server_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 10
-    assert actual["data"]["total"] == 10
+    assert actual["data"]["total"] == 11
     assert [log["intent"] in expected_intents for log in actual["data"]["logs"]]
     assert actual["data"]["logs"][0]["action"] == "http_action"
     assert any(
@@ -23783,8 +23783,8 @@ def test_list_action_server_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]["logs"]) == 10
-    assert actual["data"]["total"] == 10
+    assert len(actual["data"]["logs"]) == 11
+    assert actual["data"]["total"] == 11
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=10&page_size=1",
