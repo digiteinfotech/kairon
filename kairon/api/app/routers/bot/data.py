@@ -380,7 +380,7 @@ async def upload_file_content(
     """
     Handles the upload of file content for processing, validation, and eventual storage.
     """
-    DataProcessor.validate_file_type(file_content)
+    MongoProcessor.validate_file_type(file_content)
     DataProcessor.validate_collection_name(collection_name)
     event = UploadHandler(
         bot=current_user.get_bot(),
