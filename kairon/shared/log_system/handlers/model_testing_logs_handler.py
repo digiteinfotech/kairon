@@ -1,7 +1,7 @@
 from ..base import BaseLogHandler
 
 from ...test.data_objects import ModelTestingLogs
-from datetime import datetime
+from datetime import datetime,timedelta
 import calendar
 
 class ModelTestingHandler(BaseLogHandler):
@@ -52,7 +52,7 @@ class ModelTestingHandler(BaseLogHandler):
         if from_date:
             query["start_timestamp__gte"] = from_date
         if to_date:
-            query["start_timestamp__lte"] = to_date
+            query["start_timestamp__lte"] = to_date + timedelta(days=1)
 
         query.update(self.kwargs)
 
