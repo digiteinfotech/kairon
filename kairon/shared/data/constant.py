@@ -280,21 +280,19 @@ class LogTypes(str, Enum):
 
 LOG_TYPE_METADATA = {
     LogTypes.actions: [
-        {"id": "action", "header": "logsPage.actionName", "cellComponent": "ActionCell"},
-        {"id": "type", "header": "logsPage.actionType", "cellComponent": "TypeCell"},
-        {"id": "intent", "header": "common.intent", "cellComponent": "SimpleCell"},
-        {"id": "user_msg", "header": "formLabels.userMessage", "cellComponent": "UserMessageCell"},
-        {"id": "timestamp", "header": "logsPage.timestamp", "accessorFunction": "formatLocalTime", "cellComponent": "SimpleCell"},
-        {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell"}
-    ],
+        {"id": "action", "header": "logsPage.actionName", "cellComponent": "ActionCell", "filterType": "text"},
+        {"id": "type", "header": "logsPage.actionType", "cellComponent": "TypeCell", "filterType": "text"},
+        {"id": "intent", "header": "common.intent", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "user_msg", "header": "formLabels.userMessage", "cellComponent": "UserMessageCell", "filterType": "text"},
+        {"id": "timestamp", "header": "logsPage.timestamp", "accessorFunction": "formatLocalTimestamp", "cellComponent": "SimpleCell"},
+        {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell", "filterType": "status"}],
 
     LogTypes.importer: [
-        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell"},
+        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell", "filterType": "text"},
         {"id": "start_timestamp", "header": "common.startTimeHeader", "accessorFunction": "formatStartTime", "cellComponent": "StartTimestampCell"},
         {"id": "end_timestamp", "header": "common.endTimeHeader", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "EndTimestampInProgressCell"},
-        {"id": "event_status", "header": "logsPage.uploadStatus", "cellComponent": "SimpleCell"},
-        {"id": "status", "header": "logsPage.fileProcessingStatus", "cellComponent": "StatusCell"}
-    ],
+        {"id": "event_status", "header": "logsPage.uploadStatus", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "status", "header": "logsPage.fileProcessingStatus", "cellComponent": "StatusCell", "filterType": "status"}],
 
     LogTypes.agent_handoff: [
         {"id": "agent_type", "header": "logsPage.agentType", "cellComponent": "ClickableNameCell"},
@@ -303,12 +301,12 @@ LOG_TYPE_METADATA = {
     ],
 
     LogTypes.history_deletion: [
-        {"header": "common.user", "id": "user", "cellComponent": "ClickableNameCell"},
-        {"header": "logsPage.sender", "id": "sender_id", "cellComponent": "SimpleCell"},
-        {"id": "till_date", "header": "logsPage.tillDate", "accessorFunction": "formatTillDate", "cellComponent": "FormattedTillDateCell"},
+        {"header": "common.user", "id": "user", "cellComponent": "ClickableNameCell", "filterType": "text"},
+        {"header": "logsPage.sender", "id": "sender_id", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "till_date", "header": "logsPage.tillDate", "accessorFunction": "formatTillDate", "cellComponent": "FormattedTillDateCell", "filterType": "date"},
         {"id": "start_timestamp", "header": "logsPage.startTimeStamp", "accessorFunction": "formatStartTime", "cellComponent": "StartTimestampCell"},
         {"id": "end_timestamp", "header": "logsPage.endTimeStamp", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "EndTimestampInProgressCell"},
-        {"header": "logsPage.status", "id": "status", "cellComponent": "StatusCell"}
+        {"header": "logsPage.status", "id": "status", "cellComponent": "StatusCell", "filterType": "status"}
     ],
 
     LogTypes.model_test: [
@@ -338,20 +336,20 @@ LOG_TYPE_METADATA = {
     ],
 
     LogTypes.custom_widget: [
-        {"id": "name", "header": "formLabels.name", "cellComponent": "SimpleCell"},
-        {"id": "request_method", "header": "logsPage.requestMethod", "cellComponent": "SimpleCell"},
-        {"id": "http_url", "header": "common.url", "cellComponent": "SimpleCell"},
-        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimeOrInProgress", "cellComponent": "TimestampCell"},
+        {"id": "name", "header": "formLabels.name", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "request_method", "header": "logsPage.requestMethod", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "http_url", "header": "common.url", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "TimestampCell"},
         {"id": "exception", "header": "logsPage.exception", "accessorFunction": "formatExceptionText", "cellComponent": "ExceptionCell"},
         {"id": "details", "header": "common.details", "cellComponent": "DetailsCell"}
     ],
 
     LogTypes.callback: [
-        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "ClickableNameCell"},
-        {"header": "logsPage.senderId", "id": "sender_id", "cellComponent": "SenderIdCell"},
-        {"header": "logsPage.channel", "id": "channel", "cellComponent": "SimpleCell"},
+        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "CallbackNameCell", "filterType": "text"},
+        {"header": "logsPage.senderId", "id": "sender_id", "cellComponent": "SenderIdCell", "filterType": "text"},
+        {"header": "logsPage.channel", "id": "channel", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "timestamp", "header": "logsPage.timestamp", "accessorFunction": "formatLocalTimestamp", "cellComponent": "SimpleCell"},
-        {"header": "logsPage.status", "id": "status", "cellComponent": "StatusCell"}
+        {"header": "logsPage.status", "id": "status", "cellComponent": "StatusCell",  "filterType": "status"}
     ],
 
     LogTypes.llm: [
@@ -372,11 +370,11 @@ LOG_TYPE_METADATA = {
     ],
 
     LogTypes.executor: [
-        {"id": "executor_log_id", "header": "logsPage.executorId", "cellComponent": "ClickableNameCell"},
-        {"id": "event_class", "header": "logsPage.eventClass", "cellComponent": "SimpleCell"},
-        {"id": "task_type", "header": "logsPage.taskType", "cellComponent": "SimpleCell"},
+        {"id": "executor_log_id", "header": "logsPage.executorId", "cellComponent": "ClickableNameCell", "filterType": "text"},
+        {"id": "event_class", "header": "logsPage.eventClass", "cellComponent": "SimpleCell", "filterType": "text"},
+        {"id": "task_type", "header": "logsPage.taskType", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "timestamp", "accessorFunction": "formatLocalTimestamp", "header": "logsPage.timestamp", "cellComponent": "TimestampCell"},
-        {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell"}
+        {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell", "filterType": "status"}
     ],
 
     LogTypes.mail_channel: [
