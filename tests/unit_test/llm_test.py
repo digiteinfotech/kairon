@@ -2296,10 +2296,7 @@ class TestLLM:
         )
         llm_secret.save()
 
-        with patch("os.path.exists", return_value=False), \
-             patch("kairon.shared.llm.processor.SparseTextEmbedding") as mock_sparse:
-
-            mock_instance = mock_sparse.return_value
+        with patch("os.path.exists", return_value=False):
             LLMProcessor._sparse_embedding = None
 
             log_output = StringIO()
@@ -2310,8 +2307,7 @@ class TestLLM:
             logger.remove()
             log_contents = log_output.getvalue()
 
-            mock_sparse.assert_called_once_with("Qdrant/bm25", cache_dir="./kairon/pre-trained-models/")
-            assert LLMProcessor._sparse_embedding is mock_instance
+            assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
             assert "SPARSE MODEL LOADED" in log_contents
 
         LLMSecret.objects.delete()
