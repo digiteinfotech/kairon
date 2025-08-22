@@ -9360,4 +9360,8 @@ class MongoProcessor:
                     raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
 
                 sanitized[k] = v
+        if raw_params:
+            if raw_params.get("from_date") and raw_params.get("to_date"):
+                if Utility.check_from_date_less_than_to_date(raw_params.get("from_date"),raw_params.get("to_date")):
+                    raise ValueError(f"from date should be less than to date")
         return sanitized
