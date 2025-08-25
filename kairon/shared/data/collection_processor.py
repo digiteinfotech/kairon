@@ -9,7 +9,6 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
 from loguru import logger
-from typing import List
 
 class DataProcessor:
 
