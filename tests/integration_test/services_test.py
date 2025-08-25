@@ -10380,6 +10380,334 @@ def test_add_broadcast_message(mock_event_server):
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_collection(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'collection'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_number_field(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'number_field'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_filters_list(mock_event_server):
+    config = {
+        "name": "broadcast_without_filters_list",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id3 = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id3
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_field_mapping(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'field_mapping'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_with_collection_config(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id2 = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id2
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_resend_broadcast_message(mock_event_server):
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
 
@@ -10456,19 +10784,73 @@ def test_list_broadcast():
     assert actual["error_code"] == 0
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
+    actual["data"]["schedules"][1].pop("timestamp")
+    actual["data"]["schedules"][1].pop("user")
+    actual["data"]["schedules"][2].pop("timestamp")
+    actual["data"]["schedules"][2].pop("user")
+    print(actual["data"])
     assert actual["data"] == {
         "schedules": [
             {
-                "_id": pytest.broadcast_msg_id,
-                "name": "test_broadcast",
-                "connector_type": "whatsapp",
-                "broadcast_type": "static",
-                "collection_config": {},
-                "recipients_config": {"recipients": "919876543210,919012345678"},
-                "retry_count": 3,
-                "template_config": [{"template_id": "sales_template", "language": "en"}],
-                "bot": pytest.bot,
-                "status": False,
+                '_id': pytest.broadcast_msg_id,
+                'name': 'test_broadcast',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
+                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
+                'collection_config': {},
+                'retry_count': 3,
+                'bot': pytest.bot,
+                'status': False
+            },
+            {
+                '_id': pytest.broadcast_msg_id3,
+                'name': 'broadcast_without_filters_list',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'recipients_config': {'recipients': ''},
+                'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            },
+            {
+                '_id': pytest.broadcast_msg_id2,
+                'name': 'broadcast_with_collection_config',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'recipients_config': {'recipients': ''},
+                'template_config': [
+                    {'template_id': 'brochure_pdf', 'language': 'hi'}
+                ],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [
+                        {'column': 'age', 'condition': 'lte', 'value': '26'},
+                        {'column': 'age', 'condition': 'gt', 'value': '22'},
+                        {'column': 'name', 'condition': 'nin', 'value': ['Mahesh', 'Hitesh']}
+                    ],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
             }
         ]
     }
