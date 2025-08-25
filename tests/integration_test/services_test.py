@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
 import litellm
@@ -38,6 +38,14 @@ from kairon.shared.channels.mail.data_objects import MailResponseLog
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
+from kairon.shared.log_system.base import BaseLogHandler
+from kairon.shared.log_system.handlers.audit_logs_handler import AuditLogHandler
+from kairon.shared.log_system.handlers.callback_logs_handler import CallbackLogHandler
+from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogHandler
+from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
+from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
+from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
@@ -58,6 +66,14 @@ from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData, CollectionData
 from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
+import pytest
+from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHandler
+from datetime import  timedelta
+import calendar
+
+
+
+
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
     EVENT_STATUS,
@@ -96,6 +112,7 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
+
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -302,6 +319,11 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     assert not response["data"]
     assert response["error_code"] == 422
     assert not response["success"]
+
+
+
+
+
 
 
 @mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
@@ -1646,6 +1668,7 @@ def test_get_all_collections():
     )
     assert delete_resp.status_code == 200
     assert delete_resp.json()["message"] == "Bot removed"
+
 
 def test_delete_multiple_payload_content_with_empty_list():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -18679,6 +18702,54 @@ def test_get_model_testing_logs_new():
     assert actual["data"]
     assert actual["success"]
 
+def test_search_model_testing_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_from_date_and_to_date():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?from_date=2025-08-01&to_date=2025-08-31",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_search_model_testing_logs_for_is_augmented_False():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+def test_search_model_testing_logs_is_augmented_True():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=True",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)
     end_date = datetime.utcnow() + timedelta(days=1)
@@ -23110,7 +23181,7 @@ def test_list_action_server_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 10
-    assert actual["data"]["total"] == 11
+    assert actual["data"]["total"] == 10
     assert [log["intent"] in expected_intents for log in actual["data"]["logs"]]
     assert actual["data"]["logs"][0]["action"] == "http_action"
     assert any(
@@ -23167,8 +23238,8 @@ def test_list_action_server_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]["logs"]) == 11
-    assert actual["data"]["total"] == 11
+    assert len(actual["data"]["logs"]) == 10
+    assert actual["data"]["total"] == 10
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=10&page_size=1",

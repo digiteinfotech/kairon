@@ -9298,6 +9298,12 @@ class MongoProcessor:
                     raise ValueError(f"'{k}' must be a valid integer.")
                 sanitized[k] = int(v)
 
+            elif k=="is_augmented" and log_type=="model_test":
+                if v.lower()=="true":
+                    sanitized[k] = True
+                elif v.lower()=="false":
+                    sanitized[k]=False
+
             else:
                 if Utility.check_empty_string(k):
                     raise ValueError("Search key cannot be empty or blank.")
@@ -9309,5 +9315,8 @@ class MongoProcessor:
                     raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
 
                 sanitized[k] = v
-
+        if raw_params:
+            if raw_params.get("from_date") and raw_params.get("to_date"):
+                if Utility.check_from_date_less_than_to_date(raw_params.get("from_date"),raw_params.get("to_date")):
+                    raise ValueError(f"from date should be less than to date")
         return sanitized
