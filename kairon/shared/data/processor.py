@@ -9285,18 +9285,31 @@ class MongoProcessor:
         valid_fields = MongoProcessor.get_field_ids_for_log_type(log_type)
 
         sanitized = {}
+        if raw_params.get("from_date") and raw_params.get("to_date"):
+            try:
+                sanitized["from_date"] = date.fromisoformat(raw_params["from_date"])
+                sanitized["to_date"] = date.fromisoformat(raw_params["to_date"])
+            except ValueError:
+                raise ValueError(
+                    f"Invalid date format for 'from_date': '{raw_params.get('from_date')}' or 'to_date': '{raw_params.get('to_date')}'. Use YYYY-MM-DD."
+                )
+
+            if sanitized["from_date"] > sanitized["to_date"]:
+                raise ValueError("'from date' should be less than or equal to 'to date'")
 
         for k, v in raw_params.items():
             if k in {"from_date", "to_date"}:
-                try:
-                    sanitized[k] = date.fromisoformat(v)
-                except ValueError:
-                    raise ValueError(f"Invalid date format for '{k}': '{v}'. Use YYYY-MM-DD.")
-
+                continue
             elif k in {"start_idx", "page_size"}:
                 if not v.isdigit():
                     raise ValueError(f"'{k}' must be a valid integer.")
                 sanitized[k] = int(v)
+
+            elif k=="is_augmented" and log_type=="model_test":
+                if v.lower()=="true":
+                    sanitized[k] = True
+                elif v.lower()=="false":
+                    sanitized[k]=False
 
             else:
                 if Utility.check_empty_string(k):
@@ -9309,5 +9322,4 @@ class MongoProcessor:
                     raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
 
                 sanitized[k] = v
-
         return sanitized
