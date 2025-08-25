@@ -340,7 +340,7 @@ LOG_TYPE_METADATA = {
         {"id": "name", "header": "formLabels.name", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "request_method", "header": "logsPage.requestMethod", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "http_url", "header": "common.url", "cellComponent": "SimpleCell", "filterType": "text"},
-        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "TimestampCell"},
+        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimeOrInProgress", "cellComponent": "TimestampCell"},
         {"id": "exception", "header": "logsPage.exception", "accessorFunction": "formatExceptionText", "cellComponent": "ExceptionCell"},
         {"id": "details", "header": "common.details", "cellComponent": "DetailsCell"}
     ],
