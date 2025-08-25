@@ -71,9 +71,6 @@ from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHand
 from datetime import  timedelta
 import calendar
 
-
-
-
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
     EVENT_STATUS,
@@ -113,13 +110,11 @@ from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
 
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 refresh_token = None
 token_type = None
-
 
 @pytest.fixture(autouse=True, scope="function")
 def setup():
@@ -319,12 +314,6 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     assert not response["data"]
     assert response["error_code"] == 422
     assert not response["success"]
-
-
-
-
-
-
 
 @mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
 @mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
@@ -19269,7 +19258,6 @@ def test_search_model_testing_logs_for_from_date_and_to_date():
     assert actual["error_code"] == 0
     assert actual["data"]
 
-
 def test_search_model_testing_logs_for_is_augmented_False():
     response = client.get(
         f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=False",
@@ -19280,7 +19268,6 @@ def test_search_model_testing_logs_for_is_augmented_False():
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]
-
 
 def test_search_model_testing_logs_is_augmented_True():
     response = client.get(
@@ -19293,8 +19280,6 @@ def test_search_model_testing_logs_is_augmented_True():
     assert actual["error_code"] == 0
     assert actual["data"]
 
-
-
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)
     end_date = datetime.utcnow() + timedelta(days=1)
@@ -19303,7 +19288,6 @@ def test_download_model_testing_logs(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert response.content
-
 
 def test_deploy_missing_configuration():
     response = client.post(
