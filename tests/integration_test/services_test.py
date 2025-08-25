@@ -10947,7 +10947,6 @@ def test_list_broadcast_after_update():
     actual["data"]["schedules"][1].pop("user")
     actual["data"]["schedules"][2].pop("timestamp")
     actual["data"]["schedules"][2].pop("user")
-    print(actual["data"])
     assert actual["data"] == {
         "schedules": [
             {
