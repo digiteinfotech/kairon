@@ -289,7 +289,7 @@ LOG_TYPE_METADATA = {
         {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell", "filterType": "status"}],
 
     LogTypes.importer: [
-        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell", "filterType": "text"},
+        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell"},
         {"id": "start_timestamp", "header": "common.startTimeHeader", "accessorFunction": "formatStartTime", "cellComponent": "StartTimestampCell"},
         {"id": "end_timestamp", "header": "common.endTimeHeader", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "EndTimestampInProgressCell"},
         {"id": "event_status", "header": "logsPage.uploadStatus", "cellComponent": "SimpleCell", "filterType": "text"},
@@ -346,7 +346,7 @@ LOG_TYPE_METADATA = {
     ],
 
     LogTypes.callback: [
-        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "CallbackNameCell", "filterType": "text"},
+        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "ClickableNameCell", "filterType": "text"},
         {"header": "logsPage.senderId", "id": "sender_id", "cellComponent": "SenderIdCell", "filterType": "text"},
         {"header": "logsPage.channel", "id": "channel", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "timestamp", "header": "logsPage.timestamp", "accessorFunction": "formatLocalTimestamp", "cellComponent": "SimpleCell"},
