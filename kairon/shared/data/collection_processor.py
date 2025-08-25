@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-from typing import Dict, Text
+from typing import Dict, Text, List
 
 from mongoengine import DoesNotExist
 
@@ -134,6 +134,30 @@ class DataProcessor:
         collection_count = CollectionData.objects(bot=bot, user=user).delete()
         if collection_count == 0:
             logger.error(f"No collection data found for bot='{bot}', user='{user}' to delete.")
+
+    @staticmethod
+    def get_broadcast_collection_data(bot: Text, collection_name: str, filters: List[Dict]) -> List[Dict]:
+        from more_itertools import unique_everseen
+
+        filters_dict = {
+            "bot": bot,
+            "collection_name": collection_name
+        }
+
+        for f in filters:
+            column = f.get("column")
+            condition = f.get("condition")
+            value = f.get("value")
+
+            field_name = f"data__{column}" + (f"__{condition}" if condition else "")
+            filters_dict[field_name] = value
+
+        qs = CollectionData.objects(**filters_dict)
+
+        data = list(unique_everseen(qs, key=lambda doc: json.dumps(doc.data, sort_keys=True)))
+        data = [doc.data for doc in data]
+
+        return data
 
     @staticmethod
     def list_collection_data(bot: Text):

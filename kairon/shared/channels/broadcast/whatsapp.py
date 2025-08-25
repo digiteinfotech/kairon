@@ -17,7 +17,8 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, Mess
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.collection_processor import DataProcessor
+from kairon.shared.data.constant import EVENT_STATUS, MEDIA_TYPES
 from kairon.shared.data.processor import MongoProcessor
 from loguru import logger
 from mongoengine import DoesNotExist
@@ -31,6 +32,10 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         if self.config["broadcast_type"] == MessageBroadcastType.dynamic.value:
             logger.debug("Skipping get_recipients as broadcast_type is dynamic!")
+            return
+
+        if self.config.get('collection_config'):
+            logger.debug("Skipping get_recipients as collection_config is present!")
             return
 
         try:
@@ -243,19 +248,107 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_exception=template_exception
         )
 
+    def __prepare_template_params(self, raw_template, template_id):
+        collection_config = self.config.get("collection_config", {})
+        collection_name = collection_config.get("collection")
+        filters = collection_config.get("filters_list", [])
+        field_mapping = collection_config.get("field_mapping", {}).get(template_id)
+        number_field = collection_config.get("number_field")
+
+        crud_data = DataProcessor.get_broadcast_collection_data(self.bot, collection_name, filters)
+
+        example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
+
+        def _default_text(section_type: str, field_name: str) -> str:
+            """Fetch default text value from example_map."""
+            example = example_map.get(section_type, {})
+            return (
+                    example.get("header_text", [None])[0]
+                    or (example.get("body_text", [[None]])[0][0])
+                    or f"<{field_name}>"
+            )
+
+        def _default_media(section_type: str, param_type: str) -> str:
+            """Fetch default media link from example_map."""
+            example = example_map.get(section_type, {})
+            return (
+                    example.get("header_handle", [None])[0]
+                    or (example.get("body_handle", [[None]])[0][0])
+                    or example.get(param_type, {}).get("link", f"<{param_type}_link>")
+            )
+
+        def _map_field_value(value: str, record: dict, section_type: str, param_type: str) -> str:
+            """Resolve placeholder {field} → actual value or default."""
+            import re
+            PLACEHOLDER_PATTERN = re.compile(r"^{(.+)}$")
+
+            match = PLACEHOLDER_PATTERN.match(value)
+            if not match:
+                return value
+            field_name = match.group(1)
+
+            if param_type == "text":
+                return record.get(field_name) or _default_text(section_type, field_name)
+            if param_type in MEDIA_TYPES:
+                media_link = record.get(field_name)
+                return media_link or _default_media(section_type, param_type)
+            return value
+
+        def _build_param(param: dict, record: dict, section_type: str) -> dict:
+            """Build a single parameter dict based on type."""
+            param_type = param.get("type", "text")
+
+            if param_type == "text" and "text" in param:
+                text_val = param["text"]
+                resolved = _map_field_value(text_val, record, section_type, "text")
+                return {"type": "text", "text": str(resolved)}
+
+            if param_type in MEDIA_TYPES and param_type in param:
+                link_val = param[param_type].get("link", "")
+                resolved_link = _map_field_value(link_val, record, section_type, param_type)
+                return {"type": param_type, param_type: {"link": str(resolved_link)}}
+
+            return param
+
+        template_params, recipients = [], []
+
+        for record in crud_data:
+            record_params = [
+                {
+                    "type": comp["type"],
+                    "parameters": [
+                        _build_param(param, record, comp.get("type", "").upper())
+                        for param in comp.get("parameters", [])
+                    ],
+                }
+                for comp in field_mapping
+            ]
+
+            template_params.append(record_params)
+
+            if mobile := record.get(number_field):
+                recipients.append(mobile)
+
+        return template_params, recipients
+
     def __send_using_configuration(self, recipients: List):
-        total = len(recipients)
 
         for i, template_config in enumerate(self.config['template_config']):
 
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            template_params = self._get_template_parameters(template_config)
             raw_template, template_exception = self.__get_template(template_id, lang)
 
-            # if there's no template body, pass params as None for all recipients
-            template_params = template_params * len(recipients) if template_params else [template_params] * len(recipients)
+            if self.config.get('collection_config'):
+                template_params, recipients = self.__prepare_template_params(raw_template, template_id)
+            else:
+                template_params = self._get_template_parameters(template_config)
+
+                template_params = template_params * len(recipients) if template_params \
+                    else [template_params] * len(recipients)
+
+            total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
             evaluation_log = {
                 f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
@@ -270,14 +363,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
                     message_list.append((template_id, recipient, lang, t_params, namespace, None))
 
-
             _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
 
-
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
-                event_id=self.event_id, nonsent_recipients=non_sent_recipients, **evaluation_log
+                event_id=self.event_id, nonsent_recipients=non_sent_recipients,
+                template_params=template_params, recipients=recipients, **evaluation_log
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
