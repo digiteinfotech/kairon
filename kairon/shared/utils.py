@@ -156,9 +156,6 @@ class Utility:
             return True
         else:
             return False
-    @staticmethod
-    def check_from_date_less_than_to_date(from_date,to_date):
-        return from_date>to_date
 
     @staticmethod
     def check_character_limit(value: str):
