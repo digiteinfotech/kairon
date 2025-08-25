@@ -4,16 +4,11 @@ import calendar
 
 class LLMLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-
-
         from_date = self.kwargs.get("from_date") or datetime.utcnow().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-
+            day=1, hour=0, minute=0, second=0, microsecond=0)
         to_date = self.kwargs.get("to_date") or from_date.replace(
             day=calendar.monthrange(from_date.year, from_date.month)[1],
-            hour=23, minute=59, second=59, microsecond=999999
-        )
+            hour=23, minute=59, second=59, microsecond=999999)
 
         query = {"metadata__bot": self.bot,
                  "start_time__gte": from_date,
@@ -24,14 +19,12 @@ class LLMLogHandler(BaseLogHandler):
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
 
-
     def get_logs_for_search_query(self):
         filters = dict(self.kwargs)
         from_date = filters.pop("from_date", None)
         to_date = filters.pop("to_date", None)
         user = filters.pop("user", None)
         invocation = filters.pop("invocation", None)
-
         query = {"metadata__bot": self.bot}
 
         if user:

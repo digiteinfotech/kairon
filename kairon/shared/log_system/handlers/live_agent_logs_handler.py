@@ -8,8 +8,8 @@ class AgentHandoffLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
         from_date = self.kwargs.get("from_date") or datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         to_date = self.kwargs.get("to_date") or datetime.utcnow().replace(
-            day=calendar.monthrange(datetime.utcnow().year, datetime.utcnow().month)[1]
-        )
+            day=calendar.monthrange(datetime.utcnow().year, datetime.utcnow().month)[1])
+
         query = {
             "account": self.kwargs.get("bot_account", 0),
             "bot": self.bot,
@@ -37,7 +37,6 @@ class AgentHandoffLogHandler(BaseLogHandler):
             query["timestamp__lte"] = to_date + timedelta(days=1)
 
         query.update(self.kwargs)
-
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by("-timestamp")
