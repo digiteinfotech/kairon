@@ -59,6 +59,7 @@ class MessageBroadcastProcessor:
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
             settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
             settings.pyscript = config.get("pyscript")
+            settings.collection_config = config.get("collection_config", {})
             settings.user = user
             settings.timestamp = datetime.utcnow()
             settings.save()

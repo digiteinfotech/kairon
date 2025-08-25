@@ -10856,6 +10856,169 @@ def test_list_broadcast():
     }
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_broadcast_with_collection_config(mock_event_server):
+    config = {
+        "name": "update_broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata",
+        },
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "contact_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "gte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "lt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{crop}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.broadcast_msg_id2}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_list_broadcast_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    actual["data"]["schedules"][1].pop("timestamp")
+    actual["data"]["schedules"][1].pop("user")
+    actual["data"]["schedules"][2].pop("timestamp")
+    actual["data"]["schedules"][2].pop("user")
+    assert actual["data"] == {
+        "schedules": [
+            {
+                '_id': pytest.broadcast_msg_id,
+                'name': 'test_broadcast',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
+                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
+                'collection_config': {},
+                'retry_count': 3,
+                'bot': pytest.bot,
+                'status': False
+            },
+            {
+                '_id': pytest.broadcast_msg_id3,
+                'name': 'broadcast_without_filters_list',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'recipients_config': {'recipients': ''},
+                'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            },
+            {
+                '_id': pytest.broadcast_msg_id2,
+                'name': 'update_broadcast_with_collection_config',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'recipients_config': {'recipients': ''},
+                "scheduler_config": {
+                    "expression_type": "cron",
+                    "schedule": "21 11 * * *",
+                    "timezone": "Asia/Kolkata",
+                },
+                'template_config': [
+                    {'template_id': 'brochure_pdf', 'language': 'hi'}
+                ],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'contact_number',
+                    'filters_list': [
+                        {'column': 'age', 'condition': 'gte', 'value': '26'},
+                        {'column': 'age', 'condition': 'lt', 'value': '22'},
+                        {'column': 'name', 'condition': 'nin', 'value': ['Mahesh', 'Hitesh']}
+                    ],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{crop}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            }
+        ]
+    }
+
+
 @patch("kairon.shared.utils.Utility.delete_scheduled_event", autospec=True)
 def test_delete_message_broadcast(mock_event_server):
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings

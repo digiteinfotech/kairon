@@ -74,7 +74,7 @@ class TemplateConfiguration(BaseModel):
     data: str = None
 
 
-class FilterModel(BaseModel):
+class BroadcastCollectionDataFilter(BaseModel):
     column: str
     condition: str
     value: Any
@@ -83,7 +83,7 @@ class FilterModel(BaseModel):
 class CollectionConfig(BaseModel):
     collection: str
     number_field: str
-    filters_list: List[FilterModel] = []
+    filters_list: List[BroadcastCollectionDataFilter] = []
     field_mapping: dict
 
 
