@@ -9330,17 +9330,6 @@ class MongoProcessor:
         valid_fields = MongoProcessor.get_field_ids_for_log_type(log_type)
 
         sanitized = {}
-
-        # try:
-        #     if raw_params.get("from_date"):
-        #         sanitized["from_date"] = date.fromisoformat(raw_params["from_date"])
-        #     if raw_params.get("to_date"):
-        #         sanitized["to_date"] = date.fromisoformat(raw_params["to_date"])
-        # except ValueError:
-        #     raise ValueError(
-        #         f"Invalid date format for 'from_date': '' or 'to_date': ''. Use YYYY-MM-DD."
-        #     )
-
         for k, v in raw_params.items():
             if k in {"from_date", "to_date"}:
                 try:
@@ -9368,8 +9357,7 @@ class MongoProcessor:
                     raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
 
                 sanitized[k] = v
-        if raw_params:
-            if raw_params.get("from_date") and raw_params.get("to_date"):
-                if sanitized["from_date"] > sanitized["to_date"]:
-                    raise ValueError("'from date' should be less than or equal to 'to date'")
+        if raw_params and raw_params.get("from_date") and raw_params.get("to_date"):
+            if sanitized["from_date"] > sanitized["to_date"]:
+                raise ValueError("'from date' should be less than or equal to 'to date'")
         return sanitized

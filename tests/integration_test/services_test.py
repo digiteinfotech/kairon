@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
 import litellm
@@ -29,7 +29,6 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
-from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
@@ -46,6 +45,7 @@ from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogH
 from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
 from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
 from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
+from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
@@ -68,12 +68,8 @@ from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
 import pytest
 from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHandler
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import  timedelta
 import calendar
-
-
-
 
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
@@ -114,13 +110,11 @@ from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
 
-
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
 access_token = None
 refresh_token = None
 token_type = None
-
 
 @pytest.fixture(autouse=True, scope="function")
 def setup():
@@ -186,11 +180,6 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         table_name = kwargs.get('table_name')
         overwrite = kwargs.get('overwrite', False)
         DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
-    elif event_class==EventClass.upload_file_handler:
-        upload_type=kwargs.get("upload_type")
-        collection_name=kwargs.get("collection_name")
-        overwrite=kwargs.get("overwrite", False)
-        UploadHandler(bot=bot, user=user, upload_type=upload_type, collection_name=collection_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -325,1035 +314,6 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     assert not response["data"]
     assert response["error_code"] == 422
     assert not response["success"]
-
-
-
-
-import calendar
-from datetime import datetime
-import pytest
-from unittest.mock import patch, MagicMock
-
-@pytest.fixture
-def handler():
-    h = ActionLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-    )
-    h.kwargs = {}
-    return h
-
-
-def test_query_includes_dates(handler):
-    custom_from = datetime(2025, 8, 1, 10, 0, 0)
-    custom_to = datetime(2025, 8, 5, 18, 0, 0)
-    handler.kwargs = {"from_date": custom_from, "to_date": custom_to}
-
-    handler.doc_type.objects = MagicMock()
-    handler.get_logs_count = MagicMock(return_value=0)
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query = handler.doc_type.objects.call_args.kwargs
-    assert query["timestamp__gte"] == custom_from
-    assert query["timestamp__lte"] == custom_to
-
-
-def test_default_dates_for_actions_logs(handler):
-    handler.doc_type.objects = MagicMock()
-    handler.get_logs_count = MagicMock(return_value=0)
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-
-        pass
-
-    query = handler.doc_type.objects.call_args.kwargs
-    from_date = query["timestamp__gte"]
-    to_date = query["timestamp__lte"]
-
-    now = datetime.utcnow()
-    assert from_date.day == 1
-    assert from_date.month == now.month
-    assert from_date.year == now.year
-
-    last_day = calendar.monthrange(now.year, now.month)[1]
-    assert to_date.day == last_day
-    assert to_date.month == now.month
-    assert to_date.year == now.year
-
-
-
-def make_handler(kwargs=None):
-    return AuditLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-        **(kwargs or {})
-    )
-
-
-def test_default_from_to_dates_for_audit_logs():
-    handler = make_handler()
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query = handler.doc_type.objects.call_args.kwargs
-
-    now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query["timestamp__gte"].day == first_day
-    assert query["timestamp__lte"].day == last_day
-    assert query["attributes__key"] == "bot"
-    assert query["attributes__value"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_audit_logs():
-    from_date = datetime(2025, 1, 10, 0, 0, 0)
-    to_date = datetime(2025, 1, 20, 23, 59, 59)
-
-    handler = make_handler(kwargs={"from_date": from_date, "to_date": to_date})
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query = handler.doc_type.objects.call_args.kwargs
-    assert query["timestamp__gte"] == from_date
-    assert query["timestamp__lte"] == to_date
-    assert query["attributes__key"] == "bot"
-    assert query["attributes__value"] == "test-bot"
-
-
-
-
-
-def make_handler1(kwargs=None):
-    return CallbackLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-        **(kwargs or {})
-    )
-
-
-def test_default_from_to_dates_for_callback_logs():
-    handler = make_handler1()
-
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-
-    now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["timestamp__gte"].day == first_day
-    assert query_kwargs["timestamp__lte"].day == last_day
-    assert query_kwargs["bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_callback_logs():
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_handler1(kwargs={"from_date": from_date, "to_date": to_date})
-
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-
-    assert query_kwargs["timestamp__gte"] == from_date
-    assert query_kwargs["timestamp__lte"] == to_date
-    assert query_kwargs["bot"] == "test-bot"
-
-
-def make_handler2(kwargs=None):
-    return ExecutorLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-        **(kwargs or {})
-    )
-
-
-def test_default_from_to_dates_for_executor_logs():
-    handler = make_handler2()
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-    now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["timestamp__gte"].day == first_day
-    assert query_kwargs["timestamp__lte"].day == last_day
-    assert query_kwargs["bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_executor_logs():
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_handler2(kwargs={"from_date": from_date, "to_date": to_date})
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-    assert query_kwargs["timestamp__gte"] == from_date
-    assert query_kwargs["timestamp__lte"] == to_date
-    assert query_kwargs["bot"] == "test-bot"
-
-
-
-def make_llm_handler(kwargs=None):
-    return LLMLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-        **(kwargs or {})
-    )
-
-
-def test_default_from_to_dates_for_llm_logs():
-    handler = make_llm_handler()
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-    now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["start_time__gte"].day == first_day
-    assert query_kwargs["start_time__lte"].day == last_day
-    assert query_kwargs["metadata__bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_llm_logs():
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_llm_handler(kwargs={"from_date": from_date, "to_date": to_date})
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-    assert query_kwargs["start_time__gte"] == from_date
-    assert query_kwargs["start_time__lte"] == to_date
-    assert query_kwargs["metadata__bot"] == "test-bot"
-
-
-
-def make_model_testing_handler1(kwargs=None):
-    return ModelTestingHandler(
-        doc_type=ModelTestingLogs,
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-        **(kwargs or {})
-    )
-
-
-def test_default_from_to_dates_for_model_testing_logs():
-    handler = make_model_testing_handler1()
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-    now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["start_timestamp__gte"].day == first_day
-    assert query_kwargs["start_timestamp__lte"].day == last_day
-    assert query_kwargs["bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_model_testing_logs():
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_model_testing_handler1(kwargs={"from_date": from_date, "to_date": to_date})
-    handler.doc_type.objects = MagicMock()
-
-    try:
-        handler.get_logs_and_count()
-    except Exception:
-        pass
-
-    query_kwargs = handler.doc_type.objects.call_args.kwargs
-
-    assert query_kwargs["start_timestamp__gte"] == from_date
-    assert query_kwargs["start_timestamp__lte"] == to_date
-    assert query_kwargs["bot"] == "test-bot"
-
-
-
-class TestModelTestingHandler(ModelTestingHandler):
-    def get_logs_and_count(self):
-        return [], 0
-
-@pytest.fixture
-def make_model_testing_handler():
-    def _make_handler(kwargs=None):
-        return TestModelTestingHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-    return _make_handler
-
-def test_get_logs_for_search_query_default_dates(make_model_testing_handler):
-    handler = make_model_testing_handler()
-
-    fake_doc = MagicMock()
-    fake_mongo = MagicMock()
-    fake_mongo.to_dict.return_value = {"log": "default"}
-    fake_doc.to_mongo.return_value = fake_mongo
-
-    mock_query = MagicMock()
-    mock_query.order_by.return_value = mock_query
-    mock_query.skip.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.exclude.return_value = [fake_doc]
-
-    handler.doc_type.objects = MagicMock(return_value=mock_query)
-    handler.get_logs_count = MagicMock(return_value=1)
-
-    logs, count = handler.get_logs_for_search_query()
-
-    assert logs == [{"log": "default"}]
-    assert count == 1
-
-def test_get_logs_for_search_query_with_custom_dates(make_model_testing_handler):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_model_testing_handler(kwargs={"from_date": from_date, "to_date": to_date})
-
-
-    fake_doc = MagicMock()
-    fake_mongo = MagicMock()
-    fake_mongo.to_dict.return_value = {"log": "custom"}
-    fake_doc.to_mongo.return_value = fake_mongo
-
-    mock_query = MagicMock()
-    mock_query.order_by.return_value = mock_query
-    mock_query.skip.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.exclude.return_value = [fake_doc]
-
-    handler.doc_type.objects = MagicMock(return_value=mock_query)
-    handler.get_logs_count = MagicMock(return_value=5)
-
-    logs, count = handler.get_logs_for_search_query()
-
-    assert logs == [{"log": "custom"}]
-    assert count == 5
-
-    called_kwargs = handler.doc_type.objects.call_args.kwargs
-    assert called_kwargs["bot"] == "test-bot"
-    assert called_kwargs["start_timestamp__gte"] == from_date
-    assert called_kwargs["start_timestamp__lte"] == to_date
-
-@pytest.fixture
-def handler():
-    h = ActionLogHandler(
-        doc_type=MagicMock(),
-        bot="test-bot",
-        start_idx=0,
-        page_size=10,
-    )
-    h.kwargs = {}
-    return h
-
-
-def test_with_custom_dates_for_actions_logs(handler):
-    custom_from = datetime(2025, 8, 1, 10, 0, 0)
-    custom_to = datetime(2025, 8, 5, 18, 0, 0)
-    handler.kwargs = {"from_date": custom_from, "to_date": custom_to}
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch("kairon.shared.log_system.handlers.actions_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict", return_value=[{"z": 99}]), \
-         patch.object(handler, "get_logs_count", return_value=42):
-
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"z": 99}]
-        assert count == 42
-
-        query = handler.doc_type.objects.call_args.kwargs
-        assert query["timestamp__gte"] == custom_from
-        assert query["timestamp__lte"] == custom_to
-
-
-def test_default_dates_for_actions_logs(handler):
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch("kairon.shared.log_system.handlers.actions_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict", return_value=[{"x": 1}]), \
-         patch.object(handler, "get_logs_count", return_value=2):
-
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"x": 1}]
-        assert count == 2
-
-        query = handler.doc_type.objects.call_args.kwargs
-        from_date = query["timestamp__gte"]
-        to_date = query["timestamp__lte"]
-
-        now = datetime.utcnow()
-        assert from_date.day == 1
-        assert from_date.month == now.month
-        assert from_date.year == now.year
-
-        last_day = calendar.monthrange(now.year, now.month)[1]
-        assert to_date.day == last_day
-
-
-
-
-
-
-import calendar
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
-import pytest
-from kairon.shared.log_system.handlers.audit_logs_handler import AuditLogHandler
-
-@pytest.fixture
-def make_handler():
-    def _make_handler(kwargs=None):
-        return AuditLogHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-    return _make_handler
-
-def test_default_from_to_dates_for_audit_logs(make_handler):
-    handler = make_handler()
-
-    # Mock the query chain
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    # Patch conversion and count
-    with patch(
-        "kairon.shared.log_system.handlers.audit_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-        return_value=[{"log": "default"}]
-    ), patch.object(handler, "get_logs_count", return_value=1):
-
-        logs, count = handler.get_logs_and_count()
-
-        # Assert logs and count
-        assert logs == [{"log": "default"}]
-        assert count == 1
-
-        # Extract query args
-        query = handler.doc_type.objects.call_args.kwargs
-
-        # Validate from_date and to_date
-        now = datetime.utcnow()
-        first_day = 1
-        last_day = calendar.monthrange(now.year, now.month)[1]
-
-        assert query["timestamp__gte"].day == first_day
-        assert query["timestamp__lte"].day == last_day
-
-        # Validate attributes
-        assert query["attributes__key"] == "bot"
-        assert query["attributes__value"] == "test-bot"
-
-def test_custom_from_to_dates_for_audit_logs(make_handler):
-    from_date = datetime(2025, 1, 10, 0, 0, 0)
-    to_date = datetime(2025, 1, 20, 23, 59, 59)
-    handler = make_handler(kwargs={"from_date": from_date, "to_date": to_date})
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-        "kairon.shared.log_system.handlers.audit_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-        return_value=[{"log": "custom"}]
-    ), patch.object(handler, "get_logs_count", return_value=5):
-
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "custom"}]
-        assert count == 5
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        assert query["timestamp__gte"] == from_date
-        assert query["timestamp__lte"] == to_date
-        assert query["attributes__key"] == "bot"
-        assert query["attributes__value"] == "test-bot"
-
-
-
-import calendar
-from datetime import datetime
-from unittest.mock import MagicMock, patch
-import pytest
-from kairon.shared.log_system.handlers.callback_logs_handler import CallbackLogHandler
-
-@pytest.fixture
-def make_handler1():
-    def _make_handler(kwargs=None):
-        return CallbackLogHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-    return _make_handler
-
-def test_default_from_to_dates_for_callback_logs(make_handler1):
-    handler = make_handler1()
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-        "kairon.shared.log_system.handlers.callback_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-        return_value=[{"log": "default"}]
-    ), patch.object(handler, "get_logs_count", return_value=1):
-
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "default"}]
-        assert count == 1
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        now = datetime.utcnow()
-        first_day = 1
-        last_day = calendar.monthrange(now.year, now.month)[1]
-
-        assert query["timestamp__gte"].day == first_day
-        assert query["timestamp__lte"].day == last_day
-        assert query["bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_callback_logs(make_handler1):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_handler1(kwargs={"from_date": from_date, "to_date": to_date})
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-            "kairon.shared.log_system.handlers.callback_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-            return_value=[{"log": "custom"}]
-    ), patch.object(handler, "get_logs_count", return_value=5):
-        logs, count = handler.get_logs_and_count()
-
-        # Validate results
-        assert logs == [{"log": "custom"}]
-        assert count == 5
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        # Validate custom dates
-        assert query["timestamp__gte"] == from_date
-        assert query["timestamp__lte"] == to_date
-        assert query["bot"] == "test-bot"
-
-
-
-
-@pytest.fixture
-def make_executor_handler():
-    def _make_handler(kwargs=None):
-        return ExecutorLogHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-
-    return _make_handler
-
-
-def test_default_from_to_dates_for_executor_logs(make_executor_handler):
-    handler = make_executor_handler()
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-            "kairon.shared.log_system.handlers.executor_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-            return_value=[{"log": "default"}]
-    ), patch.object(handler, "get_logs_count", return_value=1):
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "default"}]
-        assert count == 1
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        now = datetime.utcnow()
-        first_day = 1
-        last_day = calendar.monthrange(now.year, now.month)[1]
-
-        assert query["timestamp__gte"].day == first_day
-        assert query["timestamp__lte"].day == last_day
-        assert query["bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_executor_logs(make_executor_handler):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_executor_handler(kwargs={"from_date": from_date, "to_date": to_date})
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-            "kairon.shared.log_system.handlers.executor_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-            return_value=[{"log": "custom"}]
-    ), patch.object(handler, "get_logs_count", return_value=5):
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "custom"}]
-        assert count == 5
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        assert query["timestamp__gte"] == from_date
-        assert query["timestamp__lte"] == to_date
-        assert query["bot"] == "test-bot"
-
-
-
-
-@pytest.fixture
-def make_llm_handler():
-    def _make_handler(kwargs=None):
-        return LLMLogHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-
-    return _make_handler
-
-
-def test_default_from_to_dates_for_llm_logs(make_llm_handler):
-    handler = make_llm_handler()
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-            "kairon.shared.log_system.handlers.llm_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-            return_value=[{"log": "default"}]
-    ), patch.object(handler, "get_logs_count", return_value=1):
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "default"}]
-        assert count == 1
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        now = datetime.utcnow()
-        first_day = 1
-        last_day = calendar.monthrange(now.year, now.month)[1]
-
-        assert query["start_time__gte"].day == first_day
-        assert query["start_time__lte"].day == last_day
-        assert query["metadata__bot"] == "test-bot"
-
-
-def test_custom_from_to_dates_for_llm_logs(make_llm_handler):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_llm_handler(kwargs={"from_date": from_date, "to_date": to_date})
-
-    fake_cursor = MagicMock()
-    handler.doc_type.objects.return_value.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = fake_cursor
-
-    with patch(
-            "kairon.shared.log_system.handlers.llm_logs_handler.BaseLogHandler.convert_logs_cursor_to_dict",
-            return_value=[{"log": "custom"}]
-    ), patch.object(handler, "get_logs_count", return_value=5):
-        logs, count = handler.get_logs_and_count()
-
-        assert logs == [{"log": "custom"}]
-        assert count == 5
-
-        query = handler.doc_type.objects.call_args.kwargs
-
-        assert query["start_time__gte"] == from_date
-        assert query["start_time__lte"] == to_date
-        assert query["metadata__bot"] == "test-bot"
-
-
-
-#this is model testing
-import calendar
-from datetime import datetime
-from unittest.mock import MagicMock, patch
-import pytest
-from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler, ModelTestingLogs
-
-@pytest.fixture
-def make_model_testing_handler1():
-    def _make_handler(kwargs=None):
-        return ModelTestingHandler(
-            doc_type=ModelTestingLogs,  # use the actual class
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-    return _make_handler
-
-def test_default_from_to_dates_for_model_testing_logs(make_model_testing_handler1):
-    handler = make_model_testing_handler1()
-    fake_logs = [{"log": "default"}]
-
-    # Patch ModelTestingLogs.objects to mock the chain
-    with patch.object(ModelTestingLogs, "objects") as mock_objects:
-        # .objects(bot=...) returns a MagicMock whose .aggregate(...) returns fake_logs
-        mock_objects.return_value.aggregate.return_value = fake_logs
-
-        # Mock get_logs_count to return 1
-        handler.get_logs_count = MagicMock(return_value=1)
-
-        logs, count = handler.get_logs_and_count()
-
-    assert logs == fake_logs[:handler.page_size]
-    assert count == 1
-
-def test_custom_from_to_dates_for_model_testing_logs(make_model_testing_handler1):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-    handler = make_model_testing_handler1(kwargs={"from_date": from_date, "to_date": to_date})
-
-    fake_logs = [{"log": "custom"}]
-
-    with patch.object(ModelTestingLogs, "objects") as mock_objects:
-        mock_objects.return_value.aggregate.return_value = fake_logs
-        handler.get_logs_count = MagicMock(return_value=5)
-
-        logs, count = handler.get_logs_and_count()
-
-    assert logs == fake_logs[:handler.page_size]
-    assert count == 5
-
-import pytest
-from unittest.mock import MagicMock
-from datetime import datetime
-from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler, BaseLogHandler
-
-# Concrete subclass to satisfy abstract base
-class TestModelTestingHandler(ModelTestingHandler):
-    def get_logs_and_count(self):
-        return [], 0
-
-@pytest.fixture
-def make_model_testing_handler():
-    def _make_handler(kwargs=None):
-        return TestModelTestingHandler(
-            doc_type=MagicMock(),
-            bot="test-bot",
-            start_idx=0,
-            page_size=10,
-            **(kwargs or {})
-        )
-    return _make_handler
-
-def test_get_logs_for_search_query_default_dates(make_model_testing_handler):
-    handler = make_model_testing_handler()
-
-    # Create a fake document with .to_mongo().to_dict()
-    fake_doc = MagicMock()
-    fake_mongo = MagicMock()
-    fake_mongo.to_dict.return_value = {"log": "default"}
-    fake_doc.to_mongo.return_value = fake_mongo
-
-    # Mock the QuerySet chain
-    mock_query = MagicMock()
-    mock_query.order_by.return_value = mock_query
-    mock_query.skip.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.exclude.return_value = [fake_doc]
-
-    handler.doc_type.objects = MagicMock(return_value=mock_query)
-    handler.get_logs_count = MagicMock(return_value=1)
-
-    logs, count = handler.get_logs_for_search_query()
-
-    assert logs == [{"log": "default"}]
-    assert count == 1
-
-def test_get_logs_for_search_query_with_custom_dates(make_model_testing_handler):
-    from_date = datetime(2025, 8, 1, 0, 0, 0)
-    to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_model_testing_handler(kwargs={"from_date": from_date, "to_date": to_date})
-
-    # Fake document with .to_mongo().to_dict()
-    fake_doc = MagicMock()
-    fake_mongo = MagicMock()
-    fake_mongo.to_dict.return_value = {"log": "custom"}
-    fake_doc.to_mongo.return_value = fake_mongo
-
-    # Mock the QuerySet chain
-    mock_query = MagicMock()
-    mock_query.order_by.return_value = mock_query
-    mock_query.skip.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.exclude.return_value = [fake_doc]
-
-    handler.doc_type.objects = MagicMock(return_value=mock_query)
-    handler.get_logs_count = MagicMock(return_value=5)
-
-    logs, count = handler.get_logs_for_search_query()
-
-    assert logs == [{"log": "custom"}]
-    assert count == 5
-
-    # Ensure from_date and to_date are passed correctly
-    called_kwargs = handler.doc_type.objects.call_args.kwargs
-    assert called_kwargs["bot"] == "test-bot"
-    assert called_kwargs["start_timestamp__gte"] == from_date
-    assert called_kwargs["start_timestamp__lte"] == to_date
-
-
-
-#
-# import pytest
-# from datetime import datetime
-# import calendar
-#
-#
-#
-# @pytest.fixture
-# def fake_doc_type2(mocker):
-#     """Fixture to fake doc_type.objects() chain."""
-#     mock_cursor = mocker.MagicMock()
-#     mock_cursor.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = ["log1", "log2"]
-#
-#     mock_doc_type = mocker.MagicMock()
-#     mock_doc_type.objects.return_value = mock_cursor
-#     return mock_doc_type
-#
-#
-# def test_executor_log_handler_default_dates(mocker, fake_doc_type2):
-#     # Patch BaseLogHandler.convert_logs_cursor_to_dict
-#     mocker.patch.object(BaseLogHandler, "convert_logs_cursor_to_dict", return_value=[{"event": "executor"}])
-#     mocker.patch.object(ExecutorLogHandler, "get_logs_count", return_value=2)
-#
-#     handler = ExecutorLogHandler(bot="test-bot", doc_type=fake_doc_type2, start_idx=0, page_size=10, kwargs={})
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     # Assertions
-#     assert logs == [{"event": "executor"}]
-#     assert count == 2
-#     query_args = fake_doc_type2.objects.call_args[1]
-#     assert query_args["bot"] == "test-bot"
-#     assert "timestamp__gte" in query_args
-#     assert "timestamp__lte" in query_args
-#
-#
-# def test_executor_log_handler_with_custom_dates_and_filters(mocker, fake_doc_type2):
-#     mocker.patch.object(BaseLogHandler, "convert_logs_cursor_to_dict", return_value=[{"event": "executor"}])
-#     mocker.patch.object(ExecutorLogHandler, "get_logs_count", return_value=1)
-#
-#     from_date = datetime(2023, 6, 1, 0, 0, 0)
-#     to_date = datetime(2023, 6, 30, 23, 59, 59)
-#     kwargs = {
-#         "from_date": from_date,
-#         "to_date": to_date,
-#         "event_class": "job",
-#         "task_type": "training"
-#     }
-#
-#     handler = ExecutorLogHandler(bot="test-bot", doc_type=fake_doc_type2, start_idx=0, page_size=5, kwargs=kwargs)
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     # Assertions
-#     assert logs == [{"event": "executor"}]
-#     assert count == 1
-#     query_args = fake_doc_type2.objects.call_args[1]
-#     assert query_args["timestamp__gte"] == from_date
-#     assert query_args["timestamp__lte"] == to_date
-#     assert query_args["event_class"] == "job"
-#     assert query_args["task_type"] == "training"
-#
-# import pytest
-# from datetime import datetime
-# import calendar
-#
-#
-#
-# @pytest.fixture
-# def fake_doc_type3(mocker):
-#     """Fixture to fake doc_type.objects() chain."""
-#     mock_cursor = mocker.MagicMock()
-#     mock_cursor.order_by.return_value.skip.return_value.limit.return_value.exclude.return_value = ["log1", "log2"]
-#
-#     mock_doc_type = mocker.MagicMock()
-#     mock_doc_type.objects.return_value = mock_cursor
-#     return mock_doc_type
-#
-#
-# def test_llm_log_handler_default_dates(mocker, fake_doc_type3):
-#     mocker.patch.object(BaseLogHandler, "convert_logs_cursor_to_dict", return_value=[{"event": "llm"}])
-#     mocker.patch.object(LLMLogHandler, "get_logs_count", return_value=2)
-#
-#     handler = LLMLogHandler(bot="test-bot", doc_type=fake_doc_type3, start_idx=0, page_size=10, kwargs={})
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     assert logs == [{"event": "llm"}]
-#     assert count == 2
-#
-#     query_args = fake_doc_type3.objects.call_args[1]
-#     assert query_args["metadata__bot"] == "test-bot"
-#     assert "start_time__gte" in query_args
-#     assert "start_time__lte" in query_args
-#
-#
-# def test_llm_log_handler_with_custom_dates(mocker, fake_doc_type3):
-#     mocker.patch.object(BaseLogHandler, "convert_logs_cursor_to_dict", return_value=[{"event": "llm"}])
-#     mocker.patch.object(LLMLogHandler, "get_logs_count", return_value=1)
-#
-#     from_date = datetime(2024, 1, 1, 0, 0, 0)
-#     to_date = datetime(2024, 1, 31, 23, 59, 59)
-#     kwargs = {"from_date": from_date, "to_date": to_date}
-#
-#     handler = LLMLogHandler(bot="test-bot", doc_type=fake_doc_type3, start_idx=5, page_size=5, kwargs=kwargs)
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     assert logs == [{"event": "llm"}]
-#     assert count == 1
-#
-#     query_args = fake_doc_type3.objects.call_args[1]
-#     assert query_args["metadata__bot"] == "test-bot"
-#     assert query_args["start_time__gte"] == from_date
-#     assert query_args["start_time__lte"] == to_date
-#
-#
-# import pytest
-# from datetime import datetime
-# import calendar
-#
-#
-# @pytest.fixture
-# def fake_doc_type4(mocker):
-#     """Fixture to fake doc_type.objects().aggregate()."""
-#     mock_cursor = mocker.MagicMock()
-#     mock_cursor.aggregate.return_value = [
-#         {"reference_id": "ref1", "status": "success"},
-#         {"reference_id": "ref2", "status": "failed"}
-#     ]
-#     return mock_cursor
-#
-#
-# def test_model_testing_handler_default_dates(mocker, fake_doc_type4):
-#     mocker.patch.object(BaseLogHandler, "convert_logs_cursor_to_dict", return_value=[{"ref": "ref1"}])
-#     mocker.patch.object(ModelTestingHandler, "get_logs_count", return_value=2)
-#
-#     handler = ModelTestingHandler(bot="test-bot", doc_type=fake_doc_type4, start_idx=0, page_size=10, kwargs={})
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     assert isinstance(logs, list)
-#     assert count == 2
-#     assert all("status" in log for log in logs)
-#
-#
-# def test_model_testing_handler_with_custom_dates(mocker, fake_doc_type4):
-#     mocker.patch.object(ModelTestingHandler, "get_logs_count", return_value=1)
-#
-#     from_date = datetime(2024, 2, 1, 0, 0, 0)
-#     to_date = datetime(2024, 2, 29, 23, 59, 59)
-#     kwargs = {"from_date": from_date, "to_date": to_date}
-#
-#     handler = ModelTestingHandler(bot="test-bot", doc_type=fake_doc_type4, start_idx=0, page_size=5, kwargs=kwargs)
-#
-#     logs, count = handler.get_logs_and_count()
-#
-#     assert isinstance(logs, list)
-#     assert count == 1
-#
-#
-#     query_args = handler.get_logs_count.call_args[0][1:]
-#     assert any(q.get("start_timestamp__gte") == from_date for q in query_args)
-#     assert any(q.get("start_timestamp__lte") == to_date for q in query_args)
-
 
 @mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
 @mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
@@ -2698,6 +1658,7 @@ def test_get_all_collections():
     assert delete_resp.status_code == 200
     assert delete_resp.json()["message"] == "Bot removed"
 
+
 def test_delete_multiple_payload_content_with_empty_list():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.cognition_collections_limit = 20
@@ -3348,285 +2309,6 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
-
-def test_bulk_save_success():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "test_data",
-                "is_secure": ["name"],
-                "is_non_editable": ["email"],
-                "data": {
-                    "name": "Aniket",
-                    "email": "aniket@example.com"
-                }
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["message"] == "Bulk save completed"
-    assert actual["success"]
-    assert "data" in actual
-    CollectionData.objects(collection_name="test_bulk_save_success").delete()
-
-
-def test_bulk_save_with_missing_is_secure_key():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "is_secure": ["name", "aadhar"],
-                "data": {
-                    "name": "Aniket",
-                    "email": "aniket@example.com"
-                }
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["message"] == [{
-        "loc": ["body", "payload", 0, "__root__"],
-        "msg": "is_secure contains keys that are not present in data",
-        "type": "value_error"
-    }]
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_data_none():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "is_secure": ["name"],
-                "data": None
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-    assert actual["data"] is None
-
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "data cannot be empty and should be of type dict!" in error_messages
-    assert "none is not an allowed value" in error_messages
-
-def test_bulk_empty_payload():
-    request_body = {
-        "payload": [
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-
-
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "payload must contain at least one item" in error_messages
-
-
-def test_bulk_save_with_empty_collection_name():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "  ",
-                "data": {"name": "Aniket"},
-                "is_secure": [],
-                "is_non_editable": []
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["message"][0]["msg"] == "collection_name should not be empty!"
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_non_editable_key_missing_in_data():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "data": {
-                    "name": "Aniket",
-                },
-                "is_secure": [],
-                "is_non_editable": ["email"]
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["message"][0]["msg"] == "is_non_editable contains keys that are not present in data"
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_invalid_types():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "data": {"name": "Aniket"},
-                "is_secure": "name",
-                "is_non_editable": []
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["data"] is None
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "is_secure should be list of keys!" in error_messages
-    assert "value is not a valid list" in error_messages
-
-
-@responses.activate
-def test_upload_file_content_success():
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.upload_file_handler}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-    file = {
-        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection_data?overwrite=False",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=file,
-    )
-
-    actual = response.json()
-    assert actual["success"]
-    assert actual["message"] == "File content upload in progress! Check logs."
-    assert actual["error_code"] == 0
-
-    complete_end_to_end_event_execution(
-        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, upload_type="crud_data", collection_name="test_collection_data", overwrite=False
-    )
-
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/logs/file_upload?start_idx=0&page_size=10",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    logs = actual['data']['logs']
-    assert len(logs) == 1
-    assert logs[0]['file_name'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
-    assert logs[0]['is_uploaded']
-    assert logs[0]['start_timestamp'] is not None
-    assert logs[0]['end_timestamp'] is not None
-    assert logs[0]['upload_errors'] == {}
-    assert logs[0]['exception'] == ''
-
-    from_date = date.today()
-    to_date = from_date + timedelta(days=1)
-
-    search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/file_upload/search"
-        f"?from_date={from_date}&to_date={to_date}",
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
-    )
-    response_json = search_response.json()
-    assert response_json["success"] is True
-    assert response_json["error_code"] == 0
-
-    data = response_json["data"]
-    assert "logs" in data
-    assert isinstance(data["logs"], list)
-    CollectionData.objects(collection_name="test_collection_data").delete()
-
-
-@patch("kairon.api.app.routers.bot.data.UploadHandler")
-def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler):
-    """Test that file upload does not enqueue event when validation fails."""
-
-    mock_event_instance = MagicMock()
-    mock_event_instance.validate.return_value = False
-    mock_upload_handler.return_value = mock_event_instance
-
-    files = {
-        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection?overwrite=true",
-        files=files,
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
-    )
-
-    actual = response.json()
-    assert response.status_code == 200
-    assert actual["success"] is True
-    assert actual["message"] == "File content upload in progress! Check logs."
-    assert actual["error_code"] == 0
-    mock_event_instance.enqueue.assert_not_called()
 
 @pytest.mark.asyncio
 @responses.activate
@@ -20554,6 +19236,50 @@ def test_get_model_testing_logs_new():
     assert actual["data"]
     assert actual["success"]
 
+def test_search_model_testing_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_from_date_and_to_date():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?from_date=2025-08-01&to_date=2025-08-31",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_is_augmented_False():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_is_augmented_True():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=True",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)
     end_date = datetime.utcnow() + timedelta(days=1)
@@ -20562,7 +19288,6 @@ def test_download_model_testing_logs(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert response.content
-
 
 def test_deploy_missing_configuration():
     response = client.post(
@@ -32943,7 +31668,6 @@ def test_get_bot_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'content_importer_limit_per_day': 5,
-                              'system_limits': {'file_upload_limit': 5},
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
@@ -33053,7 +31777,6 @@ def test_update_analytics_settings():
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'content_importer_limit_per_day': 5,
-                              'system_limits': {'file_upload_limit': 5},
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
@@ -38086,3 +36809,4 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
+

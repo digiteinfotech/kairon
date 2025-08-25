@@ -110,12 +110,6 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
     ABORTED = "Aborted"
 
-
-class STATUSES(str, Enum):
-    SUCCESS = "Success"
-    FAIL = "Failure"
-
-
 class SYNC_STATUS(str, Enum):
     INITIATED = "Initiated"
     VALIDATING_REQUEST = "Validating request"
@@ -284,7 +278,6 @@ class LogTypes(str, Enum):
     agent_handoff = "agent_handoff"
     audit = "audit"
     model_test = "model_test"
-    file_upload = "file_upload"
 
 LOG_TYPE_METADATA = {
     LogTypes.actions: [

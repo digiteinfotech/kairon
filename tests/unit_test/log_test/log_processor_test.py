@@ -95,10 +95,8 @@ class DummyRequest:
     def __init__(self, query_params):
         self.query_params = query_params
 
-
-
 @pytest.fixture
-def handler():
+def mock_action_handler():
     h = ActionLogHandler(
         doc_type=MagicMock(),
         bot="test-bot",
@@ -108,39 +106,34 @@ def handler():
     h.kwargs = {}
     return h
 
-
-def test_query_includes_dates(handler):
+def test_query_includes_dates(mock_action_handler):
     custom_from = datetime(2025, 8, 1, 10, 0, 0)
     custom_to = datetime(2025, 8, 5, 18, 0, 0)
-    handler.kwargs = {"from_date": custom_from, "to_date": custom_to}
-
-    handler.doc_type.objects = MagicMock()
-    handler.get_logs_count = MagicMock(return_value=0)
+    mock_action_handler.kwargs = {"from_date": custom_from, "to_date": custom_to}
+    mock_action_handler.doc_type.objects = MagicMock()
+    mock_action_handler.get_logs_count = MagicMock(return_value=0)
 
     try:
-        handler.get_logs_and_count()
+        mock_action_handler.get_logs_and_count()
     except Exception:
         pass
 
-    query = handler.doc_type.objects.call_args.kwargs
+    query = mock_action_handler.doc_type.objects.call_args.kwargs
     assert query["timestamp__gte"] == custom_from
     assert query["timestamp__lte"] == custom_to
 
-
-def test_default_dates_for_actions_logs(handler):
-    handler.doc_type.objects = MagicMock()
-    handler.get_logs_count = MagicMock(return_value=0)
+def test_default_dates_for_actions_logs(mock_action_handler):
+    mock_action_handler.doc_type.objects = MagicMock()
+    mock_action_handler.get_logs_count = MagicMock(return_value=0)
 
     try:
-        handler.get_logs_and_count()
+        mock_action_handler.get_logs_and_count()
     except Exception:
-
         pass
 
-    query = handler.doc_type.objects.call_args.kwargs
+    query = mock_action_handler.doc_type.objects.call_args.kwargs
     from_date = query["timestamp__gte"]
     to_date = query["timestamp__lte"]
-
     now = datetime.utcnow()
     assert from_date.day == 1
     assert from_date.month == now.month
@@ -151,9 +144,7 @@ def test_default_dates_for_actions_logs(handler):
     assert to_date.month == now.month
     assert to_date.year == now.year
 
-
-
-def make_handler(kwargs=None):
+def mock_audit_handler(kwargs=None):
     return AuditLogHandler(
         doc_type=MagicMock(),
         bot="test-bot",
@@ -162,9 +153,8 @@ def make_handler(kwargs=None):
         **(kwargs or {})
     )
 
-
 def test_default_from_to_dates_for_audit_logs():
-    handler = make_handler()
+    handler = mock_audit_handler()
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -173,7 +163,6 @@ def test_default_from_to_dates_for_audit_logs():
         pass
 
     query = handler.doc_type.objects.call_args.kwargs
-
     now = datetime.utcnow()
     first_day = 1
     last_day = calendar.monthrange(now.year, now.month)[1]
@@ -183,12 +172,10 @@ def test_default_from_to_dates_for_audit_logs():
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
-
 def test_custom_from_to_dates_for_audit_logs():
     from_date = datetime(2025, 1, 10, 0, 0, 0)
     to_date = datetime(2025, 1, 20, 23, 59, 59)
-
-    handler = make_handler(kwargs={"from_date": from_date, "to_date": to_date})
+    handler = mock_audit_handler(kwargs={"from_date": from_date, "to_date": to_date})
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -202,9 +189,7 @@ def test_custom_from_to_dates_for_audit_logs():
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
-
-
-def make_handler1(kwargs=None):
+def mock_callback_handler(kwargs=None):
     return CallbackLogHandler(
         doc_type=MagicMock(),
         bot="test-bot",
@@ -213,10 +198,8 @@ def make_handler1(kwargs=None):
         **(kwargs or {})
     )
 
-
 def test_default_from_to_dates_for_callback_logs():
-    handler = make_handler1()
-
+    handler = mock_callback_handler()
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -225,7 +208,6 @@ def test_default_from_to_dates_for_callback_logs():
         pass
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
-
     now = datetime.utcnow()
     first_day = 1
     last_day = calendar.monthrange(now.year, now.month)[1]
@@ -234,13 +216,10 @@ def test_default_from_to_dates_for_callback_logs():
     assert query_kwargs["timestamp__lte"].day == last_day
     assert query_kwargs["bot"] == "test-bot"
 
-
 def test_custom_from_to_dates_for_callback_logs():
     from_date = datetime(2025, 8, 1, 0, 0, 0)
     to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_handler1(kwargs={"from_date": from_date, "to_date": to_date})
-
+    handler = mock_callback_handler(kwargs={"from_date": from_date, "to_date": to_date})
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -249,13 +228,11 @@ def test_custom_from_to_dates_for_callback_logs():
         pass
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
-
     assert query_kwargs["timestamp__gte"] == from_date
     assert query_kwargs["timestamp__lte"] == to_date
     assert query_kwargs["bot"] == "test-bot"
 
-
-def make_handler2(kwargs=None):
+def mock_executor_handler(kwargs=None):
     return ExecutorLogHandler(
         doc_type=MagicMock(),
         bot="test-bot",
@@ -264,9 +241,8 @@ def make_handler2(kwargs=None):
         **(kwargs or {})
     )
 
-
 def test_default_from_to_dates_for_executor_logs():
-    handler = make_handler2()
+    handler = mock_executor_handler()
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -283,12 +259,10 @@ def test_default_from_to_dates_for_executor_logs():
     assert query_kwargs["timestamp__lte"].day == last_day
     assert query_kwargs["bot"] == "test-bot"
 
-
 def test_custom_from_to_dates_for_executor_logs():
     from_date = datetime(2025, 8, 1, 0, 0, 0)
     to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_handler2(kwargs={"from_date": from_date, "to_date": to_date})
+    handler = mock_executor_handler(kwargs={"from_date": from_date, "to_date": to_date})
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -301,9 +275,7 @@ def test_custom_from_to_dates_for_executor_logs():
     assert query_kwargs["timestamp__lte"] == to_date
     assert query_kwargs["bot"] == "test-bot"
 
-
-
-def make_llm_handler(kwargs=None):
+def mock_llm_handler(kwargs=None):
     return LLMLogHandler(
         doc_type=MagicMock(),
         bot="test-bot",
@@ -312,9 +284,8 @@ def make_llm_handler(kwargs=None):
         **(kwargs or {})
     )
 
-
 def test_default_from_to_dates_for_llm_logs():
-    handler = make_llm_handler()
+    handler = mock_llm_handler()
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -331,12 +302,10 @@ def test_default_from_to_dates_for_llm_logs():
     assert query_kwargs["start_time__lte"].day == last_day
     assert query_kwargs["metadata__bot"] == "test-bot"
 
-
 def test_custom_from_to_dates_for_llm_logs():
     from_date = datetime(2025, 8, 1, 0, 0, 0)
     to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_llm_handler(kwargs={"from_date": from_date, "to_date": to_date})
+    handler = mock_llm_handler(kwargs={"from_date": from_date, "to_date": to_date})
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -349,9 +318,7 @@ def test_custom_from_to_dates_for_llm_logs():
     assert query_kwargs["start_time__lte"] == to_date
     assert query_kwargs["metadata__bot"] == "test-bot"
 
-
-
-def make_model_testing_handler1(kwargs=None):
+def mock_model_testing_handler(kwargs=None):
     return ModelTestingHandler(
         doc_type=ModelTestingLogs,
         bot="test-bot",
@@ -360,9 +327,8 @@ def make_model_testing_handler1(kwargs=None):
         **(kwargs or {})
     )
 
-
 def test_default_from_to_dates_for_model_testing_logs():
-    handler = make_model_testing_handler1()
+    handler = mock_model_testing_handler()
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -379,12 +345,10 @@ def test_default_from_to_dates_for_model_testing_logs():
     assert query_kwargs["start_timestamp__lte"].day == last_day
     assert query_kwargs["bot"] == "test-bot"
 
-
 def test_custom_from_to_dates_for_model_testing_logs():
     from_date = datetime(2025, 8, 1, 0, 0, 0)
     to_date = datetime(2025, 8, 15, 23, 59, 59)
-
-    handler = make_model_testing_handler1(kwargs={"from_date": from_date, "to_date": to_date})
+    handler = mock_model_testing_handler(kwargs={"from_date": from_date, "to_date": to_date})
     handler.doc_type.objects = MagicMock()
 
     try:
@@ -393,14 +357,9 @@ def test_custom_from_to_dates_for_model_testing_logs():
         pass
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
-
     assert query_kwargs["start_timestamp__gte"] == from_date
     assert query_kwargs["start_timestamp__lte"] == to_date
     assert query_kwargs["bot"] == "test-bot"
-
-
-
-
 
 @pytest.mark.parametrize(
     "log_type, query_params, expected",
