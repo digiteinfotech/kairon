@@ -289,7 +289,7 @@ LOG_TYPE_METADATA = {
         {"id": "status", "header": "logsPage.status", "cellComponent": "StatusCell", "filterType": "status"}],
 
     LogTypes.importer: [
-        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell", "filterType": "text"},
+        {"id": "files_received", "header": "logsPage.filesUploaded", "cellComponent": "FilesUploadedCell"},
         {"id": "start_timestamp", "header": "common.startTimeHeader", "accessorFunction": "formatStartTime", "cellComponent": "StartTimestampCell"},
         {"id": "end_timestamp", "header": "common.endTimeHeader", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "EndTimestampInProgressCell"},
         {"id": "event_status", "header": "logsPage.uploadStatus", "cellComponent": "SimpleCell", "filterType": "text"},
@@ -340,13 +340,13 @@ LOG_TYPE_METADATA = {
         {"id": "name", "header": "formLabels.name", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "request_method", "header": "logsPage.requestMethod", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "http_url", "header": "common.url", "cellComponent": "SimpleCell", "filterType": "text"},
-        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatEndTimeOrInProgress", "cellComponent": "TimestampCell"},
+        {"id": "timestamp", "header": "logsPage.timeStamp", "accessorFunction": "formatTimeOrInProgress", "cellComponent": "TimestampCell"},
         {"id": "exception", "header": "logsPage.exception", "accessorFunction": "formatExceptionText", "cellComponent": "ExceptionCell"},
         {"id": "details", "header": "common.details", "cellComponent": "DetailsCell"}
     ],
 
     LogTypes.callback: [
-        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "CallbackNameCell", "filterType": "text"},
+        {"header": "logsPage.callbackName", "id": "callback_name", "cellComponent": "ClickableNameCell", "filterType": "text"},
         {"header": "logsPage.senderId", "id": "sender_id", "cellComponent": "SenderIdCell", "filterType": "text"},
         {"header": "logsPage.channel", "id": "channel", "cellComponent": "SimpleCell", "filterType": "text"},
         {"id": "timestamp", "header": "logsPage.timestamp", "accessorFunction": "formatLocalTimestamp", "cellComponent": "SimpleCell"},
