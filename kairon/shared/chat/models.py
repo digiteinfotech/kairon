@@ -74,6 +74,19 @@ class TemplateConfiguration(BaseModel):
     data: str = None
 
 
+class FilterModel(BaseModel):
+    column: str
+    condition: str
+    value: Any
+
+
+class CollectionConfig(BaseModel):
+    collection: str
+    number_field: str
+    filters_list: List[FilterModel] = []
+    field_mapping: dict
+
+
 class MessageBroadcastRequest(BaseModel):
     name: str
     connector_type: str
@@ -81,6 +94,7 @@ class MessageBroadcastRequest(BaseModel):
     scheduler_config: SchedulerConfiguration = None
     recipients_config: RecipientsConfiguration = None
     template_config: List[TemplateConfiguration] = None
+    collection_config: CollectionConfig = None
     template_name: str = None
     language_code: str = None
     pyscript: str = None
