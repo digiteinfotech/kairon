@@ -1,8 +1,7 @@
 import os
-from typing import Text
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
-from kairon.shared.constants import EventClass, UploadHandlerClass
+from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
 from kairon.upload_handlers.definitions.factory import UploadHandlerFactory

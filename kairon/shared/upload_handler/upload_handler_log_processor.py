@@ -1,5 +1,4 @@
 from datetime import datetime
-from loguru import logger
 from mongoengine import Q, DoesNotExist
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotSettings
@@ -78,7 +77,7 @@ class UploadHandlerLogProcessor:
                     f"Upload already in progress for collection: {collection_name}. Check logs."
                 )
             in_progress = True
-        except DoesNotExist as e:
+        except DoesNotExist:
             pass
 
         return in_progress
@@ -99,7 +98,7 @@ class UploadHandlerLogProcessor:
 
     @staticmethod
     def get_latest_event_file_name(bot: str):
-        logs,count=BaseLogHandler.get_logs(bot, "file_upload")
+        logs, _ = BaseLogHandler.get_logs(bot, "file_upload")
         if not logs:
             return ""
         return logs[0].get("file_name", "")
