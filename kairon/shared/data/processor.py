@@ -8958,7 +8958,7 @@ class MongoProcessor:
 
         return error_message
 
-    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File, type : Text, collection_name: Text):
+    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File):
         """
         Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
 
@@ -8975,24 +8975,11 @@ class MongoProcessor:
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
-        error_message = self.file_handler_save_and_validate(bot, user, file_content, type)
-
-        if error_message:
-            UploadHandlerLogProcessor.add_log(
-                bot=bot,
-                user=user,
-                file_name=file_content.filename,
-                type=type,
-                upload_errors=error_message,
-                collection_name=collection_name,
-                status="Failure",
-                event_status=EVENT_STATUS.COMPLETED.value,
-            )
-            return False
+        self.file_handler_save_and_validate(bot, user, file_content)
 
         return True
 
-    def file_handler_save_and_validate(self, bot: Text, user: Text, file_content: File, type: Text):
+    def file_handler_save_and_validate(self, bot: Text, user: Text, file_content: File):
         """
         Saves the training file and performs validation.
 
@@ -9000,9 +8987,6 @@ class MongoProcessor:
         :param file_content: The file to be saved and validated
         :return: A dictionary of error messages if validation fails
         """
-        valid_csv_types = ["text/csv"]
-        error_message = {}
-
         content_dir = os.path.join('file_content_upload_records', bot)
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, file_content.filename)
@@ -9011,13 +8995,6 @@ class MongoProcessor:
             shutil.copyfileobj(file_content.file, buffer)
 
         file_content.file.seek(0)
-
-        if type == UploadHandlerClass.crud_data:
-            if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
-                error_message['File type error'] = f"Invalid file type: {file_content.content_type}. Please upload a CSV file."
-                return error_message
-
-        return error_message
 
     @staticmethod
     def validate_file_type(file_content):

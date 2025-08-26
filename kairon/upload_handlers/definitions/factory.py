@@ -6,7 +6,6 @@ from kairon.shared.constants import UploadHandlerClass
 class UploadHandlerFactory:
 
     upload_handler = {
-        #UploadHandlerClass.broadcast: BroadcastFileUpload,
         UploadHandlerClass.crud_data: CrudFileUploader
     }
 

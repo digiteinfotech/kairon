@@ -1395,48 +1395,17 @@ def test_file_handler_save_and_validate_success(tmp_path):
 
     instance = MongoProcessor()
 
-    error_message = instance.file_handler_save_and_validate(
+    instance.file_handler_save_and_validate(
         bot=bot,
         user=user,
-        file_content=file_content,
-        type=UploadHandlerClass.crud_data
+        file_content=file_content
     )
 
     content_dir = os.path.join("file_content_upload_records", bot)
     file_path = os.path.join(content_dir, file_content.filename)
     assert os.path.exists(file_path)
 
-    assert error_message == {}
-
     shutil.rmtree(content_dir)
-
-
-def test_file_handler_save_and_validate_invalid_type(tmp_path):
-    bot = "test_bot"
-    user = "test_user"
-
-    file_content = SimpleNamespace(
-        filename="test.txt",
-        content_type="text/plain",
-        file=io.BytesIO(b"some text content")
-    )
-
-    instance = MongoProcessor()
-
-    error_message = instance.file_handler_save_and_validate(
-        bot=bot,
-        user=user,
-        file_content=file_content,
-        type=UploadHandlerClass.crud_data
-    )
-
-    content_dir = os.path.join("file_content_upload_records", bot)
-    file_path = os.path.join(content_dir, file_content.filename)
-    assert os.path.exists(file_path)
-    assert "File type error" in error_message
-
-    shutil.rmtree(content_dir)
-
 
 def test_file_upload_validate_schema_and_log_success(monkeypatch):
     bot = "test_bot"
@@ -1461,47 +1430,12 @@ def test_file_upload_validate_schema_and_log_success(monkeypatch):
     result = instance.file_upload_validate_schema_and_log(
         bot=bot,
         user=user,
-        file_content=file_content,
-        type=UploadHandlerClass.crud_data,
-        collection_name="test_collection"
+        file_content=file_content
     )
 
     assert result is True
     assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
     assert not any(log.get("status") == "Failure" for log in logged)
-
-
-def test_file_upload_validate_schema_and_log_failure(monkeypatch):
-    bot = "test_bot"
-    user = "test_user"
-
-    file_content = SimpleNamespace(
-        filename="test.csv",
-        content_type="text/csv",
-        file=io.BytesIO(b"col1,col2\nval1,val2")
-    )
-
-    instance = MongoProcessor()
-
-    monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {"error": "bad schema"})
-
-    logged = []
-    monkeypatch.setattr(
-        "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.add_log",
-        lambda **kwargs: logged.append(kwargs)
-    )
-
-    result = instance.file_upload_validate_schema_and_log(
-        bot=bot,
-        user=user,
-        file_content=file_content,
-        type=UploadHandlerClass.crud_data,
-        collection_name="test_collection"
-    )
-
-    assert result is False
-    assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
-    assert any(log.get("status") == "Failure" for log in logged)
 
 def test_validate_collection_name_valid():
     instance = DataProcessor()

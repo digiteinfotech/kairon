@@ -18,9 +18,9 @@ class FileImporter:
         self.overwrite = overwrite
         self.collection_name=collection_name
 
-
     def validate(self):
         pass
+
     def preprocess(self):
         file_path = os.path.join(self.path, self.file_received)
         data = []

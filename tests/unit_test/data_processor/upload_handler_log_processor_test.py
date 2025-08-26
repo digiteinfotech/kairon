@@ -18,14 +18,13 @@ class TestUploadHandlerLogProcessor:
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-
     def test_add_log_creates_new(self):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'test_collection'
         file_name="Salesstore.csv"
-        type="crud_data"
-        UploadHandlerLogProcessor.add_log(bot, user,  file_name=file_name, type=type, collection_name=collection_name,)
+        upload_type="crud_data"
+        UploadHandlerLogProcessor.add_log(bot, user,  file_name=file_name, upload_type=upload_type, collection_name=collection_name,)
         log = UploadHandlerLogs.objects(bot=bot).get().to_mongo().to_dict()
         assert not log.get('exception')
         assert log['collection_name']
@@ -33,9 +32,8 @@ class TestUploadHandlerLogProcessor:
         assert not log.get('end_timestamp')
         assert not log.get('upload_errors')
         assert log.get('file_name')
-        assert log.get('type')
+        assert log.get('upload_type')
         assert log['event_status'] == EVENT_STATUS.INITIATED.value
-
 
     def test_add_log_updates_existing(self):
         bot = 'test_bot'
@@ -60,7 +58,6 @@ class TestUploadHandlerLogProcessor:
             UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name)
 
     def test_is_event_in_progress_true_no_exception(self):
-
         result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2")
         assert not result
 
@@ -84,10 +81,10 @@ class TestUploadHandlerLogProcessor:
         bot = 'test_bot'
         user = 'test_user'
         file_name = "Salesstore.csv"
-        type = "crud_data"
+        upload_type = "crud_data"
         collection_name = 'test_collection'
 
-        UploadHandlerLogProcessor.add_log(bot, user, file_name=file_name, type=type, collection_name=collection_name)
+        UploadHandlerLogProcessor.add_log(bot, user, file_name=file_name, upload_type=upload_type, collection_name=collection_name)
         UploadHandlerLogProcessor.add_log(
             bot=bot,
             user=user,

@@ -110,6 +110,12 @@ class EVENT_STATUS(str, Enum):
     FAIL = "Fail"
     ABORTED = "Aborted"
 
+
+class STATUSES(str, Enum):
+    SUCCESS = "Success"
+    FAIL = "Failure"
+
+
 class SYNC_STATUS(str, Enum):
     INITIATED = "Initiated"
     VALIDATING_REQUEST = "Validating request"

@@ -25,7 +25,7 @@ class TestFileImporter:
         return CrudFileUploader(
             bot="test_bot",
             user="test_user",
-            type="crud_data",
+            upload_type="crud_data",
             overwrite=False,
             collection_name="test_collection"
         )
@@ -35,7 +35,7 @@ class TestFileImporter:
         payload = uploader_instance.create_payload(
             bot="test_bot",
             user="test_user",
-            type="crud_data",
+            upload_type="crud_data",
             collection_name="test_collection",
             overwrite=False
         )
