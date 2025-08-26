@@ -14,19 +14,13 @@ class UploadHandler(EventsBase):
     to CRUD
     """
 
-    def __init__(self, bot: Text, user: Text, type: Text, **kwargs):
+    def __init__(self, **kwargs):
         """
         Initialise event.
         """
-        file_uploader = UploadHandlerFactory.get_instance(type)
-        if type == UploadHandlerClass.crud_data:
-            self.upload_handler = file_uploader(
-                bot=bot,
-                user=user,
-                type=type,
-                overwrite=kwargs.get("overwrite", False),
-                collection_name=kwargs.get("collection_name")
-            )
+        upload_type = kwargs.get("upload_type")
+        file_uploader = UploadHandlerFactory.get_instance(upload_type)
+        self.upload_handler = file_uploader(**kwargs)
 
 
     def validate(self, **kwargs):

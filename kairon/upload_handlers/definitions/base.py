@@ -1,12 +1,12 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 
-class UploadHandlerBase:
+class UploadHandlerBase(ABC):
 
     """Base class to create events"""
 
     @abstractmethod
-    def validate(self):
+    def validate(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod

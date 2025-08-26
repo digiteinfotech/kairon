@@ -559,7 +559,7 @@ class TestUploadHandlerCli:
         assert str(e.value).__contains__("'Namespace' object has no attribute 'user'")
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", upload_type="crud_data",
                                                 collection_name="documents", overwrite=False))
     def test_file_importer_with_defaults(self, monkeypatch):
         def mock_file_content_importer(*args, **kwargs):
@@ -569,7 +569,7 @@ class TestUploadHandlerCli:
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", upload_type="crud_data",
                                                 collection_name="test_collection", overwrite=True))
     def test_file_importer_all_arguments(self, monkeypatch):
         def mock_file_content_importer(*args, **kwargs):
@@ -579,7 +579,7 @@ class TestUploadHandlerCli:
         cli()
 
     @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", type="crud_data",
+                return_value=argparse.Namespace(func=import_file_content, bot="test_cli", user="testUser", upload_type="crud_data",
                                                 collection_name="test_collection", overwrite="yes"))
     def test_file_importer_overwrite_as_string_argument(self, monkeypatch):
         """

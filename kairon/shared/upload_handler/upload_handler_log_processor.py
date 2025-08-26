@@ -18,7 +18,7 @@ class UploadHandlerLogProcessor:
         bot: str,
         user: str,
         file_name: str = None,
-        type: str = None,
+        upload_type: str = None,
         collection_name: str = None,
         is_uploaded: bool = False,
         upload_errors: dict = None,
@@ -32,8 +32,8 @@ class UploadHandlerLogProcessor:
 
         if file_name is not None:
             update_fields["file_name"] = file_name
-        if type is not None:
-            update_fields["type"] = type
+        if upload_type is not None:
+            update_fields["upload_type"] = upload_type
         if collection_name is not None:
             update_fields["collection_name"] = collection_name
         if exception is not None:
@@ -66,7 +66,7 @@ class UploadHandlerLogProcessor:
         try:
             UploadHandlerLogs.objects(
                 bot=bot,
-                collection_name=collection_name  # new condition
+                collection_name=collection_name
             ).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
                 Q(event_status__ne=EVENT_STATUS.FAIL.value) &
@@ -79,7 +79,7 @@ class UploadHandlerLogProcessor:
                 )
             in_progress = True
         except DoesNotExist as e:
-            logger.error(e)
+            pass
 
         return in_progress
 
