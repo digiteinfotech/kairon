@@ -8,7 +8,7 @@ class UploadHandlerLogs(DynamicDocument):
     bot = StringField(required=True)
     user = StringField(required=True)
     file_name = StringField(default="")
-    type = StringField(default="")
+    upload_type = StringField(default="")
     collection_name=StringField(default="")
     upload_errors = DictField(default={})
     exception = StringField(default="")

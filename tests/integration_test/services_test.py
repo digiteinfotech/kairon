@@ -170,10 +170,10 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         overwrite = kwargs.get('overwrite', False)
         DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
     elif event_class==EventClass.upload_file_handler:
-        type=kwargs.get("type")
+        upload_type=kwargs.get("upload_type")
         collection_name=kwargs.get("collection_name")
-        overwrite=kwargs.get("overwrite")
-        UploadHandler(bot, user, type, collection_name=collection_name, overwrite=overwrite).execute()
+        overwrite=kwargs.get("overwrite", False)
+        UploadHandler(bot=bot, user=user, upload_type=upload_type, collection_name=collection_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -2484,7 +2484,7 @@ def test_upload_file_content_success():
     }
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/crud_data/test_collection_data?overwrite=False",
+        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection_data?overwrite=False",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files=file,
     )
@@ -2495,7 +2495,7 @@ def test_upload_file_content_success():
     assert actual["error_code"] == 0
 
     complete_end_to_end_event_execution(
-        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, type="crud_data", collection_name="test_collection_data", overwrite=False
+        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, upload_type="crud_data", collection_name="test_collection_data", overwrite=False
     )
 
 
@@ -2550,7 +2550,7 @@ def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler)
     }
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/crud_data/test_collection?overwrite=true",
+        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection?overwrite=true",
         files=files,
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
     )

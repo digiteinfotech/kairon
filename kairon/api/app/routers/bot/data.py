@@ -370,7 +370,7 @@ async def upload_doc_content(
         event.enqueue()
     return {"message": "Document content upload in progress! Check logs."}
 
-@router.post("/upload/crud_data/{collection_name}", response_model=Response)
+@router.post("/upload/collection_data/{collection_name}", response_model=Response)
 async def upload_file_content(
     file_content: UploadFile,
     collection_name: str = Path(..., description="Collection name"),
@@ -385,7 +385,7 @@ async def upload_file_content(
     event = UploadHandler(
         bot=current_user.get_bot(),
         user=current_user.get_user(),
-        type=UploadHandlerClass.crud_data,
+        upload_type=UploadHandlerClass.crud_data,
         overwrite=overwrite,
         collection_name=collection_name
     )
@@ -393,7 +393,7 @@ async def upload_file_content(
     if is_event_data:
         event.enqueue(bot=current_user.get_bot(),
                       user=current_user.get_user(),
-                      type=UploadHandlerClass.crud_data,
+                      upload_type=UploadHandlerClass.crud_data,
                       overwrite=overwrite,
                       collection_name=collection_name)
     return {"message": "File content upload in progress! Check logs."}
