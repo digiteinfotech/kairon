@@ -1,18 +1,10 @@
 
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import datetime,timedelta
-import calendar
+from datetime import timedelta
 
 class ActionLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date = self.kwargs.get("from_date") or datetime.utcnow().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-
-        to_date = self.kwargs.get("to_date") or from_date.replace(
-            day=calendar.monthrange(from_date.year, from_date.month)[1],
-            hour=23, minute=59, second=59, microsecond=999999
-        )
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs)
         query = {
             "bot": self.bot,
             "timestamp__gte": from_date,

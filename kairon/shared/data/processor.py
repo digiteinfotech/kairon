@@ -9296,11 +9296,6 @@ class MongoProcessor:
                 if not v.isdigit():
                     raise ValueError(f"'{k}' must be a valid integer.")
                 sanitized[k] = int(v)
-            elif k=="is_augmented" and log_type=="model_test":
-                if v.lower()== "true":
-                    sanitized[k] = True
-                elif v.lower()== "false":
-                    sanitized[k]=False
             else:
                 if Utility.check_empty_string(k):
                     raise ValueError("Search key cannot be empty or blank.")
