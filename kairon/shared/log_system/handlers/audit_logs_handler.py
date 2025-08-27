@@ -1,16 +1,9 @@
 from ..base import BaseLogHandler
-from datetime import datetime, timedelta
-import calendar
+from datetime import timedelta
 
 class AuditLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        now = datetime.utcnow()
-        from_date = self.kwargs.get("from_date") or now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0)
-        last_day = calendar.monthrange(now.year, now.month)[1]
-        to_date = self.kwargs.get("to_date") or now.replace(
-            day=last_day, hour=23, minute=59, second=59, microsecond=999999)
-
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs)
         query = {
             "attributes__key": "bot",
             "attributes__value": self.bot,

@@ -1,6 +1,5 @@
-import calendar
 import os
-from datetime import date, datetime
+from datetime import date, datetime,timedelta
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -135,14 +134,10 @@ def test_default_dates_for_actions_logs(mock_action_handler):
     from_date = query["timestamp__gte"]
     to_date = query["timestamp__lte"]
     now = datetime.utcnow()
-    assert from_date.day == 1
-    assert from_date.month == now.month
-    assert from_date.year == now.year
-
-    last_day = calendar.monthrange(now.year, now.month)[1]
-    assert to_date.day == last_day
-    assert to_date.month == now.month
-    assert to_date.year == now.year
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
+    assert from_date.date() == expected_from
+    assert to_date.date() == expected_to
 
 def mock_audit_handler(kwargs=None):
     return AuditLogHandler(
@@ -164,11 +159,10 @@ def test_default_from_to_dates_for_audit_logs():
 
     query = handler.doc_type.objects.call_args.kwargs
     now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query["timestamp__gte"].day == first_day
-    assert query["timestamp__lte"].day == last_day
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
+    assert query["timestamp__gte"].date() == expected_from
+    assert query["timestamp__lte"].date() == expected_to
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
@@ -209,11 +203,10 @@ def test_default_from_to_dates_for_callback_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["timestamp__gte"].day == first_day
-    assert query_kwargs["timestamp__lte"].day == last_day
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
+    assert query_kwargs["timestamp__gte"].date() == expected_from
+    assert query_kwargs["timestamp__lte"].date() == expected_to
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_callback_logs():
@@ -252,11 +245,10 @@ def test_default_from_to_dates_for_executor_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["timestamp__gte"].day == first_day
-    assert query_kwargs["timestamp__lte"].day == last_day
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
+    assert query_kwargs["timestamp__gte"].date() == expected_from
+    assert query_kwargs["timestamp__lte"].date() == expected_to
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_executor_logs():
@@ -295,11 +287,10 @@ def test_default_from_to_dates_for_llm_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
-
-    assert query_kwargs["start_time__gte"].day == first_day
-    assert query_kwargs["start_time__lte"].day == last_day
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
+    assert query_kwargs["start_time__gte"].date() == expected_from
+    assert query_kwargs["start_time__lte"].date() == expected_to
     assert query_kwargs["metadata__bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_llm_logs():
@@ -338,11 +329,11 @@ def test_default_from_to_dates_for_model_testing_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     now = datetime.utcnow()
-    first_day = 1
-    last_day = calendar.monthrange(now.year, now.month)[1]
+    expected_from = (now - timedelta(days=30)).date()
+    expected_to = now.date()
 
-    assert query_kwargs["start_timestamp__gte"].day == first_day
-    assert query_kwargs["start_timestamp__lte"].day == last_day
+    assert query_kwargs["start_timestamp__gte"].date() == expected_from
+    assert query_kwargs["start_timestamp__lte"].date() == expected_to
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_model_testing_logs():

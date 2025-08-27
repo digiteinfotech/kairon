@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime,timedelta
 
 from mongoengine import Document
 
@@ -92,3 +92,8 @@ class BaseLogHandler(ABC):
             return handler.get_logs_for_search_query_for_unix_time() if handler else ([], 0)
         return handler.get_logs_for_search_query() if handler else ([], 0)
 
+    @staticmethod
+    def get_default_dates(kwargs):
+        from_date = kwargs.get("from_date") or (datetime.utcnow() - timedelta(days=30))
+        to_date = kwargs.get("to_date") or datetime.utcnow()
+        return from_date, to_date
