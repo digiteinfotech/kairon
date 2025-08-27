@@ -1,15 +1,10 @@
 from ..base import BaseLogHandler
-from datetime import datetime,timedelta
-import calendar
-
+from datetime import timedelta
 
 
 class AgentHandoffLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date = self.kwargs.get("from_date") or datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        to_date = self.kwargs.get("to_date") or datetime.utcnow().replace(
-            day=calendar.monthrange(datetime.utcnow().year, datetime.utcnow().month)[1])
-
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs)
         query = {
             "account": self.kwargs.get("bot_account", 0),
             "bot": self.bot,
