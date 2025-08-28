@@ -4,7 +4,7 @@ import pykka
 
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ActorType
+
 
 
 class ActorOrchestrator:
@@ -25,7 +25,7 @@ class ActorOrchestrator:
                 except Exception as e:
                     if attempt == retries:
                         raise AppException(
-                            f"{e}"
+                            str(e)
                         )
         finally:
             actor.actor_ref.stop()
