@@ -1,11 +1,10 @@
 from ..base import BaseLogHandler
 
 from ...test.data_objects import ModelTestingLogs
-from datetime import timedelta
 
 class ModelTestingHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date,to_date=BaseLogHandler.get_default_dates(self.kwargs)
+        from_date,to_date=BaseLogHandler.get_default_dates(self.kwargs,"logs_and_count")
         logs = list(ModelTestingLogs.objects(bot=self.bot).aggregate([
             {"$set": {"data.type": "$type"}},
             {'$group': {'_id': '$reference_id', 'bot': {'$first': '$bot'}, 'user': {'$first': '$user'},
@@ -33,16 +32,10 @@ class ModelTestingHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        from_date = self.kwargs.pop("from_date", None)
-        to_date = self.kwargs.pop("to_date", None)
-        is_augmented=self.kwargs.pop("is_augmented",None)
-        query = {"bot": self.bot}
-
-        if from_date:
-            query["start_timestamp__gte"] = from_date
-        if to_date:
-            query["start_timestamp__lte"] = to_date + timedelta(days=1)
-
+        self.kwargs["stamp"]="start_timestamp"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        is_augmented = self.kwargs.pop("is_augmented",None)
+        query["bot"] = self.bot
         if is_augmented and is_augmented.lower() in ("true", "false"):
             query["is_augmented"] = is_augmented.lower() == "true"
         query.update(self.kwargs)

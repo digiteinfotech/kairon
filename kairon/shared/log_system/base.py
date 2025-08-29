@@ -91,7 +91,19 @@ class BaseLogHandler(ABC):
         return handler.get_logs_for_search_query() if handler else ([], 0)
 
     @staticmethod
-    def get_default_dates(kwargs):
-        from_date = kwargs.get("from_date") or (datetime.utcnow() - timedelta(days=30))
-        to_date = kwargs.get("to_date") or datetime.utcnow()
-        return from_date, to_date
+    def get_default_dates(kwargs,logs):
+        if logs=="logs_and_count":
+            from_date = kwargs.get("from_date") or (datetime.utcnow() - timedelta(days=30))
+            to_date = kwargs.get("to_date") or datetime.utcnow()
+            return from_date, to_date
+        elif logs=="logs_for_search":
+            from_date=kwargs.pop("from_date",None)
+            to_date=kwargs.pop("to_date",None)
+            query={}
+            stamp=kwargs.pop("stamp")
+            if from_date:
+                query[f"{stamp}__gte"] = from_date
+            if to_date:
+                query[f"{stamp}__lte"] = to_date + timedelta(days=1)
+            query.update(kwargs)
+            return query

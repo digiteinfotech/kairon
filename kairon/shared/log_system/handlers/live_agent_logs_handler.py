@@ -1,10 +1,9 @@
 from ..base import BaseLogHandler
-from datetime import timedelta
 
 
 class AgentHandoffLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs)
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs,"logs_and_count")
         query = {
             "account": self.kwargs.get("bot_account", 0),
             "bot": self.bot,
@@ -18,20 +17,10 @@ class AgentHandoffLogHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        from_date = self.kwargs.pop("from_date", None)
-        to_date = self.kwargs.pop("to_date", None)
-
-        query = {
-            "bot": self.bot,
-            "metric_type": "agent_handoff"
-        }
-
-        if from_date:
-            query["timestamp__gte"] = from_date
-        if to_date:
-            query["timestamp__lte"] = to_date + timedelta(days=1)
-
-        query.update(self.kwargs)
+        self.kwargs["stamp"]="timestamp"
+        query= BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        query["bot"]= self.bot,
+        query["metric_type"]= "agent_handoff"
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by("-timestamp")
