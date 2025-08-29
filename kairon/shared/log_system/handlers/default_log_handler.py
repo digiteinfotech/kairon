@@ -14,24 +14,13 @@ class DefaultLogHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        from_date = self.kwargs.pop("from_date", None)
-        to_date = self.kwargs.pop("to_date", None)
-
-        query = {"bot": self.bot}
-        query.update(self.kwargs)
-
         if "timestamp" in self.doc_type._fields:
-            if from_date:
-                query["timestamp__gte"] = from_date
-            if to_date:
-                query["timestamp__lte"] = to_date + timedelta(days=1)
             sort_field = "-timestamp"
         else:
-            if from_date:
-                query["start_timestamp__gte"] = from_date
-            if to_date:
-                query["start_timestamp__lte"] = to_date + timedelta(days=1)
             sort_field = "-start_timestamp"
+        self.kwargs["stamp"] = sort_field[1:]
+        query= BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        query["bot"] = self.bot
 
         logs_cursor = (
             self.doc_type.objects(**query)
