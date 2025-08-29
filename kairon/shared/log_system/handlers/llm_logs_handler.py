@@ -1,5 +1,4 @@
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import timedelta
 
 class LLMLogHandler(BaseLogHandler):
     def get_logs_and_count(self):

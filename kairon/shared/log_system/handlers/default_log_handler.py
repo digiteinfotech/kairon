@@ -1,5 +1,5 @@
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import datetime,timedelta
+from datetime import datetime
 
 
 class DefaultLogHandler(BaseLogHandler):
