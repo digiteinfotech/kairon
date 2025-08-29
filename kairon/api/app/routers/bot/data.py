@@ -374,7 +374,7 @@ async def upload_doc_content(
 
 @router.post("/upload/media_upload", response_model = Response)
 async def upload_media_file_content(
-    file_content: UploadFile,
+    file_content: UploadFile = File(...),
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes = DESIGNER_ACCESS),
 ):
     """
@@ -388,7 +388,7 @@ async def upload_media_file_content(
     )
 
     if error_message:
-        return JSONResponse(content= error_message, status_code= 400)
+        return Response(success=False, message="Validation failed", data=error_message, error_code=400)
 
     media_id = await MongoProcessor.upload_media_to_bsp(
         bot = current_user.get_bot(),
@@ -403,9 +403,12 @@ async def upload_media_file_content(
 async def get_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    bot = current_user.get_bot()
-    media_ids = BSP360Dialog.get_media_ids(bot)
-    return Response(message = "List of media ids", data = media_ids)
+
+    try:
+        media_ids = BSP360Dialog.get_media_ids(current_user.get_bot())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        return Response(success=False, message=f"Failed to fetch media ids: {e}", data=None, error_code=500)
 
 @router.get("/content/error-report/{event_id}", response_model=Response)
 async def download_error_csv(

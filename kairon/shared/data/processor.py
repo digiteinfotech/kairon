@@ -8976,14 +8976,6 @@ class MongoProcessor:
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, file_content.filename)
 
-        allowed_types = ["image/png", "image/jpeg", "application/pdf"]
-        if file_content.content_type not in allowed_types:
-            error_message["File type error"] = (
-                f"Invalid media type: {file_content.content_type}. "
-                f"Allowed types: {', '.join(allowed_types)}"
-            )
-            return error_message, None
-
         async with aiofiles.open(file_path, "wb") as buffer:
             while chunk := await file_content.read(1024 * 1024):
                 await buffer.write(chunk)

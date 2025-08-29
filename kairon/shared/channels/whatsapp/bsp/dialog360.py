@@ -307,11 +307,22 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         os.makedirs(content_dir, exist_ok=True)
         file_path = os.path.join(content_dir, filename)
 
-        files = {
-            "file": (filename, open(file_path, "rb"), f"{extension}")
-        }
+        async def _post():
+            def _do():
+                with open(file_path, "rb") as f:
+                    files = {"file": (filename, f, f"{extension}")}
 
-        response = requests.post(f"{base_url}/media", headers=headers, data=payload, files=files)
+                    return requests.post(
+                            f"{base_url}/media",
+                            headers=headers,
+                            data = payload,
+                            files = files,
+                            timeout = (5, 60),
+                            )
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _do)
+
+        response = await _post()
 
         if response.status_code != 200:
             media_doc = UserMediaData(
@@ -363,8 +374,16 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def get_media_ids(bot: str):
-        connector_type = "whatsapp"
+        connector_type = ChannelTypes.WHATSAPP.value
         channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+
+        if not channel_config or "config" not in channel_config:
+            raise AppException(f"Channel config not found for bot: {bot}")
+
         bsp_type = channel_config.config.get("bsp_type")
-        media_data = UserMediaData.objects(bot =bot,  external_upload_info__bsp = bsp_type).only("filename", "media_id")
-        return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
+        media_data = UserMediaData.objects(
+              bot = bot,
+            external_upload_info__bsp = bsp_type,
+            upload_status = UserMediaUploadStatus.completed.value,
+            media_id__ne = "",
+        ).only("filename", "media_id")
