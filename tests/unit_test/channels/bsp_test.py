@@ -20,6 +20,7 @@ from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import UserMediaUploadStatus
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
@@ -1068,5 +1069,170 @@ class TestBusinessServiceProvider:
         assert str(exc_info.value) == "File stream not found"
 
         UserMediaData.objects().delete()
+        BotSettings.objects().delete()
+        Channels.objects().delete()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_success(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        sender_id = "test_user"
+        filename = "test.pdf"
+        extension = "application/pdf"
+        expected_media_id = "ext123"
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        file_path = content_dir / filename
+        file_path.write_bytes(b"%PDF-1.4 dummy content")
+
+        os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
+        os.replace(file_path, f"media_upload_records/{bot}/{filename}")
+
+
+        BotSettings(
+            bot=bot,
+            user="mayankgoyal@digite.com",
+            whatsapp="360dialog",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "api_key": "dummy_token",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        responses.add(
+            responses.POST,
+            "https://waba-v2.360dialog.io/media",
+            json={"id": expected_media_id},
+            status=200,
+            content_type="application/json"
+        )
+
+        external_id = await BSP360Dialog.upload_media_file(
+            bot=bot,
+            bsp_type="360dialog",
+            sender_id=sender_id,
+            filename=filename,
+            extension=extension,
+            filesize=12345,
+        )
+
+        assert external_id == expected_media_id
+
+        saved_doc = UserMediaData.objects.get(media_id=expected_media_id)
+        assert saved_doc.upload_status == UserMediaUploadStatus.completed.value
+        assert saved_doc.external_upload_info == {
+            "bsp": "360dialog",
+            "external_media_id": expected_media_id,
+            "error": ""
+        }
+
+        UserMediaData.objects().delete()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_failure_response(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        sender_id = "test_user"
+        filename = "test.pdf"
+        extension = "application/pdf"
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        (content_dir / filename).write_bytes(b"%PDF-1.4 dummy content")
+
+
+        responses.add(
+            responses.POST,
+            "https://waba-v2.360dialog.io/media",
+            body="Upload failed",
+            status=400,
+            content_type="application/json"
+        )
+
+        with pytest.raises(AppException, match="Upload failed"):
+            await BSP360Dialog.upload_media_file(
+                bot=bot,
+                bsp_type="360dialog",
+                sender_id=sender_id,
+                filename=filename,
+                extension=extension,
+                filesize=12345,
+            )
+
+        saved_doc = UserMediaData.objects.first()
+        assert saved_doc.upload_status == UserMediaUploadStatus.failed.value
+        assert saved_doc.external_upload_info["error"] == "Upload failed"
+
+        UserMediaData.objects().delete()
+        Channels.objects().delete()
+
+    @pytest.mark.asyncio
+    async def test_upload_media_file_channel_config_not_found(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        filename = "test.pdf"
+        extension = "application/pdf"
+
+        Channels.objects().delete()
+
+        with pytest.raises(AppException, match=f"Channel config not found for bot: {bot}"):
+            await BSP360Dialog.upload_media_file(
+                bot=bot,
+                bsp_type="360dialog",
+                sender_id="test_user",
+                filename=filename,
+                extension=extension,
+                filesize=100,
+            )
+
+    @pytest.mark.asyncio
+    async def test_upload_media_file_missing_api_key(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        filename = "test.pdf"
+        extension = "application/pdf"
+
+        # Notice: removed "api_key" from config
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        (content_dir / filename).write_bytes(b"%PDF dummy")
+
+        with pytest.raises(AppException, match=r"API key \(access token\) not found in channel config"):
+            await BSP360Dialog.upload_media_file(
+                bot=bot,
+                bsp_type="360dialog",
+                sender_id="test_user",
+                filename=filename,
+                extension=extension,
+                filesize=123,
+            )
+
         BotSettings.objects().delete()
         Channels.objects().delete()

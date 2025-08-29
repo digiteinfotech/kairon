@@ -3,6 +3,7 @@ import itertools
 import re
 import shutil
 
+import aiofiles
 import ujson as json
 import os
 import uuid
@@ -136,7 +137,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA, MIME_TYPE_LIMITS
 )
 from .data_objects import (
     Responses,
@@ -170,7 +171,8 @@ from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
-from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS
+from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, \
+    WhatsappBSPTypes
 from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -179,6 +181,7 @@ from ..log_system.base import BaseLogHandler
 from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
+
 
 
 class MongoProcessor:
@@ -8956,6 +8959,118 @@ class MongoProcessor:
                 error_message['Extra columns'] = f"{extra_columns}."
 
         return error_message
+
+    @staticmethod
+    async def media_handler_save_and_validate( bot: Text, user: Text, file_content: File):
+        """
+        Saves the media file and validates its type.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param file_content: The uploaded file
+        :return: A dictionary of error messages if validation fails
+        """
+        error_message = {}
+
+        content_dir = os.path.join("media_upload_records", bot)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, file_content.filename)
+
+        allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+        if file_content.content_type not in allowed_types:
+            error_message["File type error"] = (
+                f"Invalid media type: {file_content.content_type}. "
+                f"Allowed types: {', '.join(allowed_types)}"
+            )
+            return error_message, None
+
+        async with aiofiles.open(file_path, "wb") as buffer:
+            while chunk := await file_content.read(1024 * 1024):
+                await buffer.write(chunk)
+
+        await file_content.seek(0)
+
+        return error_message, file_path
+
+    @staticmethod
+    async def upload_media_to_bsp(bot: str, user: str, file_path: str, file_info: File):
+        """
+        Uploads the file to BSP and deletes the temporary local file.
+        """
+        from ..channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+
+        media_id = None
+        try:
+            bsp_type= WhatsappBSPTypes.bsp_360dialog.value
+            media_id = await BusinessServiceProviderFactory.get_instance(bsp_type).upload_media_file(bot, bsp_type, user,
+                                                                file_info.filename, file_info.content_type,
+                                                                file_info.size)
+            logger.info(f"Media uploaded successfully: {media_id}")
+        except Exception as e:
+            logger.error(f"Error uploading file to BSP: {str(e)}")
+            raise AppException(f"Media upload failed: {str(e)}")
+
+        finally:
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as cleanup_err:
+                    logger.warning(f"Failed to cleanup temp file {file_path}: {cleanup_err}")
+
+        return media_id
+
+
+    # @staticmethod
+    # def validate_media_file_type(file_content):
+    #     valid_media_types = ["image/png", "image/jpeg", "application/pdf"]
+    #     max_file_size = 100 * 1024 * 1024
+    #
+    #     if file_content.content_type not in valid_media_types:
+    #         raise AppException(
+    #             f"Invalid file type: {file_content.content_type}. "
+    #             f"Please upload one of {valid_media_types}."
+    #         )
+    #     file_content.file.seek(0, 2)
+    #     size = file_content.file.tell()
+    #     file_content.file.seek(0)
+    #
+    #     if size > max_file_size:
+    #         raise AppException(
+    #             f"File size {size / (1024 * 1024):.2f} MB exceeds the 100 MB limit."
+    #         )
+
+    @staticmethod
+    def validate_media_file_type(file_content):
+        content_type = file_content.content_type
+
+        if content_type not in MIME_TYPE_LIMITS:
+            raise AppException(
+                f"Invalid file type: {content_type}. "
+                f"Allowed types are: {', '.join(MIME_TYPE_LIMITS.keys())}."
+            )
+
+        size_limit_str = MIME_TYPE_LIMITS[content_type]
+        size_limit, unit = size_limit_str.split()
+        size_limit = int(size_limit) * {
+            "KB": 1024,
+            "MB": 1024 * 1024,
+        }[unit]
+
+        file_content.file.seek(0, 2)
+        size = file_content.file.tell()
+        file_content.file.seek(0)
+
+        if size > size_limit:
+            raise AppException(
+                f"File size {size / (1024 * 1024):.2f} MB exceeds the "
+                f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
+            )
+
+    @staticmethod
+    def validate_file_type(file_content):
+        valid_csv_types = ["text/csv"]
+        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
+            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
 
     def get_column_datatype_dict(self, bot, table_name):
         from ..cognition.processor import CognitionDataProcessor

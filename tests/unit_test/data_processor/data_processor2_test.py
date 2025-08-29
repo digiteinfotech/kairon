@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 from mongoengine import DoesNotExist
@@ -1249,6 +1249,7 @@ def test_delete_collection_success():
         mock_query.delete.assert_called_once()
         assert result == ["Collection sample_collection deleted successfully!", 1]
 
+
 def test_delete_collection_not_found():
     with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
         mock_query = MagicMock()
@@ -1289,3 +1290,126 @@ def test_delete_collection_data_no_records():
         mock_query.delete.assert_called_once()
 
 
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_valid(tmp_path):
+    file_path = tmp_path / "test.pdf"
+    content = b"dummy content"
+
+    mock_file = MagicMock()
+    mock_file.filename = "test.pdf"
+    mock_file.content_type = "application/pdf"
+    mock_file.read = AsyncMock(side_effect=[content, b""])
+    mock_file.seek = AsyncMock()
+
+    error, saved_path = await MongoProcessor.media_handler_save_and_validate(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+
+    assert error == {}
+    assert saved_path.endswith("test.pdf")
+    with open(saved_path, "rb") as f:
+        assert f.read() == content
+
+
+
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_invalid_type(tmp_path):
+    mock_file = MagicMock()
+    mock_file.filename = "test.txt"
+    mock_file.content_type = "text/plain"
+    mock_file.read = AsyncMock()
+    mock_file.seek = AsyncMock()
+
+    error, saved_path = await MongoProcessor.media_handler_save_and_validate(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+
+    assert "File type error" in error
+    assert saved_path is None
+
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_success(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.return_value = "media123"
+    mock_bsp_factory.return_value = mock_bsp
+
+    result = await MongoProcessor.upload_media_to_bsp(
+        bot="bot1",
+        user="user1",
+        file_path=str(dummy_file),
+        file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+    )
+
+    assert result == "media123"
+    assert not os.path.exists(dummy_file)
+
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_failure(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.side_effect = Exception("upload error")
+    mock_bsp_factory.return_value = mock_bsp
+
+    with pytest.raises(AppException, match="Media upload failed: upload error"):
+        await MongoProcessor.upload_media_to_bsp(
+            bot="bot1",
+            user="user1",
+            file_path=str(dummy_file),
+            file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+        )
+
+    assert not os.path.exists(dummy_file)
+
+
+
+def test_validate_media_file_type_valid(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (10 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    MongoProcessor.validate_media_file_type(mock_upload)
+
+
+
+def test_validate_media_file_type_invalid_type(tmp_path):
+    test_file = tmp_path / "file.txt"
+    test_file.write_bytes(b"x" * 10)
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "script"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException, match="Invalid file type: script. Allowed types are: audio/aac,"
+                                           " audio/amr, audio/mpeg, audio/mp4, audio/ogg, text/plain,"
+                                           " application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+                                           " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+                                           " application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+                                           " application/pdf, image/jpeg, image/png, image/webp, video/3gpp, video/mp4."):
+        MongoProcessor.validate_media_file_type(mock_upload)
+
+
+
+def test_validate_media_file_type_too_large(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (101 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException, match="File size 101.00 MB exceeds the limit of 100.00 MB for application/pdf."):
+        MongoProcessor.validate_media_file_type(mock_upload)

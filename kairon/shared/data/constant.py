@@ -396,7 +396,26 @@ LOG_TYPE_METADATA = {
     ],
 }
 
-
+MIME_TYPE_LIMITS = {
+    "audio/aac": "16 MB",
+    "audio/amr": "16 MB",
+    "audio/mpeg": "16 MB",
+    "audio/mp4": "16 MB",
+    "audio/ogg": "16 MB",
+    "text/plain": "100 MB",
+    "application/vnd.ms-excel": "100 MB",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "100 MB",
+    "application/msword": "100 MB",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "100 MB",
+    "application/vnd.ms-powerpoint": "100 MB",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "100 MB",
+    "application/pdf": "100 MB",
+    "image/jpeg": "5 MB",
+    "image/png": "5 MB",
+    "image/webp": "500 KB",
+    "video/3gpp": "16 MB",
+    "video/mp4": "16 MB",
+}
 
 class LogType(str, Enum):
     multilingual = "multilingual"

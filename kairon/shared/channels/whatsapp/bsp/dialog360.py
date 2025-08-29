@@ -1,5 +1,6 @@
 import ast
 import io
+import os
 from typing import Text, Dict
 
 import requests
@@ -15,6 +16,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
 from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -281,4 +283,88 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             media_doc.save()
             raise e
 
+    @staticmethod
+    async def upload_media_file(bot: str, bsp_type: str, sender_id: str, filename: str, extension: str,
+                           filesize: int = 0) -> str:
+        connector_type = "whatsapp"
 
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        if not channel_config or "config" not in channel_config or channel_config.config.get("bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}"
+            )
+
+        access_token = channel_config.config.get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+        headers = {auth_header: access_token}
+        payload = {"messaging_product": "whatsapp"}
+        content_dir = os.path.join("media_upload_records", bot)
+        os.makedirs(content_dir, exist_ok=True)
+        file_path = os.path.join(content_dir, filename)
+
+        files = {
+            "file": (filename, open(file_path, "rb"), f"{extension}")
+        }
+
+        response = requests.post(f"{base_url}/media", headers=headers, data=payload, files=files)
+
+        if response.status_code != 200:
+            media_doc = UserMediaData(
+                media_id="",
+                media_url="",
+                filename=filename,
+                extension=extension,
+                output_filename="",
+                summary="",
+                upload_status=UserMediaUploadStatus.failed.value,
+                upload_type=UserMediaUploadType.user_uploaded.value,
+                filesize=filesize,
+                additional_log="Upload failed",
+                sender_id=sender_id,
+                bot=bot,
+                external_upload_info={
+                    "bsp": bsp_type,
+                    "external_media_id": "",
+                    "error": response.text,
+                },
+            )
+            media_doc.save()
+            raise AppException(response.text)
+
+        external_media_id = response.json().get("id")
+
+        media_doc = UserMediaData(
+            media_id=external_media_id,
+            media_url="",
+            filename=filename,
+            extension=extension,
+            output_filename="",
+            summary="",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            filesize=filesize,
+            additional_log="Upload successful",
+            sender_id=sender_id,
+            bot=bot,
+            external_upload_info={
+                "bsp": bsp_type,
+                "external_media_id": external_media_id,
+                "error": "",
+            },
+        )
+        media_doc.save()
+
+        return external_media_id
+
+    @staticmethod
+    def get_media_ids(bot: str):
+        connector_type = "whatsapp"
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        bsp_type = channel_config.config.get("bsp_type")
+        media_data = UserMediaData.objects(bot =bot,  external_upload_info__bsp = bsp_type).only("filename", "media_id")
+        return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
