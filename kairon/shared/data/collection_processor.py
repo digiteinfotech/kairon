@@ -59,18 +59,21 @@ class DataProcessor:
         builder.add_schema({"type": "object", "properties": {}})
 
         for doc in documents:
-            nested_data = getattr(doc, "data", None)
-            if isinstance(nested_data, dict):
-                try:
-                    builder.add_object(nested_data)
-                except SchemaGenerationError as e:
-                    logger.warning(
-                        f"Skipping document with invalid data structure: {nested_data}. Reason: {str(e)}"
-                    )
-            else:
-                logger.warning("Invalid or missing 'data' field in a document.")
+            try:
+                nested_data = doc.to_mongo().to_dict()
+                if "_id" in nested_data:
+                    nested_data["_id"] = str(nested_data["_id"])
+                builder.add_object(nested_data)
+            except SchemaGenerationError as e:
+                logger.warning(f"Skipping invalid document: {str(e)}")
 
-        return builder.to_schema()
+        schema = builder.to_schema()
+        return {
+            "$schema": "http://json-schema.org/schema#",
+            "title": f"{collection_name.capitalize()} Details Collection Schema",
+            "type": "object",
+            "items": schema
+        }
 
     @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
@@ -293,10 +296,10 @@ class DataProcessor:
     @staticmethod
     def get_all_collections(bot: str):
         pipeline = [
-                    {"$match": {"bot": bot}},
-                    {"$group": {"_id": "$collection_name", "count": {"$sum": 1}}},
-                    {"$project": {"collection_name": "$_id", "count": 1, "_id": 0}}
-            ]
+            {"$match": {"bot": bot}},
+            {"$group": {"_id": "$collection_name", "count": {"$sum": 1}}},
+            {"$project": {"collection_name": "$_id", "count": 1, "_id": 0}}
+        ]
         result = list(CollectionData.objects(bot=bot).aggregate(pipeline))
 
         return result
