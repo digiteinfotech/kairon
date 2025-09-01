@@ -9038,12 +9038,6 @@ class MongoProcessor:
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
 
-    @staticmethod
-    def validate_file_type(file_content):
-        valid_csv_types = ["text/csv"]
-        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
-            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
-
     def get_column_datatype_dict(self, bot, table_name):
         from ..cognition.processor import CognitionDataProcessor
         cognition_processor = CognitionDataProcessor()
