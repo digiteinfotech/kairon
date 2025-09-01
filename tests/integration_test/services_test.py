@@ -3887,9 +3887,9 @@ def test_upload_doc_content_file_type_validation_failure():
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
 
 @responses.activate
-@patch("kairon.shared.data.processor.MongoProcessor.validate_media_file_type")
-@patch("kairon.shared.data.processor.MongoProcessor.media_handler_save_and_validate")
-@patch("kairon.shared.data.processor.MongoProcessor.upload_media_to_bsp")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
 def test_upload_media_success(
     mock_upload_media,
     mock_save_validate,
@@ -3903,7 +3903,7 @@ def test_upload_media_success(
     file_content = io.BytesIO(b"dummy file content")
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/media_upload",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"file_content": ("test.txt", file_content, "text/plain")},
     )
@@ -3915,8 +3915,8 @@ def test_upload_media_success(
 
 
 @responses.activate
-@patch("kairon.shared.data.processor.MongoProcessor.media_handler_save_and_validate")
-@patch("kairon.shared.data.processor.MongoProcessor.upload_media_to_bsp")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
 def test_upload_media_invalid_file_type(
     mock_upload_media,
     mock_save_validate,
@@ -3927,7 +3927,7 @@ def test_upload_media_invalid_file_type(
     file_content = io.BytesIO(b"dummy file content")
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/media_upload",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"file_content": ("test.py", file_content, "script")},
     )
@@ -3941,11 +3941,34 @@ def test_upload_media_invalid_file_type(
             " application/vnd.openxmlformats-officedocument.presentationml.presentation, application/pdf,"
             " image/jpeg, image/png, image/webp, video/3gpp, video/mp4.") in body["message"]
 
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_with_filename_missing(
+    mock_upload_media,
+    mock_save_validate,
+):
+    mock_save_validate.return_value = (None, "/tmp/file.py")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("", file_content, "script")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert ("Expected UploadFile, received: <class 'str'>") in body['message'][0]["msg"]
+
 
 @responses.activate
 def test_upload_media_no_file():
     response = (client.post
-                (f"/api/bot/{pytest.bot}/data/upload/media_upload",
+                (f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}))
 
     body = response.json()
@@ -3955,14 +3978,14 @@ def test_upload_media_no_file():
     
 
 @responses.activate
-@patch("kairon.shared.data.processor.MongoProcessor.validate_media_file_type")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
 def test_upload_media_file_too_large(mock_validate):
     mock_validate.side_effect = AppException("File size exceeds 100MB")
 
     file_content = io.BytesIO(b"x" * (101 * 1024 * 1024))
 
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/media_upload",
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
         files={"file_content": ("large.pdf", file_content, "application/pdf")},
     )
@@ -4020,7 +4043,7 @@ def test_get_media_ids():
     ).save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/upload/media_upload",
+        f"/api/bot/{pytest.bot}/channels/upload/media_upload",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 

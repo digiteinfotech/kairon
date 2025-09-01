@@ -285,17 +285,10 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise e
 
     @staticmethod
-    async def upload_media_file(bot: str, bsp_type: str, sender_id: str, filename: str, extension: str,
+    async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
                            filesize: int = 0) -> str:
-        connector_type = "whatsapp"
 
-        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
-        if not channel_config or "config" not in channel_config or channel_config.config.get("bsp_type") != bsp_type:
-            raise AppException(
-                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}"
-            )
-
-        access_token = channel_config.config.get("api_key")
+        access_token = channel_config.get("config").get("api_key")
         if not access_token:
             raise AppException("API key (access token) not found in channel config")
 
@@ -307,6 +300,15 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         content_dir = os.path.join("media_upload_records", bot)
         os.makedirs(content_dir, exist_ok=True)
         file_path = os.path.join(content_dir, filename)
+
+        media_doc = UserMedia.create_media_doc(
+            bot=bot,
+            sender_id = sender_id,
+            filename = filename,
+            extension = extension,
+            filesize = filesize,
+        )
+
 
         async def _post():
             def _do():
@@ -327,86 +329,29 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         try:
             response = await _post()
         except requests.RequestException as e:
-                    media_doc = UserMediaData(
-                        media_id = "",
-                        media_url = "",
-                        filename = filename,
-                        extension = extension,
-                        output_filename = "",
-                        summary = "",
-                        upload_status = UserMediaUploadStatus.failed.value,
-                        upload_type = UserMediaUploadType.user_uploaded.value,
-                        filesize = filesize,
-                        additional_log = "Upload failed: network error",
-                        sender_id = sender_id,
-                        bot = bot,
-                        external_upload_info = {"bsp": bsp_type, "external_media_id": "", "error": str(e)},
+                    media_doc.update(
+                        set__upload_status = UserMediaUploadStatus.failed.value,
+                        set__additional_log = "Upload failed: network error",
+                        set__external_upload_info__error = str(e),
                     )
-                    media_doc.save()
                     raise AppException(f"Upload request failed: {e}") from e
 
         if response.status_code not in (200, 201):
-            media_doc = UserMediaData(
-                media_id="",
-                media_url="",
-                filename=filename,
-                extension=extension,
-                output_filename="",
-                summary="",
-                upload_status=UserMediaUploadStatus.failed.value,
-                upload_type=UserMediaUploadType.user_uploaded.value,
-                filesize=filesize,
-                additional_log="Upload failed",
-                sender_id=sender_id,
-                bot=bot,
-                external_upload_info={
-                    "bsp": bsp_type,
-                    "external_media_id": "",
-                    "error": response.text,
-                },
+            media_doc.update(
+                set__upload_status = UserMediaUploadStatus.failed.value,
+                set__additional_log = "Upload failed",
+                set__external_upload_info__error = response.text,
             )
-            media_doc.save()
             raise AppException(response.text)
 
         external_media_id = response.json().get("id")
 
-        media_doc = UserMediaData(
-            media_id=external_media_id,
-            media_url="",
-            filename=filename,
-            extension=extension,
-            output_filename="",
-            summary="",
-            upload_status=UserMediaUploadStatus.completed.value,
-            upload_type=UserMediaUploadType.broadcast.value,
-            filesize=filesize,
-            additional_log="Upload successful",
-            sender_id=sender_id,
-            bot=bot,
-            external_upload_info={
-                "bsp": bsp_type,
-                "external_media_id": external_media_id,
-                "error": "",
-            },
+        media_doc.update(
+            set__media_id = external_media_id,
+            set__upload_status = UserMediaUploadStatus.completed.value,
+            set__upload_type = UserMediaUploadType.broadcast.value,
+            set__additional_log = "Upload successful",
+            set__external_upload_info__external_media_id = external_media_id,
         )
-        media_doc.save()
 
         return external_media_id
-
-    @staticmethod
-    def get_media_ids(bot: str):
-        connector_type = ChannelTypes.WHATSAPP.value
-        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
-
-        if not channel_config or "config" not in channel_config:
-            raise AppException(f"Channel config not found for bot: {bot}")
-
-        bsp_type = channel_config.config.get("bsp_type")
-        media_data = UserMediaData.objects(
-              bot = bot,
-            external_upload_info__bsp = bsp_type,
-            upload_status = UserMediaUploadStatus.completed.value,
-            media_id__ne = "",
-        ).only("filename", "media_id")
-
-        return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
