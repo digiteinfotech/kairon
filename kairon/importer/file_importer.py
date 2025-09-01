@@ -24,6 +24,7 @@ class FileImporter:
     def preprocess(self):
         file_path = os.path.join(self.path, self.file_received)
         data = []
+        row_num=0
         try:
             with open(file_path, mode='r', newline='', encoding='utf-8') as csv_file:
                 csv_reader = csv.DictReader(csv_file)
