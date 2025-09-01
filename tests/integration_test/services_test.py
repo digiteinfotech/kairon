@@ -6,7 +6,7 @@ import shutil
 import tarfile
 import tempfile
 import time
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from io import BytesIO
 from unittest import mock
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -14,7 +14,7 @@ from urllib.parse import urljoin
 from zipfile import ZipFile
 import litellm
 
-import pytest
+
 import responses
 import ujson as json
 import yaml
@@ -38,14 +38,6 @@ from kairon.shared.channels.mail.data_objects import MailResponseLog
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
-from kairon.shared.log_system.base import BaseLogHandler
-from kairon.shared.log_system.handlers.audit_logs_handler import AuditLogHandler
-from kairon.shared.log_system.handlers.callback_logs_handler import CallbackLogHandler
-from kairon.shared.log_system.handlers.executor_logs_handler import ExecutorLogHandler
-from kairon.shared.log_system.handlers.live_agent_logs_handler import AgentHandoffLogHandler
-from kairon.shared.log_system.handlers.llm_logs_handler import LLMLogHandler
-from kairon.shared.log_system.handlers.model_testing_logs_handler import ModelTestingHandler
-from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
@@ -67,9 +59,7 @@ from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData,
 from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
 import pytest
-from kairon.shared.log_system.handlers.actions_logs_handler import ActionLogHandler
 from datetime import  timedelta
-import calendar
 
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
@@ -9197,13 +9187,13 @@ def test_get_collection_metadata():
     assert not actual["message"]
     assert actual["success"]
     data = actual["data"]
-    assert data['properties'] == {
+    assert data['items']['properties']['data']['properties'] == {
         'name': {'type': 'string'},
         'age': {'type': 'integer'},
         'mobile_number': {'type': 'string'},
         'location': {'type': 'string'}
     }
-    assert data['required'] == ['age', 'location', 'mobile_number', 'name']
+    assert data['items']['properties']['data']['required'] == ['age', 'location', 'mobile_number', 'name']
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection/bank_details/metadata",
@@ -9216,7 +9206,7 @@ def test_get_collection_metadata():
     assert not actual["message"]
     assert actual["success"]
     data = actual["data"]
-    assert data['properties'] == {
+    assert data['items']['properties']['data']['properties'] == {
         'account_holder_name': {'type': 'string'},
         'account_number': {'type': 'string'},
         'mobile_number': {'type': 'string'},
@@ -9224,6 +9214,23 @@ def test_get_collection_metadata():
         'ifsc': {'type': 'string'}
     }
 
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/empty_collection/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+
+
+    data = actual["data"]
+    assert data == {
+        "type": "object",
+        "properties": {}
+    }
 
 def test_delete_collection_data_doesnot_exist():
     response = client.delete(
@@ -35027,6 +35034,7 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["data"]

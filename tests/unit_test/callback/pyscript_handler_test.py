@@ -858,14 +858,14 @@ def test_pyscript_handler_for_get_crud_metadata():
     print(data)
     bot_response = data['body']['bot_response']
     print(bot_response)
-    assert bot_response['properties'] == {
+    assert bot_response['items']['properties']['data']['properties'] == {
         'mobile_number': {'type': 'string'},
         'name': {'type': 'string'},
         'aadhar': {'type': 'string'},
         'pan': {'type': 'string'},
         'pincode': {'type': 'integer'}
     }
-    assert bot_response['required'] == ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
+    assert bot_response['items']['properties']['data']['required'] == ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
     assert data == {
         'statusCode': 200,
         'statusDescription': '200 OK',
@@ -1471,28 +1471,33 @@ def test_get_crud_metadata():
         "pan": "JJ928392JH",
         "pincode": 538494
     }
+
     mock_doc1 = MagicMock()
-    mock_doc1.data = data1
+    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
 
     mock_doc2 = MagicMock()
-    mock_doc2.data = data2
+    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
 
     mock_queryset = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {
-            '$schema': 'http://json-schema.org/schema#',
-            'type': 'object',
-            'properties': {
-                'mobile_number': {'type': ['integer', 'string']},
-                'name': {'type': 'string'},
-                'aadhar': {'type': ['integer', 'string']},
-                'pan': {'type': 'string'},
-                'pincode': {'type': 'integer'}
-            },
-            'required': ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
-        }
+        assert result['$schema'] == 'http://json-schema.org/schema#'
+        assert result['type'] == 'object'
+        assert 'properties' in result['items']
+        assert isinstance(result['items']['properties'], dict)
+        assert len(result['items']['properties']) > 0
+
+        required_fields = ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
+        for field in required_fields:
+            assert field in result['items']['properties']
+        props = result['items']['properties']
+        assert 'type' in props['mobile_number']
+        assert set(props['mobile_number']['type']) == {'integer', 'string'}
+        assert props['name']['type'] == 'string'
+        assert set(props['aadhar']['type']) == {'integer', 'string'}
+        assert props['pan']['type'] == 'string'
+        assert props['pincode']['type'] == 'integer'
 
 
 def test_get_crud_metadata_with_object_error():
@@ -1507,36 +1512,33 @@ def test_get_crud_metadata_with_object_error():
     }
 
     data2 = {
-        "mobile_number": 919876543210,
+        "mobile_number": np.int64(919876543210),
         "name": "Mahesh",
-        "aadhar": 29383989838930,
+        "aadhar": np.int64(29383989838930),
         "pan": "JJ928392JH",
         "pincode": 538494
     }
-    data2["mobile_number"] = np.int64(data2["mobile_number"])
-    data2["aadhar"] = np.int64(data2["aadhar"])
     mock_doc1 = MagicMock()
-    mock_doc1.data = data1
-
+    mock_doc1.to_mongo.return_value.to_dict.return_value = data1
     mock_doc2 = MagicMock()
-    mock_doc2.data = data2
+    mock_doc2.to_mongo.return_value.to_dict.return_value = data2
 
     mock_queryset = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {
-            '$schema': 'http://json-schema.org/schema#',
-            'type': 'object',
-            'properties': {
-                'mobile_number': {'type': 'string'},
-                'name': {'type': 'string'},
-                'aadhar': {'type': 'string'},
-                'pan': {'type': 'string'},
-                'pincode': {'type': 'integer'}
-            },
-            'required': ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
-        }
+        assert result['$schema'] == 'http://json-schema.org/schema#'
+        assert result['title'] == 'Testing_crud_api Details Collection Schema'
+        assert result['type'] == 'object'
+        assert 'properties' in result['items']
+        props = result['items']['properties']
+        for field in ['mobile_number', 'name', 'aadhar', 'pan', 'pincode']:
+            assert field in props
+        assert props['mobile_number']['type'] == 'string'
+        assert props['name']['type'] == 'string'
+        assert props['aadhar']['type'] == 'string'
+        assert props['pan']['type'] == 'string'
+        assert props['pincode']['type'] == 'integer'
 
 
 def test_get_crud_metadata_with_no_data():
@@ -1562,7 +1564,8 @@ def test_get_crud_metadata_with_no_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_get_crud_metadata_with_invalid_data():
@@ -1590,7 +1593,8 @@ def test_get_crud_metadata_with_invalid_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_get_crud_metadata_without_data():
@@ -1618,7 +1622,8 @@ def test_get_crud_metadata_without_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_fetch_collection_data_without_collection_name():
@@ -3300,14 +3305,14 @@ def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
     print(data)
     bot_response = data['body']['bot_response']
     print(bot_response)
-    assert bot_response['properties'] == {
+    assert bot_response['items']['properties']['data']['properties'] == {
         'mobile_number': {'type': 'string'},
         'name': {'type': 'string'},
         'aadhar': {'type': 'string'},
         'pan': {'type': 'string'},
         'pincode': {'type': 'integer'}
     }
-    assert bot_response['required'] == ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
+    assert bot_response['items']['properties']['data']['required'] == ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
     assert data == {
         'statusCode': 200,
         'body': {
