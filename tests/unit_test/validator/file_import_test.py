@@ -68,6 +68,20 @@ class TestFileImporter:
         assert first_item["data"]["profit"] == "54.98"
         assert first_item["data"]["sales"] == "12.34"
 
+    def test_preprocess_empty_csv(self, sample_csv_file):
+
+        file_importer = FileImporter(
+            path=sample_csv_file,
+            bot="test_bot",
+            user="test_user",
+            file_received="Salesstore_empty_file.csv",
+            collection_name="test_collection",
+            overwrite=False
+        )
+
+        with pytest.raises(ValueError, match="CSV file is empty or contains no valid data"):
+            file_importer.preprocess()
+
     def test_import_data(self, sample_csv_file):
 
         file_importer = FileImporter(

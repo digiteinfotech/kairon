@@ -69,7 +69,7 @@ class CrudFileUploader(UploadHandlerBase):
             UploadHandlerLogProcessor.add_log(self.bot, self.user,
                                                 exception=str(e),
                                                 status=STATUSES.FAIL.value,
-                                                event_status=EVENT_STATUS.COMPLETED.value)
+                                                event_status=EVENT_STATUS.FAIL.value)
         finally:
             if path:
                 Utility.delete_directory(path)

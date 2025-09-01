@@ -1277,6 +1277,13 @@ class CollectionDataRequest(BaseModel):
 class BulkCollectionDataRequest(BaseModel):
     payload: List[CollectionDataRequest]
 
+    @root_validator
+    def check(cls, values):
+        payload = values.get("payload") or []
+        if not payload:
+            raise ValueError("payload must contain at least one item")
+        return values
+
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value

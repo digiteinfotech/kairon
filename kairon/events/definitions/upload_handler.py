@@ -48,7 +48,7 @@ class UploadHandler(EventsBase):
                                               event_status=EVENT_STATUS.FAIL.value)
             content_dir = os.path.join('file_content_upload_records', self.upload_handler.bot)
             Utility.delete_directory(content_dir, True)
-            raise e
+            raise
 
     def execute(self, **kwargs):
         """

@@ -24,28 +24,37 @@ class FileImporter:
     def preprocess(self):
         file_path = os.path.join(self.path, self.file_received)
         data = []
-        with open(file_path, mode='r', newline='', encoding='utf-8') as csv_file:
-            csv_reader = csv.DictReader(csv_file)
+        try:
+            with open(file_path, mode='r', newline='', encoding='utf-8') as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                for row_num, row in enumerate(csv_reader, start=1):
+                    if not row:
+                        continue
 
-            for row in csv_reader:
-                clean_row = {}
-                for key, value in row.items():
-                    norm_key = key.lower().strip() if isinstance(key, str) else key
-                    if isinstance(value, str):
-                        norm_val = value.strip()
-                    elif value is None:
-                        norm_val = ""
-                    else:
-                        norm_val = value
-                    clean_row[norm_key] = norm_val
+                    clean_row = {}
+                    for key, value in row.items():
+                        norm_key = key.lower().strip() if isinstance(key, str) else key
+                        if isinstance(value, str):
+                            norm_val = value.strip()
+                        elif value is None:
+                            norm_val = ""
+                        else:
+                            norm_val = value
+                        clean_row[norm_key] = norm_val
 
 
-                data.append({
-                    "collection_name": self.collection_name,
-                    "is_secure": [],
-                    "is_non_editable": [],
-                    "data": clean_row
-                })
+                    data.append({
+                        "collection_name": self.collection_name,
+                        "is_secure": [],
+                        "is_non_editable": [],
+                        "data": clean_row
+                    })
+        except csv.Error as e:
+            raise ValueError(f"Error parsing CSV file at line {row_num}: {str(e)}")
+        except UnicodeDecodeError as e:
+            raise ValueError(f"File encoding error. Please ensure the file is UTF-8 encoded: {str(e)}")
+        if not data:
+            raise ValueError("CSV file is empty or contains no valid data")
 
         return {"payload": data}
 
