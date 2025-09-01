@@ -101,9 +101,7 @@ class BaseLogHandler(ABC):
         elif logs == "search":
             query = {}
             stamp = kwargs.pop("stamp","timestamp")
-            if from_date:
-                query[f"{stamp}__gte"] = from_date
-            if to_date:
-                query[f"{stamp}__lte"] = to_date + timedelta(days=1)
+            query[f"{stamp}__gte"] = from_date
+            query[f"{stamp}__lte"] = to_date + timedelta(days=1)
             query.update(kwargs)
             return query
