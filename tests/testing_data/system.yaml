@@ -137,7 +137,7 @@ events:
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
-    upload_file_handler: ${CRUD_CONTENT_IMPORTER_TASK_DEFINITION}
+    upload_file_handler: ${FILE_CONTENT_IMPORTER_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
     attributes:
