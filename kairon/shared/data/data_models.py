@@ -1277,7 +1277,7 @@ class CollectionDataRequest(BaseModel):
 class BulkCollectionDataRequest(BaseModel):
     payload: List[CollectionDataRequest]
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def check(cls, values):
         payload = values.get("payload") or []
         if not payload:

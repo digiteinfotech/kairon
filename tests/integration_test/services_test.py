@@ -2390,6 +2390,27 @@ def test_bulk_save_with_data_none():
     assert "data cannot be empty and should be of type dict!" in error_messages
     assert "none is not an allowed value" in error_messages
 
+def test_bulk_empty_payload():
+    request_body = {
+        "payload": [
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "payload must contain at least one item" in error_messages
+
 
 def test_bulk_save_with_empty_collection_name():
     request_body = {

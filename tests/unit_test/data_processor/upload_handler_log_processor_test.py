@@ -90,13 +90,13 @@ class TestUploadHandlerLogProcessor:
             user=user,
             exception="File format not supported",
             upload_errors={"File type error" : "Invalid file type"},
-            event_status=EVENT_STATUS.COMPLETED.value,
+            event_status=EVENT_STATUS.FAIL.value,
             status="Failure"
         )
 
         log, count = BaseLogHandler.get_logs(bot, "file_upload")
 
-        assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+        assert log[0]['event_status'] == EVENT_STATUS.FAIL.value
         assert log[0]['exception'] == "File format not supported"
         assert log[0]['start_timestamp']
         assert log[0]['collection_name']
