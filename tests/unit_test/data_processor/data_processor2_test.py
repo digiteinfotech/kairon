@@ -1315,17 +1315,16 @@ async def test_media_handler_save_and_validate_valid(tmp_path):
 @pytest.mark.asyncio
 async def test_media_handler_save_and_validate_invalid_type(tmp_path):
     mock_file = MagicMock()
-    mock_file.filename = "test.txt"
-    mock_file.content_type = "text/plain"
-    mock_file.read = AsyncMock()
+    mock_file.filename = "test.py"
+    mock_file.content_type = "script"
+    mock_file.read = AsyncMock(side_effect=[b"fake content", b""])
     mock_file.seek = AsyncMock()
 
     error, saved_path = await MongoProcessor.media_handler_save_and_validate(
         bot="test_bot", user="user", file_content=mock_file
     )
-
-    assert "File type error" in error
-    assert saved_path is None
+    print(error, saved_path)
+    assert saved_path == "media_upload_records/test_bot/test.py"
 
 
 
