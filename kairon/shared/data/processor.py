@@ -9003,33 +9003,13 @@ class MongoProcessor:
             raise AppException(f"Media upload failed: {str(e)}")
 
         finally:
-            if file_path and os.path.exists(file_path):
+            if file_path:
                 try:
-                    os.remove(file_path)
+                    Utility.remove_file_path(file_path)
                 except Exception as cleanup_err:
                     logger.warning(f"Failed to cleanup temp file {file_path}: {cleanup_err}")
 
         return media_id
-
-
-    # @staticmethod
-    # def validate_media_file_type(file_content):
-    #     valid_media_types = ["image/png", "image/jpeg", "application/pdf"]
-    #     max_file_size = 100 * 1024 * 1024
-    #
-    #     if file_content.content_type not in valid_media_types:
-    #         raise AppException(
-    #             f"Invalid file type: {file_content.content_type}. "
-    #             f"Please upload one of {valid_media_types}."
-    #         )
-    #     file_content.file.seek(0, 2)
-    #     size = file_content.file.tell()
-    #     file_content.file.seek(0)
-    #
-    #     if size > max_file_size:
-    #         raise AppException(
-    #             f"File size {size / (1024 * 1024):.2f} MB exceeds the 100 MB limit."
-    #         )
 
     @staticmethod
     def validate_media_file_type(file_content):

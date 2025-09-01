@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import io
 import os
 from typing import Text, Dict
@@ -322,9 +323,29 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, _do)
 
-        response = await _post()
 
-        if response.status_code != 200:
+        try:
+            response = await _post()
+        except requests.RequestException as e:
+                    media_doc = UserMediaData(
+                        media_id = "",
+                        media_url = "",
+                        filename = filename,
+                        extension = extension,
+                        output_filename = "",
+                        summary = "",
+                        upload_status = UserMediaUploadStatus.failed.value,
+                        upload_type = UserMediaUploadType.user_uploaded.value,
+                        filesize = filesize,
+                        additional_log = "Upload failed: network error",
+                        sender_id = sender_id,
+                        bot = bot,
+                        external_upload_info = {"bsp": bsp_type, "external_media_id": "", "error": str(e)},
+                    )
+                    media_doc.save()
+                    raise AppException(f"Upload request failed: {e}") from e
+
+        if response.status_code not in (200, 201):
             media_doc = UserMediaData(
                 media_id="",
                 media_url="",
@@ -387,3 +408,5 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             upload_status = UserMediaUploadStatus.completed.value,
             media_id__ne = "",
         ).only("filename", "media_id")
+
+        return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]

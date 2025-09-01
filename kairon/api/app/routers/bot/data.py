@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse
 
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.content_importer import DocContentImporterEvent
