@@ -4,6 +4,7 @@ from datetime import date, datetime,timedelta
 import pytest
 from unittest.mock import MagicMock, patch
 
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.callback.data_objects import CallbackLog
 from kairon.shared.custom_widgets.data_objects import CustomWidgetsRequestLog
@@ -391,21 +392,21 @@ def test_sanitize_query_filter_valid(monkeypatch, log_type, query_params, expect
         ("unknown_type", {"status": "Success"}, ValueError, "Unsupported log type: unknown_type"),
 
         # Invalid date format
-        ("actions", {"from_date": "2025-13-01"}, ValueError, "Invalid date format for 'from_date'"),
-        ("actions", {"to_date": "not-a-date"}, ValueError, "Invalid date format for 'to_date'"),
+        ("actions", {"from_date": "2025-13-01"}, AppException, "Invalid date format for 'from_date'"),
+        ("actions", {"to_date": "not-a-date"}, AppException, "Invalid date format for 'to_date'"),
 
         # Non-integer start_idx/page_size
-        ("actions", {"start_idx": "ten"}, ValueError, "'start_idx' must be a valid integer."),
-        ("actions", {"page_size": "ten"}, ValueError, "'page_size' must be a valid integer."),
+        ("actions", {"start_idx": "ten"}, AppException, "'start_idx' must be a valid integer."),
+        ("actions", {"page_size": "ten"}, AppException, "'page_size' must be a valid integer."),
 
         # Empty key
-        ("actions", {"": "Success"}, ValueError, "Search key cannot be empty or blank."),
+        ("actions", {"": "Success"}, AppException, "Search key cannot be empty or blank."),
 
         # Key not in document fields
-        ("actions", {"non_existing_key": "Success"}, ValueError, "Invalid query key: 'non_existing_key'"),
+        ("actions", {"non_existing_key": "Success"}, AppException, "Invalid query key: 'non_existing_key'"),
 
         # Empty value
-        ("actions", {"status": ""}, ValueError, "Search value for key 'status' cannot be empty or blank."),
+        ("actions", {"status": ""}, AppException, "Search value for key 'status' cannot be empty or blank."),
 
     ]
 )
