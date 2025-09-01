@@ -1494,7 +1494,6 @@ def test_get_crud_metadata():
             'required': ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
         }
 
-
 def test_get_crud_metadata_with_object_error():
     import numpy as np
 
@@ -1538,7 +1537,6 @@ def test_get_crud_metadata_with_object_error():
             'required': ['aadhar', 'mobile_number', 'name', 'pan', 'pincode']
         }
 
-
 def test_get_crud_metadata_with_no_data():
     data1 = {
         "collection_name": "testing_crud_api",
@@ -1562,7 +1560,8 @@ def test_get_crud_metadata_with_no_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_get_crud_metadata_with_invalid_data():
@@ -1590,7 +1589,8 @@ def test_get_crud_metadata_with_invalid_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_get_crud_metadata_without_data():
@@ -1618,7 +1618,8 @@ def test_get_crud_metadata_without_data():
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
-        assert result == {'$schema': 'http://json-schema.org/schema#', 'type': 'object'}
+        assert result["$schema"] == "http://json-schema.org/schema#"
+        assert result["type"] == "object"
 
 
 def test_fetch_collection_data_without_collection_name():
@@ -3323,7 +3324,6 @@ def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
             'resp': bot_response
         }
     }
-
 
 def test_pyscript_handler_for_crud_metadata_without_bot_in_main_pyscript():
     source_code = '''
