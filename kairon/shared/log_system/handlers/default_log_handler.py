@@ -19,7 +19,7 @@ class DefaultLogHandler(BaseLogHandler):
         else:
             sort_field = "-start_timestamp"
         self.kwargs["stamp"] = sort_field[1:]
-        query= BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
 
         logs_cursor = (

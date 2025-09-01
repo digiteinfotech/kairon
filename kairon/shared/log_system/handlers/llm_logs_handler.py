@@ -2,7 +2,7 @@ from kairon.shared.log_system.base import BaseLogHandler
 
 class LLMLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs,"logs_and_count")
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs,"count")
         query = {"metadata__bot": self.bot,
                  "start_time__gte": from_date,
                  "start_time__lte": to_date}
@@ -13,8 +13,8 @@ class LLMLogHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        self.kwargs["stamp"]="start_time"
-        query= BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        self.kwargs["stamp"] = "start_time"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         user = query.pop("user", None)
         invocation = query.pop("invocation", None)
         query["metadata__bot"] = self.bot
