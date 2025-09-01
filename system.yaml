@@ -148,6 +148,7 @@ events:
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
+    crud_content_importer: ${CRUD_CONTENT_IMPORTER_TASK_DEFINITION}
     email_channel_read_mails: ${MAIL_CHANNEL_READ_TASK_DEFINITION}
     agentic_flow: ${AGENTIC_FLOW_TASK_DEFINITION}
     catalog_integration: ${CATALOG_SYNC_TASK_DEFINITION}
