@@ -4,7 +4,7 @@ from ...test.data_objects import ModelTestingLogs
 
 class ModelTestingHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date,to_date=BaseLogHandler.get_default_dates(self.kwargs,"logs_and_count")
+        from_date,to_date=BaseLogHandler.get_default_dates(self.kwargs,"count")
         logs = list(ModelTestingLogs.objects(bot=self.bot).aggregate([
             {"$set": {"data.type": "$type"}},
             {'$group': {'_id': '$reference_id', 'bot': {'$first': '$bot'}, 'user': {'$first': '$user'},
@@ -32,8 +32,8 @@ class ModelTestingHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        self.kwargs["stamp"]="start_timestamp"
-        query = BaseLogHandler.get_default_dates(self.kwargs, "logs_for_search")
+        self.kwargs["stamp"] = "start_timestamp"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         is_augmented = self.kwargs.pop("is_augmented",None)
         query["bot"] = self.bot
         if is_augmented and is_augmented.lower() in ("true", "false"):
