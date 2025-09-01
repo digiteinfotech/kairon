@@ -67,13 +67,7 @@ class DataProcessor:
             except SchemaGenerationError as e:
                 logger.warning(f"Skipping invalid document: {str(e)}")
 
-        schema = builder.to_schema()
-        return {
-            "$schema": "http://json-schema.org/schema#",
-            "title": f"{collection_name.capitalize()} Details Collection Schema",
-            "type": "object",
-            "items": schema
-        }
+
 
     @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
