@@ -10,7 +10,7 @@ class DefaultLogHandler(BaseLogHandler):
         logs_cursor = self.doc_type.objects(**query).order_by(sort_field).skip(self.start_idx).limit(
             self.page_size).exclude("bot", "user", "id")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
-        count = self.get_logs_count(self.doc_type,  **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count
 
     def get_logs_for_search_query(self):
@@ -18,7 +18,7 @@ class DefaultLogHandler(BaseLogHandler):
             sort_field = "-timestamp"
         else:
             sort_field = "-start_timestamp"
-        self.kwargs["stamp"] = sort_field[1:]
+            self.kwargs["stamp"] = sort_field[1:]
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
 
@@ -31,7 +31,7 @@ class DefaultLogHandler(BaseLogHandler):
         )
 
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
-        count = self.get_logs_count(self.doc_type,  **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count
 
     def get_logs_for_search_query_for_unix_time(self):

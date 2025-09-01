@@ -1,13 +1,15 @@
 from kairon.shared.log_system.base import BaseLogHandler
 
+
 class LLMLogHandler(BaseLogHandler):
     def get_logs_and_count(self):
-        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs,"count")
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs, "count")
         query = {"metadata__bot": self.bot,
                  "start_time__gte": from_date,
                  "start_time__lte": to_date}
 
-        logs_cursor = self.doc_type.objects(**query).order_by("-start_time").skip(self.start_idx).limit(self.page_size).exclude("id")
+        logs_cursor = self.doc_type.objects(**query).order_by("-start_time").skip(self.start_idx).limit(
+            self.page_size).exclude("id")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
@@ -24,7 +26,9 @@ class LLMLogHandler(BaseLogHandler):
         if invocation:
             query["metadata__invocation"] = invocation
 
-        logs_cursor = (self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(self.page_size).exclude("id"))
+        logs_cursor = (
+            self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(self.page_size).exclude(
+                "id"))
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
-        count = self.get_logs_count(self.doc_type,  **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count
