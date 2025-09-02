@@ -4173,6 +4173,172 @@ def test_upload_doc_content_file_type_validation_failure():
 
 
 @responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_success(
+        mock_upload_media,
+        mock_save_validate,
+        mock_validate,
+):
+    mock_validate.return_value = None
+    mock_save_validate.return_value = (None, "/tmp/file.txt")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("test.txt", file_content, "text/plain")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body["message"] == "File uploaded successfully!"
+    assert body["data"]["media_id"] == "12345"
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_invalid_file_type(
+        mock_upload_media,
+        mock_save_validate,
+):
+    mock_save_validate.return_value = (None, "/tmp/file.py")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("test.py", file_content, "script")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert ("Invalid file type: script. Allowed types are: audio/aac, audio/amr, audio/mpeg,"
+            " audio/mp4, audio/ogg, text/plain, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+            " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-powerpoint,"
+            " application/vnd.openxmlformats-officedocument.presentationml.presentation, application/pdf,"
+            " image/jpeg, image/png, image/webp, video/3gpp, video/mp4.") in body["message"]
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_with_filename_missing(
+        mock_upload_media,
+        mock_save_validate,
+):
+    mock_save_validate.return_value = (None, "/tmp/file.py")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("", file_content, "script")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert ("Expected UploadFile, received: <class 'str'>") in body['message'][0]["msg"]
+
+
+@responses.activate
+def test_upload_media_no_file():
+    response = (client.post
+                (f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+                 headers={"Authorization": pytest.token_type + " " + pytest.access_token}))
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert 'field required' in body["message"][0]['msg']
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
+def test_upload_media_file_too_large(mock_validate):
+    mock_validate.side_effect = AppException("File size exceeds 100MB")
+
+    file_content = io.BytesIO(b"x" * (101 * 1024 * 1024))
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("large.pdf", file_content, "application/pdf")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert "File size exceeds 100MB" in body["message"]
+
+
+@responses.activate
+def test_get_media_ids():
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+    if bot_settings:
+        bot_settings_dict = bot_settings.to_mongo().to_dict()
+        print(bot_settings_dict)
+
+    channel = Channels.objects(bot=pytest.bot).first()
+    if channel:
+        channel = channel.to_mongo().to_dict()
+        print(channel)
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="completed",
+        upload_type="user_uploaded",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+    assert body["data"][0]['media_id'] == media_id
+
+
+@responses.activate
 def test_add_pos_integration_config_success():
     payload = {
       "connector_type": "petpooja",

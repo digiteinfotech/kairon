@@ -20,6 +20,7 @@ from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import UserMediaUploadStatus
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
@@ -1069,4 +1070,227 @@ class TestBusinessServiceProvider:
 
         UserMediaData.objects().delete()
         BotSettings.objects().delete()
+        Channels.objects().delete()
+
+
+    @pytest.mark.asyncio
+    def test_get_media_ids_success(self):
+        bot = "682323a603ec3be7dcaa75bc"
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(
+            bot=bot,
+            user="test@example.com",
+            whatsapp="360dialog",
+            timestamp=datetime.utcnow(),
+        ).save()
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "bsp_type": "360dialog",
+                "client_name": "dummy",
+                "client_id": "dummy",
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow(),
+        ).save()
+
+        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+        UserMediaData(
+            media_id=media_id,
+            filename="sample.pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="user_uploaded",
+            filesize=12345,
+            sender_id="tester@example.com",
+            bot=bot,
+            extension= "image/png",
+            timestamp=datetime.utcnow(),
+            media_url="",
+            output_filename="",
+            external_upload_info={"bsp": "360dialog"},
+        ).save()
+
+        result = UserMedia.get_media_ids(bot)
+
+        assert isinstance(result, list)
+        assert result[0]["media_id"] == media_id
+        assert result[0]["filename"] == "sample.pdf"
+
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    def test_get_media_ids_no_channel_config(self):
+        bot = "682323a603ec3be7dcaa75bc"
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+
+        result = UserMedia.get_media_ids(bot)
+        assert result == []
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_success(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        sender_id = "test_user"
+        filename = "test.pdf"
+        extension = "application/pdf"
+        expected_media_id = "ext123"
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        file_path = content_dir / filename
+        file_path.write_bytes(b"%PDF-1.4 dummy content")
+
+        os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
+        os.replace(file_path, f"media_upload_records/{bot}/{filename}")
+
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "api_key": "dummy_token",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        responses.add(
+            responses.POST,
+            "https://waba-v2.360dialog.io/media",
+            json={"id": expected_media_id},
+            status=200,
+            content_type="application/json"
+        )
+        channel = "whatsapp"
+        channel_config = ChatDataProcessor.get_channel_config(channel, bot)
+        print(channel_config)
+        external_id = await BSP360Dialog.upload_media_file(
+            bot=bot,
+            channel_config=channel_config,
+            sender_id=sender_id,
+            filename=filename,
+            extension=extension,
+            filesize=12345,
+        )
+
+        assert external_id == expected_media_id
+
+        saved_doc = UserMediaData.objects.get(media_id=expected_media_id)
+        assert saved_doc.upload_status == UserMediaUploadStatus.completed.value
+        assert saved_doc.external_upload_info == {
+            "bsp": "360dialog",
+            "external_media_id": expected_media_id,
+            "error": ""
+        }
+
+        UserMediaData.objects().delete()
+
+    @pytest.mark.asyncio
+    async def test_upload_media_file_missing_api_key(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        filename = "test.pdf"
+        extension = "application/pdf"
+        Channels.objects(bot=bot).delete()
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        (content_dir / filename).write_bytes(b"%PDF dummy")
+        channel = "whatsapp"
+        channel_config = ChatDataProcessor.get_channel_config(channel, bot)
+        with pytest.raises(AppException, match=r"API key \(access token\) not found in channel config"):
+            await BSP360Dialog.upload_media_file(
+                bot=bot,
+                channel_config=channel_config,
+                sender_id="test_user",
+                filename=filename,
+                extension=extension,
+                filesize=123,
+            )
+
+        Channels.objects().delete()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_non_200_response(self, tmp_path):
+        bot = "682323a603ec3be7dcaa75bc"
+        sender_id = "test_user"
+        filename = "test.pdf"
+        extension = "application/pdf"
+        Channels.objects().delete()
+
+        content_dir = tmp_path / "media_upload_records" / bot
+        content_dir.mkdir(parents=True)
+        file_path = content_dir / filename
+        file_path.write_bytes(b"%PDF dummy")
+
+        os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
+        os.replace(file_path, f"media_upload_records/{bot}/{filename}")
+
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "api_key": "dummy_token",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        responses.add(
+            responses.POST,
+            "https://waba-v2.360dialog.io/media",
+            json={"error": "bad request"},
+            status=400,
+            content_type="application/json"
+        )
+
+        channel_config = ChatDataProcessor.get_channel_config("whatsapp", bot)
+        with pytest.raises(AppException, match=r"bad request"):
+            await BSP360Dialog.upload_media_file(
+                bot=bot,
+                channel_config=channel_config,
+                sender_id=sender_id,
+                filename=filename,
+                extension=extension,
+                filesize=123,
+            )
+
+        saved_doc = UserMediaData.objects().first()
+        assert saved_doc is not None
+        saved_doc.reload()
+        assert saved_doc.upload_status == UserMediaUploadStatus.failed.value
+        assert "Upload failed" in (saved_doc.additional_log or "")
+        assert "bad request" in (saved_doc.external_upload_info or {}).get("error", "")
+
+        UserMediaData.objects().delete()
         Channels.objects().delete()

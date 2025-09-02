@@ -1,6 +1,9 @@
+import os
 from datetime import datetime
 from typing import Dict, Text
 
+import aiofiles
+from fastapi import File
 from loguru import logger
 from mongoengine import DoesNotExist
 
@@ -8,6 +11,7 @@ from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
+from ..data.constant import MIME_TYPE_LIMITS
 from ..data.utils import DataUtility
 from ...exceptions import AppException
 
@@ -234,4 +238,77 @@ class ChatDataProcessor:
         channel = ChatDataProcessor.get_channel_config(bot=bot, connector_type="instagram", mask_characters=False)
         comment_response = channel.get("config", {}).get("static_comment_reply")
         return comment_response
+
+    @staticmethod
+    async def validate_and_save_media_file(bot: Text, user: Text, file_content: File):
+        """
+        Saves the media file and validates its type.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param file_content: The uploaded file
+        :return: A dictionary of error messages if validation fails
+        """
+        content_dir = os.path.join("media_upload_records", bot)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, file_content.filename)
+
+        async with aiofiles.open(file_path, "wb") as buffer:
+            while chunk := await file_content.read(1024 * 1024):
+                await buffer.write(chunk)
+
+        await file_content.seek(0)
+        return file_path
+
+    @staticmethod
+    async def upload_media_to_bsp(bot: str, user: str, channel: str, file_path: str, file_info: File):
+        """
+        Uploads the file to BSP and deletes the temporary local file.
+        """
+        from ..channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        media_id = None
+        try:
+            channel_config = ChatDataProcessor.get_channel_config(channel, bot)
+            bsp_type = channel_config.get("config").get("bsp_type", "whatsapp")
+            media_id = await (BusinessServiceProviderFactory.get_instance(bsp_type).upload_media_file(bot,
+                                                                                                      channel_config,
+                                                                                                      user,
+                                                                                                      file_info.filename,
+                                                                                                      file_info.content_type,
+                                                                                                      file_info.size))
+            logger.info(f"Media uploaded successfully: {media_id}")
+        except Exception as e:
+            logger.error(f"Error uploading file to BSP: {str(e)}")
+            raise AppException(f"Media upload failed: {str(e)}")
+
+        finally:
+            if file_path:
+                try:
+                    Utility.remove_file_path(file_path)
+                except Exception as cleanup_err:
+                    logger.warning(f"Failed to cleanup temp file {file_path}: {cleanup_err}")
+
+        return media_id
+
+    @staticmethod
+    def validate_media_file_type(file_content: File):
+        content_type = file_content.content_type
+
+        if content_type not in MIME_TYPE_LIMITS:
+            raise AppException(
+                f"Invalid file type: {content_type}. "
+                f"Allowed types are: {', '.join(MIME_TYPE_LIMITS.keys())}."
+            )
+
+        size_limit = MIME_TYPE_LIMITS[content_type]
+
+        file_content.file.seek(0, 2)
+        size = file_content.file.tell()
+        file_content.file.seek(0)
+
+        if size > size_limit:
+            raise AppException(
+                f"File size {size / (1024 * 1024):.2f} MB exceeds the "
+                f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
+            )
 

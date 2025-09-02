@@ -501,6 +501,26 @@ class Utility:
         logger.info(f"deleting data from path: {path}")
         shutil.rmtree(path, ignore_errors)
 
+
+    @staticmethod
+    def remove_file_path(path: Text, default_path: Text = None):
+        path_obj = Path(path)
+
+        if default_path:
+            default_obj = Path(default_path)
+
+            if default_obj.exists():
+                if default_obj.resolve().is_relative_to(path_obj.resolve()):
+                    default_obj.unlink()
+                else:
+                    raise ValueError(
+                        f"Default path '{default_path}' is not inside '{path}'."
+                    )
+        else:
+            if path_obj.exists():
+                path_obj.unlink()
+
+
     @staticmethod
     def copy_model_file_to_directory(input_file_path: Text, output_path: Text):
         if not os.path.exists(output_path):

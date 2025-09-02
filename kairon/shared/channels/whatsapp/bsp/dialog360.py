@@ -1,5 +1,7 @@
 import ast
+import asyncio
 import io
+import os
 from typing import Text, Dict
 
 import requests
@@ -15,6 +17,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
 from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -282,3 +285,74 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise e
 
 
+    @staticmethod
+    async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
+                           filesize: int = 0) -> str:
+
+        access_token = channel_config.get("config").get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+        headers = {auth_header: access_token}
+        payload = {"messaging_product": "whatsapp"}
+        content_dir = os.path.join("media_upload_records", bot)
+        os.makedirs(content_dir, exist_ok=True)
+        file_path = os.path.join(content_dir, filename)
+
+        media_doc = UserMedia.create_media_doc(
+            bot=bot,
+            sender_id = sender_id,
+            filename = filename,
+            extension = extension,
+            filesize = filesize,
+        )
+
+
+        async def _post():
+            def _do():
+                with open(file_path, "rb") as f:
+                    files = {"file": (filename, f, f"{extension}")}
+
+                    return requests.post(
+                            f"{base_url}/media",
+                            headers=headers,
+                            data = payload,
+                            files = files,
+                            timeout = (5, 60),
+                            )
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _do)
+
+
+        try:
+            response = await _post()
+        except requests.RequestException as e:
+                    media_doc.update(
+                        set__upload_status = UserMediaUploadStatus.failed.value,
+                        set__additional_log = "Upload failed: network error",
+                        set__external_upload_info__error = str(e),
+                    )
+                    raise AppException(f"Upload request failed: {e}") from e
+
+        if response.status_code not in (200, 201):
+            media_doc.update(
+                set__upload_status = UserMediaUploadStatus.failed.value,
+                set__additional_log = "Upload failed",
+                set__external_upload_info__error = response.text,
+            )
+            raise AppException(response.text)
+
+        external_media_id = response.json().get("id")
+
+        media_doc.update(
+            set__media_id = external_media_id,
+            set__upload_status = UserMediaUploadStatus.completed.value,
+            set__upload_type = UserMediaUploadType.broadcast.value,
+            set__additional_log = "Upload successful",
+            set__external_upload_info__external_media_id = external_media_id,
+        )
+
+        return external_media_id
