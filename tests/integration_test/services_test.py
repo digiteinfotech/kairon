@@ -4174,7 +4174,7 @@ def test_upload_doc_content_file_type_validation_failure():
 
 @responses.activate
 @patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
-@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
 @patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
 def test_upload_media_success(
         mock_upload_media,
@@ -4200,7 +4200,7 @@ def test_upload_media_success(
 
 
 @responses.activate
-@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
 @patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
 def test_upload_media_invalid_file_type(
         mock_upload_media,
@@ -4228,7 +4228,7 @@ def test_upload_media_invalid_file_type(
 
 
 @responses.activate
-@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_and_save_media_file")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
 @patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
 def test_upload_media_with_filename_missing(
         mock_upload_media,

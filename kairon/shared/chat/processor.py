@@ -240,7 +240,7 @@ class ChatDataProcessor:
         return comment_response
 
     @staticmethod
-    async def validate_and_save_media_file(bot: Text, user: Text, file_content: File):
+    async def save_media_file_path(bot: Text, user: Text, file_content: File):
         """
         Saves the media file and validates its type.
 

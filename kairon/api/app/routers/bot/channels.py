@@ -289,7 +289,7 @@ async def upload_media_file_content(
     Handles the upload of file content for processing, validation, and eventual storage.
     """
     ChatDataProcessor.validate_media_file_type(file_content)
-    file_path = await ChatDataProcessor.validate_and_save_media_file(
+    file_path = await ChatDataProcessor.save_media_file_path(
         bot = current_user.get_bot(),
         user = current_user.get_user(),
         file_content = file_content,
