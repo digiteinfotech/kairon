@@ -2,9 +2,9 @@ from ..base import BaseLogHandler
 
 from ...test.data_objects import ModelTestingLogs
 
-
 class ModelTestingHandler(BaseLogHandler):
     def get_logs_and_count(self):
+        from_date, to_date = BaseLogHandler.get_default_dates(self.kwargs, "count")
         logs = list(ModelTestingLogs.objects(bot=self.bot).aggregate([
             {"$set": {"data.type": "$type"}},
             {'$group': {'_id': '$reference_id', 'bot': {'$first': '$bot'}, 'user': {'$first': '$user'},
@@ -21,7 +21,27 @@ class ModelTestingHandler(BaseLogHandler):
                 'is_augmented': 1
             }},
             {"$sort": {"start_timestamp": -1}}]))[self.start_idx:self.start_idx + self.page_size]
-        query={"bot": self.bot,
-               "type": "common"}
+
+        query = {
+            "bot": self.bot,
+            "type": "common",
+            "start_timestamp__gte": from_date,
+            "start_timestamp__lte": to_date
+        }
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
+
+    def get_logs_for_search_query(self):
+        self.kwargs["stamp"] = "start_timestamp"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
+        is_augmented = self.kwargs.pop("is_augmented", None)
+        query["bot"] = self.bot
+        if is_augmented and is_augmented.lower() in ("true", "false"):
+            query["is_augmented"] = is_augmented.lower() == "true"
+        query.update(self.kwargs)
+        logs_cursor = (self.doc_type.objects(**query).order_by("-start_timestamp").skip(self.start_idx).limit(
+            self.page_size).exclude("id"))
+        logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
+        count = self.get_logs_count(self.doc_type, **query)
+        return logs, count
+
