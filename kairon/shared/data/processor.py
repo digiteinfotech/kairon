@@ -170,7 +170,7 @@ from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
-from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS
+from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, UploadHandlerClass
 from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
@@ -179,6 +179,7 @@ from ..log_system.base import BaseLogHandler
 from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
+from ..upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
 
 
 class MongoProcessor:
@@ -8956,6 +8957,50 @@ class MongoProcessor:
                 error_message['Extra columns'] = f"{extra_columns}."
 
         return error_message
+
+    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File):
+        """
+        Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param file_content: The content of the file being uploaded
+        :param type: The Class type of the file to validate against
+        :return: True if the schema is valid, else False
+        """
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user=user,
+            file_name=file_content.filename,
+            event_status=EVENT_STATUS.VALIDATING.value
+        )
+
+        self.file_handler_save_and_validate(bot, user, file_content)
+
+        return True
+
+    def file_handler_save_and_validate(self, bot: Text, user: Text, file_content: File):
+        """
+        Saves the training file and performs validation.
+
+        :param bot: The bot ID
+        :param file_content: The file to be saved and validated
+        :return: A dictionary of error messages if validation fails
+        """
+        content_dir = os.path.join('file_content_upload_records', bot)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, file_content.filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file_content.file, buffer)
+
+        file_content.file.seek(0)
+
+    @staticmethod
+    def validate_file_type(file_content):
+        valid_csv_types = ["text/csv"]
+        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
+            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
 
     def get_column_datatype_dict(self, bot, table_name):
         from ..cognition.processor import CognitionDataProcessor

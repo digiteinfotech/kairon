@@ -1,7 +1,8 @@
 from datetime import datetime
 import json
+from fastapi import HTTPException
 from typing import Dict, Text, List
-
+import re
 from mongoengine import DoesNotExist
 
 from kairon import Utility
@@ -9,12 +10,11 @@ from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
 from loguru import logger
 
-
 class DataProcessor:
 
     @staticmethod
     def validate_collection_payload(collection_name, is_secure, data):
-        if not collection_name:
+        if not collection_name.strip():
             raise AppException("collection name is empty")
 
         if not isinstance(is_secure, list):
@@ -310,5 +310,60 @@ class DataProcessor:
             message = f"Collection {name} does not exist!"
         return [message, result]
 
+    @staticmethod
+    def save_bulk_collection_data(payloads: List[Dict], user: Text, bot: Text, collection_name: Text):
+        collection_docs = []
+        errors = []
+        collection_name=collection_name
+
+        for index, payload in enumerate(payloads):
+            try:
+                data = payload.get("data")
+                is_secure = payload.get("is_secure")
+                is_non_editable = payload.get("is_non_editable")
+
+                DataProcessor.validate_collection_payload(collection_name, is_secure, data)
+                encrypted_data = DataProcessor.prepare_encrypted_data(data, is_secure)
+
+                collection_obj = CollectionData(
+                    collection_name=collection_name,
+                    data=encrypted_data,
+                    is_secure=is_secure,
+                    is_non_editable=is_non_editable,
+                    user=user,
+                    bot=bot,
+                )
+                collection_docs.append(collection_obj)
+            except Exception as e:
+                errors.append({
+                    "index": index,
+                    "error": str(e)
+                })
+
+        if errors:
+            raise AppException(f"Errors in bulk insert: {errors}")
+
+        if collection_docs:
+            try:
+                CollectionData.objects.insert(collection_docs)
+            except Exception as e:
+                raise AppException(f"Bulk insert failed: {str(e)}")
+        return {
+            "status" : "success",
+            "errors" : []
+        }
+
+    @staticmethod
+    def validate_collection_name(collection_name):
+        try:
+            if not collection_name or not collection_name.strip():
+                raise ValueError("Collection name cannot be empty.")
+            if len(collection_name) > 64:
+                raise ValueError("Collection name cannot exceed 64 characters.")
+            if not re.match(r"^[A-Za-z][A-Za-z0-9_-]*$", collection_name):
+                raise ValueError(
+                    "Collection name must start with a letter and contain only letters, numbers, underscores, or hyphens.")
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=str(e))
 
 

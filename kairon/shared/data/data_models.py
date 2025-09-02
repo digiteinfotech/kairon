@@ -1268,11 +1268,21 @@ class CollectionDataRequest(BaseModel):
 
         if non_editable:
             non_editable_set = set(non_editable)
+            data_keys = set(data.keys())
             if not non_editable_set.issubset(data_keys):
                 raise ValueError("is_non_editable contains keys that are not present in data")
 
         return values
 
+class BulkCollectionDataRequest(BaseModel):
+    payload: List[CollectionDataRequest]
+
+    @root_validator(skip_on_failure=True)
+    def check(cls, values):
+        payload = values.get("payload") or []
+        if not payload:
+            raise ValueError("payload must contain at least one item")
+        return values
 
 class CognitiveDataRequest(BaseModel):
     data: Any

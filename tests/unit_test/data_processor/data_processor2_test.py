@@ -1,17 +1,19 @@
 import os
 import re
 from datetime import datetime
+from fastapi import HTTPException
 from unittest.mock import patch, MagicMock
 
 import pytest
 from mongoengine import DoesNotExist
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
-
+import shutil
 from kairon.exceptions import AppException
-from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1289,3 +1291,241 @@ def test_delete_collection_data_no_records():
         mock_query.delete.assert_called_once()
 
 
+@pytest.fixture
+def valid_payload():
+    return [
+        {
+            "collection_name": "test_collection",
+            "data": {"field1": "value1"},
+            "is_secure": ["field1"],
+            "is_non_editable": ["field1"]
+        },
+        {
+            "collection_name": "test_collection_2",
+            "data": {"fieldA": "valueA"},
+            "is_secure": [],
+            "is_non_editable": []
+        }
+    ]
+
+
+def test_bulk_save_success(valid_payload):
+    with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects, \
+         patch('kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload') as mock_validate, \
+         patch('kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data', side_effect=lambda d, s: d):
+        mock_objects.insert.return_value = [MagicMock(), MagicMock()]
+
+        result = DataProcessor.save_bulk_collection_data(valid_payload, user="test_user", bot="test_bot", collection_name="test_bulk_save")
+        assert result["errors"] == []
+        mock_objects.insert.assert_called_once()
+        assert mock_validate.call_count == 2
+
+
+def test_bulk_save_with_validation_error(valid_payload):
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload", side_effect=[None, Exception("Invalid data")]), \
+         patch("kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data", side_effect=lambda d, s: d):
+        mock_objects.insert.return_value = [MagicMock()]
+
+        with pytest.raises(AppException) as exc:
+            DataProcessor.save_bulk_collection_data(
+                valid_payload,
+                user="test_user",
+                bot="test_bot",
+                collection_name="test_bulk_save"
+            )
+
+        assert "Errors in bulk insert" in str(exc.value)
+        assert "Invalid data" in str(exc.value)
+
+        mock_objects.insert.assert_not_called()
+
+
+def test_bulk_insert_fails(valid_payload):
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload") as mock_validate, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.prepare_encrypted_data", side_effect=lambda d, s: d):
+        mock_objects.insert.side_effect = Exception("DB insert failed")
+
+        with pytest.raises(AppException) as exc:
+            DataProcessor.save_bulk_collection_data(
+                valid_payload, user="test_user", bot="test_bot", collection_name="test_bulk_save"
+            )
+
+        assert "Bulk insert failed" in str(exc.value)
+        assert "DB insert failed" in str(exc.value)
+        mock_objects.insert.assert_called_once()
+
+
+def test_no_valid_documents():
+    payloads = [
+        {
+            "collection_name": "",
+            "data": {},
+            "is_secure": [],
+            "is_non_editable": []
+        }
+    ]
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects") as mock_objects, \
+         patch("kairon.shared.data.collection_processor.DataProcessor.validate_collection_payload", side_effect=Exception("Invalid name")):
+
+        with pytest.raises(AppException) as exc:
+            DataProcessor.save_bulk_collection_data(
+                payloads, user="test_user", bot="test_bot", collection_name="test_bulk_save"
+            )
+
+        assert "Errors in bulk insert" in str(exc.value)
+        assert "Invalid name" in str(exc.value)
+        mock_objects.insert.assert_not_called()
+
+
+from types import SimpleNamespace
+import io
+
+def test_file_handler_save_and_validate_success(tmp_path):
+    bot = "test_bot"
+    user = "test_user"
+
+    # Prepare fake CSV file
+    file_content = SimpleNamespace(
+        filename="test.csv",
+        content_type="text/csv",
+        file=io.BytesIO(b"col1,col2\nval1,val2")
+    )
+
+    instance = MongoProcessor()
+
+    instance.file_handler_save_and_validate(
+        bot=bot,
+        user=user,
+        file_content=file_content
+    )
+
+    content_dir = os.path.join("file_content_upload_records", bot)
+    file_path = os.path.join(content_dir, file_content.filename)
+    assert os.path.exists(file_path)
+
+    shutil.rmtree(content_dir)
+
+def test_file_upload_validate_schema_and_log_success(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    file_content = SimpleNamespace(
+        filename="test.csv",
+        content_type="text/csv",
+        file=io.BytesIO(b"col1,col2\nval1,val2")
+    )
+
+    instance = MongoProcessor()
+
+    monkeypatch.setattr(instance, "file_handler_save_and_validate", lambda *a, **k: {})
+
+    logged = []
+    monkeypatch.setattr(
+        "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.add_log",
+        lambda **kwargs: logged.append(kwargs)
+    )
+
+    result = instance.file_upload_validate_schema_and_log(
+        bot=bot,
+        user=user,
+        file_content=file_content
+    )
+
+    assert result is True
+    assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
+    assert not any(log.get("status") == "Failure" for log in logged)
+
+def test_validate_collection_name_valid():
+    instance = DataProcessor()
+
+    assert instance.validate_collection_name("ValidName") is None
+    assert instance.validate_collection_name("Valid_Name123") is None
+    assert instance.validate_collection_name("Valid-Name") is None
+
+
+def test_validate_collection_name_empty(monkeypatch):
+    instance = DataProcessor()
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name("")
+    assert exc.value.status_code == 422
+    assert "cannot be empty" in str(exc.value.detail)
+
+
+def test_validate_collection_name_only_spaces(monkeypatch):
+    instance = DataProcessor()
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name("   ")
+    assert exc.value.status_code == 422
+    assert "cannot be empty" in str(exc.value.detail)
+
+
+def test_validate_collection_name_exceeds_length(monkeypatch):
+    instance = DataProcessor()
+    long_name = "A" * 65
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name(long_name)
+    assert exc.value.status_code == 422
+    assert "exceed 64 characters" in str(exc.value.detail)
+
+
+def test_validate_collection_name_starts_with_number(monkeypatch):
+    instance = DataProcessor()
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name("1Invalid")
+    assert exc.value.status_code == 422
+    assert "must start with a letter" in str(exc.value.detail)
+
+
+def test_validate_collection_name_invalid_characters(monkeypatch):
+    instance = DataProcessor()
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name("Invalid@Name")
+    assert exc.value.status_code == 422
+    assert "must start with a letter" in str(exc.value.detail)
+
+
+def test_validate_collection_name_starts_with_underscore(monkeypatch):
+    instance = DataProcessor()
+
+    with pytest.raises(HTTPException) as exc:
+        instance.validate_collection_name("_Invalid")
+    assert exc.value.status_code == 422
+    assert "must start with a letter" in str(exc.value.detail)
+
+class DummyFile:
+    def __init__(self, filename, content_type):
+        self.filename = filename
+        self.content_type = content_type
+
+def test_validate_file_type_valid_content_type(monkeypatch):
+    file_content = DummyFile("data.txt", "text/csv")
+    MongoProcessor.validate_file_type(file_content)
+
+
+def test_validate_file_type_valid_extension(monkeypatch):
+    file_content = DummyFile("data.csv", "application/json")
+    MongoProcessor.validate_file_type(file_content)
+
+
+def test_validate_file_type_valid_both(monkeypatch):
+    file_content = DummyFile("data.csv", "text/csv")
+    MongoProcessor.validate_file_type(file_content)
+
+
+def test_validate_file_type_invalid(monkeypatch):
+    file_content = DummyFile("data.txt", "application/json")
+    with pytest.raises(AppException) as exc:
+        MongoProcessor.validate_file_type(file_content)
+    assert "Invalid file type" in str(exc.value)
+
+
+def test_validate_file_type_case_insensitive_extension(monkeypatch):
+    file_content = DummyFile("report.CSV", "application/json")
+    MongoProcessor.validate_file_type(file_content)

@@ -8,14 +8,15 @@ from starlette.responses import FileResponse
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ActorType, CatalogSyncClass
+from kairon.shared.constants import ActorType, CatalogSyncClass, UploadHandlerClass
 from kairon.shared.constants import DESIGNER_ACCESS
-from kairon.shared.data.data_models import POSIntegrationRequest
+from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollectionDataRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
@@ -369,6 +370,33 @@ async def upload_doc_content(
         event.enqueue()
     return {"message": "Document content upload in progress! Check logs."}
 
+@router.post("/upload/collection_data/{collection_name}", response_model=Response)
+async def upload_file_content(
+    file_content: UploadFile,
+    collection_name: str = Path(..., description="Collection name"),
+    overwrite: bool = False,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Handles the upload of file content for processing, validation, and eventual storage.
+    """
+    MongoProcessor.validate_file_type(file_content)
+    DataProcessor.validate_collection_name(collection_name)
+    event = UploadHandler(
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        upload_type=UploadHandlerClass.crud_data,
+        overwrite=overwrite,
+        collection_name=collection_name
+    )
+    is_event_data = event.validate(file_content=file_content)
+    if is_event_data:
+        event.enqueue(bot=current_user.get_bot(),
+                      user=current_user.get_user(),
+                      upload_type=UploadHandlerClass.crud_data,
+                      overwrite=overwrite,
+                      collection_name=collection_name)
+    return {"message": "File content upload in progress! Check logs."}
 
 @router.get("/content/error-report/{event_id}", response_model=Response)
 async def download_error_csv(
@@ -491,3 +519,23 @@ async def get_pos_endpoint(
     """
     integration_endpoint = cognition_processor.get_pos_integration_endpoint(current_user.get_bot(), provider, sync_type)
     return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
+
+@router.post("/collection/bulk/{collection_name}", response_model=Response)
+async def save_bulk_collection_data(
+    request: BulkCollectionDataRequest,
+    collection_name: str = Path(..., description="Collection name"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves collection data in bulk.
+    """
+    result = DataProcessor.save_bulk_collection_data(
+        payloads=[collection.dict() for collection in request.payload],
+        user=current_user.get_user(),
+        bot=current_user.get_bot(),
+        collection_name=collection_name
+    )
+    return {
+        "message": "Bulk save completed",
+        "data": result,
+    }
