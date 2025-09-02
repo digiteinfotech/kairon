@@ -404,25 +404,26 @@ LOG_TYPE_METADATA = {
 }
 
 MIME_TYPE_LIMITS = {
-    "audio/aac": 16 * 1024 * 1024,
-    "audio/amr": 16 * 1024 * 1024,
-    "audio/mpeg": 16 * 1024 * 1024,
-    "audio/mp4": 16 * 1024 * 1024,
-    "audio/ogg": 16 * 1024 * 1024,
-    "text/plain": 100 * 1024 * 1024,
-    "application/vnd.ms-excel": 100 * 1024 * 1024,
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 100 * 1024 * 1024,
-    "application/msword": 100 * 1024 * 1024,
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 100 * 1024 * 1024,
-    "application/vnd.ms-powerpoint": 100 * 1024 * 1024,
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": 100 * 1024 * 1024,
-    "application/pdf": 100 * 1024 * 1024,
-    "image/jpeg": 5 * 1024 * 1024,
-    "image/png": 5 * 1024 * 1024,
-    "image/webp": 500 * 1024,
-    "video/3gpp": 16 * 1024 * 1024,
-    "video/mp4": 16 * 1024 * 1024,
+  "audio/aac": 16777216,
+  "audio/amr": 16777216,
+  "audio/mpeg": 16777216,
+  "audio/mp4": 16777216,
+  "audio/ogg": 16777216,
+  "text/plain": 104857600,
+  "application/vnd.ms-excel": 104857600,
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 104857600,
+  "application/msword": 104857600,
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 104857600,
+  "application/vnd.ms-powerpoint": 104857600,
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": 104857600,
+  "application/pdf": 104857600,
+  "image/jpeg": 5242880,
+  "image/png": 5242880,
+  "image/webp": 512000,
+  "video/3gpp": 16777216,
+  "video/mp4": 16777216
 }
+
 
 
 class LogType(str, Enum):

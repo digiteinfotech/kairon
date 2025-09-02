@@ -4328,7 +4328,7 @@ def test_get_media_ids():
     ).save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/channels/upload/media_upload",
+        f"/api/bot/{pytest.bot}/data/fetch_media_ids",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 

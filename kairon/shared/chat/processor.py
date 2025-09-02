@@ -269,13 +269,10 @@ class ChatDataProcessor:
         media_id = None
         try:
             channel_config = ChatDataProcessor.get_channel_config(channel, bot)
-            bsp_type = channel_config.get("config").get("bsp_type", "whatsapp")
+            bsp_type = channel_config.get("config").get("bsp_type", "meta")
             media_id = await (BusinessServiceProviderFactory.get_instance(bsp_type).upload_media_file(bot,
-                                                                                                      channel_config,
-                                                                                                      user,
-                                                                                                      file_info.filename,
-                                                                                                      file_info.content_type,
-                                                                                                      file_info.size))
+                                                                        channel_config, user, file_info.filename,
+                                                                        file_info.content_type, file_info.size))
             logger.info(f"Media uploaded successfully: {media_id}")
         except Exception as e:
             logger.error(f"Error uploading file to BSP: {str(e)}")

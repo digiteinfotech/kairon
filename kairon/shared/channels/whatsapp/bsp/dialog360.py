@@ -2,6 +2,7 @@ import ast
 import asyncio
 import io
 import os
+from datetime import datetime, timedelta
 from typing import Text, Dict
 
 import requests
@@ -346,6 +347,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise AppException(response.text)
 
         external_media_id = response.json().get("id")
+        expiration_date = datetime.utcnow() + timedelta(days = 30)
 
         media_doc.update(
             set__media_id = external_media_id,
@@ -353,6 +355,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             set__upload_type = UserMediaUploadType.broadcast.value,
             set__additional_log = "Upload successful",
             set__external_upload_info__external_media_id = external_media_id,
+            set__external_upload_info__expiry_date = expiration_date,
         )
 
         return external_media_id

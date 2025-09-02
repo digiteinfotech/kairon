@@ -1186,10 +1186,13 @@ class TestBusinessServiceProvider:
         assert external_id == expected_media_id
 
         saved_doc = UserMediaData.objects.get(media_id=expected_media_id)
+        saved_doc_dict = saved_doc.to_mongo().to_dict()
+        expiry = saved_doc_dict.get("external_upload_info", {}).get("expiry_date")
         assert saved_doc.upload_status == UserMediaUploadStatus.completed.value
         assert saved_doc.external_upload_info == {
             "bsp": "360dialog",
             "external_media_id": expected_media_id,
+            "expiry_date" : expiry,
             "error": ""
         }
 
