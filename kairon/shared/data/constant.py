@@ -403,6 +403,27 @@ LOG_TYPE_METADATA = {
     ],
 }
 
+MIME_TYPE_LIMITS = {
+  "audio/aac": 16777216,
+  "audio/amr": 16777216,
+  "audio/mpeg": 16777216,
+  "audio/mp4": 16777216,
+  "audio/ogg": 16777216,
+  "text/plain": 104857600,
+  "application/vnd.ms-excel": 104857600,
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 104857600,
+  "application/msword": 104857600,
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 104857600,
+  "application/vnd.ms-powerpoint": 104857600,
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": 104857600,
+  "application/pdf": 104857600,
+  "image/jpeg": 5242880,
+  "image/png": 5242880,
+  "image/webp": 512000,
+  "video/3gpp": 16777216,
+  "video/mp4": 16777216
+}
+
 
 
 class LogType(str, Enum):

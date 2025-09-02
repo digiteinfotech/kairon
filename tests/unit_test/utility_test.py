@@ -95,6 +95,36 @@ class TestUtility:
         yield "resource_unzip_and_validate"
         os.remove(zip_file + ".zip")
 
+    def test_remove_file_path_with_default_inside(self, tmp_path):
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        default_file = parent / "file.txt"
+        default_file.write_text("content")
+
+        Utility.remove_file_path(str(parent), str(default_file))
+
+        assert not default_file.exists()
+
+    def test_remove_file_path_with_default_outside(self, tmp_path):
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        outside_file = tmp_path / "outside.txt"
+        outside_file.write_text("content")
+
+        try:
+            Utility.remove_file_path(str(parent), str(outside_file))
+        except ValueError as e:
+            assert "is not inside" in str(e)
+
+    def test_remove_file_path_without_default(self, tmp_path):
+        file_path = tmp_path / "file.txt"
+        file_path.write_text("content")
+
+        Utility.remove_file_path(str(file_path))
+
+        assert not file_path.exists()
+
+
     def test_copy_model_file_to_directory(self):
         input_file_path = "tests/testing_data/model/20210512-172208.tar.gz"
         output_path = "tests/testing_data/test_dir"

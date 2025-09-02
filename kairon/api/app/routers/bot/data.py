@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
-
+from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
@@ -539,3 +539,14 @@ async def save_bulk_collection_data(
         "message": "Bulk save completed",
         "data": result,
     }
+
+
+@router.get("/fetch_media_ids", response_model=Response)
+async def get_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = UserMedia.get_media_ids(current_user.get_bot())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")

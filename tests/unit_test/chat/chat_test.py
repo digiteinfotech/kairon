@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from unittest.mock import MagicMock, patch, AsyncMock
 
 import ujson as json
@@ -20,6 +21,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from pymongo.errors import ServerSelectionTimeoutError
@@ -1552,3 +1554,195 @@ async def test_handle_media_agentic_flow_invalid_slot_vals(mock_upload_media_con
         await ChatUtils.handle_media_agentic_flow(bot, sender_id, name, files, slot_vals)
 
     mock_upload_media_content_sync.assert_called_once_with(bot, sender_id, files)
+
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_valid(tmp_path):
+    file_path = tmp_path / "test.pdf"
+    content = b"dummy content"
+
+    mock_file = MagicMock()
+    mock_file.filename = "test.pdf"
+    mock_file.content_type = "application/pdf"
+    mock_file.read = AsyncMock(side_effect=[content, b""])
+    mock_file.seek = AsyncMock()
+
+    saved_path = await ChatDataProcessor.save_media_file_path(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+
+    assert saved_path.endswith("test.pdf")
+    with open(saved_path, "rb") as f:
+        assert f.read() == content
+
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_invalid_type(tmp_path):
+    mock_file = MagicMock()
+    mock_file.filename = "test.py"
+    mock_file.content_type = "script"
+    mock_file.read = AsyncMock(side_effect=[b"fake content", b""])
+    mock_file.seek = AsyncMock()
+
+    saved_path = await ChatDataProcessor.save_media_file_path(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+    print(saved_path)
+    assert saved_path == "media_upload_records/test_bot/test.py"
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_success(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.return_value = "media123"
+    mock_bsp_factory.return_value = mock_bsp
+    BotSettings(
+        bot="test_bot",
+        user="test@example.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow(),
+    ).save()
+    Channels(
+        bot="test_bot",
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="user123",
+        timestamp=datetime.utcnow()
+    ).save()
+    result = await ChatDataProcessor.upload_media_to_bsp(
+        bot="test_bot",
+        user="user123",
+        channel="whatsapp",
+        file_path=str(dummy_file),
+        file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+    )
+
+    assert result == "media123"
+    assert not os.path.exists(dummy_file)
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_failure(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.side_effect = Exception("upload error")
+    mock_bsp_factory.return_value = mock_bsp
+
+    with pytest.raises(AppException, match="Media upload failed: upload error"):
+        await ChatDataProcessor.upload_media_to_bsp(
+            bot="test_bot",
+            user="user123",
+            channel="whatsapp",
+            file_path=str(dummy_file),
+            file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+        )
+
+    assert not os.path.exists(dummy_file)
+    Channels.objects().delete()
+    BotSettings.objects().delete()
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_valid(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (10 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    ChatDataProcessor.validate_media_file_type(mock_upload)
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_invalid_type(tmp_path):
+    test_file = tmp_path / "file.txt"
+    test_file.write_bytes(b"x" * 10)
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "script"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException, match="Invalid file type: script. Allowed types are: audio/aac,"
+                                           " audio/amr, audio/mpeg, audio/mp4, audio/ogg, text/plain,"
+                                           " application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+                                           " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+                                           " application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+                                           " application/pdf, image/jpeg, image/png, image/webp, video/3gpp, video/mp4."):
+        ChatDataProcessor.validate_media_file_type(mock_upload)
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_too_large(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (101 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException,
+                       match="File size 101.00 MB exceeds the limit of 100.00 MB for application/pdf."):
+        ChatDataProcessor.validate_media_file_type(mock_upload)
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+@patch("kairon.shared.utils.Utility.remove_file_path")
+async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_factory, tmp_path, caplog):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.return_value = "media123"
+    mock_bsp_factory.return_value = mock_bsp
+
+    mock_remove_file.side_effect = Exception("permission denied")
+
+    BotSettings(
+        bot="test_bot",
+        user="test@example.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow(),
+    ).save()
+    Channels(
+        bot="test_bot",
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog",
+        },
+        user="user123",
+        timestamp=datetime.utcnow(),
+    ).save()
+
+    result = await ChatDataProcessor.upload_media_to_bsp(
+        bot="test_bot",
+        user="user123",
+        channel="whatsapp",
+        file_path=str(dummy_file),
+        file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+    )
+
+    assert result == "media123"
+
+    mock_remove_file.assert_called_once_with(str(dummy_file))
+
+    assert os.path.exists(dummy_file)
+    Channels.objects().delete()
+    BotSettings.objects().delete()
