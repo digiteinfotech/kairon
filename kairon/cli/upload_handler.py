@@ -13,16 +13,16 @@ def import_file_content(args):
     logger.info("bot: {}", args.bot)
     logger.info("user: {}", args.user)
     logger.info("collection_name: {}", args.collection_name)
-    logger.info("overwrite: {}", args.overwrite)
     upload_type = getattr(args, "upload_type", UploadHandlerClass.crud_data.value)
     logger.info("upload_type: {}", upload_type)
+    logger.info("overwrite: {}", args.overwrite)
 
     UploadHandler(
         bot=args.bot,
         user=args.user,
         collection_name=args.collection_name,
-        overwrite=args.overwrite,
-        upload_type=upload_type
+        upload_type=upload_type,
+        overwrite=args.overwrite
     ).execute()
 
 
@@ -49,13 +49,13 @@ def add_subparser(subparsers: SubParsersAction, parents: List[ArgumentParser]):
                                    type=str,
                                    help="The collection name where data will be imported",
                                    action='store')
-    file_importer_parser.add_argument('--overwrite',
-                                   default=False,
-                                   action='store_true',
-                                   help="Overwrites existing data if true, else appends.")
     file_importer_parser.add_argument('upload_type',
                                       type=str,
                                       action='store',
                                       help="The upload type of the data provided")
+    file_importer_parser.add_argument('--overwrite',
+                                      default=False,
+                                      action='store_true',
+                                      help="Overwrites existing data if true, else appends.")
 
     file_importer_parser.set_defaults(func=import_file_content)
