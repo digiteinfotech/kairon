@@ -41,12 +41,13 @@ class CrudFileUploader(UploadHandlerBase):
         return is_event_data
 
     def create_payload(self, **kwargs):
+        overwrite = '--overwrite' if self.overwrite is True else ''
         return {
             "bot": kwargs.get('bot'),
             "user": kwargs.get('user'),
             "upload_type": kwargs.get('upload_type'),
             "collection_name": kwargs.get('collection_name'),
-            "overwrite": kwargs.get('overwrite')
+            "overwrite": overwrite
         }
 
     def execute(self, **kwargs):
