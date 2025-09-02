@@ -171,7 +171,7 @@ from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
 from ..chat.broadcast.data_objects import MessageBroadcastLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
-from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, \
+from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS
 from ..content_importer.content_processor import ContentImporterLogProcessor
 from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
