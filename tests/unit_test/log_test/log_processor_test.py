@@ -1,5 +1,5 @@
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -90,6 +90,9 @@ def test_get_logs_with_mocked_handlers(log_type, expected_handler_class, doc_typ
         mocked_get_handler.assert_called_once_with(
             log_type, doc_type, "test_bot", 0, 10
         )
+
+
+
 class DummyRequest:
     def __init__(self, query_params):
         self.query_params = query_params
