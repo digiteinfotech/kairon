@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 from mongoengine import DoesNotExist
@@ -1249,6 +1249,7 @@ def test_delete_collection_success():
         mock_query.delete.assert_called_once()
         assert result == ["Collection sample_collection deleted successfully!", 1]
 
+
 def test_delete_collection_not_found():
     with patch('kairon.shared.cognition.data_objects.CollectionData.objects') as mock_objects:
         mock_query = MagicMock()
@@ -1287,5 +1288,3 @@ def test_delete_collection_data_no_records():
 
         mock_collection_data.assert_called_once_with(bot="test_bot", user="aniket.kharkia@nimblework,com")
         mock_query.delete.assert_called_once()
-
-

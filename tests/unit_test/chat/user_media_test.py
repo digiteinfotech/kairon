@@ -5,8 +5,9 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from io import BytesIO
 
 from kairon.exceptions import AppException
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.user_media import UserMedia
-from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.data.data_objects import UserMediaData, BotSettings
 from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 from mongoengine import connect
 

@@ -515,5 +515,51 @@ class UserMedia:
             logger.exception(e)
             raise AppException(f"Failed to extract media information: {e}")
 
+    def get_media_ids(bot: str):
+        try:
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+            ).only("filename", "media_id")
 
+            if not media_data:
+                return []
 
+            return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
+
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
+
+    @staticmethod
+    def create_media_doc(
+            bot: str,
+            sender_id: str,
+            filename: str,
+            extension: str,
+            filesize: int,
+    ) -> UserMediaData:
+        """
+        Create a media document in pending state, return the instance so it can be updated later.
+        """
+        media_doc = UserMediaData(
+            media_id = "",
+            media_url = "",
+            filename = filename,
+            extension = extension,
+            output_filename = "",
+            summary = "",
+            upload_status = UserMediaUploadStatus.processing.value,
+            upload_type = UserMediaUploadType.broadcast.value,
+            filesize = filesize,
+            additional_log = "Upload initiated",
+            sender_id = sender_id,
+            bot = bot,
+            external_upload_info = {
+                "bsp": "360dialog",
+                "external_media_id": "",
+                "error": "",
+            },
+        )
+        media_doc.save()
+        return media_doc

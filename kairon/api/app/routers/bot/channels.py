@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Security, Path, Query
+from fastapi import APIRouter, Security, Path, Query, UploadFile, File
 from starlette.requests import Request
 
 from kairon import Utility
@@ -6,11 +6,13 @@ from kairon.api.models import (
     Response, DictData,
 )
 from kairon.events.definitions.message_broadcast import MessageBroadcastEvent
+from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.models import ChannelRequest, MessageBroadcastRequest
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, WhatsappBSPTypes, EventRequestType, ChannelTypes
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
@@ -275,3 +277,39 @@ async def get_user_posts(
     processor = InstagramProcessor(bot=current_user.get_bot(), user=current_user.get_user())
     user_posts = await processor.get_user_media_posts()
     return Response(data=user_posts["data"])
+
+@router.post("/{channel}/upload/media_upload", response_model = Response)
+async def upload_media_file_content(
+    channel: ChannelTypes,
+    file_content: UploadFile = File(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes = DESIGNER_ACCESS),
+):
+    """
+    Handles the upload of file content for processing, validation, and eventual storage.
+    """
+    ChatDataProcessor.validate_media_file_type(file_content)
+    file_path = await ChatDataProcessor.validate_and_save_media_file(
+        bot = current_user.get_bot(),
+        user = current_user.get_user(),
+        file_content = file_content,
+    )
+
+    media_id = await ChatDataProcessor.upload_media_to_bsp(
+        bot = current_user.get_bot(),
+        user = current_user.get_user(),
+        channel = channel,
+        file_path = file_path,
+        file_info = file_content,
+    )
+
+    return Response(message = "File uploaded successfully!", data = media_id)
+
+@router.get("/upload/media_upload", response_model=Response)
+async def get_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = UserMedia.get_media_ids(current_user.get_bot())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")

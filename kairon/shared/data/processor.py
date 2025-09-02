@@ -3,6 +3,7 @@ import itertools
 import re
 import shutil
 
+
 import ujson as json
 import os
 import uuid
@@ -136,7 +137,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA, MIME_TYPE_LIMITS
 )
 from .data_objects import (
     Responses,
@@ -176,9 +177,9 @@ from ..custom_widgets.data_objects import CustomWidgets
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
 from ..log_system.base import BaseLogHandler
-from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
+
 
 
 class MongoProcessor:

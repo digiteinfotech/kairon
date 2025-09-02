@@ -20,6 +20,7 @@ from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import UserMediaUploadStatus
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
@@ -1070,3 +1071,62 @@ class TestBusinessServiceProvider:
         UserMediaData.objects().delete()
         BotSettings.objects().delete()
         Channels.objects().delete()
+
+
+    @pytest.mark.asyncio
+    def test_get_media_ids_success(self):
+        bot = "682323a603ec3be7dcaa75bc"
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(
+            bot=bot,
+            user="test@example.com",
+            whatsapp="360dialog",
+            timestamp=datetime.utcnow(),
+        ).save()
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "bsp_type": "360dialog",
+                "client_name": "dummy",
+                "client_id": "dummy",
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow(),
+        ).save()
+
+        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+        UserMediaData(
+            media_id=media_id,
+            filename="sample.pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="user_uploaded",
+            filesize=12345,
+            sender_id="tester@example.com",
+            bot=bot,
+            extension= "image/png",
+            timestamp=datetime.utcnow(),
+            media_url="",
+            output_filename="",
+            external_upload_info={"bsp": "360dialog"},
+        ).save()
+
+        result = UserMedia.get_media_ids(bot)
+
+        assert isinstance(result, list)
+        assert result[0]["media_id"] == media_id
+        assert result[0]["filename"] == "sample.pdf"
+
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    def test_get_media_ids_no_channel_config(self):
+        bot = "682323a603ec3be7dcaa75bc"
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+
+        result = UserMedia.get_media_ids(bot)
+        assert result == []

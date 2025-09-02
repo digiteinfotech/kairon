@@ -369,7 +369,6 @@ async def upload_doc_content(
         event.enqueue()
     return {"message": "Document content upload in progress! Check logs."}
 
-
 @router.get("/content/error-report/{event_id}", response_model=Response)
 async def download_error_csv(
     event_id: str,
