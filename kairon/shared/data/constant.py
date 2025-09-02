@@ -12,6 +12,7 @@ from rasa.shared.core.slots import (
 
 TRAINING_DATA_GENERATOR_DIR = "data_generator"
 
+STATUSES = ["ACTIVE", "INACTIVE", "PENDING"]
 
 class RESPONSE(str, Enum):
     Text = "text"
