@@ -9328,31 +9328,37 @@ class MongoProcessor:
 
         raw_params = dict(request.query_params)
         valid_fields = MongoProcessor.get_field_ids_for_log_type(log_type)
-
         sanitized = {}
+        if raw_params:
+            if raw_params.get("from_date"):
+                from_date = raw_params.pop("from_date")
+                try:
+                    sanitized["from_date"] = date.fromisoformat(from_date)
+                except ValueError:
+                    raise AppException(f"Invalid date format for 'from_date': '{from_date}'. Use YYYY-MM-DD.")
+            if raw_params.get("to_date"):
+                to_date = raw_params.pop("to_date")
+                try:
+                    sanitized["to_date"] = date.fromisoformat(to_date)
+                except ValueError:
+                    raise AppException(f"Invalid date format for 'to_date': '{to_date}'. Use YYYY-MM-DD.")
+            if "from_date" in sanitized and "to_date" in sanitized and sanitized["from_date"] > sanitized["to_date"]:
+                raise AppException("'from date' should be less than or equal to 'to date'")
 
         for k, v in raw_params.items():
-            if k in {"from_date", "to_date"}:
-                try:
-                    sanitized[k] = date.fromisoformat(v)
-                except ValueError:
-                    raise ValueError(f"Invalid date format for '{k}': '{v}'. Use YYYY-MM-DD.")
-
-            elif k in {"start_idx", "page_size"}:
+            if k in {"start_idx", "page_size"}:
                 if not v.isdigit():
-                    raise ValueError(f"'{k}' must be a valid integer.")
+                    raise AppException(f"'{k}' must be a valid integer.")
                 sanitized[k] = int(v)
-
             else:
                 if Utility.check_empty_string(k):
-                    raise ValueError("Search key cannot be empty or blank.")
+                    raise AppException("Search key cannot be empty or blank.")
 
                 if k not in valid_fields:
-                    raise ValueError(f"Invalid query key: '{k}' for log_type: '{log_type}'")
+                    raise AppException(f"Invalid query key: '{k}' for log_type: '{log_type}'")
 
                 if Utility.check_empty_string(v):
-                    raise ValueError(f"Search value for key '{k}' cannot be empty or blank.")
+                    raise AppException(f"Search value for key '{k}' cannot be empty or blank.")
 
                 sanitized[k] = v
-
         return sanitized

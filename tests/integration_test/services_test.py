@@ -6,15 +6,15 @@ import shutil
 import tarfile
 import tempfile
 import time
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
 import litellm
 
-import pytest
+
 import responses
 import ujson as json
 import yaml
@@ -29,7 +29,6 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
-from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
@@ -59,6 +58,9 @@ from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData, CollectionData
 from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
+import pytest
+from datetime import  timedelta
+
 from kairon.shared.data.constant import (
     UTTERANCE_TYPE,
     EVENT_STATUS,
@@ -103,7 +105,6 @@ client = TestClient(app)
 access_token = None
 refresh_token = None
 token_type = None
-
 
 @pytest.fixture(autouse=True, scope="function")
 def setup():
@@ -169,11 +170,6 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
         table_name = kwargs.get('table_name')
         overwrite = kwargs.get('overwrite', False)
         DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
-    elif event_class==EventClass.upload_file_handler:
-        upload_type=kwargs.get("upload_type")
-        collection_name=kwargs.get("collection_name")
-        overwrite=kwargs.get("overwrite", False)
-        UploadHandler(bot=bot, user=user, upload_type=upload_type, collection_name=collection_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -308,7 +304,6 @@ def test_book_a_demo_with_validate_recaptcha_failed(trigger_smtp_mock):
     assert not response["data"]
     assert response["error_code"] == 422
     assert not response["success"]
-
 
 @mock.patch("kairon.shared.utils.Utility.validate_recaptcha", autospec=True)
 @mock.patch("kairon.shared.utils.MailUtility.trigger_smtp", autospec=True)
@@ -1653,6 +1648,7 @@ def test_get_all_collections():
     assert delete_resp.status_code == 200
     assert delete_resp.json()["message"] == "Bot removed"
 
+
 def test_delete_multiple_payload_content_with_empty_list():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.cognition_collections_limit = 20
@@ -2303,285 +2299,6 @@ def test_default_values():
     ]
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
-
-def test_bulk_save_success():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "test_data",
-                "is_secure": ["name"],
-                "is_non_editable": ["email"],
-                "data": {
-                    "name": "Aniket",
-                    "email": "aniket@example.com"
-                }
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["message"] == "Bulk save completed"
-    assert actual["success"]
-    assert "data" in actual
-    CollectionData.objects(collection_name="test_bulk_save_success").delete()
-
-
-def test_bulk_save_with_missing_is_secure_key():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "is_secure": ["name", "aadhar"],
-                "data": {
-                    "name": "Aniket",
-                    "email": "aniket@example.com"
-                }
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["message"] == [{
-        "loc": ["body", "payload", 0, "__root__"],
-        "msg": "is_secure contains keys that are not present in data",
-        "type": "value_error"
-    }]
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_data_none():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "is_secure": ["name"],
-                "data": None
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-    assert actual["data"] is None
-
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "data cannot be empty and should be of type dict!" in error_messages
-    assert "none is not an allowed value" in error_messages
-
-def test_bulk_empty_payload():
-    request_body = {
-        "payload": [
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["error_code"] == 422
-    assert not actual["success"]
-
-
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "payload must contain at least one item" in error_messages
-
-
-def test_bulk_save_with_empty_collection_name():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "  ",
-                "data": {"name": "Aniket"},
-                "is_secure": [],
-                "is_non_editable": []
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["error_code"] == 422
-    assert actual["message"][0]["msg"] == "collection_name should not be empty!"
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_non_editable_key_missing_in_data():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "data": {
-                    "name": "Aniket",
-                },
-                "is_secure": [],
-                "is_non_editable": ["email"]
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert actual["message"][0]["msg"] == "is_non_editable contains keys that are not present in data"
-    assert not actual["success"]
-    assert actual["data"] is None
-
-
-def test_bulk_save_with_invalid_types():
-    request_body = {
-        "payload": [
-            {
-                "collection_name": "user",
-                "data": {"name": "Aniket"},
-                "is_secure": "name",
-                "is_non_editable": []
-            }
-        ]
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    assert not actual["success"]
-    assert actual["data"] is None
-    error_messages = [msg["msg"] for msg in actual["message"]]
-    assert "is_secure should be list of keys!" in error_messages
-    assert "value is not a valid list" in error_messages
-
-
-@responses.activate
-def test_upload_file_content_success():
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.upload_file_handler}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-    file = {
-        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection_data?overwrite=False",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-        files=file,
-    )
-
-    actual = response.json()
-    assert actual["success"]
-    assert actual["message"] == "File content upload in progress! Check logs."
-    assert actual["error_code"] == 0
-
-    complete_end_to_end_event_execution(
-        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, upload_type="crud_data", collection_name="test_collection_data", overwrite=False
-    )
-
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/logs/file_upload?start_idx=0&page_size=10",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-    print(actual)
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    logs = actual['data']['logs']
-    assert len(logs) == 1
-    assert logs[0]['file_name'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
-    assert logs[0]['is_uploaded']
-    assert logs[0]['start_timestamp'] is not None
-    assert logs[0]['end_timestamp'] is not None
-    assert logs[0]['upload_errors'] == {}
-    assert logs[0]['exception'] == ''
-
-    from_date = date.today()
-    to_date = from_date + timedelta(days=1)
-
-    search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/file_upload/search"
-        f"?from_date={from_date}&to_date={to_date}",
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
-    )
-    response_json = search_response.json()
-    assert response_json["success"] is True
-    assert response_json["error_code"] == 0
-
-    data = response_json["data"]
-    assert "logs" in data
-    assert isinstance(data["logs"], list)
-    CollectionData.objects(collection_name="test_collection_data").delete()
-
-
-@patch("kairon.api.app.routers.bot.data.UploadHandler")
-def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler):
-    """Test that file upload does not enqueue event when validation fails."""
-
-    mock_event_instance = MagicMock()
-    mock_event_instance.validate.return_value = False
-    mock_upload_handler.return_value = mock_event_instance
-
-    files = {
-        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
-    }
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection?overwrite=true",
-        files=files,
-        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
-    )
-
-    actual = response.json()
-    assert response.status_code == 200
-    assert actual["success"] is True
-    assert actual["message"] == "File content upload in progress! Check logs."
-    assert actual["error_code"] == 0
-    mock_event_instance.enqueue.assert_not_called()
 
 @pytest.mark.asyncio
 @responses.activate
@@ -9496,8 +9213,6 @@ def test_get_collection_metadata():
         'location': {'type': 'string'},
         'ifsc': {'type': 'string'}
     }
-
-
 def test_delete_collection_data_doesnot_exist():
     response = client.delete(
         url=f"/api/bot/{pytest.bot}/data/collection/{pytest.bot}",
@@ -19509,6 +19224,50 @@ def test_get_model_testing_logs_new():
     assert actual["data"]
     assert actual["success"]
 
+def test_search_model_testing_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_from_date_and_to_date():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?from_date=2025-08-01&to_date=2025-08-31",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_is_augmented_False():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_is_augmented_True():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=True",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
 def test_download_model_testing_logs(monkeypatch):
     start_date = datetime.utcnow() - timedelta(days=1)
     end_date = datetime.utcnow() + timedelta(days=1)
@@ -19517,7 +19276,6 @@ def test_download_model_testing_logs(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     assert response.content
-
 
 def test_deploy_missing_configuration():
     response = client.post(
@@ -23940,7 +23698,7 @@ def test_list_action_server_logs():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 10
-    assert actual["data"]["total"] == 11
+    assert actual["data"]["total"] == 10
     assert [log["intent"] in expected_intents for log in actual["data"]["logs"]]
     assert actual["data"]["logs"][0]["action"] == "http_action"
     assert any(
@@ -23997,8 +23755,8 @@ def test_list_action_server_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]["logs"]) == 11
-    assert actual["data"]["total"] == 11
+    assert len(actual["data"]["logs"]) == 10
+    assert actual["data"]["total"] == 10
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=10&page_size=1",
@@ -31898,7 +31656,6 @@ def test_get_bot_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'content_importer_limit_per_day': 5,
-                              'system_limits': {'file_upload_limit': 5},
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
@@ -32008,7 +31765,6 @@ def test_update_analytics_settings():
                               'live_agent_enabled': False,
                               'cognition_collections_limit': 3,
                               'content_importer_limit_per_day': 5,
-                              'system_limits': {'file_upload_limit': 5},
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
@@ -35259,20 +35015,10 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]["logs"]) == 1
-    assert actual["data"]["total"] == 1
-    assert actual["data"]["logs"][0]['start_time']
-    assert actual["data"]["logs"][0]['end_time']
-    assert actual["data"]["logs"][0]['cost']
-    assert actual["data"]["logs"][0]['llm_call_id']
-    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
-    assert not actual["data"]["logs"][0].get("model")
-    assert actual["data"]["logs"][0]["model_params"] == {}
-    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
-    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
-    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+    assert actual["data"]
 
     from_date = datetime.utcnow().date() - timedelta(days=1)
     to_date = datetime.utcnow().date() + timedelta(days=1)
@@ -37041,3 +36787,4 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
+

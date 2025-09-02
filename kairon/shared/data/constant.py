@@ -12,6 +12,7 @@ from rasa.shared.core.slots import (
 
 TRAINING_DATA_GENERATOR_DIR = "data_generator"
 
+STATUSES = ["ACTIVE", "INACTIVE", "PENDING"]
 
 class RESPONSE(str, Enum):
     Text = "text"
@@ -109,12 +110,6 @@ class EVENT_STATUS(str, Enum):
     DONE = "Done"
     FAIL = "Fail"
     ABORTED = "Aborted"
-
-
-class STATUSES(str, Enum):
-    SUCCESS = "Success"
-    FAIL = "Failure"
-
 
 class SYNC_STATUS(str, Enum):
     INITIATED = "Initiated"
@@ -284,7 +279,6 @@ class LogTypes(str, Enum):
     agent_handoff = "agent_handoff"
     audit = "audit"
     model_test = "model_test"
-    file_upload = "file_upload"
 
 LOG_TYPE_METADATA = {
     LogTypes.actions: [
