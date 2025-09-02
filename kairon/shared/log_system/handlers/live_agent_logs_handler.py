@@ -19,7 +19,7 @@ class AgentHandoffLogHandler(BaseLogHandler):
 
     def get_logs_for_search_query(self):
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
-        query["bot"] = self.bot,
+        query["bot"] = self.bot
         query["metric_type"] = "agent_handoff"
         logs_cursor = (
             self.doc_type.objects(**query)
