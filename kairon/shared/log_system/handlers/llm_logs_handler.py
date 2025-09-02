@@ -27,7 +27,7 @@ class LLMLogHandler(BaseLogHandler):
             query["metadata__invocation"] = invocation
 
         logs_cursor = (
-            self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(self.page_size).exclude(
+            self.doc_type.objects(**query).order_by("-start_time").skip(self.start_idx).limit(self.page_size).exclude(
                 "id"))
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)

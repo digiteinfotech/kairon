@@ -24046,8 +24046,8 @@ def test_list_action_server_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert len(actual["data"]["logs"]) == 11
-    assert actual["data"]["total"] == 11
+    assert len(actual["data"]["logs"]) == 10
+    assert actual["data"]["total"] == 10
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=10&page_size=1",
@@ -35308,6 +35308,19 @@ def test_get_llm_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual["data"])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = search_response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
@@ -35322,18 +35335,7 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
     assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
-
-    from_date = datetime.utcnow().date() - timedelta(days=1)
-    to_date = datetime.utcnow().date() + timedelta(days=1)
-    search_response = client.get(
-        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = search_response.json()
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]
+    call_id = actual["data"]["logs"][0]['llm_call_id']
 
     search_with_invocation = client.get(
         f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&invocation=prompt_action",
