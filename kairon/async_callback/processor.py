@@ -15,7 +15,6 @@ from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
-mongo_processor = MongoProcessor()
 
 class CallbackProcessor:
     @staticmethod
@@ -142,7 +141,7 @@ class CallbackProcessor:
         predefined_objects.update(entry)
         bot = entry.get("bot")
         action_name = entry.get("action_name")
-        callback_action_config = mongo_processor.get_callback_action(bot, action_name)
+        callback_action_config = MongoProcessor.get_callback_action(bot, action_name)
         dispatch_response = callback_action_config.get("dispatch_bot_response")
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
