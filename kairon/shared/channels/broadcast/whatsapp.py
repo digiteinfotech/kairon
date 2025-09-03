@@ -351,8 +351,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
             evaluation_log = {
-                f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
-                                     f"Sending {num_msg} messages to {num_msg} recipients."
+                f"Template {i + 1}":
+                    f"[{template_id}] There are {total} recipients and {len(template_params)} template bodies. "
+                    f"Sending {num_msg} messages to {num_msg} recipients."
             }
 
             message_list = []
