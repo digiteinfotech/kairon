@@ -1308,7 +1308,8 @@ class TestEventExecution:
                                  {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
                                 [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
                                  {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
-            'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+            'Template 1': '[brochure_pdf] There are 2 recipients and 2 template bodies. '
+                          'Sending 2 messages to 2 recipients.'
         }
         print(logs[0][1])
         assert logs[0][1] == {
@@ -1502,7 +1503,8 @@ class TestEventExecution:
             'total': 1,
             'template_params': [[{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
                                  {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
-            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
+                          'Sending 1 messages to 1 recipients.'
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -1705,7 +1707,8 @@ class TestEventExecution:
             'total': 1,
             'template_params': [[{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
                                  {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}]],
-            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
+                          'Sending 1 messages to 1 recipients.'
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -1917,7 +1920,8 @@ class TestEventExecution:
                      'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
                 'type': 'header'},
                 {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}]],
-            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
+                          'Sending 1 messages to 1 recipients.'
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -2129,7 +2133,8 @@ class TestEventExecution:
                          'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
                 'type': 'header'},
                 {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
-            'Template 1': 'There are 1 recipients and 1 template bodies. Sending 1 messages to 1 recipients.'
+            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
+                          'Sending 1 messages to 1 recipients.'
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -2615,7 +2620,8 @@ class TestEventExecution:
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
                               'user': 'test_user', 'recipients': {'', '918958030541'},
                               'failure_cnt': 0, 'total': 2,
-                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+                              'Template 1': '[brochure_pdf] There are 2 recipients and 2 template bodies. '
+                                            'Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
@@ -2734,7 +2740,8 @@ class TestEventExecution:
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                       'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2,
-                              'Template 1': 'There are 2 recipients and 4 template bodies. Sending 2 messages to 2 recipients.'
+                              'Template 1': '[brochure_pdf] There are 2 recipients and 4 template bodies. '
+                                            'Sending 2 messages to 2 recipients.'
                               }
         logs[0][1].pop("timestamp")
         logs[0][1].pop("recipient")
@@ -3063,7 +3070,8 @@ class TestEventExecution:
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
                               'user': 'test_user', 'recipients': {'918958030541', ''}, 'failure_cnt': 0, 'total': 2,
                               'template_params': [[{'body': 'Udit Pandey'}]],
-                              'Template 1': 'There are 2 recipients and 2 template bodies. Sending 2 messages to 2 recipients.'
+                              'Template 1': '[agronomy_support] There are 2 recipients and 2 template bodies. '
+                                            'Sending 2 messages to 2 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
