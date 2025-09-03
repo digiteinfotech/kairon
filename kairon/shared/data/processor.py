@@ -8702,7 +8702,8 @@ class MongoProcessor:
         if not callback_action:
             raise AppException("Async callback action not found")
 
-    def get_callback_action(self, bot: Text, name: Text):
+    @staticmethod
+    def get_callback_action(bot: Text, name: Text):
         """
         Retrieve async callback action config.
 

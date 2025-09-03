@@ -8,13 +8,13 @@ from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode, CallbackResponseType
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
-
 
 class CallbackProcessor:
     @staticmethod
@@ -82,14 +82,14 @@ class CallbackProcessor:
             raise AppException(f"Error while executing pyscript: {str(e)}")
 
     @staticmethod
-    async def async_callback(obj: dict, ent: dict, cb: dict, c_src: str, bot_id: str, sid: str, chnl: str, rd: dict):
+    async def async_callback(obj: dict, ent: dict, cb: dict, c_src: str, bot_id: str, sid: str, chnl: str, ds: bool, rd: dict):
         try:
             if not obj:
                 raise AppException("No response received from callback script")
             elif res := obj.get('result'):
                 bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(res)
                 CallbackData.update_state(ent['bot'], ent['identifier'], state, invalidate)
-                if bot_response:
+                if ds:
                     await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,
@@ -139,6 +139,9 @@ class CallbackProcessor:
         entry, callback = CallbackData.validate_entry(token, identifier, request_data.get('body'))
         predefined_objects.update(entry)
         bot = entry.get("bot")
+        action_name = entry.get("action_name")
+        callback_action_config = MongoProcessor.get_callback_action(bot, action_name)
+        dispatch_response = callback_action_config.get("dispatch_bot_response")
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
         try:
@@ -146,7 +149,7 @@ class CallbackProcessor:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
 
                 async def callback_function(rsp: dict):
-                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
+                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), dispatch_response, request_data)
                     await copied_func()
 
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
@@ -160,7 +163,7 @@ class CallbackProcessor:
                 CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
                 data = bot_response
                 logger.info(f'Pyscript output: {bot_response, state, invalidate}')
-                if data:
+                if dispatch_response:
                     await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,
