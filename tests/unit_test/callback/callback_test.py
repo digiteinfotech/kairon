@@ -523,9 +523,10 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
+    ds = True
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
 
     mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result']['bot_response'], chnl)
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
@@ -546,9 +547,10 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
+    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
 
     mock_dispatch_message.assert_not_called()
     mock_success_entry.assert_not_called()
@@ -569,9 +571,10 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
+    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
         channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
@@ -589,9 +592,10 @@ async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
+    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
         channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
