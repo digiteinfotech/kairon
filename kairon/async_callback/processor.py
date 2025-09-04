@@ -82,14 +82,14 @@ class CallbackProcessor:
             raise AppException(f"Error while executing pyscript: {str(e)}")
 
     @staticmethod
-    async def async_callback(obj: dict, ent: dict, cb: dict, c_src: str, bot_id: str, sid: str, chnl: str, ds: bool, rd: dict):
+    async def async_callback(obj: dict, ent: dict, cb: dict, c_src: str, bot_id: str, sid: str, chnl: str, dispatch_response: bool, rd: dict):
         try:
             if not obj:
                 raise AppException("No response received from callback script")
             elif res := obj.get('result'):
                 bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(res)
                 CallbackData.update_state(ent['bot'], ent['identifier'], state, invalidate)
-                if ds:
+                if dispatch_response:
                     await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,

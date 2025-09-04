@@ -61,12 +61,11 @@ class TestFileImporter:
         assert len(result["payload"]) == 20
 
         first_item = result["payload"][0]
-        assert first_item["collection_name"] == "test_collection"
         assert isinstance(first_item["data"], dict)
-        assert first_item["data"]["order_id"] == "67"
+        assert first_item["data"]["order_id"] == 67.0
         assert first_item["data"]["order_priority"] == "Low"
-        assert first_item["data"]["profit"] == "54.98"
-        assert first_item["data"]["sales"] == "12.34"
+        assert first_item["data"]["profit"] == 54.98
+        assert first_item["data"]["sales"] == 12.34
 
     def test_preprocess_empty_csv(self, sample_csv_file):
 
@@ -80,6 +79,19 @@ class TestFileImporter:
         )
 
         with pytest.raises(ValueError, match="CSV file is empty or contains no valid data"):
+            file_importer.preprocess()
+
+    def test_empty_csv_raises(self, sample_csv_file):
+        file_importer = FileImporter(
+            path=sample_csv_file,
+            bot="test_bot",
+            user="test_user",
+            file_received="Salesstore_empty_file.csv",
+            collection_name="test_collection",
+            overwrite=False
+        )
+
+        with pytest.raises(ValueError, match="CSV file is empty"):
             file_importer.preprocess()
 
     def test_import_data(self, sample_csv_file):

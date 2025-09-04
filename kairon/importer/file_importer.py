@@ -1,6 +1,8 @@
 from typing import Text
 import os
-import csv
+import pandas as pd
+from bson import json_util
+import json
 
 from kairon.shared.data.collection_processor import DataProcessor
 
@@ -23,41 +25,33 @@ class FileImporter:
 
     def preprocess(self):
         file_path = os.path.join(self.path, self.file_received)
-        data = []
-        row_num=0
+
         try:
-            with open(file_path, mode='r', newline='', encoding='utf-8') as csv_file:
-                csv_reader = csv.DictReader(csv_file)
-                for row_num, row in enumerate(csv_reader, start=1):
-                    if not row:
-                        continue
+            df = pd.read_csv(file_path)
+            df.columns = df.columns.str.strip()
+            df = df.astype(object).where(pd.notna(df), None)
 
-                    clean_row = {}
-                    for key, value in row.items():
-                        norm_key = key.lower().strip() if isinstance(key, str) else key
-                        if isinstance(value, str):
-                            norm_val = value.strip()
-                        elif value is None:
-                            norm_val = ""
-                        else:
-                            norm_val = value
-                        clean_row[norm_key] = norm_val
+            records = df.to_dict(orient="records")
+            normalized_records = json.loads(json_util.dumps(records))
 
+            data = []
+            for record in normalized_records:
+                data.append({
+                    "is_secure": [],
+                    "is_non_editable": [],
+                    "data": record
+                })
 
-                    data.append({
-                        "collection_name": self.collection_name,
-                        "is_secure": [],
-                        "is_non_editable": [],
-                        "data": clean_row
-                    })
-        except csv.Error as e:
-            raise ValueError(f"Error parsing CSV file at line {row_num}: {str(e)}")
+        except pd.errors.EmptyDataError:
+            raise ValueError("CSV file is empty")
         except UnicodeDecodeError as e:
             raise ValueError(f"File encoding error. Please ensure the file is UTF-8 encoded: {str(e)}")
+
         if not data:
             raise ValueError("CSV file is empty or contains no valid data")
 
         return {"payload": data}
+
 
     def import_data(self, collections_data):
         if collections_data:
