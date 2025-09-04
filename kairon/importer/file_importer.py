@@ -1,6 +1,8 @@
 from typing import Text
 import os
 import pandas as pd
+from bson import json_util
+import json
 
 from kairon.shared.data.collection_processor import DataProcessor
 
@@ -27,28 +29,17 @@ class FileImporter:
         try:
             df = pd.read_csv(file_path)
             df.columns = df.columns.str.strip()
-            df = df.where(pd.notna(df), None)
+            df = df.astype(object).where(pd.notna(df), None)
 
             records = df.to_dict(orient="records")
-
-            def json_safe(val):
-                if isinstance(val, (pd._libs.missing.NAType, pd.NaT.__class__)):
-                    return None
-                if isinstance(val, (pd.Timestamp, pd.Timedelta)):
-                    return str(val)
-                if pd.isna(val):
-                    return None
-                if isinstance(val, (int, float, str, bool)) or val is None:
-                    return val
-                return val.item() if hasattr(val, "item") else str(val)
+            normalized_records = json.loads(json_util.dumps(records))
 
             data = []
-            for row in records:
-                clean_row = {k: json_safe(v) for k, v in row.items()}
+            for record in normalized_records:
                 data.append({
                     "is_secure": [],
                     "is_non_editable": [],
-                    "data": clean_row
+                    "data": record
                 })
 
         except pd.errors.EmptyDataError:
