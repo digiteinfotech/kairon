@@ -314,7 +314,6 @@ class DataProcessor:
     def save_bulk_collection_data(payloads: List[Dict], user: Text, bot: Text, collection_name: Text):
         collection_docs = []
         errors = []
-        collection_name=collection_name
 
         for index, payload in enumerate(payloads):
             try:
