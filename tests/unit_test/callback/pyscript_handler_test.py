@@ -1455,6 +1455,57 @@ def test_get_crud_metadata_without_collection_name():
         PyscriptSharedUtility.get_crud_metadata(collection_name="", bot='test_bot', user='test_user')
 
 
+def test_get_crud_metadata_with_unsupported_data():
+    from bson.int64 import Int64
+    from bson.decimal128 import Decimal128
+    from bson.objectid import ObjectId
+    from datetime import datetime
+    import uuid
+
+    data1 = {
+        "phone_number": Int64(919876543210),
+        "credit_limit": Decimal128("12345.67"),
+        "customer_id": ObjectId("64cfe7d2f1a4b59c4e6c6d11"),
+        "joined_at": datetime.utcnow(),
+        "session_uuid": uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+        "profile_image": b"hello world"
+    }
+
+    data2 = {
+        "phone_number": Int64(919876543201),
+        "credit_limit": Decimal128("12111.67"),
+        "customer_id": ObjectId("64cfe7d2f1a4b59c4e6c6d11"),
+        "joined_at": datetime.utcnow(),
+        "session_uuid": uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+        "profile_image": b"hello world buddy"
+    }
+    mock_doc1 = MagicMock()
+    mock_doc1.data = data1
+
+    mock_doc2 = MagicMock()
+    mock_doc2.data = data2
+
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
+
+    with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
+        result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
+        assert result == {
+            '$schema': 'http://json-schema.org/schema#',
+            'type': 'object',
+            'properties': {
+                'phone_number': {'type': 'integer'},
+                'credit_limit': {'type': 'number'},
+                'customer_id': {'type': 'string'},
+                'joined_at': {'type': 'string'},
+                'session_uuid': {'type': 'string'},
+                'profile_image': {'type': 'string'}
+            },
+            'required': ['credit_limit', 'customer_id', 'joined_at', 'phone_number', 'profile_image', 'session_uuid']
+        }
+
+
+
 def test_get_crud_metadata():
     data1 = {
         "mobile_number": "919876543210",
@@ -1477,7 +1528,8 @@ def test_get_crud_metadata():
     mock_doc2 = MagicMock()
     mock_doc2.data = data2
 
-    mock_queryset = [mock_doc1, mock_doc2]
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
@@ -1521,7 +1573,8 @@ def test_get_crud_metadata_with_object_error():
     mock_doc2 = MagicMock()
     mock_doc2.data = data2
 
-    mock_queryset = [mock_doc1, mock_doc2]
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
@@ -1558,7 +1611,8 @@ def test_get_crud_metadata_with_no_data():
     mock_doc2 = MagicMock()
     mock_doc2.data = None
 
-    mock_queryset = [mock_doc1, mock_doc2]
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
@@ -1586,7 +1640,8 @@ def test_get_crud_metadata_with_invalid_data():
     mock_doc2 = MagicMock()
     mock_doc2.data = []
 
-    mock_queryset = [mock_doc1, mock_doc2]
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')
@@ -1614,7 +1669,8 @@ def test_get_crud_metadata_without_data():
     mock_doc2 = MagicMock()
     mock_doc2.data = {}
 
-    mock_queryset = [mock_doc1, mock_doc2]
+    mock_queryset = MagicMock()
+    mock_queryset.limit.return_value = [mock_doc1, mock_doc2]
 
     with patch("kairon.shared.cognition.data_objects.CollectionData.objects", return_value=mock_queryset):
         result = PyscriptSharedUtility.get_crud_metadata('testing_crud_api', 'test_user', 'test_bot')

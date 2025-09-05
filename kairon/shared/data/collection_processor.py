@@ -49,7 +49,7 @@ class DataProcessor:
         from genson import SchemaBuilder
         from genson.schema.node import SchemaGenerationError
 
-        documents = CollectionData.objects(bot=bot, collection_name=collection_name)
+        documents = CollectionData.objects(bot=bot, collection_name=collection_name).limit(100)
 
         if not documents:
             logger.warning(f"Collection Data not found: bot={bot}, collection_name={collection_name}")
@@ -61,6 +61,7 @@ class DataProcessor:
         for doc in documents:
             nested_data = getattr(doc, "data", None)
             if isinstance(nested_data, dict):
+                nested_data = Utility.normalize_types(nested_data)
                 try:
                     builder.add_object(nested_data)
                 except SchemaGenerationError as e:

@@ -2247,6 +2247,26 @@ class Utility:
             raise AppException("First name and last name can only contain letters, numbers, spaces and underscores.")
 
     @staticmethod
+    def normalize_types(obj):
+        if isinstance(obj, bson.Int64):
+            return int(obj)
+        elif isinstance(obj, bson.Decimal128):
+            return float(obj.to_decimal())
+        elif isinstance(obj, bson.ObjectId):
+            return str(obj)
+        elif isinstance(obj, (date, datetime)):
+            return obj.isoformat()
+        elif isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, (bytes, bytearray)):
+            return obj.decode("utf-8", errors="ignore")
+        elif isinstance(obj, dict):
+            return {k: Utility.normalize_types(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [Utility.normalize_types(v) for v in obj]
+        return obj
+
+    @staticmethod
     def get_client_ip(request):
         if request.headers.get("X-Forwarded-For"):
             client_ip = request.headers.get("X-Forwarded-For")
