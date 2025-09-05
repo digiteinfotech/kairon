@@ -124,7 +124,7 @@ def test_query_includes_dates(mock_action_handler):
 
     query = mock_action_handler.doc_type.objects.call_args.kwargs
     assert query["timestamp__gte"] == custom_from
-    assert query["timestamp__lte"] == custom_to
+    assert query["timestamp__lte"] == custom_to + timedelta(days=1)
 
 def test_default_dates_for_actions_logs(mock_action_handler):
     mock_action_handler.doc_type.objects = MagicMock()
@@ -184,7 +184,7 @@ def test_custom_from_to_dates_for_audit_logs():
 
     query = handler.doc_type.objects.call_args.kwargs
     assert query["timestamp__gte"] == from_date
-    assert query["timestamp__lte"] == to_date
+    assert query["timestamp__lte"] == to_date + timedelta(days=1)
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
@@ -227,7 +227,7 @@ def test_custom_from_to_dates_for_callback_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     assert query_kwargs["timestamp__gte"] == from_date
-    assert query_kwargs["timestamp__lte"] == to_date
+    assert query_kwargs["timestamp__lte"] == to_date + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def mock_executor_handler(kwargs=None):
@@ -269,7 +269,7 @@ def test_custom_from_to_dates_for_executor_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     assert query_kwargs["timestamp__gte"] == from_date
-    assert query_kwargs["timestamp__lte"] == to_date
+    assert query_kwargs["timestamp__lte"] == to_date + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def mock_llm_handler(kwargs=None):
@@ -311,7 +311,7 @@ def test_custom_from_to_dates_for_llm_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     assert query_kwargs["start_time__gte"] == from_date
-    assert query_kwargs["start_time__lte"] == to_date
+    assert query_kwargs["start_time__lte"] == to_date + timedelta(days=1)
     assert query_kwargs["metadata__bot"] == "test-bot"
 
 def mock_model_testing_handler(kwargs=None):
@@ -354,7 +354,7 @@ def test_custom_from_to_dates_for_model_testing_logs():
 
     query_kwargs = handler.doc_type.objects.call_args.kwargs
     assert query_kwargs["start_timestamp__gte"] == from_date
-    assert query_kwargs["start_timestamp__lte"] == to_date
+    assert query_kwargs["start_timestamp__lte"] == to_date + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 
