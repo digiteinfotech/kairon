@@ -2250,19 +2250,19 @@ class Utility:
     def normalize_types(obj):
         if isinstance(obj, bson.Int64):
             return int(obj)
-        if isinstance(obj, bson.Decimal128):
+        elif isinstance(obj, bson.Decimal128):
             return float(obj.to_decimal())
-        if isinstance(obj, bson.ObjectId):
+        elif isinstance(obj, bson.ObjectId):
             return str(obj)
-        if isinstance(obj, (date, datetime)):
+        elif isinstance(obj, (date, datetime)):
             return obj.isoformat()
-        if isinstance(obj, uuid.UUID):
+        elif isinstance(obj, uuid.UUID):
             return str(obj)
-        if isinstance(obj, (bytes, bytearray)):
+        elif isinstance(obj, (bytes, bytearray)):
             return obj.decode("utf-8", errors="ignore")
-        if isinstance(obj, dict):
+        elif isinstance(obj, dict):
             return {k: Utility.normalize_types(v) for k, v in obj.items()}
-        if isinstance(obj, list):
+        elif isinstance(obj, list):
             return [Utility.normalize_types(v) for v in obj]
         return obj
 

@@ -49,7 +49,7 @@ class DataProcessor:
         from genson import SchemaBuilder
         from genson.schema.node import SchemaGenerationError
 
-        documents = CollectionData.objects(bot=bot, collection_name=collection_name)
+        documents = CollectionData.objects(bot=bot, collection_name=collection_name).limit(100)
 
         if not documents:
             logger.warning(f"Collection Data not found: bot={bot}, collection_name={collection_name}")
