@@ -304,9 +304,15 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 return {"type": "text", "text": str(resolved)}
 
             if param_type in MEDIA_TYPES and param_type in param:
-                link_val = param[param_type].get("link", "")
-                resolved_link = _map_field_value(link_val, record, section_type, param_type)
-                return {"type": param_type, param_type: {"link": str(resolved_link)}}
+                media_dict = param[param_type]
+
+                if "id" in media_dict:
+                    return {"type": param_type, param_type: {"id": media_dict["id"]}}
+
+                if "link" in media_dict:
+                    link_val = media_dict["link"]
+                    resolved_link = _map_field_value(link_val, record, section_type, param_type)
+                    return {"type": param_type, param_type: {"link": str(resolved_link)}}
 
             return param
 
