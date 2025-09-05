@@ -95,7 +95,7 @@ class BaseLogHandler(ABC):
     @staticmethod
     def get_default_dates(kwargs, logs):
         from_date = kwargs.pop("from_date", None) or (datetime.utcnow() - timedelta(days=30))
-        to_date = kwargs.pop("to_date", None) or datetime.utcnow()
+        to_date = (kwargs.pop("to_date", None) + timedelta(days=1)) if kwargs.get("to_date") else datetime.utcnow()
         if logs == "count":
             return from_date, to_date
         elif logs == "search":
