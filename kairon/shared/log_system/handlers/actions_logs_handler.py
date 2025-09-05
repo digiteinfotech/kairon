@@ -7,7 +7,8 @@ class ActionLogHandler(BaseLogHandler):
         query = {
             "bot": self.bot,
             "timestamp__gte": from_date,
-            "timestamp__lte": to_date
+            "timestamp__lte": to_date,
+            "trigger_info__trigger_id": "",
         }
         logs_cursor = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
             self.page_size).exclude("bot")
@@ -20,7 +21,7 @@ class ActionLogHandler(BaseLogHandler):
         query["bot"] = self.bot
         query["trigger_info__trigger_id"] = ""
         logs_cursor = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
-            self.page_size).exclude("id")
+            self.page_size).exclude("bot")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
