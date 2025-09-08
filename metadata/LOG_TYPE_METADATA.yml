@@ -1,0 +1,352 @@
+logs:
+  actions:
+    - id: action
+      header: logsPage.actionName
+      cellComponent: ActionCell
+      filterType: text
+    - id: type
+      header: logsPage.actionType
+      cellComponent: TypeCell
+      filterType: action
+    - id: intent
+      header: common.intent
+      cellComponent: SimpleCell
+      filterType: text
+    - id: user_msg
+      header: formLabels.userMessage
+      cellComponent: UserMessageCell
+      filterType: text
+    - id: timestamp
+      header: logsPage.timestamp
+      accessorFunction: formatLocalTimestamp
+      cellComponent: SimpleCell
+    - id: status
+      header: logsPage.status
+      cellComponent: StatusCell
+      filterType: status
+
+  importer:
+    - id: files_received
+      header: logsPage.filesUploaded
+      cellComponent: FilesUploadedCell
+    - id: start_timestamp
+      header: common.startTimeHeader
+      accessorFunction: formatStartTime
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      header: common.endTimeHeader
+      accessorFunction: formatEndTimeOrInProgress
+      cellComponent: EndTimestampInProgressCell
+    - id: event_status
+      header: logsPage.uploadStatus
+      cellComponent: SimpleCell
+      filterType: text
+    - id: status
+      header: logsPage.fileProcessingStatus
+      cellComponent: StatusCell
+      filterType: status
+
+  agent_handoff:
+    - id: agent_type
+      header: logsPage.agentType
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: sender_id
+      header: logsPage.senderId
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      header: logsPage.timeStamp
+      accessorFunction: formatTimeOrInProgress
+      cellComponent: AuditLogsTimestampInProgressCell
+
+  history_deletion:
+    - header: common.user
+      id: user
+      cellComponent: ClickableNameCell
+      filterType: text
+    - header: logsPage.sender
+      id: sender_id
+      cellComponent: SimpleCell
+      filterType: text
+    - id: till_date
+      header: logsPage.tillDate
+      accessorFunction: formatTillDate
+      cellComponent: FormattedTillDateCell
+      filterType: date
+    - id: start_timestamp
+      header: logsPage.startTimeStamp
+      accessorFunction: formatStartTime
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      header: logsPage.endTimeStamp
+      accessorFunction: formatEndTimeOrInProgress
+      cellComponent: EndTimestampInProgressCell
+    - header: logsPage.status
+      id: status
+      cellComponent: StatusCell
+      filterType: status
+
+  model_test:
+    - header: common.startTimeHeader
+      id: start_timestamp
+      accessorFunction: formatStartTime
+      cellComponent: StartTimestampCell
+    - header: common.endTimeHeader
+      id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      cellComponent: EndTimestampInProgressCell
+    - header: logsPage.dataAugmented
+      id: is_augmented
+      accessorFunction: getAugmentedStatus
+      cellComponent: SimpleCell
+    - header: logsPage.totalTests
+      id: total_tests
+      accessorFunction: calculateTotalTests
+      cellComponent: SimpleCell
+    - header: logsPage.failedTests
+      id: failed_tests
+      accessorFunction: calculateFailedTests
+      cellComponent: ModelTestingFailedTestCell
+    - header: logsPage.eventStatus
+      id: event_status
+      cellComponent: SimpleCell
+    - header: common.details
+      id: exception
+      accessorFunction: getDetailsFromEventStatus
+      cellComponent: ModelTestingDetailsCell
+
+  multilingual:
+    - header: logsPage.copyType
+      id: copy_type
+      cellComponent: ClickableNameCell
+      filterType: text
+    - header: common.startTimeHeader
+      id: start_timestamp
+      accessorFunction: formatStartTime
+      cellComponent: StartTimestampCell
+    - header: common.endTimeHeader
+      id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      cellComponent: EndTimestampInProgressCell
+    - header: logsPage.translationStatus
+      id: event_status
+      cellComponent: SimpleCell
+      filterType: status
+    - header: logsPage.status
+      id: status
+      cellComponent: MultilingualLogsStatusCell
+      filterType: status
+
+  audit:
+    - header: common.user
+      id: user
+      cellComponent: SimpleCell
+      filterType: text
+    - header: logsPage.entityType
+      id: entity
+      cellComponent: SimpleCell
+      filterType: text
+    - header: logsPage.actionType
+      id: action
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      header: logsPage.timeStamp
+      accessorFunction: formatTimeOrInProgress
+      cellComponent: AuditLogsTimestampInProgressCell
+    - header: common.details
+      id: data
+      cellComponent: DetailsCell
+
+  custom_widget:
+    - id: name
+      header: formLabels.name
+      cellComponent: SimpleCell
+      filterType: text
+    - id: request_method
+      header: logsPage.requestMethod
+      cellComponent: SimpleCell
+      filterType: text
+    - id: http_url
+      header: common.url
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      header: logsPage.timeStamp
+      accessorFunction: formatTimeOrInProgress
+      cellComponent: TimestampCell
+    - id: exception
+      header: logsPage.exception
+      accessorFunction: formatExceptionText
+      cellComponent: ExceptionCell
+    - id: details
+      header: common.details
+      cellComponent: DetailsCell
+
+  callback:
+    - header: logsPage.callbackName
+      id: callback_name
+      cellComponent: ClickableNameCell
+      filterType: text
+    - header: logsPage.senderId
+      id: sender_id
+      cellComponent: SenderIdCell
+      filterType: text
+    - header: logsPage.channel
+      id: channel
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      header: logsPage.timestamp
+      accessorFunction: formatLocalTimestamp
+      cellComponent: SimpleCell
+    - header: logsPage.status
+      id: status
+      cellComponent: StatusCell
+      filterType: status
+
+  llm:
+    - id: llm_call_id
+      header: logsPage.llmCallId
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: user
+      accessorFunction: getUserFromMetadata
+      header: common.user
+      cellComponent: SimpleDashCell
+      filterType: text
+    - id: model_params
+      accessorFunction: getModelFromModelParams
+      header: logsPage.llmModel
+      cellComponent: SimpleDashCell
+    - id: cost
+      header: logsPage.cost
+      cellComponent: SimpleCell
+    - id: invocation
+      accessorFunction: getInvocationFromMetadata
+      header: logsPage.invocation
+      cellComponent: SimpleCell
+      filterType: text
+
+  content:
+    - id: file_received
+      header: logsPage.filesUploaded
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: table
+      header: promptManagementPage.tableName
+      cellComponent: SimpleCell
+      filterType: text
+    - id: start_timestamp
+      accessorFunction: formatStartTime
+      header: common.startTimeHeader
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      header: common.endTimeHeader
+      cellComponent: EndTimestampInProgressCell
+    - id: event_status
+      header: logsPage.uploadStatus
+      cellComponent: SimpleCell
+      filterType: status
+    - id: status
+      header: logsPage.fileProcessingStatus
+      cellComponent: ContentUploadLogsStatusCell
+      filterType: status
+
+  executor:
+    - id: executor_log_id
+      header: logsPage.executorId
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: event_class
+      header: logsPage.eventClass
+      cellComponent: SimpleCell
+      filterType: text
+    - id: task_type
+      header: logsPage.taskType
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      accessorFunction: formatLocalTimestamp
+      header: logsPage.timestamp
+      cellComponent: TimestampCell
+    - id: status
+      header: logsPage.status
+      cellComponent: StatusCell
+      filterType: status
+
+  mail_channel:
+    - id: uid
+      header: logsPage.uniqueId
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: sender_id
+      header: common.senderId
+      cellComponent: SimpleCell
+      filterType: text
+    - id: timestamp
+      accessorFunction: formatUnixTimestamp
+      header: logsPage.timestamp
+      cellComponent: SimpleCell
+    - id: status
+      header: logsPage.status
+      cellComponent: StatusCell
+      filterType: status
+
+  catalog:
+    - id: execution_id
+      header: logsPage.executionId
+      cellComponent: ClickableNameCell
+      filterType: text
+    - id: provider
+      header: logsPage.posName
+      cellComponent: SimpleCell
+      filterType: text
+    - id: sync_type
+      header: logsPage.syncType
+      cellComponent: SimpleCell
+      filterType: text
+    - id: start_timestamp
+      accessorFunction: formatStartTime
+      header: common.startTimeHeader
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      header: common.endTimeHeader
+      cellComponent: EndTimestampInProgressCell
+    - id: exception
+      accessorFunction: formatExceptionText
+      header: logsPage.exception
+      cellComponent: ExceptionCell
+    - id: sync_status
+      header: logsPage.syncStatus
+      cellComponent: StatusCell
+      filterType: status
+
+  file_upload:
+    - id: file_name
+      header: logsPage.fileName
+      cellComponent: ClickableNameCell
+    - id: upload_type
+      header: logsPage.uploadType
+      cellComponent: SimpleCell
+    - id: collection_name
+      header: logsPage.collectionName
+      cellComponent: SimpleCell
+    - id: start_timestamp
+      accessorFunction: formatStartTime
+      header: common.startTimeHeader
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      header: common.endTimeHeader
+      cellComponent: EndTimestampInProgressCell
+    - id: exception
+      accessorFunction: formatExceptionText
+      header: logsPage.exception
+      cellComponent: ExceptionCell
+    - id: event_status
+      header: logsPage.eventStatus
+      cellComponent: StatusCell
