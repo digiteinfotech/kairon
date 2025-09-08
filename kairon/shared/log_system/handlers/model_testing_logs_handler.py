@@ -34,14 +34,12 @@ class ModelTestingHandler(BaseLogHandler):
     def get_logs_for_search_query(self):
         self.kwargs["stamp"] = "start_timestamp"
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
-        is_augmented = self.kwargs.pop("is_augmented", None)
+        is_augmented = query.pop("is_augmented", None)
         query["bot"] = self.bot
-        if is_augmented and is_augmented.lower() in ("true", "false"):
+        if is_augmented:
             query["is_augmented"] = is_augmented.lower() == "true"
-        query.update(self.kwargs)
         logs_cursor = (self.doc_type.objects(**query).order_by("-start_timestamp").skip(self.start_idx).limit(
             self.page_size).exclude("id"))
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
-
