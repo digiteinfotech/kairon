@@ -4317,7 +4317,7 @@ def test_get_media_ids():
         filename="Upload_Download Data.pdf",
         extension=".pdf",
         upload_status="completed",
-        upload_type="user_uploaded",
+        upload_type="broadcast",
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
