@@ -13,11 +13,14 @@ from tiktoken import get_encoding
 from urllib.parse import urljoin
 
 from kairon import Utility
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.data.constant import DEFAULT_LLM, QDRANT_SUFFIX
+from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class PyscriptUtility:
@@ -185,3 +188,21 @@ class PyscriptUtility:
     def upload_media_to_360dialog(bot: str, bsp_type: str, media_id: str):
         external_media_id = asyncio.run(BSP360Dialog.upload_media(bot, bsp_type, media_id))
         return external_media_id
+
+    @staticmethod
+    def fetch_media_ids(bot: str):
+        try:
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value
+            ).only("filename", "media_id")
+
+            if not media_data:
+                return []
+
+            return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
+
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")

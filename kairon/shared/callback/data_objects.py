@@ -445,6 +445,8 @@ class PyscriptPayload(BaseModel):
     """
     source_code: str
     predefined_objects: Optional[Dict[str, Any]] = None
+
+
 class CallbackRequest(BaseModel):
     event_class: EventClass
     data: dict
