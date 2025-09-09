@@ -136,7 +136,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME, LOG_TYPE_METADATA
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes,
 )
 from .data_objects import (
     Responses,
@@ -9281,7 +9281,7 @@ class MongoProcessor:
 
     @staticmethod
     def get_metadata_for_any_log_type(bot: Text):
-        return LOG_TYPE_METADATA
+        return Utility.system_metadata.get("logs", {})
 
     @staticmethod
     def get_logs_for_any_type(
@@ -9316,7 +9316,8 @@ class MongoProcessor:
 
     @staticmethod
     def get_field_ids_for_log_type(log_type):
-        return {col["id"] for col in LOG_TYPE_METADATA.get(log_type, []) if "id" in col}
+        logs_metadata = Utility.system_metadata.get("logs", {})
+        return {col["id"] for col in logs_metadata.get(log_type, []) if "id" in col}
 
     @staticmethod
     def sanitize_query_filter(log_type: str, request) -> dict:
