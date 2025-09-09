@@ -818,7 +818,7 @@ def test_fetch_media_ids_success():
             bot="bot123",
             upload_status="completed",
             media_id__ne="",
-            upload_type="broadcast"
+            upload_type__in=["user", "system"]
         )
 
 

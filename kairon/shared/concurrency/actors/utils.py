@@ -193,10 +193,10 @@ class PyscriptUtility:
     def fetch_media_ids(bot: str):
         try:
             media_data = UserMediaData.objects(
-                bot=bot,
-                upload_status=UserMediaUploadStatus.completed.value,
-                media_id__ne="",
-                upload_type=UserMediaUploadType.broadcast.value
+                bot = bot,
+                upload_status = UserMediaUploadStatus.completed.value,
+                media_id__ne = "",
+                upload_type__in = [UserMediaUploadType.user_uploaded.value, UserMediaUploadType.system_uploaded.value]
             ).only("filename", "media_id")
 
             if not media_data:
