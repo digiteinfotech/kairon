@@ -540,7 +540,6 @@ def test_get_payload():
 
 
 def get_dummy_objects(http_action_config_mock):
-    # Create a dummy objects attribute with a get method that always returns our mock.
     class DummyObjects:
         def get(self, *args, **kwargs):
             return http_action_config_mock
@@ -760,12 +759,10 @@ def test_send_waba_message_success():
 def test_execute_simple_assignment():
     runner = PyScriptRunner()
     script = "x = 10\ny = 20"
-    # Provide minimal predefined_objects with required 'bot'
     result = runner.execute(script, predefined_objects={"slot": {"bot": "bot123"}})
 
     assert result.get("x") == 10
     assert result.get("y") == 20
-    # Ensure callables and modules are filtered out
     assert "send_waba_message" not in result
 
 
@@ -776,7 +773,6 @@ def test_execute_predefined_objects():
     result = runner.execute(script, predefined_objects=predefined)
 
     assert result.get("z") == "bar"
-    # Predefined non-callable objects should remain
     assert result.get("foo") == "bar"
 
 
@@ -797,7 +793,6 @@ def test_datetime_and_date_cleanup():
 
 def test_script_exception_wrapped():
     runner = PyScriptRunner()
-    # The script raises a ValueError, which should be caught and re-raised as AppException
     with pytest.raises(AppException) as exc_info:
         runner.execute(
             "raise ValueError('oops')",
@@ -805,3 +800,40 @@ def test_script_exception_wrapped():
             timeout=5
         )
     assert "Script execution error" in str(exc_info.value)
+
+
+def test_fetch_media_ids_success():
+    fake_doc = MagicMock()
+    fake_doc.filename = "file1.png"
+    fake_doc.media_id = "media123"
+
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = [fake_doc]
+
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", return_value=mock_qs) as mock_objects:
+        result = PyscriptUtility.fetch_media_ids("bot123")
+
+        assert result == [{"filename": "file1.png", "media_id": "media123"}]
+        mock_objects.assert_called_once_with(
+            bot="bot123",
+            upload_status="completed",
+            media_id__ne="",
+            upload_type__in=["user", "system"]
+        )
+
+
+def test_fetch_media_ids_empty():
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = []
+
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", return_value=mock_qs):
+        result = PyscriptUtility.fetch_media_ids("bot123")
+        assert result == []
+
+
+def test_fetch_media_ids_exception():
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", side_effect=Exception("DB error")):
+        with pytest.raises(AppException) as e:
+            PyscriptUtility.fetch_media_ids("bot123")
+
+        assert "Error while fetching media ids for bot 'bot123'" in str(e.value)
