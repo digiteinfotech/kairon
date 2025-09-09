@@ -132,8 +132,8 @@ class FlowTagType(str, Enum):
 
 
 class UserMediaUploadType(str, Enum):
-    user_uploaded = "user_uploaded"
-    system_uploaded = "system_uploaded"
+    user_uploaded = "user"
+    system_uploaded = "system"
     broadcast = "broadcast"
 
 
