@@ -1102,7 +1102,6 @@ class TestBusinessServiceProvider:
             media_id=media_id,
             filename="sample.pdf",
             upload_status=UserMediaUploadStatus.completed.value,
-            upload_type="user",
             upload_type="broadcast",
             filesize=12345,
             sender_id="tester@example.com",
