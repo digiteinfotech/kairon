@@ -142,7 +142,7 @@ def test_default_dates_for_actions_logs(mock_action_handler):
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert from_date.date() == expected_from
-    assert to_date.date() == expected_to
+    assert to_date == expected_to + timedelta(days=1)
 
 def mock_audit_handler(kwargs=None):
     return AuditLogHandler(
@@ -167,7 +167,7 @@ def test_default_from_to_dates_for_audit_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query["timestamp__gte"].date() == expected_from
-    assert query["timestamp__lte"].date() == expected_to
+    assert query["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
@@ -211,7 +211,7 @@ def test_default_from_to_dates_for_callback_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["timestamp__gte"].date() == expected_from
-    assert query_kwargs["timestamp__lte"].date() == expected_to
+    assert query_kwargs["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_callback_logs():
@@ -253,7 +253,7 @@ def test_default_from_to_dates_for_executor_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["timestamp__gte"].date() == expected_from
-    assert query_kwargs["timestamp__lte"].date() == expected_to
+    assert query_kwargs["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_executor_logs():
@@ -295,7 +295,7 @@ def test_default_from_to_dates_for_llm_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["start_time__gte"].date() == expected_from
-    assert query_kwargs["start_time__lte"].date() == expected_to
+    assert query_kwargs["start_time__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["metadata__bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_llm_logs():
@@ -338,7 +338,7 @@ def test_default_from_to_dates_for_model_testing_logs():
     expected_to = now.date()
 
     assert query_kwargs["start_timestamp__gte"].date() == expected_from
-    assert query_kwargs["start_timestamp__lte"].date() == expected_to
+    assert query_kwargs["start_timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_model_testing_logs():
