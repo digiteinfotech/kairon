@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 from mongoengine import Document
 
@@ -95,13 +95,14 @@ class BaseLogHandler(ABC):
     @staticmethod
     def get_default_dates(kwargs, logs):
         from_date = kwargs.pop("from_date", None) or (datetime.utcnow() - timedelta(days=30))
-        to_date = (kwargs.pop("to_date", None) + timedelta(days=1)) if kwargs.get("to_date") else datetime.utcnow()
+        to_date = kwargs.pop("to_date", None) if kwargs.get("to_date") else date.today()
+        to_date = to_date + timedelta(days=1)
         if logs == "count":
             return from_date, to_date
         elif logs == "search":
             query = {}
             stamp = kwargs.pop("stamp", "timestamp")
             query[f"{stamp}__gte"] = from_date
-            query[f"{stamp}__lte"] = to_date + timedelta(days=1)
+            query[f"{stamp}__lte"] = to_date
             query.update(kwargs)
             return query

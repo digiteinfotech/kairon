@@ -142,7 +142,7 @@ def test_default_dates_for_actions_logs(mock_action_handler):
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert from_date.date() == expected_from
-    assert to_date.date() == expected_to
+    assert to_date == expected_to + timedelta(days=1)
 
 def mock_audit_handler(kwargs=None):
     return AuditLogHandler(
@@ -167,7 +167,7 @@ def test_default_from_to_dates_for_audit_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query["timestamp__gte"].date() == expected_from
-    assert query["timestamp__lte"].date() == expected_to
+    assert query["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query["attributes__key"] == "bot"
     assert query["attributes__value"] == "test-bot"
 
@@ -211,7 +211,7 @@ def test_default_from_to_dates_for_callback_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["timestamp__gte"].date() == expected_from
-    assert query_kwargs["timestamp__lte"].date() == expected_to
+    assert query_kwargs["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_callback_logs():
@@ -253,7 +253,7 @@ def test_default_from_to_dates_for_executor_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["timestamp__gte"].date() == expected_from
-    assert query_kwargs["timestamp__lte"].date() == expected_to
+    assert query_kwargs["timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_executor_logs():
@@ -295,7 +295,7 @@ def test_default_from_to_dates_for_llm_logs():
     expected_from = (now - timedelta(days=30)).date()
     expected_to = now.date()
     assert query_kwargs["start_time__gte"].date() == expected_from
-    assert query_kwargs["start_time__lte"].date() == expected_to
+    assert query_kwargs["start_time__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["metadata__bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_llm_logs():
@@ -338,7 +338,7 @@ def test_default_from_to_dates_for_model_testing_logs():
     expected_to = now.date()
 
     assert query_kwargs["start_timestamp__gte"].date() == expected_from
-    assert query_kwargs["start_timestamp__lte"].date() == expected_to
+    assert query_kwargs["start_timestamp__lte"] == expected_to + timedelta(days=1)
     assert query_kwargs["bot"] == "test-bot"
 
 def test_custom_from_to_dates_for_model_testing_logs():
@@ -378,6 +378,7 @@ def test_custom_from_to_dates_for_model_testing_logs():
         )
     ]
 )
+
 def test_sanitize_query_filter_valid(monkeypatch, log_type, query_params, expected):
     class DummyDoc:
         _fields = {
@@ -446,3 +447,67 @@ def test_sanitize_query_filter_invalid(monkeypatch, log_type, query_params, expe
         mongo_processor.sanitize_query_filter(log_type, req)
 
     assert expected_message in str(exc.value)
+
+
+@pytest.fixture
+def handler():
+    """Initialized ModelTestingHandler for tests."""
+    return ModelTestingHandler(
+        bot="test-bot",
+        user="tester",
+        doc_type=ModelTestingLogs,
+        start_idx=0,
+        page_size=10,
+    )
+
+
+def extract_match_stage(handler):
+    """Patch _get_collection().aggregate to capture the pipeline without DB."""
+    fake_collection = MagicMock()
+    with patch.object(ModelTestingLogs, "_get_collection", return_value=fake_collection):
+        fake_collection.aggregate.return_value = [{"total": 0}]
+        handler.get_logs_for_search_query()
+        pipeline = fake_collection.aggregate.call_args[0][0]  # first arg
+        return pipeline[0]["$match"]
+
+
+def test_match_stage_with_from_and_to_date(handler):
+    handler.kwargs = {"from_date": date(2025, 1, 1), "to_date": date(2025, 1, 10)}
+    match_stage = extract_match_stage(handler)
+    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
+    assert "$gte" in cond and "$lte" in cond
+
+
+def test_match_stage_with_only_from_date(handler):
+    handler.kwargs = {"from_date": date(2025, 1, 1)}
+    match_stage = extract_match_stage(handler)
+    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
+    # BaseLogHandler adds default to_date, so both keys may appear
+    assert "$gte" in cond
+
+
+def test_match_stage_with_only_to_date(handler):
+    handler.kwargs = {"to_date": date(2025, 1, 10)}
+    match_stage = extract_match_stage(handler)
+    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
+    # BaseLogHandler adds default from_date, so both keys may appear
+    assert "$lte" in cond
+
+
+def test_match_stage_ignores_none(handler):
+    handler.kwargs = {"status": None}
+    match_stage = extract_match_stage(handler)
+    assert "status" not in match_stage
+
+
+@pytest.mark.parametrize("flag,expected", [("true", True), ("false", False)])
+def test_match_stage_is_augmented(handler, flag, expected):
+    handler.kwargs = {"is_augmented": flag}
+    match_stage = extract_match_stage(handler)
+    assert match_stage["is_augmented"] is expected
+
+
+def test_match_stage_with_extra_field(handler):
+    handler.kwargs = {"status": "Success"}
+    match_stage = extract_match_stage(handler)
+    assert match_stage["status"] == "Success"
