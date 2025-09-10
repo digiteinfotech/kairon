@@ -15,22 +15,10 @@ class FileUploadHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query(self):
-        from_date = self.kwargs.pop("from_date", None)
-        to_date = self.kwargs.pop("to_date", None)
-
-        query = {"bot": self.bot}
-        query.update(self.kwargs)
-
-        if from_date:
-            query["start_timestamp__gte"] = from_date
-        else:
-            query["start_timestamp__gte"] = datetime.utcnow() - timedelta(days=30)
-
-        if to_date:
-            query["start_timestamp__lte"] = to_date
-
+        self.kwargs["stamp"] = "start_timestamp"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
+        query["bot"] = self.bot
         sort_field = "-start_timestamp"
-
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by(sort_field)
@@ -38,7 +26,6 @@ class FileUploadHandler(BaseLogHandler):
             .limit(self.page_size)
             .exclude("id")
         )
-
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
-        count = self.get_logs_count(self.doc_type,  **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count
