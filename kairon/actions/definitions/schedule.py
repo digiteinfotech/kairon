@@ -26,6 +26,8 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.constants import EventClass, EventExecutor
+from kairon.shared.data.constant import TASK_TYPE
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE, STATUSES
 
@@ -168,7 +170,10 @@ class ActionSchedule(ActionsBase):
                                timezone: Text,
                                is_flow=False,
                                **kwargs):
-        func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        if not is_flow:
+            func = obj_to_ref(ExecutorFactory.get_executor(EventExecutor.callback).execute_task)
+        else:
+            func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
 
         _id = uuid7().hex
         args = (func, "scheduler_evaluator", data,)
