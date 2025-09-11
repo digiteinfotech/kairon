@@ -40,6 +40,9 @@ class ModelTestingHandler(BaseLogHandler):
         from_date = query.pop("start_timestamp__gte", None)
         to_date = query.pop("start_timestamp__lte", None)
 
+        from_date = datetime.combine(from_date, time.min)
+        to_date = datetime.combine(to_date, time.min)
+
         match_stage = {"bot": self.bot}
         if from_date and to_date:
             match_stage["$or"] = [
