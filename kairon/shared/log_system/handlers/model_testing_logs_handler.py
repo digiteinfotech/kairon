@@ -40,38 +40,15 @@ class ModelTestingHandler(BaseLogHandler):
         to_date = query.pop("start_timestamp__lte", None)
 
         match_stage = {"bot": self.bot}
-        if from_date and to_date:
-            match_stage["$or"] = [
-                {
-                    "$and": [
-                        {"start_timestamp": {"$exists": True}},
-                        {"start_timestamp": {"$gte": from_date, "$lte": to_date}},
-                    ]
-                },
-                {"start_timestamp": {"$exists": False}},
-            ]
-        elif from_date:
-            match_stage["$or"] = [
-                {
-
-                    "$and": [
-                        {"start_timestamp": {"$exists": True}},
-                        {"start_timestamp": {"$gte": from_date}},
-                    ]
-                },
-                {"start_timestamp": {"$exists": False}},
-            ]
-        elif to_date:
-            match_stage["$or"] = [
-                {
-                    "$and": [
-                        {"start_timestamp": {"$exists": True}},
-                        {"start_timestamp": {"$lte": to_date}},
-                    ]
-                },
-                {"start_timestamp": {"$exists": False}},
-            ]
-
+        match_stage["$or"] = [
+            {
+                "$and": [
+                    {"start_timestamp": {"$exists": True}},
+                    {"start_timestamp": {"$gte": from_date, "$lte": to_date}},
+                ]
+            },
+            {"start_timestamp": {"$exists": False}},
+        ]
         for k, v in list(query.items()):
             if v is None:
                 continue
