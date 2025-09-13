@@ -503,68 +503,68 @@ def test_sanitize_query_filter_invalid(monkeypatch, log_type, query_params, expe
 
     assert expected_message in str(exc.value)
 
-
-def build_match_stage(kwargs, bot="test-bot"):
-    query = BaseLogHandler.get_default_dates(kwargs.copy(), "search")
-
-    from_date = query.pop("start_timestamp__gte", None)
-    to_date = query.pop("start_timestamp__lte", None)
-    match_stage = {"bot": bot}
-    match_stage["$and"] = [
-        {"start_timestamp": {"$exists": True}},
-        {"start_timestamp": {"$gte": from_date, "$lte": to_date}},
-    ]
-
-    for k, v in list(query.items()):
-        if v is None:
-            continue
-        if k == "is_augmented":
-            match_stage["is_augmented"] = v.lower() == "true"
-        else:
-            match_stage[k] = v
-
-    return match_stage
-
-def test_match_stage_with_is_augmented_true():
-    kwargs = {
-        "from_date": datetime(2025, 9, 1),
-        "to_date": datetime(2025, 9, 10),
-        "is_augmented": "true",
-    }
-
-    match_stage = build_match_stage(kwargs)
-    assert match_stage["bot"] == "test-bot"
-    assert "is_augmented" in match_stage
-    assert match_stage["is_augmented"] is True
-
-def test_match_stage_with_is_augmented_false():
-    kwargs = {
-        "from_date": datetime(2025, 9, 1),
-        "to_date": datetime(2025, 9, 10),
-        "is_augmented": "false",
-    }
-
-    match_stage = build_match_stage(kwargs)
-    assert match_stage["is_augmented"] is False
+def extract_match_stage(handler):
+    fake_collection = MagicMock()
+    with patch.object(ModelTestingLogs, "_get_collection", return_value=fake_collection):
+        fake_collection.aggregate.return_value = [{"total": 0}]
+        handler.get_logs_for_search_query()
+        first_pipeline = fake_collection.aggregate.call_args_list[0][0][0]
+        for stage in first_pipeline:
+            if "$match" in stage:
+                return stage["$match"]
+        raise AssertionError("No $match stage found in pipeline")
 
 
-def test_match_stage_with_other_field():
-    kwargs = {
-        "from_date": datetime(2025, 9, 1),
-        "to_date": datetime(2025, 9, 10),
-        "status": "completed",
-    }
+@pytest.fixture
+def handler():
+    return ModelTestingHandler(
+        doc_type=MagicMock(),
+        bot="test-bot",
+        start_idx=0,
+        page_size=10,
+    )
 
-    match_stage = build_match_stage(kwargs)
-    assert match_stage["status"] == "completed"
-    assert "$and" in match_stage
-    assert isinstance(match_stage["$and"], list)
 
-def test_match_stage_skips_none_values():
-    kwargs = {
-        "from_date": datetime(2025, 9, 1),
-        "to_date": datetime(2025, 9, 10),
-        "event_status": None,
-    }
-    match_stage = build_match_stage(kwargs)
-    assert "event_status" not in match_stage
+def test_match_stage_with_from_and_to_date(handler):
+    handler.kwargs = {"from_date": date(2025, 1, 1), "to_date": date(2025, 1, 10)}
+    match_stage = extract_match_stage(handler)
+    assert "start_timestamp" in match_stage["$and"][1]
+
+
+def test_match_stage_with_only_from_date(handler):
+    handler.kwargs = {"from_date": date(2025, 1, 1)}
+    match_stage = extract_match_stage(handler)
+    assert "start_timestamp" in match_stage["$and"][1]
+
+
+def test_match_stage_with_only_to_date(handler):
+    handler.kwargs = {"to_date": date(2025, 1, 10)}
+    match_stage = extract_match_stage(handler)
+    assert "start_timestamp" in match_stage["$and"][1]
+
+
+def test_match_stage_ignores_none_field(handler):
+    handler.kwargs = {"status": None}
+    match_stage = extract_match_stage(handler)
+    assert "status" not in match_stage
+
+
+@pytest.mark.parametrize("flag,expected", [("true", True), ("false", False)])
+def test_match_stage_is_augmented(handler, flag, expected):
+    handler.kwargs = {"is_augmented": flag}
+    match_stage = extract_match_stage(handler)
+    assert match_stage["is_augmented"] == expected
+
+
+def test_match_stage_with_extra_field(handler):
+    handler.kwargs = {"status": "Success"}
+    match_stage = extract_match_stage(handler)
+    assert match_stage["status"] == "Success"
+
+
+def test_default_dates_auto_adjust_when_from_after_to(handler):
+    from_date = datetime(2025, 1, 10)
+    to_date = datetime(2025, 1, 1)
+    handler.kwargs = {"from_date": from_date, "to_date": to_date}
+    match_stage = extract_match_stage(handler)
+    assert "start_timestamp" in match_stage["$and"][1]
