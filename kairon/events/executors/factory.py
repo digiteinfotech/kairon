@@ -17,11 +17,13 @@ class ExecutorFactory:
     }
 
     @staticmethod
-    def get_executor():
+    def get_executor(executor_type: EventExecutor = None):
         """
         Factory to retrieve instance of executor that will execute the event.
         """
-        executor_type = Utility.environment['events']['executor'].get('type')
+        if not executor_type:
+            executor_type = Utility.environment['events']['executor'].get('type')
+
         if executor_type not in ExecutorFactory.__executors.keys():
             valid_executors = [ex.value for ex in EventExecutor]
             raise AppException(f"Executor type not configured in system.yaml. Valid types: {valid_executors}")
