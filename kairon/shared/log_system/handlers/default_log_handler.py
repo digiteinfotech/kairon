@@ -36,21 +36,16 @@ class DefaultLogHandler(BaseLogHandler):
         return logs, count
 
     def get_logs_for_search_query_for_unix_time(self):
-        from_date = self.kwargs.pop("from_date", None)
-        to_date = self.kwargs.pop("to_date", None)
+        self.kwargs["stamp"] = "timestamp"
+        query = BaseLogHandler.get_default_dates(self.kwargs, "search")
+        query["bot"] = self.bot
 
-        query = {"bot": self.bot}
-        query.update(self.kwargs)
-        sort_field = "-start_timestamp"
+        def to_unix_timestamp(dt: datetime):
+            return int(dt.timestamp())
 
-        def to_unix_timestamp(dt):
-            return int(datetime.combine(dt, datetime.min.time()).timestamp())
-
-        if from_date:
-            query["timestamp__gte"] = to_unix_timestamp(from_date)
-        if to_date:
-            query["timestamp__lte"] = to_unix_timestamp(to_date)
-
+        query["timestamp__gte"] = to_unix_timestamp(query["timestamp__gte"])
+        query["timestamp__lte"] = to_unix_timestamp(query["timestamp__lte"])
+        sort_field = "-timestamp"
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by(sort_field)
@@ -60,5 +55,5 @@ class DefaultLogHandler(BaseLogHandler):
         )
 
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
-        count = self.get_logs_count(self.doc_type,  **query)
+        count = self.get_logs_count(self.doc_type, **query)
         return logs, count

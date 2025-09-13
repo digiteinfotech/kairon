@@ -40,14 +40,9 @@ class ModelTestingHandler(BaseLogHandler):
         to_date = query.pop("start_timestamp__lte", None)
 
         match_stage = {"bot": self.bot}
-        match_stage["$or"] = [
-            {
-                "$and": [
-                    {"start_timestamp": {"$exists": True}},
-                    {"start_timestamp": {"$gte": from_date, "$lte": to_date}},
-                ]
-            },
-            {"start_timestamp": {"$exists": False}},
+        match_stage["$and"] = [
+            {"start_timestamp": {"$exists": True}},
+            {"start_timestamp": {"$gte": from_date, "$lte": to_date}},
         ]
         for k, v in list(query.items()):
             if v is None:
@@ -56,45 +51,42 @@ class ModelTestingHandler(BaseLogHandler):
                 match_stage["is_augmented"] = v.lower() == "true"
             else:
                 match_stage[k] = v
-
-        pipeline = [
-            {"$match": match_stage},
+        logs = list(ModelTestingLogs.objects(bot=self.bot).aggregate([
             {"$set": {"data.type": "$type"}},
-            {"$group": {
-                "_id": "$reference_id",
-                "bot": {"$first": "$bot"},
-                "user": {"$first": "$user"},
-                "status": {"$first": "$status"},
-                "event_status": {"$first": "$event_status"},
-                "data": {"$push": "$data"},
-                "exception": {"$first": "$exception"},
-                "start_timestamp": {"$first": "$start_timestamp"},
-                "end_timestamp": {"$first": "$end_timestamp"},
-                "is_augmented": {"$first": "$is_augmented"},
+            {'$group': {
+                '_id': '$reference_id',
+                'bot': {'$first': '$bot'},
+                'user': {'$first': '$user'},
+                'status': {'$first': '$status'},
+                'event_status': {'$first': '$event_status'},
+                'data': {'$push': '$data'},
+                'exception': {'$first': '$exception'},
+                'start_timestamp': {'$first': '$start_timestamp'},
+                'end_timestamp': {'$first': '$end_timestamp'},
+                'is_augmented': {'$first': '$is_augmented'}
             }},
-            {"$project": {
-                "_id": 0,
-                "reference_id": "$_id",
-                "data": {
-                    "$filter": {
-                        "input": "$data",
-                        "as": "data",
-                        "cond": {"$ne": ["$$data.type", "common"]}
+            {"$match": match_stage},
+            {'$project': {
+                '_id': 0,
+                'reference_id': '$_id',
+                'data': {
+                    '$filter': {
+                        'input': '$data',
+                        'as': 'data',
+                        'cond': {'$ne': ['$$data.type', 'common']}
                     }
                 },
-                "status": 1,
-                "event_status": 1,
-                "exception": 1,
-                "start_timestamp": 1,
-                "end_timestamp": 1,
-                "is_augmented": 1,
+                'status': 1,
+                'event_status': 1,
+                'exception': 1,
+                'start_timestamp': 1,
+                'end_timestamp': 1,
+                'is_augmented': 1
             }},
-            {"$sort": {"start_timestamp": -1}},
-            {"$skip": self.start_idx},
-            {"$limit": self.page_size},
-        ]
 
-        logs = list(ModelTestingLogs._get_collection().aggregate(pipeline))
+            {"$sort": {"start_timestamp": -1}}
+        ]))[self.start_idx:self.start_idx + self.page_size]
+
         count_pipeline = [
             {"$match": match_stage},
             {"$count": "total"}

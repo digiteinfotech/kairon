@@ -73,7 +73,7 @@ logs:
       header: logsPage.tillDate
       accessorFunction: formatTillDate
       cellComponent: FormattedTillDateCell
-      filterType: date
+
     - id: start_timestamp
       header: logsPage.startTimeStamp
       accessorFunction: formatStartTime

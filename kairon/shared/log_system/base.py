@@ -96,7 +96,7 @@ class BaseLogHandler(ABC):
     def get_default_dates(kwargs, logs):
         ist_offset = timedelta(hours=5, minutes=30)
         from_date = kwargs.pop("from_date", None) or (datetime.utcnow() - timedelta(days=30))
-        to_date = kwargs.pop("to_date", None) if kwargs.get("to_date") else date.today()
+        to_date = kwargs.pop("to_date", None) if kwargs.get("to_date") else datetime.utcnow()
         if isinstance(from_date, date) and not isinstance(from_date, datetime):
             from_date = datetime.combine(from_date, datetime.min.time())
         if isinstance(to_date, date) and not isinstance(to_date, datetime):
@@ -104,6 +104,8 @@ class BaseLogHandler(ABC):
         from_date = from_date - ist_offset
         to_date = to_date - ist_offset
         to_date = to_date + timedelta(days=1)
+        if from_date > to_date:
+            from_date = to_date - timedelta(days=30)
         if logs == "count":
             return from_date, to_date
         elif logs == "search":
