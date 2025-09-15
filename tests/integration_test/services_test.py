@@ -67,7 +67,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FeatureMappings,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM, TASK_TYPE
+    DEFAULT_LLM, TASK_TYPE, STATUSES
 )
 from kairon.shared.data.data_objects import (
     Stories,
@@ -3865,7 +3865,7 @@ def test_upload_doc_content_basic_validation_failure():
         "Extra columns": "{'revenue'}."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
+    assert logs[0]["status"] == STATUSES.FAIL.value
     assert logs[0]["event_status"] == "Completed"
 
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_basic_validation_failure").delete()
@@ -4167,7 +4167,7 @@ def test_upload_doc_content_file_type_validation_failure():
         'File type error': "Invalid file type: application/pdf. Please upload a CSV file."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
+    assert logs[0]["status"] == STATUSES.FAIL.value
     assert logs[0]["event_status"] == "Completed"
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
 
@@ -5435,7 +5435,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Push menu processing is disabled for this bot"
 
@@ -5563,7 +5563,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Item toggle is disabled for this bot"
 
@@ -6570,7 +6570,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Global fallback image URL not found"
 
@@ -6900,7 +6900,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Push menu processing is disabled for this bot"
     rerun_execution_id = latest_log.execution_id
@@ -7274,7 +7274,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
 
     assert latest_log.validation_errors is not None
     assert "10539634" in latest_log.validation_errors
@@ -7434,7 +7434,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert "Simulated preprocess error" in latest_log.exception
 
     assert not latest_log.processed_payload
@@ -7876,7 +7876,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Validation Failed. Check logs"
 
@@ -16028,7 +16028,7 @@ def test_get_data_importer_logs():
                                          'is_data_uploaded': True,
                                          'status': 'Success', 'event_status': 'Completed'}
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert actual['data']["logs"][2]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
                                                                 'chat_client_config', 'bot_content'}
     assert actual['data']["logs"][2]['is_data_uploaded']
@@ -16036,7 +16036,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert actual['data']["logs"][3]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
                                                                 'bot_content'}
@@ -24026,7 +24026,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent1",
@@ -24045,7 +24045,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -24064,7 +24064,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent6",
@@ -24128,7 +24128,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot_2,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent13",
@@ -24138,7 +24138,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs",
@@ -24166,14 +24166,14 @@ def test_list_action_server_logs():
         [log["bot_response"] == "Bot Response" for log in actual["data"]["logs"]]
     )
     assert any([log["api_response"] == "Response" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "FAILURE" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "SUCCESS" for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.FAIL.value for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.SUCCESS.value for log in actual["data"]["logs"]])
 
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/actions/search"
-        f"?from_date={from_date}&to_date={to_date}&status=SUCCESS",
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
@@ -24189,7 +24189,7 @@ def test_list_action_server_logs():
 
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/actions/search"
-        f"?from_date={from_date}&to_date={to_date}&status=FAILURE",
+        f"?from_date={from_date}&to_date={to_date}&status=Fail",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -24883,7 +24883,7 @@ def test_upload_with_http_error():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 4
     assert actual["data"]["total"] == 4
-    assert actual["data"]["logs"][0]["status"] == "Failure"
+    assert actual["data"]["logs"][0]["status"] == STATUSES.FAIL.value
     assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["is_data_uploaded"]
     assert actual["data"]["logs"][0]["start_timestamp"]
@@ -34859,7 +34859,7 @@ def test_multilingual_translate():
     assert response["message"] == "Bot translation in progress! Check logs."
     assert response["error_code"] == 0
     MultilingualLogProcessor.add_log(
-        pytest.bot, "integ1@gmail.com", event_status="Completed", status="Success"
+        pytest.bot, "integ1@gmail.com", event_status="Completed", status=STATUSES.SUCCESS.value
     )
 
 
@@ -35126,7 +35126,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent3",
@@ -35136,7 +35136,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -35155,7 +35155,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
 
     response = client.get(

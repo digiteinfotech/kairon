@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionRazorpay(ActionsBase):
@@ -52,7 +53,7 @@ class ActionRazorpay(ActionsBase):
         """
         action_call = kwargs.get('action_call', {})
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception, http_response, bot_response = None, None, None
         action_config = self.retrieve_config()
         api_key = action_config.get('api_key')
@@ -93,13 +94,13 @@ class ActionRazorpay(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = f"amount must be a whole number! Got {amount}."
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "I have failed to process your request"
         except Exception as e:
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "I have failed to process your request"
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}

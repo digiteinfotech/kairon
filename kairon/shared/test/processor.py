@@ -6,7 +6,7 @@ from loguru import logger
 from mongoengine import Q, DoesNotExist
 
 from kairon.exceptions import AppException
-from kairon.shared.data.constant import EVENT_STATUS, ModelTestingLogType
+from kairon.shared.data.constant import EVENT_STATUS, ModelTestingLogType, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
@@ -38,7 +38,7 @@ class ModelTestingLogProcessor:
         if event_status == EVENT_STATUS.COMPLETED.value:
             common_data.status = 'PASSED'
         if stories_result:
-            common_data.status = 'FAILURE' if stories_result.get('failed_stories') else 'SUCCESS'
+            common_data.status = STATUSES.FAIL.value if stories_result.get('failed_stories') else STATUSES.SUCCESS.value
             ModelTestingLogs(
                 reference_id=common_data.reference_id,
                 type='stories',
@@ -56,13 +56,13 @@ class ModelTestingLogProcessor:
                 data=nlu_result
             ).save()
             if nlu_result.get("intent_evaluation") and nlu_result["intent_evaluation"].get('errors'):
-                common_data.status = 'FAILURE'
+                common_data.status = STATUSES.FAIL.value
             if nlu_result.get("response_selection_evaluation") and nlu_result["response_selection_evaluation"].get('errors'):
-                common_data.status = 'FAILURE'
+                common_data.status = STATUSES.FAIL.value
             if nlu_result.get("entity_evaluation"):
                 for extractor_evaluation in nlu_result["entity_evaluation"].values():
                     if extractor_evaluation.get('errors'):
-                        common_data.status = 'FAILURE'
+                        common_data.status = STATUSES.FAIL.value
                         break
         if exception:
             common_data.exception = exception

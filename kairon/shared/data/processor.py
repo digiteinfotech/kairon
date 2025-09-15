@@ -136,7 +136,7 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes,
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes, STATUSES,
 )
 from .data_objects import (
     Responses,
@@ -5460,11 +5460,11 @@ class MongoProcessor:
             bot, user, is_data_uploaded=True, files_received=list(files_received)
         )
         if not is_event_data:
-            status = "Failure"
+            status = STATUSES.FAIL.value
             summary = non_event_validation_summary["summary"]
             component_count = non_event_validation_summary["component_count"]
             if not non_event_validation_summary["validation_failed"]:
-                status = "Success"
+                status = STATUSES.SUCCESS.value
             DataImporterLogProcessor.update_summary(
                 bot,
                 user,
@@ -8910,7 +8910,7 @@ class MongoProcessor:
             ContentImporterLogProcessor.add_log(
                 bot,
                 user,
-                status="Failure",
+                status=STATUSES.FAIL.value,
                 event_status=EVENT_STATUS.COMPLETED.value,
                 validation_errors= error_message
             )

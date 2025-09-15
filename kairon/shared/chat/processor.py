@@ -11,7 +11,7 @@ from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
-from ..data.constant import MIME_TYPE_LIMITS
+from ..data.constant import MIME_TYPE_LIMITS, STATUSES
 from ..data.utils import DataUtility
 from ...exceptions import AppException
 
@@ -222,7 +222,7 @@ class ChatDataProcessor:
 
         ChannelLogs(
             type=channel_type,
-            status="failed",
+            status=STATUSES.FAIL.value,
             data=resp,
             failure_reason=failure_reason,
             message_id=message_id,

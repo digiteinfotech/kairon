@@ -10,6 +10,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs, SlotSetAction, 
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.constants import SLOT_SET_TYPE
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionSetSlot(ActionsBase):
@@ -52,7 +53,7 @@ class ActionSetSlot(ActionsBase):
 
         message = []
         reset_slots = {}
-        status = 'SUCCESS'
+        status = STATUSES.SUCCESS.value
         action_config = self.retrieve_config()
         for slots_to_reset in action_config['set_slots']:
             if slots_to_reset['type'] == SLOT_SET_TYPE.FROM_VALUE.value:
