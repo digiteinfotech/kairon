@@ -35,7 +35,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FALLBACK_MESSAGE,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM
+    DEFAULT_LLM, STATUSES
 )
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -273,7 +273,7 @@ class ActionServerLogs(DynamicDocument):
     messages = DynamicField()
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
-    status = StringField(default="SUCCESS")
+    status = StringField(default=STATUSES.SUCCESS.value)
     trigger_info = EmbeddedDocumentField(TriggerInfo, default = TriggerInfo)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}

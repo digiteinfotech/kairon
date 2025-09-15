@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
 
 
@@ -65,7 +66,7 @@ class ActionDatabase(ActionsBase):
         response = None
         bot_response = None
         exception = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         dispatch_bot_response = False
         failure_response = 'I have failed to process your request.'
         filled_slots = {}
@@ -97,7 +98,7 @@ class ActionDatabase(ActionsBase):
         except Exception as e:
             exception = str(e)
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = failure_response
         finally:
             if dispatch_bot_response:

@@ -6,7 +6,7 @@ from loguru import logger
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 
@@ -66,7 +66,7 @@ class TrainingDataImporterEvent(EventsBase):
         from kairon.importer.data_importer import DataImporter
 
         path = None
-        validation_status = 'Failure'
+        validation_status = STATUSES.FAIL.value
         try:
             path = Utility.get_latest_file(os.path.join('training_data', self.bot))
             files_received = DataImporterLogProcessor.get_files_received_for_latest_event(self.bot)
@@ -76,7 +76,7 @@ class TrainingDataImporterEvent(EventsBase):
 
             summary, component_count = asyncio.run(data_importer.validate())
             initiate_import = Utility.is_data_import_allowed(summary, self.bot, self.user)
-            status = 'Success' if initiate_import else 'Failure'
+            status = STATUSES.SUCCESS.value if initiate_import else STATUSES.FAIL.value
             DataImporterLogProcessor.update_summary(self.bot, self.user, component_count, summary,
                                                     status=status,
                                                     event_status=EVENT_STATUS.SAVE.value)

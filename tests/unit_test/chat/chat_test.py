@@ -22,7 +22,7 @@ from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
@@ -252,7 +252,7 @@ class TestChat:
         print(log)
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == 'failed'
+        assert log['status'] == STATUSES.FAIL.value
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
@@ -341,7 +341,7 @@ class TestChat:
         )
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == 'failed'
+        assert log['status'] == STATUSES.FAIL.value
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'

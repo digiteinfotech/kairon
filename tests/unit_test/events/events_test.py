@@ -40,7 +40,7 @@ from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.constants import EventClass, EventRequestType, ChannelTypes
-from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, STATUSES
 from kairon.shared.data.data_objects import Configs, BotSettings
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.processor import MongoProcessor
@@ -112,7 +112,7 @@ class TestEventExecution:
         assert not logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_trigger_data_importer_validate_exception(self, monkeypatch):
@@ -141,7 +141,7 @@ class TestEventExecution:
         assert not logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_trigger_data_importer_validate_invalid_yaml(self, monkeypatch):
@@ -169,7 +169,7 @@ class TestEventExecution:
         assert logs[0].get('exception').__contains__("Failed to validate nlu.yml. Please make sure the file is correct and all mandatory parameters are specified. Here are the errors found during validation:\n  in nlu.yml:3:\n      Value 'intent' is not a dict. Value path: '/nlu/1'")
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_trigger_data_importer_validate_invalid_domain(self, monkeypatch):
@@ -193,7 +193,7 @@ class TestEventExecution:
                                             'entities occur more than once in the domain: \'location\'.\'')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_trigger_data_importer_validate_file_with_errors(self, monkeypatch):
@@ -221,7 +221,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_trigger_data_importer_validate_and_save_overwrite(self, monkeypatch):
@@ -250,7 +250,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
@@ -292,7 +292,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
@@ -332,7 +332,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
@@ -500,7 +500,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
@@ -552,7 +552,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
@@ -601,7 +601,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
@@ -647,7 +647,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
@@ -692,7 +692,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         assert len(mongo_processor.fetch_stories(bot)) == 2
@@ -727,7 +727,7 @@ class TestEventExecution:
         assert not logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
@@ -763,7 +763,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
@@ -799,7 +799,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
@@ -835,7 +835,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         mongo_processor = MongoProcessor()
@@ -873,7 +873,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
@@ -913,7 +913,7 @@ class TestEventExecution:
         assert not logs[0].get('exception')
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
         processor = MongoProcessor()
@@ -954,7 +954,7 @@ class TestEventExecution:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_trigger_faq_importer_overwrite(self, monkeypatch):
@@ -984,7 +984,7 @@ class TestEventExecution:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_trigger_faq_importer_validate_exception(self, monkeypatch):
@@ -1001,7 +1001,7 @@ class TestEventExecution:
         assert not logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Failure'
+        assert logs[0]['status'] == STATUSES.FAIL.value
         assert logs[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_trigger_faq_importer_validate_only_append_mode(self, monkeypatch):
@@ -1032,7 +1032,7 @@ class TestEventExecution:
         assert logs[0]['is_data_uploaded']
         assert logs[0]['start_timestamp']
         assert logs[0]['end_timestamp']
-        assert logs[0]['status'] == 'Success'
+        assert logs[0]['status'] == STATUSES.SUCCESS.value
         assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     @pytest.fixture()
@@ -1316,7 +1316,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543001',
             'template_params': [{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
@@ -1336,7 +1336,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
@@ -1512,7 +1512,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
@@ -1716,7 +1716,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
@@ -1929,7 +1929,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{
@@ -2142,7 +2142,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{
@@ -2355,7 +2355,7 @@ class TestEventExecution:
             'reference_id': reference_id,
             'log_type': 'send',
             'bot': 'test_bot',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
             'template_params': [{
@@ -2678,7 +2678,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -2709,7 +2709,7 @@ class TestEventExecution:
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0]
         assert logged_config == {'reference_id': reference_id, 'log_type': 'send', "event_id": event_id,
-                                 'bot': 'test_execute_message_broadcast_with_logs_modification', 'status': 'Failed',
+                                 'bot': 'test_execute_message_broadcast_with_logs_modification', 'status': STATUSES.FAIL.value,
                                  'status_code': 200,
                                  'api_response': {
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
@@ -2733,7 +2733,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'Failed': 1}
+                        'statuses': {'Fail': 1}
                     }
                 ],
                 'campaign_id': reference_id
@@ -2837,7 +2837,7 @@ class TestEventExecution:
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
-                              'bot': 'test_execute_message_broadcast', 'status': 'Success', 'status_code': 200, 'api_response': {
+                              'bot': 'test_execute_message_broadcast', 'status': STATUSES.SUCCESS.value, 'status_code': 200, 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None, "template": template,
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
@@ -2958,7 +2958,7 @@ class TestEventExecution:
         logs[0][1].pop("timestamp")
         logs[0][1].pop("recipient")
         logs[0][0].pop("recipient")
-        assert logs[0][1] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+        assert logs[0][1] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': STATUSES.SUCCESS.value,
                               'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
@@ -2969,7 +2969,7 @@ class TestEventExecution:
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0}
         logs[0][0].pop("timestamp")
-        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': 'Success',
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'bot': bot, 'status': STATUSES.SUCCESS.value,
                               'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
@@ -3042,7 +3042,7 @@ class TestEventExecution:
         config.pop("recipients_config")
         config['collection_config'] = {}
         assert logged_config == config
-        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user,
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': STATUSES.FAIL.value, 'user': user,
                               'exception': "Failed to evaluate recipients: 'recipients'"
                               }
 
@@ -3144,7 +3144,7 @@ class TestEventExecution:
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
         logs[0][0].pop('template_params')
-        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail', 'user': user, 'recipients': ['918958030541']}
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': STATUSES.FAIL.value, 'user': user, 'recipients': ['918958030541']}
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3226,7 +3226,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='Failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -3287,7 +3287,7 @@ class TestEventExecution:
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
-                              'bot': bot, 'status': 'Failed',
+                              'bot': bot, 'status': STATUSES.FAIL.value,
                               'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
@@ -3460,7 +3460,7 @@ class TestEventExecution:
                 "event_id": event_id,
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
                 "language_code": "hi",
@@ -3509,7 +3509,7 @@ class TestEventExecution:
             'log_type': 'send',
             'bot': bot,
             'event_id': event_id,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
@@ -3549,7 +3549,7 @@ class TestEventExecution:
             'log_type': 'send',
             'bot': bot,
             'event_id': event_id,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
@@ -3746,7 +3746,7 @@ class TestEventExecution:
                 "event_id": event_id,
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
                 "language_code": "hi",
@@ -3794,7 +3794,7 @@ class TestEventExecution:
             'log_type': 'send',
             'bot': bot,
             'event_id': event_id,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
             'language_code': 'hi',
@@ -3834,7 +3834,7 @@ class TestEventExecution:
             'log_type': 'send',
             'bot': bot,
             'event_id': event_id,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'template_name': 'brochure_pdf',
             'namespace': '54500467_f322_4595_becd_419af88spm4',
             'language_code': 'hi',
@@ -4081,7 +4081,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de2",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4126,7 +4126,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de2",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4246,7 +4246,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -4281,7 +4281,7 @@ class TestEventExecution:
         logged_config = logs[0][2]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
-            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values', 'status': 'Success',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values', 'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -4329,7 +4329,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -4444,7 +4444,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de1",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4489,7 +4489,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de1",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4609,7 +4609,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -4644,7 +4644,7 @@ class TestEventExecution:
         logged_config = logs[0][2]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
-            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': 'Success',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -4691,7 +4691,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -4807,7 +4807,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de1",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": [],
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4852,7 +4852,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de1",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": [],
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -4972,7 +4972,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5007,7 +5007,7 @@ class TestEventExecution:
         logged_config = logs[0][2]
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
-            'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': 'Success',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -5050,7 +5050,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -5162,7 +5162,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de3",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5207,7 +5207,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de3",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5262,7 +5262,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de3",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5382,7 +5382,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5405,7 +5405,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5441,7 +5441,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -5491,7 +5491,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -5607,7 +5607,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de4",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5652,7 +5652,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de4",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5707,7 +5707,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de4",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5762,7 +5762,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de4",
                 "log_type": "resend",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -5882,7 +5882,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5905,7 +5905,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5927,7 +5927,7 @@ class TestEventExecution:
         ).save()
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6000,7 +6000,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -6047,11 +6047,11 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
-                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 2,
@@ -6167,7 +6167,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de5",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -6212,7 +6212,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de5",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -6267,7 +6267,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de5",
                 "log_type": "send",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -6322,7 +6322,7 @@ class TestEventExecution:
                 "reference_id": "667bed955bfdaf3466b19de5",
                 "log_type": "resend",
                 "bot": bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "template_name": "brochure_pdf",
                 "template": template,
                 "namespace": "54500467_f322_4595_becd_419af88spm4",
@@ -6442,7 +6442,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6465,7 +6465,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6487,7 +6487,7 @@ class TestEventExecution:
         ).save()
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status='failed',
+            status=STATUSES.FAIL.value,
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6560,7 +6560,7 @@ class TestEventExecution:
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'status_code': 200,
             'api_response': {'contacts': [{'input': '919876543211', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
@@ -6610,11 +6610,11 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
-                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 2,
