@@ -100,6 +100,7 @@ logs:
       id: is_augmented
       accessorFunction: getAugmentedStatus
       cellComponent: SimpleCell
+      filterType: yesno
     - header: logsPage.totalTests
       id: total_tests
       accessorFunction: calculateTotalTests
@@ -111,6 +112,7 @@ logs:
     - header: logsPage.eventStatus
       id: event_status
       cellComponent: SimpleCell
+      filterType: status
     - header: common.details
       id: exception
       accessorFunction: getDetailsFromEventStatus
