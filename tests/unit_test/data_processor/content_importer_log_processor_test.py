@@ -5,7 +5,7 @@ from mongoengine import connect
 
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
-from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
@@ -41,7 +41,7 @@ class TestContentImporterLogProcessor:
         ContentImporterLogProcessor.add_log(bot, user,
                                             table=table_name,
                                          exception='Validation failed',
-                                         status='Failure',
+                                         status=STATUSES.FAIL.value,
                                          event_status=EVENT_STATUS.FAIL.value)
         log = ContentValidationLogs.objects(bot=bot).get().to_mongo().to_dict()
         assert log.get('exception') == 'Validation failed'
@@ -51,7 +51,7 @@ class TestContentImporterLogProcessor:
         assert log.get('end_timestamp')
         assert not log.get('validation_errors')
         assert not log.get('files_received')
-        assert log.get('status') == 'Failure'
+        assert log.get('status') == STATUSES.FAIL.value
         assert log['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_add_log_validation_errors(self):
@@ -59,7 +59,7 @@ class TestContentImporterLogProcessor:
         user = 'test'
         ContentImporterLogProcessor.add_log(bot, user,
                                          exception='Validation failed',
-                                         status='Failure',
+                                         status=STATUSES.FAIL.value,
                                          event_status=EVENT_STATUS.FAIL.value,
                                          validation_errors= {
                                             "Header mismatch": "Expected headers ['order_id', 'order_priority', 'sales', 'profit'] but found ['order_id', 'order_priority', 'revenue', 'sales'].",
@@ -74,7 +74,7 @@ class TestContentImporterLogProcessor:
         assert log[0].get('end_timestamp')
         assert log[0].get('validation_errors')
         assert not log[0]['file_received']
-        assert log[0].get('status') == 'Failure'
+        assert log[0].get('status') == STATUSES.FAIL.value
         assert log[0]['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_get_files_received_empty(self):
@@ -88,7 +88,7 @@ class TestContentImporterLogProcessor:
         table_name = 'test_table'
         ContentImporterLogProcessor.add_log(bot, user, table=table_name, file_received= "Salesstore.csv", is_data_uploaded=False)
         ContentImporterLogProcessor.add_log(bot, user,
-                                         status='Success',
+                                         status=STATUSES.SUCCESS.value,
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log = list(ContentImporterLogProcessor.get_logs(bot))
         assert not log[0].get('exception')
@@ -97,7 +97,7 @@ class TestContentImporterLogProcessor:
         assert log[0]['start_timestamp']
         assert log[0].get('end_timestamp')
         assert log[0]['file_received'] ==  "Salesstore.csv"
-        assert log[0].get('status') == 'Success'
+        assert log[0].get('status') == STATUSES.SUCCESS.value
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_get_files_received(self):

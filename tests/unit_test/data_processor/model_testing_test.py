@@ -1,4 +1,7 @@
 import os
+
+from kairon.shared.data.constant import STATUSES
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 import shutil
 import tempfile
@@ -77,7 +80,7 @@ class TestModelTesting:
         assert not logs[0].get('nlu')
         assert next(data['failed_stories'] for data in logs[0].get('data') if data['type'] == 'stories')
         assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'FAILURE'
+        assert logs[0].get('status') == STATUSES.FAIL.value
         assert logs[0]['event_status'] == 'Completed'
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'stories', logs[0]['reference_id'])
         assert len(logs['errors']) == 2
@@ -142,7 +145,7 @@ class TestModelTesting:
         assert not logs1[0].get('stories')
         assert next(data for data in logs1[0].get('data') if data['type'] == 'nlu')
         assert logs1[0].get('end_timestamp')
-        assert logs1[0].get('status') == 'FAILURE'
+        assert logs1[0].get('status') == STATUSES.FAIL.value
         assert logs1[0]['event_status'] == 'Completed'
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'])
         assert len(logs['intent_evaluation']['errors']) == 10

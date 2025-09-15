@@ -11,6 +11,7 @@ from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FORM_SLOT_SET_TYPE
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionFormValidation(ActionsBase):
@@ -52,7 +53,7 @@ class ActionFormValidation(ActionsBase):
         slot_value = tracker.get_slot(slot)
         msg = [f'slot: {slot} | slot_value: {slot_value}']
         is_valid = False
-        status = "FAILURE"
+        status = STATUSES.FAIL.value
         if ActionUtility.is_empty(slot):
             return {}
         try:
@@ -72,7 +73,7 @@ class ActionFormValidation(ActionsBase):
                 is_valid = True
 
             if is_valid:
-                status = "SUCCESS"
+                status = STATUSES.SUCCESS.value
                 form_slot_set_type = validation.slot_set.type
                 custom_value = validation.slot_set.value
                 if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.custom.value:

@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionGoogleSearch(ActionsBase):
@@ -56,7 +57,7 @@ class ActionGoogleSearch(ActionsBase):
         slots_set = {}
         results = None
         exception = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         latest_msg = tracker.latest_message.get('text')
         action_config = self.retrieve_config()
         bot_response = action_config.get("failure_response")
@@ -87,7 +88,7 @@ class ActionGoogleSearch(ActionsBase):
         except Exception as e:
             logger.exception(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)

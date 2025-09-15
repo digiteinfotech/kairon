@@ -4,7 +4,7 @@ from kairon.catalog_sync.definitions.base import CatalogSyncBase
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.account.data_objects import User
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.constant import SyncType, SYNC_STATUS
+from kairon.shared.data.constant import SyncType, SYNC_STATUS, STATUSES
 from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.utils import MailUtility
@@ -67,7 +67,7 @@ class PetpoojaSync(CatalogSyncBase):
                 )
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),
-                                            status="Failure")
+                                            status=STATUSES.FAIL.value)
             return str(e)
 
     async def preprocess(self, **kwargs):
@@ -99,7 +99,7 @@ class PetpoojaSync(CatalogSyncBase):
                 initiate_import = False
                 sync_status = SYNC_STATUS.SAVE.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user, validation_errors=error_summary,
-                                                sync_status=sync_status, status="Failure")
+                                                sync_status=sync_status, status=STATUSES.FAIL.value)
             else:
                 stale_primary_keys = CognitionDataProcessor.save_ai_data(self.data, self.bot, self.user, self.sync_type)
             return initiate_import, stale_primary_keys
@@ -116,7 +116,7 @@ class PetpoojaSync(CatalogSyncBase):
             )
             CatalogSyncLogProcessor.add_log(self.bot, self.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),
-                                            status="Failure")
+                                            status=STATUSES.FAIL.value)
             return None
 
 
@@ -133,7 +133,7 @@ class PetpoojaSync(CatalogSyncBase):
         cognition_processor = CognitionDataProcessor()
         initiate_import = kwargs.get("initiate_import", False)
         stale_primary_keys = kwargs.get("stale_primary_keys")
-        status = "Failure"
+        status = STATUSES.FAIL.value
         sync_status = SYNC_STATUS.PREPROCESSING_COMPLETED
         try:
             knowledge_vault_data = self.data.get("kv", [])
@@ -143,7 +143,7 @@ class PetpoojaSync(CatalogSyncBase):
             if not CatalogSyncLogProcessor.is_smart_catalog_enabled(self.bot) and not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                 exception="Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!",
-                                                status="Success")
+                                                status=STATUSES.SUCCESS.value)
                 raise Exception("Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!")
 
             if initiate_import and CatalogSyncLogProcessor.is_smart_catalog_enabled(self.bot):
@@ -158,7 +158,7 @@ class PetpoojaSync(CatalogSyncBase):
                                                     exception="Validation Failed. Check logs",
                                                     status=status)
                 else:
-                    status = "Success"
+                    status = STATUSES.SUCCESS.value
                     CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                     exception="Sync to knowledge vault is not allowed for this bot. Contact Support!!",
                                                     status=status)
@@ -166,7 +166,7 @@ class PetpoojaSync(CatalogSyncBase):
 
             if not CatalogSyncLogProcessor.is_meta_enabled(self.bot):
                 sync_status = SYNC_STATUS.COMPLETED.value
-                status = "Success"
+                status = STATUSES.SUCCESS.value
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                 exception="Sync to Meta is not allowed for this bot. Contact Support!!",
                                                 status=status)
@@ -188,11 +188,11 @@ class PetpoojaSync(CatalogSyncBase):
                     if stale_primary_keys:
                         delete_payload = meta_processor.preprocess_delete_data(stale_primary_keys)
                         await meta_processor.delete_meta_catalog(delete_payload)
-                    status = "Success"
+                    status = STATUSES.SUCCESS.value
                 else:
                     meta_processor.preprocess_data(self.bot, meta_payload, "UPDATE", self.provider)
                     await meta_processor.update_meta_catalog()
-                    status = "Success"
+                    status = STATUSES.SUCCESS.value
             execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(self.bot)
             sync_status=SYNC_STATUS.COMPLETED.value
             await MailUtility.format_and_send_mail(
@@ -215,5 +215,5 @@ class PetpoojaSync(CatalogSyncBase):
             else:
                 CatalogSyncLogProcessor.add_log(self.bot, self.user,
                                                     exception=str(e),
-                                                    status="Failure",
+                                                    status=STATUSES.FAIL.value,
                                                     sync_status=sync_status)

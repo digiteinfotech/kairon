@@ -6,6 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.utils import MailUtility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, EmailActionConfig, TriggerInfo
@@ -52,7 +53,7 @@ class ActionEmail(ActionsBase):
         """
         action_call = kwargs.get('action_call', {})
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
@@ -88,7 +89,7 @@ class ActionEmail(ActionsBase):
             logger.debug(e)
             exception = str(e)
             bot_response = "I have failed to process your request"
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)

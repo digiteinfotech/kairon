@@ -12,7 +12,7 @@ from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackData
 from kairon.shared.constants import ChannelTypes
-
+from kairon.shared.data.constant import STATUSES
 
 CONST_AVAILABLE_CHANNEL_NAME_MAP = {
     'TelegramHandler': ChannelTypes.TELEGRAM.value,
@@ -66,7 +66,7 @@ class ActionCallback(ActionsBase):
         exception = None
         filled_slots = {}
         dispatch_bot_response = True
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         msg_logger = []
         callback_url = None
         metadata_log = []
@@ -102,7 +102,7 @@ class ActionCallback(ActionsBase):
             exception = e
             self.__is_success = False
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:

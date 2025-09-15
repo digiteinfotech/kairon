@@ -12,7 +12,7 @@ from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, 
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 
 
 class MessageBroadcastProcessor:
@@ -200,10 +200,10 @@ class MessageBroadcastProcessor:
             broadcast_log = broadcast_logs[msg_id]
             client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
             if log['errors']:
-                status = "Failed"
+                status = STATUSES.FAIL.value
                 errors = log['errors']
             else:
-                status = "Success"
+                status = STATUSES.SUCCESS.value
                 errors = []
             broadcast_log.update(errors=errors, status=status)
 
