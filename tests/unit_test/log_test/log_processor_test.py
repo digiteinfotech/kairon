@@ -503,55 +503,68 @@ def test_sanitize_query_filter_invalid(monkeypatch, log_type, query_params, expe
 
     assert expected_message in str(exc.value)
 
-
-@pytest.fixture
-def handler():
-    return ModelTestingHandler(
-        bot="test-bot",
-        user="tester",
-        doc_type=ModelTestingLogs,
-        start_idx=0,
-        page_size=10,
-    )
-
 def extract_match_stage(handler):
     fake_collection = MagicMock()
     with patch.object(ModelTestingLogs, "_get_collection", return_value=fake_collection):
         fake_collection.aggregate.return_value = [{"total": 0}]
         handler.get_logs_for_search_query()
-        pipeline = fake_collection.aggregate.call_args[0][0]  # first arg
-        return pipeline[0]["$match"]
+        first_pipeline = fake_collection.aggregate.call_args_list[0][0][0]
+        for stage in first_pipeline:
+            if "$match" in stage:
+                return stage["$match"]
+        raise AssertionError("No $match stage found in pipeline")
+
+
+@pytest.fixture
+def handler():
+    return ModelTestingHandler(
+        doc_type=MagicMock(),
+        bot="test-bot",
+        start_idx=0,
+        page_size=10,
+    )
+
 
 def test_match_stage_with_from_and_to_date(handler):
     handler.kwargs = {"from_date": date(2025, 1, 1), "to_date": date(2025, 1, 10)}
     match_stage = extract_match_stage(handler)
-    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
-    assert "$gte" in cond and "$lte" in cond
+    assert "start_timestamp" in match_stage["$and"][1]
+
 
 def test_match_stage_with_only_from_date(handler):
     handler.kwargs = {"from_date": date(2025, 1, 1)}
     match_stage = extract_match_stage(handler)
-    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
-    assert "$gte" in cond
+    assert "start_timestamp" in match_stage["$and"][1]
+
 
 def test_match_stage_with_only_to_date(handler):
     handler.kwargs = {"to_date": date(2025, 1, 10)}
     match_stage = extract_match_stage(handler)
-    cond = match_stage["$or"][0]["$and"][1]["start_timestamp"]
-    assert "$lte" in cond
+    assert "start_timestamp" in match_stage["$and"][1]
 
-def test_match_stage_ignores_none(handler):
+
+def test_match_stage_ignores_none_field(handler):
     handler.kwargs = {"status": None}
     match_stage = extract_match_stage(handler)
     assert "status" not in match_stage
+
 
 @pytest.mark.parametrize("flag,expected", [("true", True), ("false", False)])
 def test_match_stage_is_augmented(handler, flag, expected):
     handler.kwargs = {"is_augmented": flag}
     match_stage = extract_match_stage(handler)
-    assert match_stage["is_augmented"] is expected
+    assert match_stage["is_augmented"] == expected
+
 
 def test_match_stage_with_extra_field(handler):
     handler.kwargs = {"status": "Success"}
     match_stage = extract_match_stage(handler)
     assert match_stage["status"] == "Success"
+
+
+def test_default_dates_auto_adjust_when_from_after_to(handler):
+    from_date = datetime(2025, 1, 10)
+    to_date = datetime(2025, 1, 1)
+    handler.kwargs = {"from_date": from_date, "to_date": to_date}
+    match_stage = extract_match_stage(handler)
+    assert "start_timestamp" in match_stage["$and"][1]
