@@ -894,6 +894,38 @@ def test_instagram_comment_with_both_static_and_post_specific_reply():
             assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
                                                       channel_type="instagram") > 0
 
+@pytest.mark.integration
+def test_add_instagram_channel_integration_page():
+    access_token = chat_client_config["config"]["headers"]["authorization"][
+        "access_token"
+    ]
+    token_type = chat_client_config["config"]["headers"]["authorization"]["token_type"]
+
+    payload = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "053a2a210f6db99d64bc3e6ea98*****",
+            "page_access_token": "EA...BZL9Bjtsy2LJbtEBZl",
+            "verify_token": "v*****",
+            "static_comment_reply": "Thanks for reaching us, please check y..."
+        },
+    }
+
+    response = client.post(
+        f"/api/bot/{bot}/channels/add",
+        json=payload,
+        headers={"Authorization": f"{token_type} {access_token}"},
+        timeout=10,
+    )
+
+    actual = response.json()
+    print("Response:", actual)
+
+    assert response.status_code == 200
+    assert actual["success"] is True
+    assert "channel" in actual["message"].lower()
+
+
 
 @responses.activate
 @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")

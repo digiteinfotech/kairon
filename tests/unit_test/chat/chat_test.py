@@ -26,6 +26,8 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from pymongo.errors import ServerSelectionTimeoutError
 from rasa.shared.core.trackers import DialogueStateTracker
+from bson import ObjectId
+from kairon.shared.account.data_objects import Bot
 
 
 class TestChat:
@@ -1195,6 +1197,99 @@ async def test_get_user_account_details_from_page_instagram(mock_get_config, mon
     mock_session.get.assert_called_once_with(
         "https://graph.facebook.com/v18.0/123456789/?fields=instagram_business_account&access_token=dummy-token"
     )
+
+
+@pytest.mark.asyncio
+async def test_save_channel_config_with_masked_values_and_existing_channel(monkeypatch):
+    bot = str(ObjectId())
+    user = "insta_user_existing"
+
+    monkeypatch.setitem(
+        Utility.environment,
+        "model",
+        {"agent": {"url": "http://localhost:8080"}},
+    )
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+
+    Bot(
+        id=bot,
+        account=123456789,
+        name="Instagram Test Bot",
+        user="system_user",
+    ).save()
+
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    original_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": Utility.encrypt_message("my_real_secret"),
+            "page_access_token": Utility.encrypt_message("real_page_token"),
+            "verify_token": Utility.encrypt_message("real_verify_token"),
+        },
+    }
+    Channels(**original_config, bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    update_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "*****",
+            "page_access_token": "*****",
+            "verify_token": "*****",
+            "extra_field": "new_value",
+        },
+    }
+
+    endpoint = ChatDataProcessor.save_channel_config(update_config, bot, user)
+
+    assert "http://localhost:8080/api/bot/instagram" in endpoint
+
+
+
+@pytest.mark.asyncio
+async def test_save_channel_config_new_instagram_channel(monkeypatch):
+
+    bot = str(ObjectId())
+    user = "insta_user_new"
+
+    monkeypatch.setitem(
+        Utility.environment,
+        "model",
+        {"agent": {"url": "http://localhost:8080"}},
+    )
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+
+    Bot(
+        id=bot,
+        account=123456789,
+        name="Instagram New Bot",
+        user="system_user",
+    ).save()
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    new_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "plain_app_secret",
+            "page_access_token": "plain_page_token",
+            "verify_token": "plain_verify_token",
+        },
+    }
+
+    endpoint = ChatDataProcessor.save_channel_config(new_config, bot, user)
+
+    channel = Channels.objects(bot=bot, connector_type="instagram").get()
+    assert channel is not None
+    assert channel.config["app_secret"] != "plain_app_secret"
+    assert channel.config["page_access_token"] != "plain_page_token"
+    assert channel.config["verify_token"] != "plain_verify_token"
+    assert endpoint.startswith("http://localhost:8080/api/bot/instagram/")
 
 
 @pytest.mark.asyncio
