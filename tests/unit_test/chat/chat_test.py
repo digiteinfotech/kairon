@@ -1200,58 +1200,86 @@ async def test_get_user_account_details_from_page_instagram(mock_get_config, mon
 
 
 @pytest.mark.asyncio
-async def test_save_channel_config_with_masked_values_and_existing_channel(monkeypatch):
+async def test_save_channel_config_with_masked_and_real_values(monkeypatch):
     bot = str(ObjectId())
-    user = "insta_user_existing"
+    user = "insta_user"
 
-    monkeypatch.setitem(
-        Utility.environment,
-        "model",
-        {"agent": {"url": "http://localhost:8080"}},
-    )
+    monkeypatch.setitem(Utility.environment, "model", {"agent": {"url": "http://localhost:8080"}})
 
     Channels.objects(bot=bot, connector_type="instagram").delete()
     BotSettings.objects(bot=bot).delete()
     Bot.objects(id=bot).delete()
-
-    Bot(
-        id=bot,
-        account=123456789,
-        name="Instagram Test Bot",
-        user="system_user",
-    ).save()
-
+    Bot(id=bot, account=123, name="Test Bot", user="system_user").save()
     BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
 
     original_config = {
         "connector_type": "instagram",
         "config": {
-            "app_secret": Utility.encrypt_message("my_real_secret"),
-            "page_access_token": Utility.encrypt_message("real_page_token"),
-            "verify_token": Utility.encrypt_message("real_verify_token"),
-        },
+            "app_secret": Utility.encrypt_message("secret1"),
+            "page_access_token": Utility.encrypt_message("token1"),
+            "verify_token": Utility.encrypt_message("verify1")
+        }
     }
+
     Channels(**original_config, bot=bot, user=user, timestamp=datetime.utcnow()).save()
 
-    update_config = {
+    update_masked = {
         "connector_type": "instagram",
         "config": {
             "app_secret": "*****",
             "page_access_token": "*****",
             "verify_token": "*****",
-            "extra_field": "new_value",
-        },
+            "extra_field": "new_value"
+        }
     }
 
-    endpoint = ChatDataProcessor.save_channel_config(update_config, bot, user)
+    ChatDataProcessor.save_channel_config(update_masked, bot, user)
+    saved = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
 
-    assert "http://localhost:8080/api/bot/instagram" in endpoint
+    assert Utility.decrypt_message(saved["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved["config"]["verify_token"]) == "verify1"
+    assert saved["config"]["extra_field"] == "new_value"
 
+    update_last5 = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "secret1*****",
+            "page_access_token": "token1*****",
+            "verify_token": "verify1*****",
+            "extra_field": "updated_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_last5, bot, user)
+    saved_last5 = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert Utility.decrypt_message(saved_last5["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved_last5["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved_last5["config"]["verify_token"]) == "verify1"
+    assert saved_last5["config"]["extra_field"] == "updated_value"
+
+    update_real = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "new_secret",
+            "page_access_token": "new_token",
+            "verify_token": "new_verify",
+            "extra_field": "final_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_real, bot, user)
+    saved_real = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert saved_real["config"]["app_secret"] == "new_secret"
+    assert saved_real["config"]["page_access_token"] == "new_token"
+    assert saved_real["config"]["verify_token"] == "new_verify"
+    assert saved_real["config"]["extra_field"] == "final_value"
 
 
 @pytest.mark.asyncio
 async def test_save_channel_config_new_instagram_channel(monkeypatch):
-
     bot = str(ObjectId())
     user = "insta_user_new"
 
