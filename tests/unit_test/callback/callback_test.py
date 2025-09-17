@@ -535,6 +535,100 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
     mock_failure_entry.assert_not_called()
 
 @pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackProcessor.async_callback', new_callable=AsyncMock)
+@patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript_async')
+async def test_process_async_callback_request_async_triggers_callback(
+    mock_run_pyscript_async,
+    mock_async_callback
+):
+    token = "test_token"
+    identifier = "test_identifier"
+    request_data = {"body": {"key": "value"}}
+    callback_source = "test_source"
+
+    # Fake entry + callback returned by validate_entry
+    entry = {
+        "bot": "TestBot",
+        "action_name": "TestAction",
+        "identifier": identifier,
+        "channel": "TestChannel",
+        "sender_id": "TestSender",
+        "metadata": "TestMetadata",
+        "callback_url": "http://test.com",
+    }
+    callback = {
+        "execution_mode": "async",
+        "pyscript_code": "Test code",
+    }
+
+    with patch('kairon.async_callback.processor.CallbackData.validate_entry', return_value=(entry, callback)):
+
+        def fake_run_pyscript_async(script, predefined_objects, callback):
+            rsp = {"result": {"bot_response": "hi async", "dispatch_bot_response": True}}
+            return asyncio.ensure_future(callback(rsp))
+
+        mock_run_pyscript_async.side_effect = fake_run_pyscript_async
+
+        from kairon.async_callback.processor import CallbackProcessor
+        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+            token, identifier, request_data, callback_source
+        )
+
+        mock_run_pyscript_async.assert_called_once()
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript')
+@patch('kairon.async_callback.processor.CallbackProcessor.parse_pyscript_data')
+@patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
+@patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+@patch('kairon.shared.callback.data_objects.CallbackData.update_state')
+async def test_process_async_callback_request_sync(
+    mock_update_state,
+    mock_failure_entry,
+    mock_success_entry,
+    mock_dispatch_message,
+    mock_parse_pyscript_data,
+    mock_run_pyscript,
+):
+    token = "test_token"
+    identifier = "test_identifier"
+    request_data = {"body": {"key": "value"}}
+    callback_source = "test_source"
+
+    entry = {
+        "bot": "TestBot",
+        "action_name": "TestAction",
+        "identifier": identifier,
+        "channel": "TestChannel",
+        "sender_id": "TestSender",
+        "metadata": "TestMetadata",
+        "callback_url": "http://test.com",
+    }
+    callback = {
+        "execution_mode": "sync",
+        "pyscript_code": "Test code')",
+    }
+
+    with patch('kairon.async_callback.processor.CallbackData.validate_entry', return_value=(entry, callback)):
+
+        mock_run_pyscript.return_value = {"response": "ok"}
+
+        mock_parse_pyscript_data.return_value = ("Test Bot", {"state": "updated"}, False, True)
+
+        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+            token, identifier, request_data, callback_source
+        )
+
+        mock_run_pyscript.assert_called_once()
+        mock_parse_pyscript_data.assert_called_once()
+        mock_update_state.assert_called_once_with(entry['bot'], entry['identifier'], {"state": "updated"}, False)
+
+        mock_dispatch_message.assert_called_once_with(entry["bot"], entry["sender_id"], "Test Bot", entry["channel"])
+        mock_success_entry.assert_called_once()
+        mock_failure_entry.assert_not_called()
+
+@pytest.mark.asyncio
 @patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
 @patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
 @patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
