@@ -38,7 +38,7 @@ class ChatDataProcessor:
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
-            channel.config = configuration['config']
+            channel.config = ChatDataProcessor.__validate_config_for_update(channel,configuration["config"])
             primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
                 'is_primary') else False
         except DoesNotExist:
@@ -54,6 +54,18 @@ class ChatDataProcessor:
             ChatDataProcessor.delete_channel_config(bot, connector_type="slack", config__is_primary=False)
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
+
+    @staticmethod
+    def __validate_config_for_update(channel: Channels, config: dict):
+        channel_config = channel.config or {}
+        for key, val in config.items():
+            if isinstance(val, str) and val.endswith("*****") and key in ["app_secret", "page_access_token",
+                                                                          "verify_token"]:
+                decrypted = Utility.decrypt_message(channel.config.get(key))
+                channel_config[key] = decrypted
+            else:
+                channel_config[key] = val
+        return channel_config
 
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
