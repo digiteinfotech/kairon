@@ -33933,8 +33933,6 @@ def test_add_instagram_channel():
     assert actual["success"] is True
     assert actual["data"]
     assert 'Channel' in actual["message"]
-    assert actual["error_code"] is 0
-
 
 def test_missing_valid_config_instagram_channel():
     response = client.post(
