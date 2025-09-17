@@ -516,17 +516,16 @@ async def test_run_pyscript_async_submit_exception(mock_script, mock_predefined_
 @patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
 @patch('kairon.shared.callback.data_objects.CallbackData.update_state')
 async def test_async_callback(mock_update_state, mock_failure_entry, mock_success_entry, mock_dispatch_message):
-    obj = {'result': {'bot_response': 'Test result'}}
+    obj = {'result': {'bot_response': 'Test result', 'dispatch_bot_response':True}}
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
     cb = {'pyscript_code': 'Test code'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
-    ds = True
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
 
     mock_dispatch_message.assert_called_once_with(bot_id, sid, obj['result']['bot_response'], chnl)
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
@@ -547,10 +546,9 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
-    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
 
     mock_dispatch_message.assert_not_called()
     mock_success_entry.assert_not_called()
@@ -571,10 +569,9 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
-    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
         channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
@@ -592,10 +589,9 @@ async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     bot_id = 'Test bot'
     sid = 'Test sender'
     chnl = 'Test channel'
-    ds = False
     rd = {'key': 'value'}
 
-    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, ds, rd)
+    await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
         channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
