@@ -113,8 +113,9 @@ class EVENT_STATUS(str, Enum):
 
 class STATUSES(str, Enum):
     SUCCESS = "Success"
-    FAIL = "Fail"
-    PARTIAL_SUCCESS = "Partial_Success"
+    FAIL = "Failed"
+    PARTIAL_SUCCESS = "Partial Success"
+    PASSED = "PASSED"
 
 
 class SYNC_STATUS(str, Enum):

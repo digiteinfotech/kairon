@@ -2733,7 +2733,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'Fail': 1}
+                        'statuses': {STATUSES.FAIL.value: 1}
                     }
                 ],
                 'campaign_id': reference_id
@@ -3042,7 +3042,7 @@ class TestEventExecution:
         config.pop("recipients_config")
         config['collection_config'] = {}
         assert logged_config == config
-        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': STATUSES.FAIL.value, 'user': user,
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value, 'user': user,
                               'exception': "Failed to evaluate recipients: 'recipients'"
                               }
 
@@ -3144,7 +3144,7 @@ class TestEventExecution:
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
         logs[0][0].pop('template_params')
-        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': STATUSES.FAIL.value, 'user': user, 'recipients': ['918958030541']}
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value, 'user': user, 'recipients': ['918958030541']}
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3920,7 +3920,7 @@ class TestEventExecution:
         assert logged_config == config
         logs[0][0].pop("timestamp", None)
 
-        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value,
                               'user': user, "exception": "Script execution error: import of 'os' is unauthorized"}
 
     @responses.activate
@@ -3977,7 +3977,7 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': 'Fail',
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value,
                               'user': user, 'exception': 'Operation timed out: 1 seconds'}
 
     @responses.activate
@@ -4246,7 +4246,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -4329,7 +4329,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -4609,7 +4609,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -4691,7 +4691,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -4972,7 +4972,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5050,7 +5050,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -5382,7 +5382,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5405,7 +5405,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5491,7 +5491,7 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
@@ -5882,7 +5882,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5905,7 +5905,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -5927,7 +5927,7 @@ class TestEventExecution:
         ).save()
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6047,11 +6047,11 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
-                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 2,
@@ -6442,7 +6442,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6465,7 +6465,7 @@ class TestEventExecution:
 
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6487,7 +6487,7 @@ class TestEventExecution:
         ).save()
         ChannelLogs(
             type=ChannelTypes.WHATSAPP.value,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data={'id': 'CONVERSATION_ID', 'expiration_timestamp': '1691598412',
                   'origin': {'type': 'business_initated'}},
             initiator='business_initated',
@@ -6610,11 +6610,11 @@ class TestEventExecution:
                 'campaign_metrics': [
                     {
                         'retry_count': 0,
-                        'statuses': {'delivered': 1, 'Fail': 2, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 2, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 1,
-                        'statuses': {'delivered': 1, 'Fail': 1, 'read': 1, 'sent': 1}
+                        'statuses': {'delivered': 1, 'failed': 1, 'read': 1, 'sent': 1}
                     },
                     {
                         'retry_count': 2,

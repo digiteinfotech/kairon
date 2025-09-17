@@ -35,7 +35,7 @@ from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
-from kairon.shared.channels.mail.data_objects import MailResponseLog
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
@@ -4007,7 +4007,7 @@ def test_upload_doc_content_datatype_validation_failure():
     assert any(e['column_name'] == 'sales' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 4'])
     assert any(
         e['column_name'] == 'profit' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 6'])
-    assert logs[0]["status"] == "Partial_Success"
+    assert logs[0]["status"] == "Partial Success"
     assert logs[0]["event_status"] == "Completed"
 
     cognition_data = list(CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure"))
@@ -4985,8 +4985,8 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5158,8 +5158,8 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5286,8 +5286,8 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5716,8 +5716,8 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
 
@@ -5940,8 +5940,8 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
 
@@ -6103,8 +6103,8 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
 
@@ -6256,8 +6256,8 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
 
@@ -6429,8 +6429,8 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault is not allowed for this bot. Contact Support!!"
 
@@ -6742,8 +6742,8 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -6961,8 +6961,8 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -7570,7 +7570,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         sync_type="push_menu",
         start_timestamp=datetime.utcnow(),
         sync_status="Initiated",
-        status="In Progress"
+        status=EVENT_STATUS.INPROGRESS.value
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -24189,7 +24189,7 @@ def test_list_action_server_logs():
 
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/actions/search"
-        f"?from_date={from_date}&to_date={to_date}&status=Fail",
+        f"?from_date={from_date}&to_date={to_date}&status=Failed",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -24249,7 +24249,7 @@ def test_get_mail_channel_logs():
         },
         bot=pytest.bot,
         user="spandan.mondal@nimblework.com",
-        status="success"
+        status=MailStatus.SUCCESS.value
     ).save()
 
     response = client.get(
@@ -34895,7 +34895,7 @@ def test_multilingual_translate():
     assert response["message"] == "Bot translation in progress! Check logs."
     assert response["error_code"] == 0
     MultilingualLogProcessor.add_log(
-        pytest.bot, "integ1@gmail.com", event_status="Completed", status=STATUSES.SUCCESS.value
+        pytest.bot, "integ1@gmail.com", event_status=EVENT_STATUS.COMPLETED.value, status=STATUSES.SUCCESS.value
     )
 
 

@@ -80,9 +80,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                                                                                               language_code,
                                                                                               components,
                                                                                               namespace)
-        status = STATUSES.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
+        status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
-        if status == STATUSES.FAIL.value:
+        if status == EVENT_STATUS.FAIL.value:
             return status_flag, status_code, response
 
         MessageBroadcastProcessor.add_event_log(
@@ -104,7 +104,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                                                                                                    language_code,
                                                                                                    components,
                                                                                                    namespace)
-        status = STATUSES.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
+        status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.resend.value, self.reference_id, api_response=response,
@@ -128,7 +128,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 template_id, recipient, retry_count, language_code, components, namespace = message
             MessageBroadcastProcessor.add_event_log(
                 self.bot, broadcast_log_type, self.reference_id, api_response={"error": error_msg},
-                status=STATUSES.FAIL.value, recipient=recipient, template_params=components,
+                status=EVENT_STATUS.FAIL.value, recipient=recipient, template_params=components,
                 event_id=self.event_id, template_name=template_id, language_code=language_code, namespace=namespace,
                 retry_count=retry_count, errors =[{'code':131026,
                                                    'title': "Message undeliverable",

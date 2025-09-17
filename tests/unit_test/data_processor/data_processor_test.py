@@ -18962,26 +18962,26 @@ class TestMongoProcessor:
                          bot=bot).save()
         log_three = processor.get_logs(bot, "action_logs", start_time, end_time)
         assert len(log_three) == 2
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
         log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
         assert len(log_four) == 2
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
         log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
         assert len(log_five) == 2
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
         log_six = processor.get_logs(bot, "multilingual", start_time, end_time)
         assert len(log_six) == 2
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)

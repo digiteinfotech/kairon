@@ -21,7 +21,7 @@ class MailChannelStateData(Document):
 class MailStatus(Enum):
     Processing = "processing"
     SUCCESS = "Success"
-    FAILED = "Fail"
+    FAILED = "Failed"
 
 class MailResponseLog(Auditlog):
     """

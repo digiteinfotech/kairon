@@ -15,7 +15,7 @@ from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
-from kairon.shared.data.constant import EVENT_STATUS, STATUSES
+from kairon.shared.data.constant import EVENT_STATUS
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -566,7 +566,7 @@ def test_log_failed_messages():
         for call in mock_add_event_log.call_args_list:
             args, kwargs = call
             assert kwargs['api_response'] == {"error": error_msg}
-            assert kwargs['status'] == STATUSES.FAIL.value
+            assert kwargs['status'] == EVENT_STATUS.FAIL.value
             assert kwargs['errors'] == [{'code': 131026, 'title': "Message undeliverable", 'message': error_msg}]
 
 

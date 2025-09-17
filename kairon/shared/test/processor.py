@@ -36,7 +36,7 @@ class ModelTestingLogProcessor:
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             common_data.end_timestamp = datetime.utcnow()
         if event_status == EVENT_STATUS.COMPLETED.value:
-            common_data.status = 'PASSED'
+            common_data.status = STATUSES.PASSED.value
         if stories_result:
             common_data.status = STATUSES.FAIL.value if stories_result.get('failed_stories') else STATUSES.SUCCESS.value
             ModelTestingLogs(

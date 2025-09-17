@@ -73,7 +73,7 @@ class TestDataImporterLogProcessor:
         user = 'test'
         DataImporterLogProcessor.add_log(bot, user, files_received=list(REQUIREMENTS.copy()), is_data_uploaded=False)
         DataImporterLogProcessor.add_log(bot, user,
-                                         status='Success',
+                                         status=STATUSES.SUCCESS.value,
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log = list(DataImporterLogProcessor.get_logs(bot))
         assert not log[0].get('intents').get('data')
@@ -137,7 +137,7 @@ class TestDataImporterLogProcessor:
         count['http_action'] = 6
         count['domain']['intents'] = 12
         summary = {'intents': ['Intent not added to domain'], 'config': ['Invalid component']}
-        DataImporterLogProcessor.update_summary(bot, user, count, summary, STATUSES.FAIL.value, 'Completed')
+        DataImporterLogProcessor.update_summary(bot, user, count, summary, STATUSES.FAIL.value, EVENT_STATUS.COMPLETED.value)
         log = next(DataImporterLogProcessor.get_logs(bot))
         assert log.get('intents').get('data') == ['Intent not added to domain']
         assert not log.get('stories').get('data')

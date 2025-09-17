@@ -252,7 +252,7 @@ class TestChat:
         print(log)
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == STATUSES.FAIL.value
+        assert log['status'] == "failed"
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
@@ -341,7 +341,7 @@ class TestChat:
         )
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == STATUSES.FAIL.value
+        assert log['status'] == "failed"
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'

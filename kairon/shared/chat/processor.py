@@ -241,7 +241,7 @@ class ChatDataProcessor:
 
         ChannelLogs(
             type=channel_type,
-            status=STATUSES.FAIL.value,
+            status="failed",
             data=resp,
             failure_reason=failure_reason,
             message_id=message_id,

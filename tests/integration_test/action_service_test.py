@@ -13282,7 +13282,7 @@ def test_prompt_response_action_disabled():
          'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="Fail").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status=STATUSES.FAIL.value).get()
     assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
     assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
 

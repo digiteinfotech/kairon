@@ -1,6 +1,6 @@
 import os
 
-from kairon.shared.data.constant import STATUSES
+from kairon.shared.data.constant import STATUSES, EVENT_STATUS
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 import shutil
@@ -68,7 +68,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result=result,
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         print(logs)
         assert logs[0]['data'][0]['conversation_accuracy']['success_count'] == 3
@@ -124,7 +124,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result={},
                                                  nlu_result=result,
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs1, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         print(logs1)
         assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 29
@@ -198,7 +198,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result={},
                                                  nlu_result=result,
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs[0]['reference_id'])
         assert len(logs2['intent_evaluation']['errors']) == 10
