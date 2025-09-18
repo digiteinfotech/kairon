@@ -1354,6 +1354,7 @@ def test_save_channel_config_raises_for_masked_without_existing_secret(monkeypat
         lambda self: mock_response
     )
 
+
     with pytest.raises(AppException) as e:
         ChatDataProcessor.save_channel_config(configuration, bot, user)
     assert "Masked value provided for 'api_token'" in str(e.value)
