@@ -1357,7 +1357,7 @@ def test_save_channel_config_raises_for_masked_without_existing_secret(monkeypat
 
     with pytest.raises(AppException) as e:
         ChatDataProcessor.save_channel_config(configuration, bot, user)
-    assert "Masked value provided for 'api_token'" in str(e.value)
+    assert "The field 'api_token' cannot be empty or invalid. Please enter a valid value." in str(e.value)
 
 def test_save_channel_config_raises_on_decrypt_failure(monkeypatch):
     bot = "test_bot"
@@ -1402,7 +1402,7 @@ def test_save_channel_config_raises_on_decrypt_failure(monkeypatch):
 
     with pytest.raises(AppException) as e:
         ChatDataProcessor.save_channel_config(configuration, bot, user)
-    assert "Failed to preserve masked value for 'api_token': decryption failed" in str(e.value)
+    assert "Failed to process 'api_token'. Please provide a valid value." in str(e.value)
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
