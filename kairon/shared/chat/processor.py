@@ -66,15 +66,14 @@ class ChatDataProcessor:
             if isinstance(val, str) and val.endswith("*****") and key in required_fields:
                 existing = merged.get(key)
                 if not existing or Utility.check_empty_string(existing):
-                    raise AppException(f"Masked value provided for '{key}', but no existing secret found.")
+                    raise AppException(f"The field '{key}' cannot be empty or invalid. Please enter a valid value.")
                 try:
                     merged[key] = Utility.decrypt_message(existing)
-                except Exception as e:
-                    raise AppException(f"Failed to preserve masked value for '{key}': {e}")
+                except Exception:
+                    raise AppException(f"Failed to process '{key}'. Please provide a valid value.")
             else:
                 merged[key] = val
         return merged
-
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
         filter_args = {"bot": bot, "connector_type": configuration['connector_type']}
