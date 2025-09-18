@@ -1319,42 +1319,89 @@ async def test_save_channel_config_new_instagram_channel(monkeypatch):
     assert endpoint.startswith("http://localhost:8080/api/bot/instagram/")
 
 
-def test_validate_config_for_update_no_existing_secret(monkeypatch):
-    channel = MagicMock()
-    channel.connector_type = "slack"
-    channel.config = {"api_token": None}
+def test_save_channel_config_raises_for_masked_without_existing_secret(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": None, "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
 
     monkeypatch.setitem(
         Utility.system_metadata,
         "channels",
-        {"slack": {"required_fields": ["api_token"]}}
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
     )
 
-    config = {"api_token": "*****"}
-    with pytest.raises(AppException) as e:
-        ChatDataProcessor._ChatDataProcessor__validate_config_for_update(channel, config)
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
 
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
     assert "Masked value provided for 'api_token'" in str(e.value)
 
-def test_validate_config_for_update_decryption_failure(monkeypatch):
-    channel = MagicMock()
-    channel.connector_type = "slack"
-    channel.config = {"api_token": "encrypted_value"}
+def test_save_channel_config_raises_on_decrypt_failure(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": "encrypted_value", "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
 
     monkeypatch.setitem(
         Utility.system_metadata,
         "channels",
-        {"slack": {"required_fields": ["api_token"]}}
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
     )
 
-    monkeypatch.setattr(Utility, "decrypt_message", lambda x: (_ for _ in ()).throw(Exception("decryption error")))
-    config = {"api_token": "*****"}
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Utility.decrypt_message",
+        lambda value: (_ for _ in ()).throw(Exception("decryption failed"))
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
 
     with pytest.raises(AppException) as e:
-        ChatDataProcessor._ChatDataProcessor__validate_config_for_update(channel, config)
-
-    assert "Failed to preserve masked value for 'api_token': decryption error" in str(e.value)
-
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
+    assert "Failed to preserve masked value for 'api_token': decryption failed" in str(e.value)
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
