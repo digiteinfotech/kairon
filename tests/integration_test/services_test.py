@@ -4282,6 +4282,22 @@ def test_upload_media_file_too_large(mock_validate):
     assert "File size exceeds 100MB" in body["message"]
 
 
+
+@responses.activate
+def test_upload_media_channel_missing():
+    file_content = io.BytesIO(b"dummy content")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.pdf", file_content, "application/pdf")},
+    )
+    body = response.json()
+    print(body)
+    assert body["success"] is False
+    assert "no channel" in body["message"].lower() or "channel" in body["message"].lower()
+    assert body["error_code"] == 422
+
+
 @responses.activate
 def test_get_media_ids():
     bot_settings = BotSettings.objects(bot=pytest.bot).first()
