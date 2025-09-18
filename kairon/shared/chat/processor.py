@@ -56,15 +56,24 @@ class ChatDataProcessor:
         return channel_endpoint
 
     @staticmethod
-    def __validate_config_for_update(channel: Channels, config: dict):
-        channel_config = channel.config or {}
+    def __validate_config_for_update(channel: Channels, config: dict) -> dict:
+        merged = dict(channel.config or {})
+        connector_type = channel.connector_type
+        channel_params = Utility.system_metadata["channels"][connector_type]
+        required_fields = set(channel_params.get("required_fields", []))
+
         for key, val in config.items():
-            if isinstance(val, str) and val.endswith("*****"):
-                decrypted = Utility.decrypt_message(channel.config.get(key))
-                channel_config[key] = decrypted
+            if isinstance(val, str) and val.endswith("*****") and key in required_fields:
+                existing = merged.get(key)
+                if not existing or Utility.check_empty_string(existing):
+                    raise AppException(f"Masked value provided for '{key}', but no existing secret found.")
+                try:
+                    merged[key] = Utility.decrypt_message(existing)
+                except Exception as e:
+                    raise AppException(f"Failed to preserve masked value for '{key}': {e}")
             else:
-                channel_config[key] = val
-        return channel_config
+                merged[key] = val
+        return merged
 
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
