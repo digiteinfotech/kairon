@@ -59,8 +59,7 @@ class ChatDataProcessor:
     def __validate_config_for_update(channel: Channels, config: dict):
         channel_config = channel.config or {}
         for key, val in config.items():
-            if isinstance(val, str) and val.endswith("*****") and key in ["app_secret", "page_access_token",
-                                                                          "verify_token"]:
+            if isinstance(val, str) and val.endswith("*****"):
                 decrypted = Utility.decrypt_message(channel.config.get(key))
                 channel_config[key] = decrypted
             else:
