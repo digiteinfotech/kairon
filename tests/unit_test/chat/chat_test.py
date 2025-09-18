@@ -1319,6 +1319,43 @@ async def test_save_channel_config_new_instagram_channel(monkeypatch):
     assert endpoint.startswith("http://localhost:8080/api/bot/instagram/")
 
 
+def test_validate_config_for_update_no_existing_secret(monkeypatch):
+    channel = MagicMock()
+    channel.connector_type = "slack"
+    channel.config = {"api_token": None}
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token"]}}
+    )
+
+    config = {"api_token": "*****"}
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor._ChatDataProcessor__validate_config_for_update(channel, config)
+
+    assert "Masked value provided for 'api_token'" in str(e.value)
+
+def test_validate_config_for_update_decryption_failure(monkeypatch):
+    channel = MagicMock()
+    channel.connector_type = "slack"
+    channel.config = {"api_token": "encrypted_value"}
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token"]}}
+    )
+
+    monkeypatch.setattr(Utility, "decrypt_message", lambda x: (_ for _ in ()).throw(Exception("decryption error")))
+    config = {"api_token": "*****"}
+
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor._ChatDataProcessor__validate_config_for_update(channel, config)
+
+    assert "Failed to preserve masked value for 'api_token': decryption error" in str(e.value)
+
+
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
 async def test_get_user_media_posts_instagram(mock_get_config, monkeypatch):
