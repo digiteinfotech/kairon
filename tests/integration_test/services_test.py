@@ -4284,7 +4284,10 @@ def test_upload_media_file_too_large(mock_validate):
 
 
 @responses.activate
-def test_upload_media_channel_missing():
+@patch("kairon.shared.chat.processor.Channels.objects")
+def test_upload_media_channel_missing2(mock_channels):
+    mock_channels.return_value.exclude.return_value.get.side_effect = AppException("No channel found")
+
     file_content = io.BytesIO(b"dummy content")
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
@@ -4294,7 +4297,7 @@ def test_upload_media_channel_missing():
     body = response.json()
     print(body)
     assert body["success"] is False
-    assert "no channel" in body["message"].lower() or "channel" in body["message"].lower()
+    assert "no channel" in body["message"].lower()
     assert body["error_code"] == 422
 
 
