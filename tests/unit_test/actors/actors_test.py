@@ -816,7 +816,7 @@ def test_fetch_media_ids_success():
         assert result == [{"filename": "file1.png", "media_id": "media123"}]
         mock_objects.assert_called_once_with(
             bot="bot123",
-            upload_status="completed",
+            upload_status="Completed",
             media_id__ne="",
             upload_type__in=["user", "system"]
         )
