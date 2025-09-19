@@ -38,7 +38,7 @@ class ChatDataProcessor:
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
-            channel.config = configuration['config']
+            channel.config = ChatDataProcessor.__validate_config_for_update(channel,configuration["config"])
             primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
                 'is_primary') else False
         except DoesNotExist:
@@ -55,6 +55,25 @@ class ChatDataProcessor:
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
 
+    @staticmethod
+    def __validate_config_for_update(channel: Channels, config: dict) -> dict:
+        merged = dict(channel.config or {})
+        connector_type = channel.connector_type
+        channel_params = Utility.system_metadata["channels"][connector_type]
+        required_fields = set(channel_params.get("required_fields", []))
+
+        for key, val in config.items():
+            if isinstance(val, str) and val.endswith("*****") and key in required_fields:
+                existing = merged.get(key)
+                if not existing or Utility.check_empty_string(existing):
+                    raise AppException(f"The field '{key}' cannot be empty or invalid. Please enter a valid value.")
+                try:
+                    merged[key] = Utility.decrypt_message(existing)
+                except Exception:
+                    raise AppException(f"Failed to process '{key}'. Please provide a valid value.")
+            else:
+                merged[key] = val
+        return merged
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
         filter_args = {"bot": bot, "connector_type": configuration['connector_type']}

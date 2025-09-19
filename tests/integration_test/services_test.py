@@ -33915,6 +33915,42 @@ def test_get_channel_endpoint_not_configured():
     assert not actual["data"]
     assert actual["message"] == "Channel not configured"
 
+def test_add_instagram_channel():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/add",
+        json={
+            "connector_type": "instagram",
+            "config": {
+                "app_secret": "98730987654321",
+                "page_access_token": "accessangtoken",
+                "verify_token": "tokenvld",
+                "static_comment_reply": "welcome"
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["data"]
+    assert 'Channel' in actual["message"]
+
+def test_missing_valid_config_instagram_channel():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/add",
+        json={
+            "connector_type": "instagram",
+            "config": {
+                "app_secret": "98730987654321",
+                "page_access_token": "accessangtoken",
+                "static_comment_reply": "welcome"
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+    assert actual["data"] is None
+    assert "verify_token" in actual["message"][0]["msg"]
 
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):

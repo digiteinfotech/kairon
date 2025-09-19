@@ -11,11 +11,13 @@ from urllib.parse import urlencode, quote_plus
 import mongomock
 import pytest
 import responses
+from bson import ObjectId
 from mongoengine import connect, ValidationError
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.exceptions import AppException
+from kairon.shared.account.data_objects import Bot
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
@@ -1196,6 +1198,211 @@ async def test_get_user_account_details_from_page_instagram(mock_get_config, mon
         "https://graph.facebook.com/v18.0/123456789/?fields=instagram_business_account&access_token=dummy-token"
     )
 
+@pytest.mark.asyncio
+async def test_save_channel_config_with_masked_and_real_values(monkeypatch):
+    bot = str(ObjectId())
+    user = "insta_user"
+
+    monkeypatch.setitem(Utility.environment, "model", {"agent": {"url": "http://localhost:8080"}})
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+    Bot(id=bot, account=123, name="Test Bot", user="system_user").save()
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    original_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": Utility.encrypt_message("secret1"),
+            "page_access_token": Utility.encrypt_message("token1"),
+            "verify_token": Utility.encrypt_message("verify1")
+        }
+    }
+
+    Channels(**original_config, bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    update_masked = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "*****",
+            "page_access_token": "*****",
+            "verify_token": "*****",
+            "extra_field": "new_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_masked, bot, user)
+    saved = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert Utility.decrypt_message(saved["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved["config"]["verify_token"]) == "verify1"
+    assert saved["config"]["extra_field"] == "new_value"
+
+    update_last5 = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "secret1*****",
+            "page_access_token": "token1*****",
+            "verify_token": "verify1*****",
+            "extra_field": "updated_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_last5, bot, user)
+    saved_last5 = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert Utility.decrypt_message(saved_last5["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved_last5["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved_last5["config"]["verify_token"]) == "verify1"
+    assert saved_last5["config"]["extra_field"] == "updated_value"
+
+    update_real = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "new_secret",
+            "page_access_token": "new_token",
+            "verify_token": "new_verify",
+            "extra_field": "final_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_real, bot, user)
+    saved_real = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert saved_real["config"]["app_secret"] == "new_secret"
+    assert saved_real["config"]["page_access_token"] == "new_token"
+    assert saved_real["config"]["verify_token"] == "new_verify"
+    assert saved_real["config"]["extra_field"] == "final_value"
+
+
+@pytest.mark.asyncio
+async def test_save_channel_config_new_instagram_channel(monkeypatch):
+    bot = str(ObjectId())
+    user = "insta_user_new"
+
+    monkeypatch.setitem(
+        Utility.environment,
+        "model",
+        {"agent": {"url": "http://localhost:8080"}},
+    )
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+
+    Bot(
+        id=bot,
+        account=123456789,
+        name="Instagram New Bot",
+        user="system_user",
+    ).save()
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    new_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "plain_app_secret",
+            "page_access_token": "plain_page_token",
+            "verify_token": "plain_verify_token",
+        },
+    }
+
+    endpoint = ChatDataProcessor.save_channel_config(new_config, bot, user)
+
+    channel = Channels.objects(bot=bot, connector_type="instagram").get()
+    assert channel is not None
+    assert channel.config["app_secret"] != "plain_app_secret"
+    assert channel.config["page_access_token"] != "plain_page_token"
+    assert channel.config["verify_token"] != "plain_verify_token"
+    assert endpoint.startswith("http://localhost:8080/api/bot/instagram/")
+
+
+def test_save_channel_config_raises_for_masked_without_existing_secret(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": None, "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
+
+
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
+    assert "The field 'api_token' cannot be empty or invalid. Please enter a valid value." in str(e.value)
+
+def test_save_channel_config_raises_on_decrypt_failure(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": "encrypted_value", "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
+    )
+
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Utility.decrypt_message",
+        lambda value: (_ for _ in ()).throw(Exception("decryption failed"))
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
+
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
+    assert "Failed to process 'api_token'. Please provide a valid value." in str(e.value)
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
