@@ -1734,7 +1734,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS")
+                                       status=STATUSES.SUCCESS.value)
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',

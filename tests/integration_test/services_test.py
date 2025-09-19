@@ -89,7 +89,7 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.models import StoryEventType
+from kairon.shared.models import StoryEventType, UserMediaUploadStatus
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -2532,8 +2532,8 @@ def test_upload_file_content_success():
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_name'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -2615,7 +2615,7 @@ def test_bsp_upload_media_success(mock_get_buffer):
         media_id=media_id,
         filename="Upload_Download Data.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
@@ -2682,7 +2682,7 @@ def test_bsp_upload_media_channel_not_configured():
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2734,7 +2734,7 @@ def test_bsp_upload_media_access_token_not_found():
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2791,7 +2791,7 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2851,7 +2851,7 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
         media_id=media_id,
         filename="upload_fail.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -3658,8 +3658,8 @@ def test_upload_doc_content():
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -3774,8 +3774,8 @@ def test_upload_doc_content_append():
     logs = actual['data']['logs']
     assert len(logs) == 2
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -3866,7 +3866,7 @@ def test_upload_doc_content_basic_validation_failure():
     }
     assert validation_errors == expected_errors
     assert logs[0]["status"] == STATUSES.FAIL.value
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_basic_validation_failure").delete()
 
@@ -4007,8 +4007,8 @@ def test_upload_doc_content_datatype_validation_failure():
     assert any(e['column_name'] == 'sales' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 4'])
     assert any(
         e['column_name'] == 'profit' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 6'])
-    assert logs[0]["status"] == "Partial Success"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.PARTIAL_SUCCESS.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     cognition_data = list(CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure"))
     assert len(cognition_data) == 18
@@ -4168,7 +4168,7 @@ def test_upload_doc_content_file_type_validation_failure():
     }
     assert validation_errors == expected_errors
     assert logs[0]["status"] == STATUSES.FAIL.value
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
 
 
@@ -4316,7 +4316,7 @@ def test_get_media_ids():
         media_id=media_id,
         filename="Upload_Download Data.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="broadcast",
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
@@ -5033,8 +5033,8 @@ def test_get_catalog_sync_logs():
     assert 'validation_errors' in log and log['validation_errors'] == {}
     assert log['provider'] == 'petpooja'
     assert log['sync_type'] == 'push_menu'
-    assert log['status'] == 'Success'
-    assert log['sync_status'] == 'Completed'
+    assert log['status'] == STATUSES.SUCCESS.value
+    assert log['sync_status'] == EVENT_STATUS.COMPLETED.value
     print(response)
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
@@ -8550,7 +8550,7 @@ def test_get_executor_logs(get_executor_logs):
     assert len(actual["data"]["logs"]) == actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]["task_type"] == "Callback"
     assert actual["data"]["logs"][0]["event_class"] == "pyscript_evaluator"
-    assert actual["data"]["logs"][0]["status"] == "Completed"
+    assert actual["data"]["logs"][0]["status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["data"] == {
         'source_code': 'bot_response = "test - this is from callback test"',
         'predefined_objects': {
@@ -8685,7 +8685,7 @@ def test_search_executor_logs(get_executor_logs):
 
     logs = data["logs"]
     assert data["total"] == len(logs)
-    assert all(log.get("status") == "Success" for log in logs)
+    assert all(log.get("status") == STATUSES.SUCCESS.value for log in logs)
 
     # Group by task_type and assert structure
     for log in logs:
@@ -11498,7 +11498,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.broadcast_msg_id,
             "recipients": ["919876543210", "918958030541"],
@@ -11511,7 +11511,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -11541,7 +11541,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -11579,7 +11579,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             'reference_id': ref_id,
             'log_type': 'resend',
             'bot': pytest.bot,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {
                 'contacts': [
                     {
@@ -11625,7 +11625,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -11656,7 +11656,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -11687,7 +11687,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'common',
                 'bot': pytest.bot,
-                'status': 'Completed',
+                'status': EVENT_STATUS.COMPLETED.value,
                 'user': 'test_user',
                 'broadcast_id': pytest.broadcast_msg_id,
                 'recipients': [
@@ -15988,7 +15988,7 @@ def test_get_data_importer_logs():
     assert actual["data"]["logs"][0]["end_timestamp"]
 
     assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert actual['data']["logs"][1]['status'] == STATUSES.SUCCESS.value
     assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
     assert actual['data']["logs"][1]['is_data_uploaded']
     assert actual['data']["logs"][1]['start_timestamp']
@@ -16026,7 +16026,7 @@ def test_get_data_importer_logs():
                                          'user_actions': {'count': 9, 'data': []},
                                          'exception': '',
                                          'is_data_uploaded': True,
-                                         'status': 'Success', 'event_status': 'Completed'}
+                                         'status': STATUSES.SUCCESS.value, 'event_status': EVENT_STATUS.COMPLETED.value}
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][2]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
@@ -24934,7 +24934,7 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
-    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['status'] == STATUSES.SUCCESS.value
     assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][0]['is_data_uploaded']
     assert actual['data']["logs"][0]['start_timestamp']
@@ -31967,7 +31967,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.first_scheduler_id,
             "recipients": ["918958030541", ""],
@@ -31980,7 +31980,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "send",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -32017,7 +32017,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.first_scheduler_id,
             "recipients": ["918958030541", ""],
@@ -32040,7 +32040,7 @@ def test_list_broadcast_logs():
                 "reference_id": ref_id,
                 "log_type": "send",
                 "bot": pytest.bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "api_response": {
                     "contacts": [
                         {
@@ -32070,7 +32070,7 @@ def test_list_broadcast_logs():
                 "reference_id": ref_id,
                 "log_type": "common",
                 "bot": pytest.bot,
-                "status": "Completed",
+                "status": EVENT_STATUS.COMPLETED.value,
                 "user": "test_user",
                 "broadcast_id": pytest.first_scheduler_id,
                 "recipients": ["918958030541", ""],
@@ -35059,8 +35059,8 @@ def test_multilingual_translate_logs():
     assert actual["data"]["logs"][1]["copy_type"] == "Translation"
     assert actual["data"]["logs"][1]["translate_responses"] == False
     assert actual["data"]["logs"][1]["translate_actions"] == False
-    assert actual["data"]["logs"][1]["event_status"] == "Completed"
-    assert actual["data"]["logs"][1]["status"] == "Success"
+    assert actual["data"]["logs"][1]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][1]["status"] == STATUSES.SUCCESS.value
     assert actual["data"]["logs"][1]["start_timestamp"]
     assert actual["data"]["logs"][1]["end_timestamp"]
 

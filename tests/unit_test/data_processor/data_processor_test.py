@@ -2852,7 +2852,7 @@ class TestMongoProcessor:
             api_response="Response",
             bot_response="Bot Response",
             bot=bot,
-            status="FAILURE",
+            status=STATUSES.FAIL.value,
             trigger_info=TriggerInfo(trigger_id="",trigger_name="explicit_action", trigger_type="parallel_action")
         ).save()
 
