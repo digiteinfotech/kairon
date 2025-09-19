@@ -7,6 +7,7 @@ import pytest
 import os
 
 from kairon.shared.chat.data_objects import ChannelLogs
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.utils import Utility
 from mongoengine import connect
 
@@ -736,7 +737,7 @@ class TestWhatsappHandler:
                                                     "transaction": {
                                                         "id": "order_Ovpn6PVVFYbmK3",
                                                         "type": "razorpay",
-                                                        "status": "success",
+                                                        "status": "Success",
                                                         "created_timestamp": 1724764153,
                                                         "updated_timestamp": 1724764153,
                                                         "amount": {"value": 100, "offset": 100},
@@ -765,7 +766,7 @@ class TestWhatsappHandler:
                 assert args[0] == bot
                 user_message = args[1]
 
-                assert user_message.text == '/k_payment_msg{"payment": {"reference_id": "BM3-43D-12", "amount": {"value": 100, "offset": 100}, "currency": "INR", "transaction": {"id": "order_Ovpn6PVVFYbmK3", "type": "razorpay", "status": "success", "created_timestamp": 1724764153, "updated_timestamp": 1724764153, "amount": {"value": 100, "offset": 100}, "currency": "INR", "method": {"type": "upi"}}, "receipt": "receipt-value", "notes": {"key1": "value1", "key2": "value2"}}}'
+                assert user_message.text == '/k_payment_msg{"payment": {"reference_id": "BM3-43D-12", "amount": {"value": 100, "offset": 100}, "currency": "INR", "transaction": {"id": "order_Ovpn6PVVFYbmK3", "type": "razorpay", "status": "Success", "created_timestamp": 1724764153, "updated_timestamp": 1724764153, "amount": {"value": 100, "offset": 100}, "currency": "INR", "method": {"type": "upi"}}, "receipt": "receipt-value", "notes": {"key1": "value1", "key2": "value2"}}}'
 
                 log = (
                     ChannelLogs.objects(
@@ -783,7 +784,7 @@ class TestWhatsappHandler:
                     'transaction': {
                         'id': 'order_Ovpn6PVVFYbmK3',
                         'type': 'razorpay',
-                        'status': 'success',
+                        'status': 'Success',
                         'created_timestamp': 1724764153,
                         'updated_timestamp': 1724764153,
                         'amount': {'value': 100, 'offset': 100},
@@ -1103,7 +1104,7 @@ class TestWhatsappHandler:
                                         "statuses": [
                                             {
                                                 "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI",
-                                                "status": "failed",
+                                                "status": "Fail",
                                                 "timestamp": "1689380458",
                                                 "recipient_id": "15551234567",
                                                 "errors": [
@@ -1137,7 +1138,7 @@ class TestWhatsappHandler:
                     bot=bot, message_id="wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDI"
                 )
                 log = ChannelLogs.objects(bot=bot, user="919876543219").get().to_mongo().to_dict()
-                assert log.get("status") == "failed"
+                assert log.get("status") == STATUSES.FAIL.value
                 assert log.get("data") == {}
                 assert log.get("errors") == [
                     {

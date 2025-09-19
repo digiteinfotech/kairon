@@ -9,7 +9,7 @@ from kairon.shared.account.data_objects import User
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import SyncType, SYNC_STATUS
+from kairon.shared.data.constant import SyncType, SYNC_STATUS, STATUSES
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.data.data_objects import POSIntegrations
 from kairon.shared.utils import MailUtility
@@ -86,7 +86,7 @@ class CatalogSync(EventsBase):
             )
             CatalogSyncLogProcessor.add_log(self.catalog_sync.bot, self.catalog_sync.user, sync_status=SYNC_STATUS.FAILED.value,
                                             exception=str(e),
-                                            status="Failure")
+                                            status=STATUSES.FAIL.value)
             raise ValueError("Missing sync_ref_id in event payload")
 
         try:

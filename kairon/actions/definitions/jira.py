@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionJiraTicket(ActionsBase):
@@ -51,7 +52,7 @@ class ActionJiraTicket(ActionsBase):
         """
         action_call = kwargs.get('action_call', {})
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception = None
         action_config = self.retrieve_config()
         bot_response = action_config.get("response")
@@ -75,7 +76,7 @@ class ActionJiraTicket(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "I have failed to create issue for you"
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}

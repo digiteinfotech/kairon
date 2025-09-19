@@ -6,7 +6,7 @@ from loguru import logger
 from kairon.events.definitions.base import EventsBase
 from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.utils import Utility
@@ -62,7 +62,7 @@ class FaqDataImporterEvent(EventsBase):
         """
 
         bot_data_home_dir = os.path.join('training_data', self.bot)
-        validation_status = 'Failure'
+        validation_status = STATUSES.FAIL.value
         processor = MongoProcessor()
         try:
             DataImporterLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.VALIDATING.value)
@@ -71,7 +71,7 @@ class FaqDataImporterEvent(EventsBase):
             error_summary, component_count = DataUtility.validate_faq_training_data(self.bot, df)
 
             initiate_import = Utility.is_data_import_allowed(error_summary, self.bot, self.user)
-            status = 'Success' if initiate_import else 'Failure'
+            status = STATUSES.SUCCESS.value if initiate_import else STATUSES.FAIL.value
             DataImporterLogProcessor.update_summary(self.bot, self.user, component_count, error_summary,
                                                     status=status,
                                                     event_status=EVENT_STATUS.SAVE.value)

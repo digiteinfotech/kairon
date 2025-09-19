@@ -7,7 +7,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_UTTERANCE_NAME
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction, TriggerInfo
@@ -53,7 +53,7 @@ class ActionTwoStageFallback(ActionsBase):
         """
         action_call = kwargs.get('action_call', {})
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception = None
         action_config = self.retrieve_config()
         intent_ranking = tracker.latest_message.get("intent_ranking")

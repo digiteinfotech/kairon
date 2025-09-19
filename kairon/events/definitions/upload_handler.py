@@ -2,7 +2,7 @@ import os
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
 from kairon.upload_handlers.definitions.factory import UploadHandlerFactory
 from loguru import logger
@@ -44,7 +44,7 @@ class UploadHandler(EventsBase):
             Utility.request_event_server(EventClass.upload_file_handler, payload)
         except Exception as e:
             logger.error(str(e))
-            UploadHandlerLogProcessor.add_log(bot=self.upload_handler.bot, user=self.upload_handler.user, exception=str(e),
+            UploadHandlerLogProcessor.add_log(bot=self.upload_handler.bot, user=self.upload_handler.user, exception=str(e), status=STATUSES.FAIL.value,
                                               event_status=EVENT_STATUS.FAIL.value)
             content_dir = os.path.join('file_content_upload_records', self.upload_handler.bot)
             Utility.delete_directory(content_dir, True)

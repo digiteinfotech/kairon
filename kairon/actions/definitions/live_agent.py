@@ -10,6 +10,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs, LiveAgentAction
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.constants import ChannelTypes
 
@@ -66,7 +67,7 @@ class ActionLiveAgent(ActionsBase):
         exception = None
         filled_slots = {}
         dispatch_bot_response = True
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         msg_logger = []
         is_web = False
         try:
@@ -87,7 +88,7 @@ class ActionLiveAgent(ActionsBase):
             exception = e
             self.__is_success = False
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:
