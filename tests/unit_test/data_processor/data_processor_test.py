@@ -72,7 +72,7 @@ from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema,
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ENDPOINT_TYPE
+from kairon.shared.data.constant import ENDPOINT_TYPE, STATUSES
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
@@ -2852,7 +2852,7 @@ class TestMongoProcessor:
             api_response="Response",
             bot_response="Bot Response",
             bot=bot,
-            status="FAILURE",
+            status=STATUSES.FAIL.value,
             trigger_info=TriggerInfo(trigger_id="",trigger_name="explicit_action", trigger_type="parallel_action")
         ).save()
 
@@ -3881,7 +3881,7 @@ class TestMongoProcessor:
         assert log.file_received == doc_content.filename
         assert log.validation_errors is not None
         assert log.end_timestamp is not None
-        assert log.status == "Failure"
+        assert log.status == STATUSES.FAIL.value
         assert log.event_status == EVENT_STATUS.COMPLETED.value
 
     def test_validate_doc_content_success(self):
@@ -8573,19 +8573,19 @@ class TestMongoProcessor:
         ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                          url="http://kairon-api.digite.com/api/bot",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot_2).save()
         ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
         ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
@@ -8606,10 +8606,10 @@ class TestMongoProcessor:
                          bot=bot).save()
         ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
@@ -8619,8 +8619,8 @@ class TestMongoProcessor:
         assert any([log['sender'] == "sender_id_13" for log in logs])
         assert any([log['api_response'] == "Response" for log in logs])
         assert any([log['bot_response'] == "Bot Response" for log in logs])
-        assert any([log['status'] == "FAILURE" for log in logs])
-        assert any([log['status'] == "SUCCESS" for log in logs])
+        assert any([log['status'] == STATUSES.FAIL.value for log in logs])
+        assert any([log['status'] == STATUSES.SUCCESS.value for log in logs])
 
         logs = list(processor.get_action_server_logs(bot_2))
         assert len(logs) == 3
@@ -18962,26 +18962,26 @@ class TestMongoProcessor:
                          bot=bot).save()
         log_three = processor.get_logs(bot, "action_logs", start_time, end_time)
         assert len(log_three) == 2
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
         log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
         assert len(log_four) == 2
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
         log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
         assert len(log_five) == 2
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
         log_six = processor.get_logs(bot, "multilingual", start_time, end_time)
         assert len(log_six) == 2
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)

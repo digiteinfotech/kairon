@@ -6,7 +6,7 @@ from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
 
 
@@ -66,7 +66,7 @@ class TestUploadHandlerLogProcessor:
         user = 'test_user'
         UploadHandlerLogProcessor.add_log(bot, user, collection_name="test_collection", event_status=EVENT_STATUS.SAVE.value)
         UploadHandlerLogProcessor.add_log(bot, user,
-                                         status='Success',
+                                         status=STATUSES.SUCCESS.value,
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log, count = BaseLogHandler.get_logs(bot, "file_upload")
         assert not log[0].get('exception')
@@ -91,7 +91,7 @@ class TestUploadHandlerLogProcessor:
             exception="File format not supported",
             upload_errors={"File type error" : "Invalid file type"},
             event_status=EVENT_STATUS.FAIL.value,
-            status="Failure"
+            status=STATUSES.FAIL.value
         )
 
         log, count = BaseLogHandler.get_logs(bot, "file_upload")
@@ -101,7 +101,7 @@ class TestUploadHandlerLogProcessor:
         assert log[0]['start_timestamp']
         assert log[0]['collection_name']
         assert log[0]['upload_errors']["File type error"] == "Invalid file type"
-        assert log[0]["status"] == "Failure"
+        assert log[0]["status"] == STATUSES.FAIL.value
         assert log[0]['end_timestamp'] is not None
         assert log[0]['start_timestamp'] is not None
 

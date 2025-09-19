@@ -546,7 +546,7 @@ class TestMailChannel:
             'timestamp': 1234567890,
             'subject': 'Test Subject',
             'body': 'Test Body',
-            'status': 'SUCCESS'
+            'status': MailStatus.SUCCESS.value
         }
 
         with patch.object(MailResponseLog, 'objects') as mock_objects:
@@ -560,7 +560,7 @@ class TestMailChannel:
             assert result['logs'][0]['timestamp'] == 1234567890
             assert result['logs'][0]['subject'] == 'Test Subject'
             assert result['logs'][0]['body'] == 'Test Body'
-            assert result['logs'][0]['status'] == 'SUCCESS'
+            assert result['logs'][0]['status'] == MailStatus.SUCCESS.value
 
     def test_get_log_exception(self):
         bot_id = "test_bot"

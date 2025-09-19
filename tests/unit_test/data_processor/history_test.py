@@ -8,6 +8,7 @@ import pytest
 
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.utils import Utility
 from mongoengine import connect
@@ -111,13 +112,13 @@ class TestHistory:
     def test_is_event_in_progress_with_aborted(self, get_connection_delete_history):
         till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
-                                            till_date, status='Aborted')
+                                            till_date, status=EVENT_STATUS.ABORTED.value)
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
     def test_is_event_in_progress_failure(self, get_connection_delete_history):
         till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
-                                            till_date, status='In progress')
+                                            till_date, status=EVENT_STATUS.INPROGRESS.value)
         assert HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):

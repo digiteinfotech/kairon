@@ -47,7 +47,7 @@ from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE, EventClass
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
-    DEFAULT_NLU_FALLBACK_RESPONSE
+    DEFAULT_NLU_FALLBACK_RESPONSE, STATUSES
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
@@ -206,7 +206,7 @@ def test_callback_action_execution(aioresponses):
                    'action': 'callback_action1', 'sender': 'default',
                    'headers': {}, 'bot_response': 'Hello',
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
-                   'status': 'SUCCESS', 'user_msg': 'get intents',
+                   'status': STATUSES.SUCCESS.value, 'user_msg': 'get intents',
                    'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'callback_url_slot': 'callback_url', 'metadata': {}}
 
@@ -322,7 +322,7 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
                    'headers': {}, 'bot_response': 'Hello',
                    'messages': [], 'bot': '6697add6b8e47524eb983373',
                    'exception': "Callback Configuration with name 'callback_script3' does not exist!",
-                   'status': 'FAILURE', 'user_msg': 'get intents',
+                   'status': STATUSES.FAIL.value, 'user_msg': 'get intents',
                    'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                    'callback_url_slot': 'callback_url', 'metadata': {}}
 
@@ -440,7 +440,7 @@ def test_live_agent_action_execution(aioresponses):
     assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
                    'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
                    'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
-                   'bot': '5f50fd0a56b698ca10d35d2z', 'status': 'SUCCESS', 'user_msg': 'get intents'}
+                   'bot': '5f50fd0a56b698ca10d35d2z', 'status': STATUSES.SUCCESS.value, 'user_msg': 'get intents'}
 
 
 def test_live_agent_action_execution_no_agent_available(aioresponses):
@@ -844,7 +844,7 @@ def test_parallel_action_execution(aioresponses):
         "headers": {},
         "bot_response": "Parallel Action Executed",
         "bot": "5f50fd0a56b698ca10d35d2z",
-        "status": "SUCCESS",
+        "status": STATUSES.SUCCESS.value,
         "trigger_info": {"trigger_name": '',"trigger_type": 'implicit',"trigger_id":""},
         "user_msg": "get intents"
     }
@@ -984,7 +984,7 @@ def test_parallel_action_execution_dispatch_response_false(aioresponses):
         "sender": "default",
         "headers": {},
         "bot": "5f50fd0a56b698ca10d35d2z",
-        "status": "SUCCESS",
+        "status": STATUSES.SUCCESS.value,
         "trigger_info": {"trigger_id":"","trigger_name": '',"trigger_type": 'implicit'},
         "user_msg": "get intents"
     }
@@ -1114,7 +1114,7 @@ def test_parallel_action_execution_failure(aioresponses):
         "headers": {},
         "bot_response": "Parallel Action Executed",
         "bot": "5f50fd0a56b698ca10d35d2z",
-        "status": "SUCCESS",
+        "status": STATUSES.SUCCESS.value,
         "trigger_info": {"trigger_id":"","trigger_name": '',"trigger_type": 'implicit'},
         "user_msg": "get intents"
     }
@@ -2199,7 +2199,7 @@ def test_http_action_execution(aioresponses):
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value, 'fail_reason': None,
                    'trigger_info': {'trigger_id':"",'trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'http_status_code': 200
                    }
@@ -2701,7 +2701,7 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value, 'fail_reason': None,
                    'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -2816,7 +2816,7 @@ def test_http_action_execution_script_evaluation(aioresponses):
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'bot_response': 'Mayank',
-                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
+                   'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value, 'fail_reason': None,
                    'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'http_status_code': 200}
 
@@ -2945,7 +2945,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
-                   'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
+                   'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value,
                    'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
@@ -3095,7 +3095,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
-                   'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
+                   'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value,
                    'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
@@ -3243,7 +3243,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json',
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
-                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS', 'fail_reason': None,
+                       'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value, 'fail_reason': None,
                        'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'}, 'user_msg': 'get intents', 'http_status_code': 200}
 
 
@@ -3410,7 +3410,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch',
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                        'bot_response': "{'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}",
-                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'SUCCESS',
+                        'bot': '5f50fd0a56b698ca10d35d2e', 'status': STATUSES.SUCCESS.value,
                        'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                        'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
 
@@ -3763,7 +3763,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                               'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
                               'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock',
                               'request_method': 'GET', 'bot_response': 'Mayank', 'bot': '5f50fd0a56b698ca10d35d2e',
-                              'status': 'SUCCESS', 'fail_reason': None, 'user_msg': 'get intents',
+                              'status': STATUSES.SUCCESS.value, 'fail_reason': None, 'user_msg': 'get intents',
                               'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
                               'http_status_code': 200}, ignore_order=True)
 
@@ -4145,7 +4145,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
-                   'status': 'FAILURE', 'fail_reason': 'Got non-200 status code:408 http_response:None',
+                   'status': STATUSES.FAIL.value, 'fail_reason': 'Got non-200 status code:408 http_response:None',
                    'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'user_msg': 'get intents', 'time_elapsed': 0, 'http_status_code': 408}
 
@@ -6543,7 +6543,7 @@ def test_email_action_execution(mock_smtp, mock_action_config, mock_action):
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -6695,7 +6695,7 @@ def test_email_action_execution_dispaatch_false(mock_smtp, mock_action_config, m
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "Email Triggered"}]
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -6848,7 +6848,7 @@ def test_email_action_execution_with_sender_email_from_slot(mock_smtp, mock_acti
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -7001,7 +7001,7 @@ def test_email_action_execution_with_receiver_email_list_from_slot(mock_smtp, mo
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -7154,7 +7154,7 @@ def test_email_action_execution_with_single_receiver_email_from_slot(mock_smtp, 
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -7307,7 +7307,7 @@ def test_email_action_execution_with_invalid_from_email(mock_smtp, mock_action_c
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
+    assert logs.status == STATUSES.FAIL.value
     assert logs.exception == "Invalid 'from_email' type. It must be of type str."
 
 
@@ -7436,7 +7436,7 @@ def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_con
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
+    assert logs.status == STATUSES.FAIL.value
     assert logs.exception == "Invalid 'from_email' type. It must be of type str."
 
 
@@ -7565,7 +7565,7 @@ def test_email_action_execution_with_invalid_to_email(mock_smtp, mock_action_con
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
+    assert logs.status == STATUSES.FAIL.value
     assert logs.exception == "Invalid 'to_email' type. It must be of type str or list."
 
 
@@ -7899,7 +7899,7 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
     name, args, kwargs = mock_smtp.method_calls.pop(0)
     assert name == '().connect'
@@ -8022,7 +8022,7 @@ def test_email_action_execution_varied_utterances(mock_smtp, mock_action_config,
          'value': "Email Triggered"}]
     assert response_json['responses'][0]['text'] == "Email Triggered"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "SUCCESS"
+    assert logs.status == STATUSES.SUCCESS.value
 
 
 @mock.patch("kairon.shared.actions.utils.ActionUtility.get_action")
@@ -8139,7 +8139,7 @@ def test_email_action_failed_execution(mock_action_config, mock_action):
          'value': "I have failed to process your request"}]
     assert response_json['responses'][0]['text'] == "I have failed to process your request"
     logs = ActionServerLogs.objects(type=ActionType.email_action.value).order_by("-id").first()
-    assert logs.status == "FAILURE"
+    assert logs.status == STATUSES.FAIL.value
 
 
 def test_email_action_execution_action_not_exist():
@@ -9108,7 +9108,7 @@ def test_process_web_search_action():
                     'text': 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>',
                     'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None, 'image': None,
                     'attachment': None}]}
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status=STATUSES.SUCCESS.value).get()
     assert log[
                'bot_response'] == 'Data Science is a combination of multiple disciplines that uses statistics, data analysis, and machine learning to analyze data and to extract knowledge and insights from it. What is Data Science? Data Science is about data gathering, analysis and decision-making.\nTo know more, please visit: <a href = "https://www.w3schools.com/datascience/ds_introduction.asp" target="_blank" >Data Science Introduction - W3Schools</a>'
 
@@ -9467,7 +9467,7 @@ def test_process_web_search_action_without_kairon_user_msg_entity():
                 'text': 'Data science combines math, statistics, programming, analytics, AI, and machine learning to uncover insights from data. Learn how data science works, what it entails, and how it differs from data science and BI.\nTo know more, please visit: <a href = "https://www.ibm.com/topics/data-science" target="_blank" >What is Data Science? | IBM</a>\n\nData science is an interdisciplinary field that uses algorithms, procedures, and processes to examine large amounts of data in order to uncover hidden patterns, generate insights, and direct decision-making.\nTo know more, please visit: <a href = "https://www.coursera.org/articles/what-is-data-science" target="_blank" >What Is Data Science? Definition, Examples, Jobs, and More</a>',
                 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
                 'image': None, 'attachment': None}]}
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status="SUCCESS").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.web_search_action.value, status=STATUSES.SUCCESS.value).get()
     assert log['user_msg'] == '/action_public_search'
 
 
@@ -13282,7 +13282,7 @@ def test_prompt_response_action_disabled():
          'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
     ]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status=STATUSES.FAIL.value).get()
     assert log['bot_response'] == 'Faq feature is disabled for the bot! Please contact support.'
     assert log['exception'] == 'Faq feature is disabled for the bot! Please contact support.'
 
@@ -13549,7 +13549,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
          'image': None, 'attachment': None}]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status="SUCCESS").get().to_mongo().to_dict()
+                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
     expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                  'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
                  'raw_completion_response': {'choices': [{'message': {
@@ -13653,7 +13653,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                                            'response': None, 'image': None,
                                            'attachment': None}]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status="SUCCESS").get().to_mongo().to_dict()
+                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
     expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                  'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
                  'raw_completion_response': {'choices': [{'message': {
@@ -13695,7 +13695,7 @@ def test_prompt_response_action_with_action_not_found():
     assert response_json['responses'] == [
         {'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
          'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status="FAILURE").get()
+    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value, status=STATUSES.FAIL.value).get()
     log['exception'] = 'No action found for given bot and name'
 
 
@@ -13784,7 +13784,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status="SUCCESS").get().to_mongo().to_dict()
+                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
     assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
@@ -13907,7 +13907,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                                         'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status="SUCCESS").get().to_mongo().to_dict()
+                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
     assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
@@ -14035,7 +14035,7 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
          'response': None, 'image': None, 'attachment': None}
     ]
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status="SUCCESS").get().to_mongo().to_dict()
+                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
     assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
     log.pop('_id')
     log.pop('timestamp')
@@ -14935,7 +14935,7 @@ def test_schedule_action_invalid_date():
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
                    'bot': bot,'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
-                   'status': 'FAILURE',
+                   'status': STATUSES.FAIL.value,
                    'user_msg': 'get intents', 'schedule_action': callback_script,
                    'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
                    'execution_info': None,
@@ -15010,7 +15010,7 @@ def test_schedule_action_invalid_callback():
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
                    'bot': bot,
-                   'status': 'FAILURE',
+                   'status': STATUSES.FAIL.value,
                    'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
                    'timezone': 'Asia/Kolkata',
                    'execution_info': None,
@@ -15098,7 +15098,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution', 'sender': 'default', 'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                       'status': 'SUCCESS',
+                       'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
                        'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
@@ -15201,7 +15201,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
                        'action': 'test_schedule_action_execution_schedule_empty_data', 'sender': 'default',
                        'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                       'status': 'SUCCESS',
+                       'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
                        'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
@@ -15308,7 +15308,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution_slot', 'sender': 'default', 'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                       'status': 'SUCCESS',
+                       'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
                        'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
@@ -15408,7 +15408,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
                        'action': 'test_schedule_action_execution_flow',
                        'sender': 'default', 'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
-                       'status': 'SUCCESS',
+                       'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'greet',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
                        'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},

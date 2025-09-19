@@ -13,7 +13,7 @@ from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1435,7 +1435,7 @@ def test_file_upload_validate_schema_and_log_success(monkeypatch):
 
     assert result is True
     assert any(log["event_status"] == EVENT_STATUS.VALIDATING.value for log in logged)
-    assert not any(log.get("status") == "Failure" for log in logged)
+    assert not any(log.get("status") == STATUSES.FAIL.value for log in logged)
 
 def test_validate_collection_name_valid():
     instance = DataProcessor()

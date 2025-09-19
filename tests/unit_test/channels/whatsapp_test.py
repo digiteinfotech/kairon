@@ -7,6 +7,7 @@ import pytest
 import os
 
 from kairon.shared.chat.data_objects import ChannelLogs
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.utils import Utility
 from mongoengine import connect
 

@@ -139,6 +139,6 @@ class UserMediaUploadType(str, Enum):
 
 class UserMediaUploadStatus(str, Enum):
     processing = "processing"
-    completed = "completed"
-    failed = "failed"
+    completed = "Completed"
+    failed = "Failed"
 

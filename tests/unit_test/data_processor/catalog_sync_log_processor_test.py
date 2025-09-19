@@ -13,7 +13,7 @@ from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLog
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.constant import SYNC_STATUS, SyncType
+from kairon.shared.data.constant import SYNC_STATUS, SyncType, STATUSES
 from kairon.shared.data.data_objects import BotSettings, PetpoojaSyncConfig, POSIntegrations
 
 
@@ -47,7 +47,7 @@ class TestCatalogSyncLogProcessor:
         user = 'test'
         CatalogSyncLogProcessor.add_log(bot, user, sync_status=SYNC_STATUS.FAILED.value,
                                         exception="Push menu processing is disabled for this bot",
-                                        status="Failure")
+                                        status=STATUSES.FAIL.value)
         log = CatalogSyncLogs.objects(bot=bot).get().to_mongo().to_dict()
         assert log.get('exception') == "Push menu processing is disabled for this bot"
         assert log['execution_id']
@@ -66,7 +66,7 @@ class TestCatalogSyncLogProcessor:
         CatalogSyncLogProcessor.add_log(bot, user, provider = provider, sync_type = sync_type,raw_payload={"item":"Test raw payload"},
                                         sync_status=SYNC_STATUS.FAILED.value,
                                         exception="Validation Failed",
-                                        status="Failure",
+                                        status=STATUSES.FAIL.value,
                                         validation_errors={
                                             "Header mismatch": "Expected headers ['order_id', 'order_priority', 'sales', 'profit'] but found ['order_id', 'order_priority', 'revenue', 'sales'].",
                                             "Missing columns": "{'profit'}.",
@@ -89,7 +89,7 @@ class TestCatalogSyncLogProcessor:
         provider = "petpooja"
         sync_type = "push_menu"
         CatalogSyncLogProcessor.add_log(bot, user, provider = provider, sync_type = sync_type,raw_payload={"item":"Test raw payload"})
-        CatalogSyncLogProcessor.add_log(bot, user, sync_status=SYNC_STATUS.COMPLETED.value, status="Success")
+        CatalogSyncLogProcessor.add_log(bot, user, sync_status=SYNC_STATUS.COMPLETED.value, status=STATUSES.SUCCESS.value)
         log = list(CatalogSyncLogProcessor.get_logs(bot))
         assert not log[0].get('exception')
         assert log[0]['execution_id']
@@ -97,7 +97,7 @@ class TestCatalogSyncLogProcessor:
         assert log[0]['sync_type']
         assert log[0]['start_timestamp']
         assert not log[0]["validation_errors"]
-        assert log[0]["status"] == 'Success'
+        assert log[0]["status"] == STATUSES.SUCCESS.value
         assert log[0]['sync_status'] == SYNC_STATUS.COMPLETED.value
 
     def test_is_event_in_progress_false(self):

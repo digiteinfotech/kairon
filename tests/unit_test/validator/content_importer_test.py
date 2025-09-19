@@ -9,7 +9,7 @@ from kairon.importer.content_importer import ContentImporter
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 
@@ -85,7 +85,7 @@ class TestContentImporter:
         ContentImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.VALIDATING.value)
         event_id = ContentImporterLogProcessor.get_event_id_for_latest_event(bot)
         original_row_count, summary = importer.validate()
-        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status="Success",
+        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status=STATUSES.SUCCESS.value,
                                             event_status=EVENT_STATUS.COMPLETED.value)
 
         assert original_row_count == 20
@@ -121,7 +121,7 @@ class TestContentImporter:
         )
         ContentImporterLogProcessor.add_log(bot, user, event_status=EVENT_STATUS.VALIDATING.value)
         original_row_count, summary = importer.validate()
-        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status="Success",
+        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status=STATUSES.SUCCESS.value,
                                             event_status=EVENT_STATUS.COMPLETED.value)
 
         assert original_row_count == 0
@@ -201,7 +201,7 @@ class TestContentImporter:
 
 
 
-        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status="Success",
+        ContentImporterLogProcessor.add_log(bot, user, validation_errors=summary, status=STATUSES.SUCCESS.value,
                                             event_status=EVENT_STATUS.COMPLETED.value)
 
 

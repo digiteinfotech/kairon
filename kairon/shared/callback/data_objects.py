@@ -238,8 +238,8 @@ class CallbackConfig(Auditlog):
 
 
 class CallbackRecordStatusType(Enum):
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
+    SUCCESS = "Success"
+    FAILED = "Failed"
 
 
 @push_notification.apply

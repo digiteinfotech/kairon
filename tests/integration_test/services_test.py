@@ -35,7 +35,7 @@ from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
-from kairon.shared.channels.mail.data_objects import MailResponseLog
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
@@ -67,7 +67,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FeatureMappings,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM, TASK_TYPE
+    DEFAULT_LLM, TASK_TYPE, STATUSES
 )
 from kairon.shared.data.data_objects import (
     Stories,
@@ -89,7 +89,7 @@ from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.models import StoryEventType
+from kairon.shared.models import StoryEventType, UserMediaUploadStatus
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -2532,8 +2532,8 @@ def test_upload_file_content_success():
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_name'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -2615,7 +2615,7 @@ def test_bsp_upload_media_success(mock_get_buffer):
         media_id=media_id,
         filename="Upload_Download Data.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
@@ -2682,7 +2682,7 @@ def test_bsp_upload_media_channel_not_configured():
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2734,7 +2734,7 @@ def test_bsp_upload_media_access_token_not_found():
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2791,7 +2791,7 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
         media_id=media_id,
         filename="no_stream.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -2851,7 +2851,7 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
         media_id=media_id,
         filename="upload_fail.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="user",
         filesize=410484,
         sender_id="test@digite.com",
@@ -3658,8 +3658,8 @@ def test_upload_doc_content():
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -3774,8 +3774,8 @@ def test_upload_doc_content_append():
     logs = actual['data']['logs']
     assert len(logs) == 2
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -3865,8 +3865,8 @@ def test_upload_doc_content_basic_validation_failure():
         "Extra columns": "{'revenue'}."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.FAIL.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_basic_validation_failure").delete()
 
@@ -4007,8 +4007,8 @@ def test_upload_doc_content_datatype_validation_failure():
     assert any(e['column_name'] == 'sales' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 4'])
     assert any(
         e['column_name'] == 'profit' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 6'])
-    assert logs[0]["status"] == "Partial_Success"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.PARTIAL_SUCCESS.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     cognition_data = list(CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure"))
     assert len(cognition_data) == 18
@@ -4167,8 +4167,8 @@ def test_upload_doc_content_file_type_validation_failure():
         'File type error': "Invalid file type: application/pdf. Please upload a CSV file."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.FAIL.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
 
 
@@ -4316,7 +4316,7 @@ def test_get_media_ids():
         media_id=media_id,
         filename="Upload_Download Data.pdf",
         extension=".pdf",
-        upload_status="completed",
+        upload_status=UserMediaUploadStatus.completed.value,
         upload_type="broadcast",
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
@@ -4985,8 +4985,8 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5033,8 +5033,8 @@ def test_get_catalog_sync_logs():
     assert 'validation_errors' in log and log['validation_errors'] == {}
     assert log['provider'] == 'petpooja'
     assert log['sync_type'] == 'push_menu'
-    assert log['status'] == 'Success'
-    assert log['sync_status'] == 'Completed'
+    assert log['status'] == STATUSES.SUCCESS.value
+    assert log['sync_status'] == EVENT_STATUS.COMPLETED.value
     print(response)
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
@@ -5158,8 +5158,8 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5286,8 +5286,8 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -5435,7 +5435,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Push menu processing is disabled for this bot"
 
@@ -5563,7 +5563,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Item toggle is disabled for this bot"
 
@@ -5716,8 +5716,8 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
 
@@ -5940,8 +5940,8 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
 
@@ -6103,8 +6103,8 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
 
@@ -6256,8 +6256,8 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
 
@@ -6429,8 +6429,8 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Sync to knowledge vault is not allowed for this bot. Contact Support!!"
 
@@ -6570,7 +6570,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Global fallback image URL not found"
 
@@ -6742,8 +6742,8 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -6900,7 +6900,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Push menu processing is disabled for this bot"
     rerun_execution_id = latest_log.execution_id
@@ -6961,8 +6961,8 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log is not None
     assert latest_log.execution_id
-    assert latest_log.sync_status == "Completed"
-    assert latest_log.status == "Success"
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == ""
 
@@ -7274,7 +7274,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
 
     assert latest_log.validation_errors is not None
     assert "10539634" in latest_log.validation_errors
@@ -7434,7 +7434,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 
     latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert "Simulated preprocess error" in latest_log.exception
 
     assert not latest_log.processed_payload
@@ -7570,7 +7570,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         sync_type="push_menu",
         start_timestamp=datetime.utcnow(),
         sync_status="Initiated",
-        status="In Progress"
+        status=EVENT_STATUS.INPROGRESS.value
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -7876,7 +7876,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     assert latest_log is not None
     assert latest_log.execution_id
     assert latest_log.sync_status == "Failed"
-    assert latest_log.status == "Failure"
+    assert latest_log.status == STATUSES.FAIL.value
     assert hasattr(latest_log, "exception")
     assert latest_log.exception == "Validation Failed. Check logs"
 
@@ -8550,7 +8550,7 @@ def test_get_executor_logs(get_executor_logs):
     assert len(actual["data"]["logs"]) == actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]["task_type"] == "Callback"
     assert actual["data"]["logs"][0]["event_class"] == "pyscript_evaluator"
-    assert actual["data"]["logs"][0]["status"] == "Completed"
+    assert actual["data"]["logs"][0]["status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["data"] == {
         'source_code': 'bot_response = "test - this is from callback test"',
         'predefined_objects': {
@@ -8685,7 +8685,7 @@ def test_search_executor_logs(get_executor_logs):
 
     logs = data["logs"]
     assert data["total"] == len(logs)
-    assert all(log.get("status") == "Success" for log in logs)
+    assert all(log.get("status") == STATUSES.SUCCESS.value for log in logs)
 
     # Group by task_type and assert structure
     for log in logs:
@@ -11498,7 +11498,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.broadcast_msg_id,
             "recipients": ["919876543210", "918958030541"],
@@ -11511,7 +11511,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -11541,7 +11541,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -11579,7 +11579,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             'reference_id': ref_id,
             'log_type': 'resend',
             'bot': pytest.bot,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {
                 'contacts': [
                     {
@@ -11625,7 +11625,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -11656,7 +11656,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -11687,7 +11687,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'common',
                 'bot': pytest.bot,
-                'status': 'Completed',
+                'status': EVENT_STATUS.COMPLETED.value,
                 'user': 'test_user',
                 'broadcast_id': pytest.broadcast_msg_id,
                 'recipients': [
@@ -15988,7 +15988,7 @@ def test_get_data_importer_logs():
     assert actual["data"]["logs"][0]["end_timestamp"]
 
     assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert actual['data']["logs"][1]['status'] == STATUSES.SUCCESS.value
     assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
     assert actual['data']["logs"][1]['is_data_uploaded']
     assert actual['data']["logs"][1]['start_timestamp']
@@ -16026,9 +16026,9 @@ def test_get_data_importer_logs():
                                          'user_actions': {'count': 9, 'data': []},
                                          'exception': '',
                                          'is_data_uploaded': True,
-                                         'status': 'Success', 'event_status': 'Completed'}
+                                         'status': STATUSES.SUCCESS.value, 'event_status': EVENT_STATUS.COMPLETED.value}
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert actual['data']["logs"][2]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
                                                                 'chat_client_config', 'bot_content'}
     assert actual['data']["logs"][2]['is_data_uploaded']
@@ -16036,7 +16036,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert actual['data']["logs"][3]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
                                                                 'bot_content'}
@@ -24026,7 +24026,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent1",
@@ -24045,7 +24045,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -24064,7 +24064,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent6",
@@ -24128,7 +24128,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot_2,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent13",
@@ -24138,7 +24138,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs",
@@ -24166,14 +24166,14 @@ def test_list_action_server_logs():
         [log["bot_response"] == "Bot Response" for log in actual["data"]["logs"]]
     )
     assert any([log["api_response"] == "Response" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "FAILURE" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "SUCCESS" for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.FAIL.value for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.SUCCESS.value for log in actual["data"]["logs"]])
 
     from_date = date.today()
     to_date = from_date + timedelta(days=1)
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/actions/search"
-        f"?from_date={from_date}&to_date={to_date}&status=SUCCESS",
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response_json = search_response.json()
@@ -24189,7 +24189,7 @@ def test_list_action_server_logs():
 
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/actions/search"
-        f"?from_date={from_date}&to_date={to_date}&status=FAILURE",
+        f"?from_date={from_date}&to_date={to_date}&status=Failed",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
@@ -24249,7 +24249,7 @@ def test_get_mail_channel_logs():
         },
         bot=pytest.bot,
         user="spandan.mondal@nimblework.com",
-        status="success"
+        status=MailStatus.SUCCESS.value
     ).save()
 
     response = client.get(
@@ -24883,7 +24883,7 @@ def test_upload_with_http_error():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 4
     assert actual["data"]["total"] == 4
-    assert actual["data"]["logs"][0]["status"] == "Failure"
+    assert actual["data"]["logs"][0]["status"] == STATUSES.FAIL.value
     assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["is_data_uploaded"]
     assert actual["data"]["logs"][0]["start_timestamp"]
@@ -24934,7 +24934,7 @@ def test_upload_actions_and_config():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
-    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['status'] == STATUSES.SUCCESS.value
     assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][0]['is_data_uploaded']
     assert actual['data']["logs"][0]['start_timestamp']
@@ -31967,7 +31967,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.first_scheduler_id,
             "recipients": ["918958030541", ""],
@@ -31980,7 +31980,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "send",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -32017,7 +32017,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.first_scheduler_id,
             "recipients": ["918958030541", ""],
@@ -32040,7 +32040,7 @@ def test_list_broadcast_logs():
                 "reference_id": ref_id,
                 "log_type": "send",
                 "bot": pytest.bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "api_response": {
                     "contacts": [
                         {
@@ -32070,7 +32070,7 @@ def test_list_broadcast_logs():
                 "reference_id": ref_id,
                 "log_type": "common",
                 "bot": pytest.bot,
-                "status": "Completed",
+                "status": EVENT_STATUS.COMPLETED.value,
                 "user": "test_user",
                 "broadcast_id": pytest.first_scheduler_id,
                 "recipients": ["918958030541", ""],
@@ -34895,7 +34895,7 @@ def test_multilingual_translate():
     assert response["message"] == "Bot translation in progress! Check logs."
     assert response["error_code"] == 0
     MultilingualLogProcessor.add_log(
-        pytest.bot, "integ1@gmail.com", event_status="Completed", status="Success"
+        pytest.bot, "integ1@gmail.com", event_status=EVENT_STATUS.COMPLETED.value, status=STATUSES.SUCCESS.value
     )
 
 
@@ -35059,8 +35059,8 @@ def test_multilingual_translate_logs():
     assert actual["data"]["logs"][1]["copy_type"] == "Translation"
     assert actual["data"]["logs"][1]["translate_responses"] == False
     assert actual["data"]["logs"][1]["translate_actions"] == False
-    assert actual["data"]["logs"][1]["event_status"] == "Completed"
-    assert actual["data"]["logs"][1]["status"] == "Success"
+    assert actual["data"]["logs"][1]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][1]["status"] == STATUSES.SUCCESS.value
     assert actual["data"]["logs"][1]["start_timestamp"]
     assert actual["data"]["logs"][1]["end_timestamp"]
 
@@ -35162,7 +35162,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent3",
@@ -35172,7 +35172,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -35191,7 +35191,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
 
     response = client.get(
