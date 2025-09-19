@@ -11,7 +11,7 @@ from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
-from ..data.constant import MIME_TYPE_LIMITS, STATUSES
+from ..data.constant import MIME_TYPE_LIMITS
 from ..data.utils import DataUtility
 from ...exceptions import AppException
 
