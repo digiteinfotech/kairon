@@ -72,7 +72,7 @@ from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema,
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ENDPOINT_TYPE
+from kairon.shared.data.constant import ENDPOINT_TYPE, STATUSES
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
@@ -3881,7 +3881,7 @@ class TestMongoProcessor:
         assert log.file_received == doc_content.filename
         assert log.validation_errors is not None
         assert log.end_timestamp is not None
-        assert log.status == "Failure"
+        assert log.status == STATUSES.FAIL.value
         assert log.event_status == EVENT_STATUS.COMPLETED.value
 
     def test_validate_doc_content_success(self):
@@ -8573,19 +8573,19 @@ class TestMongoProcessor:
         ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                          url="http://kairon-api.digite.com/api/bot",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot_2).save()
         ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
         ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
@@ -8606,10 +8606,10 @@ class TestMongoProcessor:
                          bot=bot).save()
         ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
@@ -8619,8 +8619,8 @@ class TestMongoProcessor:
         assert any([log['sender'] == "sender_id_13" for log in logs])
         assert any([log['api_response'] == "Response" for log in logs])
         assert any([log['bot_response'] == "Bot Response" for log in logs])
-        assert any([log['status'] == "FAILURE" for log in logs])
-        assert any([log['status'] == "SUCCESS" for log in logs])
+        assert any([log['status'] == STATUSES.FAIL.value for log in logs])
+        assert any([log['status'] == STATUSES.SUCCESS.value for log in logs])
 
         logs = list(processor.get_action_server_logs(bot_2))
         assert len(logs) == 3

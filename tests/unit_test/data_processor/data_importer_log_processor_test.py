@@ -5,7 +5,7 @@ from mongoengine import connect
 
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
-from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT, STATUSES
 from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.exceptions import AppException
@@ -44,7 +44,7 @@ class TestDataImporterLogProcessor:
         user = 'test'
         DataImporterLogProcessor.add_log(bot, user,
                                          exception='Validation failed',
-                                         status='Failure',
+                                         status=STATUSES.FAIL.value,
                                          event_status=EVENT_STATUS.FAIL.value)
         log = ValidationLogs.objects(bot=bot).get().to_mongo().to_dict()
         assert not log.get('intents').get('data')
@@ -59,7 +59,7 @@ class TestDataImporterLogProcessor:
         assert not log['is_data_uploaded']
         assert log['start_timestamp']
         assert log.get('end_timestamp')
-        assert log.get('status') == 'Failure'
+        assert log.get('status') == STATUSES.FAIL.value
         assert log['event_status'] == EVENT_STATUS.FAIL.value
 
     def test_get_files_received_empty(self):
@@ -88,7 +88,7 @@ class TestDataImporterLogProcessor:
         assert log[0]['start_timestamp']
         assert log[0].get('end_timestamp')
         assert all(file in log[0]['files_received'] for file in REQUIREMENTS)
-        assert log[0].get('status') == 'Success'
+        assert log[0].get('status') == STATUSES.SUCCESS.value
         assert log[0]['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_get_files_received(self):
@@ -137,7 +137,7 @@ class TestDataImporterLogProcessor:
         count['http_action'] = 6
         count['domain']['intents'] = 12
         summary = {'intents': ['Intent not added to domain'], 'config': ['Invalid component']}
-        DataImporterLogProcessor.update_summary(bot, user, count, summary, 'Failed', 'Completed')
+        DataImporterLogProcessor.update_summary(bot, user, count, summary, STATUSES.FAIL.value, 'Completed')
         log = next(DataImporterLogProcessor.get_logs(bot))
         assert log.get('intents').get('data') == ['Intent not added to domain']
         assert not log.get('stories').get('data')
@@ -150,7 +150,7 @@ class TestDataImporterLogProcessor:
         assert not log['is_data_uploaded']
         assert log['start_timestamp']
         assert log.get('end_timestamp')
-        assert log.get('status') == 'Failed'
+        assert log.get('status') == STATUSES.FAIL.value
         assert log['event_status'] == EVENT_STATUS.COMPLETED.value
 
     def test_update_log_create_new(self):

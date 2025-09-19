@@ -11,6 +11,7 @@ from ...shared.actions.exception import ActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
+from ...shared.data.constant import STATUSES
 
 
 class ActionProcessor:
@@ -46,5 +47,5 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 exception=str(e),
                 bot=tracker.get_slot("bot"),
-                status="FAILURE"
+                status=STATUSES.FAIL.value
             ).save()

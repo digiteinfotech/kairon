@@ -13,6 +13,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType, EvaluationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionHTTP(ActionsBase):
@@ -60,7 +61,7 @@ class ActionHTTP(ActionsBase):
         http_response = None
         exception = None
         body_log = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         http_url = None
         request_method = None
         header_log = None
@@ -135,7 +136,7 @@ class ActionHTTP(ActionsBase):
         except Exception as e:
             exception = str(e)
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             api_call_log.update({"exception": exception})
             bot_response = bot_response if bot_response else "I have failed to process your request"
             response_log.update({"exception": bot_response})

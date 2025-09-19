@@ -27,7 +27,7 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import TASK_TYPE
+from kairon.shared.data.constant import TASK_TYPE, STATUSES
 
 
 class ActionSchedule(ActionsBase):
@@ -76,7 +76,7 @@ class ActionSchedule(ActionsBase):
         bot_response = None
         exception = None
         dispatch_bot_response = True
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         msg_logger = []
         schedule_data_log = {}
         schedule_action = None
@@ -135,7 +135,7 @@ class ActionSchedule(ActionsBase):
             exception = e
             self.__is_success = False
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "Sorry, I am unable to process your request at the moment."
         finally:
             if dispatch_bot_response:
