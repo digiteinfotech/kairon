@@ -114,7 +114,7 @@ class EVENT_STATUS(str, Enum):
 class STATUSES(str, Enum):
     SUCCESS = "Success"
     FAIL = "Failed"
-    PARTIAL_SUCCESS = "Partial Success"
+    PARTIAL_SUCCESS = "Partial_Success"
     PASSED = "PASSED"
 
 
