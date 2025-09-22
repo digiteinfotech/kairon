@@ -293,14 +293,14 @@ class ChatDataProcessor:
                                                                         channel_config, user, file_info.filename,
                                                                         file_info.content_type, file_info.size))
             logger.info(f"Media uploaded successfully: {media_id}")
+        except DoesNotExist as e:
+            logger.error(f"Media upload failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
+            raise AppException(
+                    "Media upload failed: No channel found for this bot. Please configure the channel first."
+                ) from e
         except Exception as e:
             logger.error(f"Error uploading file to BSP: {str(e)}")
-            if "Channels matching query does not exist" in str(e):
-                raise AppException(
-                    "Media upload failed: No channel found for this bot. Please configure the channel first."
-                )
-            else:
-                raise AppException(f"Media upload failed: {str(e)}")
+            raise AppException(f"Media upload failed: {str(e)}") from e
         finally:
             if file_path:
                 try:

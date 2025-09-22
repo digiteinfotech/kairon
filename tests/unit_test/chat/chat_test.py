@@ -1959,7 +1959,7 @@ async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_fa
 async def test_upload_media_channel_not_found(monkeypatch):
     from types import SimpleNamespace
     def raise_exc(channel, bot):
-        raise Exception("Channels matching query does not exist.")
+        raise Exception("No channel found for this bot. Please configure the channel first.")
 
     monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_exc)
     file_info = SimpleNamespace(
