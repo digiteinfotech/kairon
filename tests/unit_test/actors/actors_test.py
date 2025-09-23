@@ -9,8 +9,10 @@ import litellm
 import pytest
 import requests
 import responses
+from loguru import logger
 from mongoengine import connect
 from orjson import orjson
+from pykka import ActorDeadError
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
@@ -297,6 +299,57 @@ class TestActors:
     def test_invalid_actor(self):
         with pytest.raises(AppException, match="custom actor not implemented!"):
             ActorOrchestrator.run("custom")
+
+    def test_actor_dead_error_with_retries(self):
+        """Ensure actor retries on ActorDeadError and eventually succeeds."""
+        mock_actor = MagicMock()
+        # First call raises ActorDeadError, second call succeeds
+        mock_actor.execute.side_effect = [
+            MagicMock(get=MagicMock(side_effect=ActorDeadError("actor died"))),
+            MagicMock(get=MagicMock(return_value="success"))
+        ]
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            result = ActorOrchestrator.run("mock_actor", retries=2)
+
+        assert result == "success"
+
+    def test_actor_dead_error_exhausts_retries(self):
+        """Ensure AppException is raised when all retries fail due to ActorDeadError."""
+        mock_actor = MagicMock()
+        mock_actor.execute.return_value.get.side_effect = ActorDeadError("actor died")
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            with pytest.raises(AppException, match="actor died"):
+                ActorOrchestrator.run("mock_actor", retries=2)
+
+    def test_actor_unexpected_exception(self):
+        """Ensure unexpected exceptions are wrapped in AppException."""
+        mock_actor = MagicMock()
+        mock_actor.execute.return_value.get.side_effect = ValueError("boom")
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            with pytest.raises(AppException, match="boom"):
+                ActorOrchestrator.run("mock_actor", retries=1)
+
+    def test_actor_stop_failure(self, monkeypatch):
+        mock_actor = MagicMock()
+        mock_actor.execute.return_value.get.return_value = "done"
+        mock_actor.actor_ref.stop.side_effect = RuntimeError("cannot stop")
+
+        monkeypatch.setattr(
+            "kairon.shared.concurrency.actors.factory.ActorFactory.get_instance",
+            lambda _: mock_actor
+        )
+
+        logs = []
+        from loguru import logger
+        logger.remove()
+        logger.add(lambda msg: logs.append(msg), level="WARNING")
+
+        result = ActorOrchestrator.run("test-actor", retries=1)
+        assert result == "done"
+        assert any("cannot stop" in log for log in logs)
 
     def test_actor_callable(self):
         def add(a, b):
