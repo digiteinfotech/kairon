@@ -294,6 +294,7 @@ class ChatDataProcessor:
                                                                         file_info.content_type, file_info.size))
             logger.info(f"Media uploaded successfully: {media_id}")
         except DoesNotExist as e:
+
             logger.error(f"Media upload failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
             raise AppException(
                     "Media upload failed: No channel found for this bot. Please configure the channel first."
