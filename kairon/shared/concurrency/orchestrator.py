@@ -29,8 +29,8 @@ class ActorOrchestrator:
                     logger.warning(f"Actor '{actor_type}' died during execution (attempt {attempt}/{retries}): {e}")
                     try:
                         actor.actor_ref.stop()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to stop actor '{actor_type}': {e}")
                     actor = ActorFactory.get_instance(actor_type)
                     if attempt == retries:
                         logger.error(f"All {retries} attempts failed due to dead actor '{actor_type}'")
