@@ -15,6 +15,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionParallel(ActionsBase):
@@ -60,7 +61,7 @@ class ActionParallel(ActionsBase):
 
         exception = None
         filled_slots = {}
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         dispatch_bot_response = False
         dispatch_type = DispatchType.text.value
         response_text = ""
@@ -88,7 +89,7 @@ class ActionParallel(ActionsBase):
             exception = e
             self.__is_success = False
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, response_text)

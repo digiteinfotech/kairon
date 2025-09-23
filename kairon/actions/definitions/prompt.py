@@ -14,7 +14,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.collection_processor import DataProcessor
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE, STATUSES
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.llm.processor import LLMProcessor
 
@@ -53,7 +53,7 @@ class ActionPrompt(ActionsBase):
         """
         action_call = kwargs.get('action_call', {})
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception = None
         llm_response = None
         k_faq_action_config = {}
@@ -89,7 +89,7 @@ class ActionPrompt(ActionsBase):
                                                                                 media_ids=media_ids,
                                                                                 should_process_media=should_process_media,
                                                                                 **llm_params)
-            status = "FAILURE" if llm_response.get("is_failure", False) is True else status
+            status = STATUSES.FAIL.value if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             bot_response = llm_response['content']
             tracker_data = ActionUtility.build_context(tracker, True)
@@ -106,7 +106,7 @@ class ActionPrompt(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
         finally:
             total_time_elapsed = time_taken_llm_response + time_taken_slots

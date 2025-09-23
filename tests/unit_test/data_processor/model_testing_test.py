@@ -1,4 +1,7 @@
 import os
+
+from kairon.shared.data.constant import STATUSES, EVENT_STATUS
+
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 import shutil
 import tempfile
@@ -65,7 +68,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result=result,
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         print(logs)
         assert logs[0]['data'][0]['conversation_accuracy']['success_count'] == 3
@@ -77,7 +80,7 @@ class TestModelTesting:
         assert not logs[0].get('nlu')
         assert next(data['failed_stories'] for data in logs[0].get('data') if data['type'] == 'stories')
         assert logs[0].get('end_timestamp')
-        assert logs[0].get('status') == 'FAILURE'
+        assert logs[0].get('status') == STATUSES.FAIL.value
         assert logs[0]['event_status'] == 'Completed'
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'stories', logs[0]['reference_id'])
         assert len(logs['errors']) == 2
@@ -121,7 +124,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result={},
                                                  nlu_result=result,
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs1, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         print(logs1)
         assert logs1[0]['data'][0]['intent_evaluation']['success_count'] == 29
@@ -142,7 +145,7 @@ class TestModelTesting:
         assert not logs1[0].get('stories')
         assert next(data for data in logs1[0].get('data') if data['type'] == 'nlu')
         assert logs1[0].get('end_timestamp')
-        assert logs1[0].get('status') == 'FAILURE'
+        assert logs1[0].get('status') == STATUSES.FAIL.value
         assert logs1[0]['event_status'] == 'Completed'
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs1[0]['reference_id'])
         assert len(logs['intent_evaluation']['errors']) == 10
@@ -195,7 +198,7 @@ class TestModelTesting:
         ModelTestingLogProcessor.log_test_result('test_bot', 'test_user',
                                                  stories_result={},
                                                  nlu_result=result,
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         logs, row_count = ModelTestingLogProcessor.get_logs('test_bot')
         logs2, row_count = ModelTestingLogProcessor.get_logs('test_bot', 'nlu', logs[0]['reference_id'])
         assert len(logs2['intent_evaluation']['errors']) == 10

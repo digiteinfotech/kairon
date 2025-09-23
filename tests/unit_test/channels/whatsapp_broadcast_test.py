@@ -566,7 +566,7 @@ def test_log_failed_messages():
         for call in mock_add_event_log.call_args_list:
             args, kwargs = call
             assert kwargs['api_response'] == {"error": error_msg}
-            assert kwargs['status'] == "Failed"
+            assert kwargs['status'] == EVENT_STATUS.FAIL.value
             assert kwargs['errors'] == [{'code': 131026, 'title': "Message undeliverable", 'message': error_msg}]
 
 

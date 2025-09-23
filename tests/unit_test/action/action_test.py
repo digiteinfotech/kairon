@@ -30,7 +30,7 @@ from kairon.actions.definitions.two_stage_fallback import ActionTwoStageFallback
 from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
+from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, STATUSES
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1028,7 +1028,7 @@ class TestActions:
         await ActionProcessor.process_action(dispatcher, tracker, domain, actions_name)
         log = ActionServerLogs.objects(sender="sender1",
                                        bot="5f50fd0a56b698ca10d35d2e",
-                                       status="FAILURE").get()
+                                       status=STATUSES.FAIL.value).get()
         assert log['exception'].__contains__('No action found for given bot and name')
 
     @pytest.mark.asyncio
@@ -1044,7 +1044,7 @@ class TestActions:
         actual: List[Dict[Text, Any]] = await ActionProcessor.process_action(dispatcher, tracker, domain, action_name)
         assert actual is None
         log = ActionServerLogs.objects(sender="sender2",
-                                       status="FAILURE").get()
+                                       status=STATUSES.FAIL.value).get()
         assert log['exception'] == 'Bot id and action name not found in slot'
 
     @pytest.mark.asyncio
@@ -1171,7 +1171,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d21",
-                                       status="SUCCESS").get().to_mongo().to_dict()
+                                       status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
 
         log.pop('_id')
         log.pop('timestamp')
@@ -1183,7 +1183,7 @@ class TestActions:
             "headers": {},
             "bot_response": "Parallel Action Success",
             "bot": "5f50fd0a56b698ca10d35d21",
-            "status": "SUCCESS",
+            "status": STATUSES.SUCCESS.value,
             'trigger_info': { 'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
             "user_msg": "get intents"
         }
@@ -1304,7 +1304,7 @@ class TestActions:
             sender="sender1",
             action=action_name,
             bot="5f50fd0a56b698ca10d35d21",
-            status="FAILURE"
+            status=STATUSES.FAIL.value
         ).first()
         assert log_obj is not None, "FAILURE log not found"
 
@@ -1320,7 +1320,7 @@ class TestActions:
             "headers": {},
             "exception": "No parallel action found for given action and bot",
             "bot": "5f50fd0a56b698ca10d35d21",
-            "status": "FAILURE",
+            "status": STATUSES.FAIL.value,
             'trigger_info': {
                 'trigger_id': dummy_trigger_id,
                 'trigger_name': '',
@@ -1446,7 +1446,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="FAILURE").get()
+                                       status=STATUSES.FAIL.value).get()
         assert log['exception'] == "No pyscript action found for given action and bot"
 
 
@@ -1527,7 +1527,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -1596,7 +1596,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
@@ -1665,7 +1665,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': None}]
@@ -1734,7 +1734,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS")
+                                       status=STATUSES.SUCCESS.value)
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -1804,7 +1804,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert len(actual) == 2
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                           {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
@@ -1874,7 +1874,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert len(actual) == 1
         assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                            'value': "Successfully Evaluated the pyscript"}]
@@ -1938,7 +1938,7 @@ class TestActions:
             log = ActionServerLogs.objects(sender="sender1",
                                            action=action_name,
                                            bot="5f50fd0a56b698ca10d35d2a",
-                                           status="SUCCESS").get()
+                                           status=STATUSES.SUCCESS.value).get()
             assert actual == [{'event': 'slot', 'timestamp': None, 'name': 'param2', 'value': 'param2value'},
                               {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
                                'value': 'Successfully Evaluated the pyscript'}]
@@ -2000,7 +2000,7 @@ class TestActions:
         log = ActionServerLogs.objects(sender="sender1",
                                        action=action_name,
                                        bot="5f50fd0a56b698ca10d35d2z",
-                                       status="FAILURE").get()
+                                       status=STATUSES.FAIL.value).get()
         assert log['bot_response'] == 'I have failed to process your request'
         assert log['exception'] == "Pyscript evaluation failed: {'success': False, 'body': None, 'statusCode': 422}"
 
@@ -2067,7 +2067,7 @@ class TestActions:
             sender="sender1",
             action=action_name,
             bot="5f50fd0a56b698ca10d35d2z",
-            status="FAILURE"
+            status=STATUSES.FAIL.value
         ).get()
         assert "Failed to connect to service: localhost" in log.exception
 
@@ -2123,7 +2123,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
@@ -2183,7 +2183,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="sender_test_run_with_params",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent']
@@ -2250,7 +2250,7 @@ class TestActions:
         assert str(actual[0]['name']) == 'kairon_action_response'
         assert str(actual[0]['value']) == 'This should be response'
         log = ActionServerLogs.objects(sender="default_sender",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         print(log.to_mongo().to_dict())
         assert not log['exception']
         assert log['timestamp']
@@ -2359,7 +2359,7 @@ class TestActions:
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="sender_test_run_with_post",
                                        action="test_run_with_post_and_parameters",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -2426,7 +2426,7 @@ class TestActions:
         assert str(actual[0]['value']) == 'Data added successfully, id:5000'
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_post_and_dynamic_params",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -2571,7 +2571,7 @@ class TestActions:
         assert str(actual[0]['value']) == str(data_obj)
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_json_response",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
         assert not log['exception']
         assert log['timestamp']
         assert log['intent'] == "test_run"
@@ -2690,7 +2690,7 @@ class TestActions:
 
         log = ActionServerLogs.objects(sender="default_sender",
                                        action="test_run_with_get_with_dynamic_params",
-                                       status="SUCCESS").get()
+                                       status=STATUSES.SUCCESS.value).get()
 
         assert not log['exception']
         assert log['timestamp']

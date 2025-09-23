@@ -7,7 +7,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.constants import KaironSystemSlots
-from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM
+from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
@@ -58,7 +58,7 @@ class ActionKaironBotResponse(ActionsBase):
         action_call = kwargs.get('action_call', {})
 
 
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         exception = None
         is_rephrased = False
         raw_resp = None
@@ -77,7 +77,7 @@ class ActionKaironBotResponse(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)

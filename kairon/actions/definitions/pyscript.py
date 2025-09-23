@@ -11,6 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionPyscript(ActionsBase):
@@ -56,7 +57,7 @@ class ActionPyscript(ActionsBase):
         pyscript_action_config = None
         bot_response = None
         exception = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         dispatch_bot_response = False
         dispatch_type = DispatchType.text.value
         filled_slots = {}
@@ -76,7 +77,7 @@ class ActionPyscript(ActionsBase):
         except Exception as e:
             exception = str(e)
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "I have failed to process your request"
         finally:
             if dispatch_bot_response:
