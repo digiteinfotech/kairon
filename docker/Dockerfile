@@ -25,7 +25,7 @@ RUN source ~/.zshrc && \
 
 COPY requirements requirements
 RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
-    python -m spacy download en_core_web_md && \
+    pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.7.1/en_core_web_md-3.7.1-py3-none-any.whl && \
     python -m nltk.downloader averaged_perceptron_tagger && \
     python -m nltk.downloader averaged_perceptron_tagger_eng && \
     python -m nltk.downloader punkt && \
