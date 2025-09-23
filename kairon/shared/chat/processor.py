@@ -302,7 +302,6 @@ class ChatDataProcessor:
             logger.error(f"Error uploading file to BSP: {str(e)}")
             raise AppException(f"Media upload failed: {str(e)}") from e
         finally:
-
             if file_path:
                 try:
                     Utility.remove_file_path(file_path)
