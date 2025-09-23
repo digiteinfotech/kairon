@@ -45,8 +45,4 @@ class ActorOrchestrator:
                             str(e)
                         ) from e
         finally:
-            try:
-                actor.actor_ref.stop()
-                logger.debug(f"Actor '{actor_type}' stopped")
-            except Exception as stop_err:
-                logger.warning(f"Failed to stop actor '{actor_type}': {stop_err}")
+            actor.actor_ref.stop()

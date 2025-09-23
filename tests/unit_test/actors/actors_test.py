@@ -332,24 +332,6 @@ class TestActors:
             with pytest.raises(AppException, match="boom"):
                 ActorOrchestrator.run("mock_actor", retries=1)
 
-    def test_actor_stop_failure(self, monkeypatch):
-        mock_actor = MagicMock()
-        mock_actor.execute.return_value.get.return_value = "done"
-        mock_actor.actor_ref.stop.side_effect = RuntimeError("cannot stop")
-
-        monkeypatch.setattr(
-            "kairon.shared.concurrency.actors.factory.ActorFactory.get_instance",
-            lambda _: mock_actor
-        )
-
-        logs = []
-        from loguru import logger
-        logger.remove()
-        logger.add(lambda msg: logs.append(msg), level="WARNING")
-
-        result = ActorOrchestrator.run("test-actor", retries=1)
-        assert result == "done"
-        assert any("cannot stop" in log for log in logs)
 
     def test_actor_callable(self):
         def add(a, b):
