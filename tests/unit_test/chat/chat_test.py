@@ -1955,13 +1955,19 @@ async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_fa
     BotSettings.objects().delete()
 
 
-@pytest.mark.asyncio
-async def test_upload_media_channel_not_found(monkeypatch):
-    from types import SimpleNamespace
-    def raise_exc(channel, bot):
-        raise Exception("No channel found for this bot. Please configure the channel first.")
+import pytest
+from types import SimpleNamespace
+from mongoengine.errors import DoesNotExist
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.exceptions import AppException
 
-    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_exc)
+@pytest.mark.asyncio
+async def test_upload_media_channel_does_not_exist(monkeypatch):
+    def raise_does_not_exist(channel, bot):
+        raise DoesNotExist("Channels matching query does not exist.")
+
+    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_does_not_exist)
+
     file_info = SimpleNamespace(
         filename="file.txt",
         content_type="text/plain",
