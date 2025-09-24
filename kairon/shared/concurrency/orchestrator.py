@@ -1,7 +1,7 @@
 from typing import Text
 
 import pykka
-
+from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.factory import ActorFactory
 
@@ -21,11 +21,28 @@ class ActorOrchestrator:
                     result = future.get(actor_timeout)
                     return result
                 except pykka._exceptions.Timeout as e:
-                    raise AppException(f"Operation timed out: {e}")
+                    logger.error(f"Actor '{actor_type}' execution timed out after {actor_timeout} seconds "
+                                 f"(attempt {attempt}/{retries})")
+                    raise AppException(f"Operation timed out: {e}") from e
+
+                except pykka._exceptions.ActorDeadError as e:
+                    logger.warning(f"Actor '{actor_type}' died during execution (attempt {attempt}/{retries}): {e}")
+                    try:
+                        actor.actor_ref.stop()
+                    except Exception as e:
+                        logger.warning(f"Failed to stop actor '{actor_type}': {e}")
+                    actor = ActorFactory.get_instance(actor_type)
+                    if attempt == retries:
+                        logger.error(f"All {retries} attempts failed due to dead actor '{actor_type}'")
+                        raise AppException(
+                            str(e)
+                        ) from e
                 except Exception as e:
+                    logger.error(f"Unexpected error in actor '{actor_type}' "
+                                 f"(attempt {attempt}/{retries}): {e}")
                     if attempt == retries:
                         raise AppException(
                             str(e)
-                        )
+                        ) from e
         finally:
             actor.actor_ref.stop()
