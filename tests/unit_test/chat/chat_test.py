@@ -1953,3 +1953,47 @@ async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_fa
     assert os.path.exists(dummy_file)
     Channels.objects().delete()
     BotSettings.objects().delete()
+
+
+import pytest
+from types import SimpleNamespace
+from mongoengine.errors import DoesNotExist
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.exceptions import AppException
+
+@pytest.mark.asyncio
+async def test_upload_media_channel_does_not_exist(monkeypatch):
+    def raise_does_not_exist(channel, bot):
+        raise DoesNotExist("Channels matching query does not exist.")
+
+    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_does_not_exist)
+
+    file_info = SimpleNamespace(
+        filename="file.txt",
+        content_type="text/plain",
+        size=10,
+    )
+    with pytest.raises(AppException) as e:
+        await ChatDataProcessor.upload_media_to_bsp(
+            "bot1", "user1", "whatsapp", "/tmp/file", file_info
+        )
+    assert str(e.value) == (
+        "Media upload failed: No channel found for this bot. Please configure the channel first."
+    )
+
+@pytest.mark.asyncio
+async def test_upload_media_other_exception(monkeypatch):
+    from types import SimpleNamespace
+    def raise_other_exception(channel, bot):
+        raise ValueError("some random error")
+    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_other_exception)
+    file_info = SimpleNamespace(
+        filename="file.txt",
+        content_type="text/plain",
+        size=10,
+    )
+    with pytest.raises(AppException) as e:
+        await ChatDataProcessor.upload_media_to_bsp(
+            "bot1", "user1", "whatsapp", "/tmp/file", file_info
+        )
+    assert str(e.value) == "Media upload failed: some random error"
