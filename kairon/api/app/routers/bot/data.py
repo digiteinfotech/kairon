@@ -4,7 +4,6 @@ from typing import List, Optional
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
-
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
@@ -553,7 +552,6 @@ async def get_media_ids(
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
 
-
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(
         channel: ChannelTypes,
@@ -563,7 +561,6 @@ async def delete_media_data(
     ChatDataProcessor.delete_media_from_bsp(current_user.get_bot(), channel, media_id)
     UserMedia.delete_media(current_user.get_bot(), media_id)
     return Response(message="Deleted Successfully")
-
 
 @router.get("/{channel}/fetch_api/{media_id}")
 async def fetch_meta_api(
