@@ -4455,7 +4455,7 @@ def test_delete_media_ids_failure():
     body = response.json()
 
     assert body["success"] is False
-    assert body["message"] == "Failed to delete:'NoneType' object has no attribute 'delete'"
+    assert body["message"] == "Media upload failed: No channel found for this bot. Please configure the channel first."
     assert body["data"] is None
     assert body["error_code"] == 422
 
