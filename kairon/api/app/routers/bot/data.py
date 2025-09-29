@@ -550,7 +550,6 @@ async def get_media_ids(
     try:
         media_ids = UserMedia.get_media_ids(current_user.get_bot())
         return Response(message="List of media ids", data=media_ids)
-
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
 
