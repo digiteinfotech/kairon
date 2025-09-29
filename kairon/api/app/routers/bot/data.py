@@ -553,22 +553,24 @@ async def get_media_ids(
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
 
+
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(
-    channel : ChannelTypes,
-    media_id: str,
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        channel: ChannelTypes,
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    UserMedia.delete_media(current_user.get_bot(),media_id)
     ChatDataProcessor.delete_media_from_bsp(current_user.get_bot(), channel, media_id)
+    UserMedia.delete_media(current_user.get_bot(), media_id)
     return Response(message="Deleted Successfully")
+
 
 @router.get("/{channel}/fetch_api/{media_id}")
 async def fetch_meta_api(
-        channel : ChannelTypes,
+        channel: ChannelTypes,
         media_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     media_url = ChatDataProcessor.fetch_media_from_bsp(current_user.get_bot(), channel, media_id)
     return Response(message="Successfully fetched media details", data={"media url": f"{media_url}",
-                        "media id": f"{media_id}"})
+                                                                        "media id": f"{media_id}"})

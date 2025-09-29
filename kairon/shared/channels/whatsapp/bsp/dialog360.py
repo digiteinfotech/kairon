@@ -369,7 +369,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         headers = {header: api_key}
         Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
                                      validate_status=True,
-                                     err_msg="Failed to delete file in meta.")
+                                     err_msg="media file does not exist for this media id.")
         return "Media file deleted successfully"
 
     @staticmethod

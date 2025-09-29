@@ -540,7 +540,7 @@ class UserMedia:
             UserMediaData.objects(
                 bot=bot,
                 media_id=media_id
-            ).first().delete()
+            ).delete()
             return "Deleted successfully"
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")
