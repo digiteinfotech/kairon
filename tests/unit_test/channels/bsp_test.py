@@ -1297,3 +1297,76 @@ class TestBusinessServiceProvider:
 
         UserMediaData.objects().delete()
         Channels.objects().delete()
+
+
+@patch.object(Utility, "execute_http_request")
+def test_delete_media_file_success(mock_execute):
+    mock_execute.return_value = None
+    media_id = "12345"
+    channel_config = {"config": {"api_key": "fake_api_key"}}
+
+    result = BSP360Dialog.delete_media_file(media_id, channel_config)
+
+    mock_execute.assert_called_once()
+    assert result == "Media file deleted successfully"
+
+@patch.object(Utility, "execute_http_request")
+def test_delete_media_file_failure(mock_execute):
+    mock_execute.side_effect = Exception("Failed to delete file in meta.")
+    media_id = "12345"
+    channel_config = {"config": {"api_key": "fake_api_key"}}
+
+    with pytest.raises(Exception) as exc_info:
+        BSP360Dialog.delete_media_file(media_id, channel_config)
+
+    assert str(exc_info.value) == "Failed to delete file in meta."
+
+
+def test_delete_media_success():
+    from unittest.mock import patch, MagicMock
+    bot = "test_bot"
+    media_id = "12345"
+
+    mock_obj = MagicMock()
+    mock_obj.first.return_value = MagicMock(delete=MagicMock())
+
+    with patch.object(UserMediaData, "objects", return_value=mock_obj):
+        result = UserMedia.delete_media(bot, media_id)
+
+    mock_obj.first.return_value.delete.assert_called_once()
+    assert result == "Deleted successfully"
+
+def test_delete_media_failure():
+    from unittest.mock import patch, MagicMock
+    bot = "test_bot"
+    media_id = "12345"
+
+    mock_obj = MagicMock()
+    mock_obj.first.return_value = None
+
+    with patch.object(UserMediaData, "objects", return_value=mock_obj):
+        with pytest.raises(AppException) as exc_info:
+            UserMedia.delete_media(bot, media_id)
+
+    assert "Failed to delete" in str(exc_info.value)
+
+@patch.object(Utility, "execute_http_request")
+def test_fetch_media_file_url_success(mock_execute):
+    expected_url = "https://example.com/media/12345"
+    mock_execute.return_value = {"url": expected_url}
+    media_id = "12345"
+    channel_config = {"config": {"api_key": "fake_api_key"}}
+
+    result = BSP360Dialog.fetch_media_file_url(media_id, channel_config)
+    mock_execute.assert_called_once()
+    assert result == expected_url
+
+@patch.object(Utility, "execute_http_request")
+def test_fetch_media_file_url_failure(mock_execute):
+    mock_execute.side_effect = Exception("media url does not exist for this media id.")
+    media_id = "12345"
+    channel_config = {"config": {"api_key": "fake_api_key"}}
+    with pytest.raises(Exception) as exc_info:
+        BSP360Dialog.fetch_media_file_url(media_id, channel_config)
+
+    assert str(exc_info.value) == "media url does not exist for this media id."
