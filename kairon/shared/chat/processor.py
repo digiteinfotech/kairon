@@ -320,9 +320,9 @@ class ChatDataProcessor:
             return "File deleted from meta"
         except DoesNotExist as e:
             logger.error(
-                f"Media upload failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
+                f"Media deletion failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
             raise AppException(
-                "Media upload failed: No channel found for this bot. Please configure the channel first."
+                "Media deletion failed: No channel found for this bot. Please configure the channel first."
             ) from e
         except Exception as e:
             logger.error(f"Error deleting file to BSP: {str(e)}")
@@ -339,9 +339,9 @@ class ChatDataProcessor:
             return media_url
         except DoesNotExist as e:
             logger.error(
-                f"Media upload failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
+                f"Media fetch failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
             raise AppException(
-                "Media upload failed: No channel found for this bot. Please configure the channel first."
+                "Media fetch failed: No channel found for this bot. Please configure the channel first."
             ) from e
         except Exception as e:
             logger.error(f"Error fetchin url to BSP: {str(e)}")

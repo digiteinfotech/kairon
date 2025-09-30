@@ -2060,7 +2060,7 @@ def test_delete_media_from_bsp_channel_does_not_exist():
                 media_id="12345",
             )
 
-    assert str(exc_info.value) == "Media upload failed: No channel found for this bot. Please configure the channel first."
+    assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
 
 @patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
 def test_fetch_media_to_bsp_success(mock_bsp_factory):
@@ -2106,7 +2106,7 @@ def test_fetch_media_from_bsp_channel_does_not_exist():
                 media_id="12345",
             )
 
-    assert str(exc_info.value) == "Media upload failed: No channel found for this bot. Please configure the channel first."
+    assert str(exc_info.value) == "Media fetch failed: No channel found for this bot. Please configure the channel first."
 
 @patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
 def test_fetch_media_to_bsp_failure(mock_bsp_factory):
