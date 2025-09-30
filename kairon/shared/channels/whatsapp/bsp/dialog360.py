@@ -359,3 +359,27 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         )
 
         return external_media_id
+
+    @staticmethod
+    def delete_media_file(media_id: str, channel_config):
+        api_key = channel_config.get("config", {}).get("api_key")
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        url = f"{base_url}/{media_id}"
+        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+        headers = {header: api_key}
+        Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
+                                     validate_status=True,
+                                     err_msg="media file does not exist for this media id.")
+        return "Media file deleted successfully"
+
+    @staticmethod
+    def fetch_media_file_url(media_id: str, channel_config):
+        api_key = channel_config.get("config", {}).get("api_key")
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        url = f"{base_url}/{media_id}"
+        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+        headers = {header: api_key}
+        resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
+                                            validate_status=True,
+                                            err_msg="media url does not exist for this media id.")
+        return resp.get("url")

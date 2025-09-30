@@ -534,6 +534,16 @@ class UserMedia:
         except Exception as e:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
+    @staticmethod
+    def delete_media(bot, media_id: str):
+        try:
+            UserMediaData.objects(
+                bot=bot,
+                media_id=media_id
+            ).delete()
+            return "Deleted successfully"
+        except Exception as e:
+            raise AppException(f"Failed to delete:{str(e)}")
 
     @staticmethod
     def create_media_doc(
