@@ -1,6 +1,6 @@
 import io
 import os
-from datetime import datetime
+from datetime import datetime,timedelta
 from unittest import mock
 from unittest.mock import patch
 
@@ -807,7 +807,7 @@ class TestBusinessServiceProvider:
         monkeypatch.setattr(BSP360Dialog, 'set_webhook_url', _set_webhook_url)
         monkeypatch.setattr(Authentication, 'generate_integration_token', _get_integration_token)
         monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.digite.com")
-        
+
         with pytest.raises(AppException, match="Feature disabled for this account. Please contact support!"):
             BSP360Dialog("62bc24b493a0d6b7a46328f5", "test@demo.in").post_process()
 
@@ -1118,6 +1118,9 @@ class TestBusinessServiceProvider:
         assert isinstance(result, list)
         assert result[0]["media_id"] == media_id
         assert result[0]["filename"] == "sample.pdf"
+        assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
+        assert result[0]["sender_id"] == "tester@example.com"
+        assert abs(result[0]["timestamp"] - datetime.utcnow()) < timedelta(seconds=1)
 
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
