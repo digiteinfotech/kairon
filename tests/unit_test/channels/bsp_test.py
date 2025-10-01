@@ -1,6 +1,6 @@
 import io
 import os
-from datetime import datetime
+from datetime import datetime,timedelta
 from unittest import mock
 from unittest.mock import patch
 
@@ -1075,7 +1075,6 @@ class TestBusinessServiceProvider:
 
     @pytest.mark.asyncio
     def test_get_media_ids_success(self):
-        from datetime import datetime, timedelta
         bot = "682323a603ec3be7dcaa75bc"
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
