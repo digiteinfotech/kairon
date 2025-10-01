@@ -515,15 +515,14 @@ class UserMedia:
             logger.exception(e)
             raise AppException(f"Failed to extract media information: {e}")
 
-
     @staticmethod
     def get_media_ids(bot: str):
         try:
             media_data = UserMediaData.objects(
-                bot=bot,
-                upload_status=UserMediaUploadStatus.completed.value,
-                media_id__ne="",
-                upload_type=UserMediaUploadType.broadcast.value
+                bot = bot,
+                upload_status = UserMediaUploadStatus.completed.value,
+                media_id__ne = "",
+                upload_type = UserMediaUploadType.broadcast.value
             ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
 
             if not media_data:
