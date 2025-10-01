@@ -520,16 +520,17 @@ class UserMedia:
     def get_media_ids(bot: str):
         try:
             media_data = UserMediaData.objects(
-                bot = bot,
-                upload_status = UserMediaUploadStatus.completed.value,
-                media_id__ne = "",
-                upload_type = UserMediaUploadType.broadcast.value
-            ).only("filename", "media_id")
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
 
             if not media_data:
                 return []
 
-            return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
+            return [{"filename": doc.filename, "media_id": doc.media_id, "upload_status": doc.upload_status,
+                     "sender_id": doc.sender_id, "timestamp": doc.timestamp} for doc in media_data]
 
         except Exception as e:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
