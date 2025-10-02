@@ -9,7 +9,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
-    RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
+    RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs, OneTimeSchedulerConfiguration
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
@@ -48,14 +48,24 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def update_scheduled_task(notification_id: Text, bot: Text, user: Text, config: Dict):
-        if not config.get("scheduler_config"):
-            raise AppException("scheduler_config is required!")
+        if not config.get("scheduler_config") and not config.get("one_time_scheduler_config"):
+            raise AppException("scheduler_config or one_time_scheduler_config is required!")
         try:
             settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
             settings.name = config["name"]
             settings.connector_type = config["connector_type"]
             settings.broadcast_type = config["broadcast_type"]
-            settings.scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
+            if "scheduler_config" in config:
+                settings.scheduler_config = (
+                    SchedulerConfiguration(**config["scheduler_config"])
+                    if config["scheduler_config"] else None
+                )
+
+            if "one_time_scheduler_config" in config:
+                settings.one_time_scheduler_config = (
+                    OneTimeSchedulerConfiguration(**config["one_time_scheduler_config"])
+                    if config["one_time_scheduler_config"] else None
+                )
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
             settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
             settings.pyscript = config.get("pyscript")

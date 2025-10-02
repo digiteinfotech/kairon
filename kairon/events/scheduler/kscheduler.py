@@ -5,6 +5,7 @@ from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from loguru import logger
 from pymongo import MongoClient
 
@@ -28,12 +29,19 @@ class KScheduler(EventSchedulerBase):
         job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
     __scheduler.start()
 
-    def update_job(self, event_id: Text, task_type: TASK_TYPE, cron_exp: Text, event_class: Text, data: dict, timezone=None):
+    def update_job(self, event_id: Text, task_type: TASK_TYPE, event_class: Text, data: dict, timezone=None,
+                   cron_exp: Text = None, run_at: int = None,):
         try:
             func = ExecutorFactory.get_executor().execute_task
             args = (event_class, data,)
             kwargs = {'task_type': task_type}
-            trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
+            if cron_exp:
+                trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
+            elif run_at:
+                trigger = DateTrigger(run_date=run_at, timezone=timezone)
+            else:
+                raise AppException("Either cron_exp or run_at must be provided to update job!")
+
             changes = {
                 "func": func, "trigger": trigger, "args": args, "kwargs": kwargs, "name": func.__name__
             }
@@ -50,6 +58,20 @@ class KScheduler(EventSchedulerBase):
         trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
         KScheduler.__scheduler.add_job(func, trigger, args, kwargs, id=event_id, name=func.__name__,
                                        jobstore=KScheduler.__job_store_name)
+
+    def add_one_time_job(self, event_id: Text, task_type: TASK_TYPE, run_at: Text,
+                         event_class: Text, data: dict, timezone=None):
+        func = ExecutorFactory.get_executor().execute_task
+        args = (event_class, data)
+        kwargs = {'task_type': task_type}
+
+        trigger = DateTrigger(run_date=run_at, timezone=timezone)
+        KScheduler.__scheduler.add_job(
+            func, trigger, args, kwargs,
+            id=event_id, name=func.__name__,
+            jobstore=KScheduler.__job_store_name
+        )
+
 
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]

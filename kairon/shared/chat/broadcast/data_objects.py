@@ -37,6 +37,28 @@ class SchedulerConfiguration(EmbeddedDocument):
     def clean(self):
         self.schedule = self.schedule.strip()
 
+class OneTimeSchedulerConfiguration(EmbeddedDocument):
+    """
+    Configuration for a one-time scheduled event.
+    """
+    run_at = DateTimeField(required=True)
+    timezone = StringField()
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not self.run_at:
+            raise ValidationError("run_at datetime is required for one-time scheduling!")
+
+    def clean(self):
+        if isinstance(self.run_at, str):
+            try:
+                self.run_at = datetime.fromisoformat(self.run_at.replace("Z", "+00:00"))
+            except Exception:
+                raise ValidationError("Invalid run_at datetime format. Must be ISO8601.")
+
+
 
 class RecipientsConfiguration(EmbeddedDocument):
     """
@@ -53,7 +75,6 @@ class RecipientsConfiguration(EmbeddedDocument):
     def clean(self):
         if not Utility.check_empty_string(self.recipients):
             self.recipients = self.recipients.strip()
-
 
 class TemplateConfiguration(EmbeddedDocument):
     """
@@ -85,6 +106,7 @@ class MessageBroadcastSettings(Auditlog):
     connector_type = StringField(required=True)
     broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value, MessageBroadcastType.flow.value])
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
+    one_time_scheduler_config = EmbeddedDocumentField(OneTimeSchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     collection_config = DictField(default=dict)
@@ -108,6 +130,8 @@ class MessageBroadcastSettings(Auditlog):
             raise ValidationError("pyscript is required for dynamic broadcasts!")
         if self.scheduler_config:
             self.scheduler_config.validate()
+        if self.one_time_scheduler_config:
+            self.one_time_scheduler_config.validate()
         if self.recipients_config:
             self.recipients_config.validate()
         for template in self.template_config or []:

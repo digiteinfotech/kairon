@@ -15,6 +15,7 @@ from zipfile import ZipFile
 import litellm
 
 import pytest
+import pytz
 import responses
 import ujson as json
 import yaml
@@ -15892,8 +15893,8 @@ def test_train(mock_training_limit):
         pytest.bot, "integration@demo.ai", EventClass.model_training
     )
 
-
-def test_upload_limit_exceeded(monkeypatch):
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_upload_limit_exceeded(mock_request_event_server, monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.data_importer_limit_per_day = 2
     bot_settings.save()
@@ -16007,6 +16008,7 @@ def test_upload_using_event_append(monkeypatch):
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
@@ -19784,7 +19786,8 @@ def mock_is_training_inprogress(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_response)
 
 
-def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_train_daily_limit_exceed(mock_request_event_server, monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.training_limit_per_day = 2
     bot_settings.save()
@@ -31921,6 +31924,117 @@ def test_add_one_time_broadcast(mock_event_server):
     assert pytest.one_time_schedule_id
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_broadcast(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "one_time_scheduler_config": {
+            "run_at": run_at,
+            "one_time_schedule": "once",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.one_time_schedule_broadcast_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.one_time_schedule_broadcast_id
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_missing_run_at(mock_event_server):
+    config = {
+        "name": "missing_run_at",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "one_time_scheduler_config": {
+            "one_time_schedule": "once",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+
+    assert any("run_at datetime must be provided for one-time schedule!" in err.get("msg", "") for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_past_run_at(mock_event_server):
+    past_epoch = int((datetime.utcnow() - timedelta(hours=1)).timestamp())
+    config = {
+        "name": "past_run_at",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "one_time_scheduler_config": {
+            "run_at": past_epoch,
+            "one_time_schedule": "once",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("run_at must be a future epoch time" in err["msg"] for err in errors)
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_missing_timezone(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "one_time_scheduler_config": {
+            "run_at": run_at,
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("timezone is required for one-time scheduler!" in err["msg"] for err in errors)
+
 def test_broadcast_config_error():
     config = {
         "name": "one_time_schedule",
@@ -32060,6 +32174,38 @@ def test_update_broadcast(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast updated!"
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_one_time_scheduled_broadcast(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "one_time_scheduler_config": {
+            "run_at": run_at,
+            "one_time_schedule": "once",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(response.json())
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
 
 def test_update_one_time_broadcast():
     config = {
@@ -32081,7 +32227,7 @@ def test_update_one_time_broadcast():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "scheduler_config is required!"
+    assert actual["message"] == "scheduler_config or one_time_scheduler_config is required!"
 
 
 def test_list_broadcast_config():
@@ -32090,16 +32236,19 @@ def test_list_broadcast_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
-    actual["data"]["schedules"][0].pop("_id")
-    actual["data"]["schedules"][0].pop("timestamp")
-    actual["data"]["schedules"][0].pop("bot")
-    actual["data"]["schedules"][0].pop("user")
-    actual["data"]["schedules"][1].pop("_id")
-    actual["data"]["schedules"][1].pop("timestamp")
-    actual["data"]["schedules"][1].pop("bot")
-    actual["data"]["schedules"][1].pop("user")
+
+    for sched in actual["data"]["schedules"]:
+        sched.pop("_id", None)
+        sched.pop("timestamp", None)
+        sched.pop("bot", None)
+        sched.pop("user", None)
+        if sched.get("one_time_scheduler_config"):
+            sched["one_time_scheduler_config"].pop("run_at", None)
+
     assert actual["data"] == {
         "schedules": [
             {
@@ -32127,6 +32276,17 @@ def test_list_broadcast_config():
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "status": True,
             },
+            {
+                "name": "one_time_schedule_broadcast",
+                "connector_type": "whatsapp",
+                "broadcast_type": "static",
+                "collection_config": {},
+                "recipients_config": {"recipients": "916200035185,"},
+                "retry_count": 0,
+                "status": True,
+                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
+                "one_time_scheduler_config": {"timezone": "Asia/Calcutta"},
+            },
         ]
     }
 
@@ -32135,6 +32295,14 @@ def test_list_broadcast_config():
 def test_delete_broadcast(mock_event_server):
     response = client.delete(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -35102,6 +35270,7 @@ def test_multilingual_translate():
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
@@ -35224,6 +35393,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
