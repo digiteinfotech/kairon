@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytz
 from croniter import croniter
 from pydantic import BaseModel, root_validator, validator
 
@@ -28,6 +29,28 @@ class ChannelRequest(BaseModel):
                 raise AppException(
                     "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
                 )
+        return values
+
+class OneTimeSchedulerConfig(BaseModel):
+    run_at: int
+    timezone: str = None
+
+    @root_validator
+    def validate_one_time(cls, values):
+        run_at = values.get("run_at")
+        tz = values.get("timezone")
+
+        if run_at is None:
+            raise ValueError("run_at datetime must be provided for one-time schedule!")
+
+        current_epoch = int(datetime.now(tz=pytz.UTC).timestamp())
+        print("Difference:", run_at - current_epoch)
+        if run_at <= current_epoch:
+            raise ValueError("run_at must be a future epoch time")
+
+        if not tz or not tz.strip():
+            raise ValueError("timezone is required for one-time scheduler!")
+
         return values
 
 
@@ -92,6 +115,7 @@ class MessageBroadcastRequest(BaseModel):
     connector_type: str
     broadcast_type: MessageBroadcastType
     scheduler_config: SchedulerConfiguration = None
+    one_time_scheduler_config: OneTimeSchedulerConfig = None
     recipients_config: RecipientsConfiguration = None
     template_config: List[TemplateConfiguration] = None
     collection_config: CollectionConfig = None

@@ -177,6 +177,8 @@ async def add_message_broadcast_event(
     event.validate()
     if request.scheduler_config:
         event_type = EventRequestType.add_schedule.value
+    elif request.one_time_scheduler_config:
+        event_type = EventRequestType.add_one_time_schedule.value
     notification_id = event.enqueue(event_type, config=request.dict())
     return Response(message="Broadcast added!", data={"msg_broadcast_id": notification_id})
 

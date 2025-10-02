@@ -18,9 +18,20 @@ class EventUtility:
         if is_scheduled:
             response = None
             event_id = request_data["data"]["event_id"]
-            KScheduler().add_job(event_class=event_type, event_id=event_id,
-                                 task_type=TASK_TYPE.EVENT.value, **request_data)
-            message = 'Event Scheduled!'
+
+            cron_exp = request_data.get("cron_exp")
+            run_at = request_data.get("run_at")
+
+            if cron_exp:
+                KScheduler().add_job(event_class=event_type, event_id=event_id,
+                                          task_type=TASK_TYPE.EVENT.value, cron_exp=cron_exp,
+                                          data=request_data["data"], timezone=request_data.get("timezone"))
+                message = "Recurring Event Scheduled!"
+            elif run_at:
+                KScheduler().add_one_time_job(event_class=event_type, event_id=event_id,
+                                              task_type=TASK_TYPE.EVENT.value, run_at=run_at,
+                                              data=request_data["data"], timezone=request_data.get("timezone"))
+                message = "One-time Event Scheduled!"
         else:
             response = ExecutorFactory.get_executor().execute_task(event_class=event_type,
                                                                    task_type=TASK_TYPE.EVENT.value,
@@ -33,8 +44,22 @@ class EventUtility:
             raise AppException("Updating non-scheduled event not supported!")
 
         event_id = request_data["data"]["event_id"]
-        KScheduler().update_job(event_class=event_type, event_id=event_id, task_type=TASK_TYPE.EVENT.value,
-                                **request_data)
+        task_type = TASK_TYPE.EVENT.value
+        data = request_data["data"]
+
+        cron_exp = request_data.get("cron_exp")
+        run_at = request_data.get("run_at")
+        timezone = request_data.get("timezone")
+
+        KScheduler().update_job(
+            event_id=event_id,
+            task_type=task_type,
+            event_class=event_type,
+            data=data,
+            cron_exp=cron_exp,
+            run_at=run_at,
+            timezone=timezone
+        )
         return None, 'Scheduled event updated!'
 
     @staticmethod
