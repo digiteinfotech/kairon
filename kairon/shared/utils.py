@@ -18,7 +18,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union, Any
+from typing import Text, List, Dict, Union, Any, Optional
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -1817,7 +1817,7 @@ class Utility:
         is_scheduled: bool = False,
         cron_exp: Text = None,
         timezone: Text = None,
-        run_at: Text = None
+        run_at: Optional[Text] = None
     ):
         """
         Trigger request to event server along with payload.

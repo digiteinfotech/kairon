@@ -199,12 +199,12 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             elif config.get("one_time_scheduler_config"):
                 one_time_config = config["one_time_scheduler_config"]
                 run_at = one_time_config.get("run_at")
-                timezone = one_time_config.get("timezone")
                 if isinstance(run_at, str):
                     run_at = datetime.fromisoformat(run_at.replace("Z", "+00:00"))
 
                 elif isinstance(run_at, (int, float)):
                     run_at = datetime.fromtimestamp(run_at)
+
                 config["one_time_scheduler_config"]["run_at"] = run_at
                 run_at = config["one_time_scheduler_config"].get("run_at")
                 timezone = config["one_time_scheduler_config"].get("timezone", "UTC")

@@ -1,5 +1,5 @@
 import logging
-from typing import Text
+from typing import Text, Optional
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
@@ -30,7 +30,7 @@ class KScheduler(EventSchedulerBase):
     __scheduler.start()
 
     def update_job(self, event_id: Text, task_type: TASK_TYPE, event_class: Text, data: dict, timezone=None,
-                   cron_exp: Text = None, run_at: int = None,):
+                   cron_exp: Optional[Text] = None, run_at: Optional[int] = None):
         try:
             func = ExecutorFactory.get_executor().execute_task
             args = (event_class, data,)
