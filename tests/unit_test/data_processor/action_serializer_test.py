@@ -785,9 +785,6 @@ def test_prompt_action_validation_missing_model():
     errors =  DataValidation.validate_prompt_action(bot, data)
     assert errors == ['model is required in hyperparameters!']
 
-
-
-
 def test_get_model_llm_type_map_dynamic():
     result = DataValidation.get_model_llm_type_map()
     expected_categories = {
