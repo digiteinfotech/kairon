@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 import ujson as json
 from datetime import datetime
 from typing import Text, Dict, List
@@ -67,6 +69,15 @@ class MessageBroadcastProcessor:
                 )
 
             if "one_time_scheduler_config" in config:
+                one_time_config = config["one_time_scheduler_config"]
+                run_at = one_time_config.get("run_at")
+                timezone = one_time_config.get("timezone", "UTC")
+
+                if isinstance(run_at, (int, float)):
+                    tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                    run_at = datetime.fromtimestamp(run_at, tzinfo)
+
+                config["one_time_scheduler_config"]["run_at"] = run_at
                 settings.one_time_scheduler_config = (
                     OneTimeSchedulerConfiguration(**config["one_time_scheduler_config"])
                     if config["one_time_scheduler_config"] else None
