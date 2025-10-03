@@ -163,17 +163,3 @@ def request_epoch(bot: Text = Path(description="Bot id")):
 def stop_mail_reading(bot: Text = Path(description="Bot id")):
     EventUtility.stop_channel_mail_reading(bot)
     return {"data": None, "message": "Mail scheduler stopped!"}
-
-
-@app.get("/api/events/scheduled")
-def list_scheduled_events():
-    jobs = KScheduler._KScheduler__scheduler.get_jobs()
-    return [
-        {
-            "id": job.id,
-            "name": job.name,
-            "next_run_time": job.next_run_time,
-            "trigger": str(job.trigger)
-        }
-        for job in jobs
-    ]

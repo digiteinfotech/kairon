@@ -331,3 +331,88 @@ class TestMessageBroadcastProcessor:
             'user': 'test_user',
             'status': True
         }
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_one_time_scheduler_success(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "one_time_scheduler_success",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "one_time_scheduler_config": {
+                "run_at": "2099-12-31T23:59:59",
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+        result = MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+        assert result
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_one_time_scheduler_missing_run_at(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "missing_run_at",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "one_time_scheduler_config": {
+                # missing run_at
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+        with pytest.raises(ValidationError, match="run_at datetime is required for one-time scheduling!"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_success(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "updated_one_time_scheduler",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "one_time_scheduler_config": {
+                "run_at": "2099-12-31T23:59:59",
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        # Perform update
+        MessageBroadcastProcessor.update_scheduled_task(
+            existing_config["_id"], bot, user, config
+        )
+
+        updated = MessageBroadcastProcessor.get_settings(existing_config["_id"], bot)
+        assert updated["name"] == config["name"]
+        assert updated["one_time_scheduler_config"]["timezone"] == "Asia/Kolkata"
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_missing_config(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "missing_one_time_config",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            # missing one_time_scheduler_config
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        with pytest.raises(AppException, match="scheduler_config or one_time_scheduler_config is required!"):
+            MessageBroadcastProcessor.update_scheduled_task(
+                existing_config["_id"], bot, user, config
+            )
+

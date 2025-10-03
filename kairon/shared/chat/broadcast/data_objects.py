@@ -55,8 +55,8 @@ class OneTimeSchedulerConfiguration(EmbeddedDocument):
         if isinstance(self.run_at, str):
             try:
                 self.run_at = datetime.fromisoformat(self.run_at.replace("Z", "+00:00"))
-            except Exception:
-                raise ValidationError("Invalid run_at datetime format. Must be ISO8601.")
+            except ValueError as e:
+                raise ValidationError("Invalid run_at datetime format. Must be ISO8601.") from e
 
 
 
