@@ -1,6 +1,7 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Text, Dict
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from loguru import logger
@@ -120,15 +121,13 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             raise AppException("one_time_scheduler_config with run_at is required!")
         try:
             run_at = config["one_time_scheduler_config"].get("run_at")
-            if isinstance(run_at, str):
-                run_at = datetime.fromisoformat(run_at.replace("Z", "+00:00"))
+            timezone = config["one_time_scheduler_config"].get("timezone", "UTC")
+            if isinstance(run_at, (int, float)):
+                tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                run_at = datetime.fromtimestamp(run_at, tzinfo)
 
-            elif isinstance(run_at, (int, float)):
-                run_at = datetime.fromtimestamp(run_at)
             config["one_time_scheduler_config"]["run_at"] = run_at
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
-            run_at = config["one_time_scheduler_config"].get("run_at")
-            timezone = config["one_time_scheduler_config"].get("timezone", "UTC")
 
             payload = {
                 'bot': self.bot,
@@ -199,15 +198,13 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             elif config.get("one_time_scheduler_config"):
                 one_time_config = config["one_time_scheduler_config"]
                 run_at = one_time_config.get("run_at")
-                if isinstance(run_at, str):
-                    run_at = datetime.fromisoformat(run_at.replace("Z", "+00:00"))
+                timezone = one_time_config.get("timezone", "UTC")
 
-                elif isinstance(run_at, (int, float)):
-                    run_at = datetime.fromtimestamp(run_at)
+                if isinstance(run_at, (int, float)):
+                    tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                    run_at = datetime.fromtimestamp(run_at, tzinfo)
 
                 config["one_time_scheduler_config"]["run_at"] = run_at
-                run_at = config["one_time_scheduler_config"].get("run_at")
-                timezone = config["one_time_scheduler_config"].get("timezone", "UTC")
 
                 Utility.request_event_server(
                     EventClass.message_broadcast,

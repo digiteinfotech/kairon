@@ -44,7 +44,7 @@ class OneTimeSchedulerConfig(BaseModel):
             raise ValueError("run_at datetime must be provided for one-time schedule!")
 
         current_epoch = int(datetime.now(tz=pytz.UTC).timestamp())
-        print("Difference:", run_at - current_epoch)
+
         if run_at <= current_epoch:
             raise ValueError("run_at must be a future epoch time")
 

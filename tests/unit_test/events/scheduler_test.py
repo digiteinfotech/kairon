@@ -250,3 +250,32 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
         mock_jobstore.return_value = []
         assert scheduler.list_jobs() == []
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    @patch("pymongo.collection.Collection.create_index")
+    def test_add_one_time_job_success(self, mock_collection, mock_scheduler, mock_add_job):
+        from kairon.events.scheduler.kscheduler import KScheduler
+        bot = "test_bot"
+        user = "test_user"
+        event_id = ObjectId().__str__()
+        run_at = "2099-12-31T23:59:59"
+        body = {"bot": bot, "user": user, "event_id": event_id}
+        scheduler = KScheduler()
+
+        with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
+            scheduler.add_one_time_job(event_id, TASK_TYPE.EVENT.value, run_at,
+                                       EventClass.message_broadcast.value, body, "Asia/Kolkata")
+
+            args, kwargs = mock_add_job.call_args
+
+            assert kwargs["id"] == event_id
+            assert kwargs["name"] == "execute_task"
+            assert kwargs["jobstore"] == "kscheduler"
+
+
+            pos_args = args[3]
+            assert pos_args[0] == EventClass.message_broadcast.value
+            assert pos_args[1] == body
+
+            assert args[4] == {"task_type": TASK_TYPE.EVENT.value}
