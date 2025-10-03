@@ -398,6 +398,35 @@ class TestMessageBroadcastProcessor:
         assert updated["one_time_scheduler_config"]["timezone"] == "Asia/Kolkata"
 
     @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_with_both_config(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "missing_one_time_config",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "one_time_scheduler_config": {
+                "run_at": "2099-12-31T23:59:59",
+                "timezone": "Asia/Kolkata",
+            },
+            'scheduler_config': {
+                'expression_type': 'cron',
+                'schedule': '57 22 * * *',
+                "timezone": "Asia/Kolkata"
+            }
+
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        with pytest.raises(AppException, match="Only one of scheduler_config or one_time_scheduler_config can be provided!"):
+            MessageBroadcastProcessor.update_scheduled_task(
+                existing_config["_id"], bot, user, config
+            )
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
     def test_update_one_time_scheduler_missing_config(self, mock_channel_config):
         bot = "test_schedule"
         user = "test_user"
@@ -415,4 +444,5 @@ class TestMessageBroadcastProcessor:
             MessageBroadcastProcessor.update_scheduled_task(
                 existing_config["_id"], bot, user, config
             )
+
 
