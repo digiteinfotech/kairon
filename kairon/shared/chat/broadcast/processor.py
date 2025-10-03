@@ -68,7 +68,7 @@ class MessageBroadcastProcessor:
                     if config["scheduler_config"] else None
                 )
 
-            if "one_time_scheduler_config" in config:
+            if config.get("one_time_scheduler_config"):
                 one_time_config = config["one_time_scheduler_config"]
                 run_at = one_time_config.get("run_at")
                 timezone = one_time_config.get("timezone", "UTC")
