@@ -301,7 +301,7 @@ def test_scheduled_event_request(mock_add_job):
         "data": None,
         "success": True,
         "error_code": 0,
-        "message": "Event Scheduled!",
+        "message": "Recurring Event Scheduled!",
     }
 
 
@@ -474,7 +474,7 @@ def test_update_scheduled_event_request_missing_parameters():
         "data": None,
         "success": False,
         "error_code": 422,
-        "message": "cron_exp is required for scheduled events!",
+        "message": "Either cron_exp or run_at must be provided for scheduled events!",
     }
 
 

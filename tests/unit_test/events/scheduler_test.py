@@ -150,8 +150,9 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
 
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
-            scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                 EventClass.message_broadcast.value, body)
+            scheduler.update_job(event_id, TASK_TYPE.EVENT.value,
+                                 EventClass.message_broadcast.value, body,"Asia/Calcutta",
+                                 cron_exp)
 
             args, kwargs = mock_modify_job.call_args
             assert args[1] == event_id
@@ -183,8 +184,8 @@ class TestMessageBroadcastProcessor:
         mock_find_job.return_value = {}
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                     EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value,
+                                     EventClass.message_broadcast.value, body, "Asia/Calcutta", cron_exp)
 
     @patch("pymongo.collection.Collection.find_one")
     @patch("pymongo.collection.Collection.update_one")
@@ -208,8 +209,8 @@ class TestMessageBroadcastProcessor:
             mock_mongo.return_value = mongo_result
 
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                     EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, EventClass.message_broadcast.value,
+                                     body, "Asia/Calcutta",cron_exp)
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.remove_job", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
