@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Text, Dict
 from zoneinfo import ZoneInfo
 
@@ -117,8 +117,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
 
     def _add_one_time_schedule(self, config: Dict):
         msg_broadcast_id = None
-        if not config.get("one_time_scheduler_config") or not config["one_time_scheduler_config"].get("run_at"):
-            raise AppException("one_time_scheduler_config with run_at is required!")
+
         try:
             run_at = config["one_time_scheduler_config"].get("run_at")
             timezone = config["one_time_scheduler_config"].get("timezone", "UTC")
