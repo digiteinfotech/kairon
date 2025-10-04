@@ -99,6 +99,7 @@ class EventRequestType(str, Enum):
     trigger_async = "trigger_async"
     update_schedule = "update_schedule"
     add_schedule = "add_schedule"
+    add_one_time_schedule = "add_one_time_schedule"
     resend_broadcast = "resend_broadcast"
 
 

@@ -583,7 +583,7 @@ class TestEventDefinitions:
             "POST", url,
             match=[responses.matchers.json_params_matcher(
                 {"data": {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"},
-                 "cron_exp": None, "timezone": None})],
+                 "cron_exp": None, "timezone": None, "run_at":None})],
             json={"message": "Success", "success": True, "error_code": 0, "data": {
                 'StatusCode': 200,
                 'FunctionError': None,
@@ -703,7 +703,7 @@ class TestEventDefinitions:
                           responses.matchers.json_params_matcher(
                               {"data": {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
                                'translate_responses': '', 'translate_actions': '--translate-actions'},
-                               "cron_exp": None, "timezone": None})]
+                               "cron_exp": None, "timezone": None, "run_at":None})]
                       )
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False,
                           translate_actions=True).enqueue()

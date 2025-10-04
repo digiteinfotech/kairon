@@ -1453,7 +1453,7 @@ def test_delete_user_chat_history_till_date_not_today(mock_auth_admin, mock_mong
                       "data": {'bot': 'integration1', 'user': 'integration@demo.com',
                                'till_date': Utility.convert_date_to_string(till_date),
                                'sender_id': '5e564fbcdcf0d5fad89e3abd'},
-                      "cron_exp": None, "timezone": None
+                      "cron_exp": None, "timezone": None, "run_at": None
                   })],
                   status=200)
 
@@ -1480,7 +1480,7 @@ def test_delete_bot_chat_history_till_date_not_today(mock_auth_admin, mock_mongo
                       "data": {'bot': 'integration2', 'user': 'integration@demo.com',
                                'till_date': Utility.convert_date_to_string(till_date),
                                'sender_id': ""},
-                      "cron_exp": None, "timezone": None
+                      "cron_exp": None, "timezone": None,"run_at":None
                   })],
                   status=200)
 
@@ -1505,7 +1505,7 @@ def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint
                       "data": {'bot': 'integration', 'user': 'integration@demo.com',
                                                         'till_date': Utility.convert_date_to_string(till_date),
                                                         'sender_id': '5e564fbcdcf0d5fad89e3acd'},
-                      "cron_exp": None, "timezone": None
+                      "cron_exp": None, "timezone": None, "run_at":None
                   })],
                   status=200)
 
@@ -1572,7 +1572,7 @@ def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_
                       "data": {'bot': 'integration', 'user': 'integration@demo.com',
                                                         'till_date': Utility.convert_date_to_string(till_date),
                                                         'sender_id': ""},
-                      "cron_exp": None, "timezone": None
+                      "cron_exp": None, "timezone": None, "run_at":None
                   })],
                   status=200)
 
