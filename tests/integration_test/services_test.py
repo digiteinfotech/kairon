@@ -4559,8 +4559,8 @@ def test_fetch_media_url_media_id_not_exist(mock_fetch):
     UserMediaData.objects().delete()
 
     assert body["success"] is True
-    assert body["data"]["media id"] == missing_media_id
-    assert body["data"]["media url"] is None or body["data"]["media url"] == "None"
+    assert body["data"]["media_id"] == missing_media_id
+    assert body["data"]["media_url"] is None or body["data"]["media_url"] == "None"
     assert "not found" in body["message"].lower() or "media" in body["message"].lower()
 
 @responses.activate

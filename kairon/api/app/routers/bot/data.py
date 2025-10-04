@@ -563,11 +563,11 @@ async def delete_media_data(
     return Response(message="Deleted Successfully")
 
 @router.get("/{channel}/fetch_api/{media_id}")
-async def fetch_meta_api(
+async def fetch_media_url(
         channel: ChannelTypes,
         media_id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
     media_url = ChatDataProcessor.fetch_media_from_bsp(current_user.get_bot(), channel, media_id)
-    return Response(message="Successfully fetched media details", data={"media url": f"{media_url}",
-                                                                        "media id": f"{media_id}"})
+    return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
+                                                                        "media_id": f"{media_id}"})
