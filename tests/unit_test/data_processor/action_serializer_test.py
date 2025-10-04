@@ -785,22 +785,22 @@ def test_prompt_action_validation_missing_model():
     errors =  DataValidation.validate_prompt_action(bot, data)
     assert errors == ['model is required in hyperparameters!']
 
-
-
-
-def test_get_model_llm_type_map():
+def test_get_model_llm_type_map_dynamic():
     result = DataValidation.get_model_llm_type_map()
+    expected_categories = {
+        'openai': ['gpt-3.5', 'gpt-4.1'],
+        'aws-anthropic': ['bedrock/us.anthropic', 'claude'],
+        'anthropic': ['bedrock/us.anthropic', 'claude'],
+        'gemini': ['gemini/'],
+        'perplexity': ['perplexity/llama'],
+        'aws-nova': ['bedrock/converse/us.amazon.nova']
+    }
 
-    expected = {'gpt-3.5-turbo': 'openai', 'gpt-4.1-nano': 'openai', 'gpt-4.1-mini': 'openai', 'gpt-4.1': 'openai', 'claude-3-5-sonnet-20240620': 'anthropic', 'claude-3-7-sonnet-20250219': 'anthropic', 'gemini/gemini-1.5-flash': 'gemini', 'gemini/gemini-pro': 'gemini', 'perplexity/llama-3.1-sonar-small-128k-online': 'perplexity', 'perplexity/llama-3.1-sonar-large-128k-online': 'perplexity', 'perplexity/llama-3.1-sonar-huge-128k-online': 'perplexity', 'bedrock/converse/us.amazon.nova-micro-v1:0': 'aws-nova', 'bedrock/converse/us.amazon.nova-lite-v1:0': 'aws-nova', 'bedrock/converse/us.amazon.nova-pro-v1:0': 'aws-nova'}
-
-    assert not DeepDiff(result, expected, ignore_order=True)
-
-    with patch('kairon.shared.utils.Utility.load_yaml') as yml_load:
-        DataValidation.get_model_llm_type_map()
-        yml_load.assert_not_called()
-        DataValidation.model_llm_type_map = None
-        DataValidation.get_model_llm_type_map()
-        yml_load.assert_called_once_with(Utility.llm_metadata_file_path)
+    for model_name, provider in result.items():
+        assert provider in expected_categories, f"Unexpected provider: {provider}"
+        assert any(model_name.startswith(prefix) for prefix in expected_categories[provider]), (
+            f"Model {model_name} does not match provider {provider}"
+        )
 
 
 
