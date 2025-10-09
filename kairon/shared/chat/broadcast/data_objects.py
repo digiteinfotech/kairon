@@ -32,7 +32,7 @@ class SchedulerConfiguration(EmbeddedDocument):
         if not self.timezone or not self.timezone.strip():
             raise ValidationError("timezone is required for all schedules!")
         try:
-            tz_obj = pytz.timezone(self.timezone)
+            pytz.timezone(self.timezone)
         except pytz.UnknownTimeZoneError:
             raise ValidationError(f"Unknown timezone: {self.timezone}")
 
