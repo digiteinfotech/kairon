@@ -1,3 +1,4 @@
+import pytz
 from mongoengine import Document, StringField, DateTimeField, DynamicDocument, EmbeddedDocument, \
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
@@ -11,52 +12,51 @@ from croniter import croniter
 
 class SchedulerConfiguration(EmbeddedDocument):
     """
-    expression_type: Only supports cron jobs for now. Can be extended to ``date``, ``interval`` in future.
-    schedule: When the job should be run.
-            Eg: "* * * * *", "30 5 * * *"
+    Unified scheduler configuration model.
+
+    Supports:
+    - expression_type="cron": recurring schedule based on cron string.
+      Example: "* * * * *", "30 5 * * *"
+    - expression_type="epoch": one-time schedule based on future epoch time.
+      Example: 1765438200
     """
-    expression_type = StringField(default="cron", choices=["cron"])
+
+    expression_type = StringField(required=True, choices=["cron", "epoch"])
     schedule = StringField(required=True)
-    timezone = StringField()
+    timezone = StringField(required=True)
 
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+        if not self.timezone or not self.timezone.strip():
+            raise ValidationError("timezone is required for all schedules!")
+        try:
+            tz_obj = pytz.timezone(self.timezone)
+        except pytz.UnknownTimeZoneError:
+            raise ValidationError(f"Unknown timezone: {self.timezone}")
 
         if self.expression_type == "cron":
             if not self.schedule or not croniter.is_valid(self.schedule):
                 raise ValidationError(f"Invalid cron expression: '{self.schedule}'")
+
             first_occurrence = croniter(self.schedule).get_next(ret_type=datetime)
-            second_occurrence = croniter(self.schedule).get_next(ret_type=datetime, start_time=first_occurrence)
+            second_occurrence = croniter(
+                self.schedule, start_time=first_occurrence
+            ).get_next(ret_type=datetime)
+
             min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
-                raise ValidationError(f"recurrence interval must be at least {min_trigger_interval} seconds!")
-            if Utility.check_empty_string(self.timezone):
-                raise ValidationError("timezone is required for cron expressions!")
+                raise ValidationError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
 
     def clean(self):
-        self.schedule = self.schedule.strip()
-
-class OneTimeSchedulerConfiguration(EmbeddedDocument):
-    """
-    Configuration for a one-time scheduled event.
-    """
-    run_at = DateTimeField(required=True)
-    timezone = StringField()
-
-    def validate(self, clean=True):
-        if clean:
-            self.clean()
-
-        if not self.run_at:
-            raise ValidationError("run_at datetime is required for one-time scheduling!")
-
-    def clean(self):
-        if isinstance(self.run_at, str):
-            try:
-                self.run_at = datetime.fromisoformat(self.run_at.replace("Z", "+00:00"))
-            except ValueError as e:
-                raise ValidationError("Invalid run_at datetime format. Must be ISO8601.") from e
+        """Strip strings and normalize types."""
+        if self.schedule and isinstance(self.schedule, str):
+            self.schedule = self.schedule.strip()
+        if self.timezone and isinstance(self.timezone, str):
+            self.timezone = self.timezone.strip()
 
 
 
@@ -106,7 +106,6 @@ class MessageBroadcastSettings(Auditlog):
     connector_type = StringField(required=True)
     broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value, MessageBroadcastType.flow.value])
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
-    one_time_scheduler_config = EmbeddedDocumentField(OneTimeSchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)
     template_config = ListField(EmbeddedDocumentField(TemplateConfiguration))
     collection_config = DictField(default=dict)
@@ -130,8 +129,6 @@ class MessageBroadcastSettings(Auditlog):
             raise ValidationError("pyscript is required for dynamic broadcasts!")
         if self.scheduler_config:
             self.scheduler_config.validate()
-        if self.one_time_scheduler_config:
-            self.one_time_scheduler_config.validate()
         if self.recipients_config:
             self.recipients_config.validate()
         for template in self.template_config or []:

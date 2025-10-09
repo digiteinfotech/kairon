@@ -31965,8 +31965,8 @@ def test_add_one_time_schedule_missing_run_at(mock_event_server):
         "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
-        "one_time_scheduler_config": {
-            "one_time_schedule": "once",
+        "scheduler_config": {
+            "expression_type": "epoch",
             "timezone": "Asia/Calcutta"
         },
         "template_config": [{"template_id": "brochure_pdf"}],
@@ -31977,10 +31977,11 @@ def test_add_one_time_schedule_missing_run_at(mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response=response.json()
+    print(response)
     assert response["error_code"]== 422
     errors = response["message"]
 
-    assert any("run_at datetime must be provided for one-time schedule!" in err.get("msg", "") for err in errors)
+    assert any("schedule time is required for all schedules!" in err.get("msg", "") for err in errors)
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_one_time_schedule_past_run_at(mock_event_server):
@@ -31990,9 +31991,9 @@ def test_add_one_time_schedule_past_run_at(mock_event_server):
         "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
-        "one_time_scheduler_config": {
-            "run_at": past_epoch,
-            "one_time_schedule": "once",
+        "scheduler_config": {
+            "schedule": past_epoch,
+            "expression_type": "epoch",
             "timezone": "Asia/Calcutta"
         },
         "template_config": [{"template_id": "brochure_pdf"}],
@@ -32006,7 +32007,7 @@ def test_add_one_time_schedule_past_run_at(mock_event_server):
     response=response.json()
     assert response["error_code"]== 422
     errors = response["message"]
-    assert any("run_at must be a future epoch time" in err["msg"] for err in errors)
+    assert any("epoch time (schedule) must be in the future relative to the provided timezone" in err["msg"] for err in errors)
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -32019,8 +32020,9 @@ def test_add_one_time_schedule_missing_timezone(mock_event_server):
         "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
-        "one_time_scheduler_config": {
-            "run_at": run_at,
+        "scheduler_config": {
+            "expression_type":"epoch",
+            "schedule": run_at,
         },
         "template_config": [{"template_id": "brochure_pdf"}],
     }
@@ -32033,7 +32035,94 @@ def test_add_one_time_schedule_missing_timezone(mock_event_server):
     response=response.json()
     assert response["error_code"]== 422
     errors = response["message"]
-    assert any("timezone is required for one-time scheduler!" in err["msg"] for err in errors)
+    assert any("timezone is required for all schedules!" in err["msg"] for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_expression_type(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "timezone": "Asia/Calcutta",
+            "expression_type":"mayank"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("expression_type must be either cron or epoch" in err["msg"] for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_epoch_string(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": "mayank",
+            "timezone": "Asia/Calcutta",
+            "expression_type":"epoch"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("schedule must be a valid integer epoch time for 'epoch' expression_type" in err["msg"] for err in errors)
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_timezone(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "timezone": "mayank",
+            "expression_type":"epoch"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("Unknown timezone: mayank" in err["msg"] for err in errors)
+
 
 def test_broadcast_config_error():
     config = {
@@ -32063,7 +32152,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": "recurrence interval must be at least 86340 seconds!",
+            "msg": "Recurrence interval must be at least 86340 seconds!",
             "type": "value_error",
         }
     ]
@@ -32083,7 +32172,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": "timezone is required for cron expressions!",
+            "msg": "timezone is required for all schedules!",
             "type": "value_error",
         }
     ]
@@ -32101,7 +32190,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": f"Invalid cron expression: ''",
+            "msg": f"schedule time is required for all schedules!",
             "type": "value_error",
         }
     ]
@@ -32184,9 +32273,9 @@ def test_update_one_time_scheduled_broadcast(mock_event_server):
         "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
-        "one_time_scheduler_config": {
-            "run_at": run_at,
-            "one_time_schedule": "once",
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
             "timezone": "Asia/Calcutta"
         },
         "template_config": [
@@ -32207,7 +32296,7 @@ def test_update_one_time_scheduled_broadcast(mock_event_server):
     assert actual["message"] == "Broadcast updated!"
 
 
-def test_update_one_time_broadcast():
+def test_update_one_time_broadcast_failure():
     config = {
         "name": "one_time_schedule",
         "broadcast_type": "static",
@@ -32227,7 +32316,7 @@ def test_update_one_time_broadcast():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "scheduler_config or one_time_scheduler_config is required!"
+    assert actual["message"] == "scheduler_config with a valid schedule is required!"
 
 
 def test_list_broadcast_config():
@@ -32246,8 +32335,8 @@ def test_list_broadcast_config():
         sched.pop("timestamp", None)
         sched.pop("bot", None)
         sched.pop("user", None)
-        if sched.get("one_time_scheduler_config"):
-            sched["one_time_scheduler_config"].pop("run_at", None)
+        if sched.get("scheduler_config") and sched["scheduler_config"].get("expression_type") == "epoch":
+            sched["scheduler_config"].pop("schedule", None)
 
     assert actual["data"] == {
         "schedules": [
@@ -32285,7 +32374,8 @@ def test_list_broadcast_config():
                 "retry_count": 0,
                 "status": True,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
-                "one_time_scheduler_config": {"timezone": "Asia/Calcutta"},
+                "scheduler_config": {"expression_type":"epoch",
+                                     "timezone": "Asia/Calcutta"},
             },
         ]
     }

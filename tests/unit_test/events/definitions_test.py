@@ -792,7 +792,7 @@ class TestEventDefinitions:
             event.enqueue(EventRequestType.add_schedule.value, config=config)
 
         with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
-            with pytest.raises(AppException, match=r"timezone is required for cron expressions!*"):
+            with pytest.raises(AppException, match=r"timezone is required for all schedules!"):
                 event.enqueue(EventRequestType.add_schedule.value, config=config)
 
     @responses.activate
@@ -1131,7 +1131,7 @@ class TestEventDefinitions:
         )
 
         event = MessageBroadcastEvent(bot, user)
-        with pytest.raises(AppException, match="scheduler_config is required!"):
+        with pytest.raises(AppException, match="scheduler_config with a valid schedule is required!"):
             event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2

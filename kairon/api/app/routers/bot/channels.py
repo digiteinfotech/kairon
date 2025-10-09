@@ -176,9 +176,10 @@ async def add_message_broadcast_event(
     event = MessageBroadcastEvent(current_user.get_bot(), current_user.get_user())
     event.validate()
     if request.scheduler_config:
-        event_type = EventRequestType.add_schedule.value
-    elif request.one_time_scheduler_config:
-        event_type = EventRequestType.add_one_time_schedule.value
+        if request.scheduler_config.expression_type == "cron":
+            event_type = EventRequestType.add_schedule.value
+        elif request.scheduler_config.expression_type == "epoch":
+            event_type = EventRequestType.add_one_time_schedule.value
     notification_id = event.enqueue(event_type, config=request.dict())
     return Response(message="Broadcast added!", data={"msg_broadcast_id": notification_id})
 

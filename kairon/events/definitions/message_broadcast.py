@@ -119,13 +119,12 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         msg_broadcast_id = None
 
         try:
-            run_at = config["one_time_scheduler_config"].get("run_at")
-            timezone = config["one_time_scheduler_config"].get("timezone", "UTC")
+            run_at = config["scheduler_config"].get("schedule")
+            timezone = config["scheduler_config"].get("timezone", "UTC")
             if isinstance(run_at, (int, float)):
                 tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
                 run_at = datetime.fromtimestamp(run_at, tzinfo)
 
-            config["one_time_scheduler_config"]["run_at"] = run_at
             msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
 
             payload = {
@@ -162,9 +161,11 @@ class MessageBroadcastEvent(ScheduledEventsBase):
     def _update_schedule(self, msg_broadcast_id: Text, config: Dict):
         settings_updated = False
         current_settings = {}
+
         try:
-            if not config.get("scheduler_config") and not config.get("one_time_scheduler_config"):
-                raise AppException("scheduler_config or one_time_scheduler_config is required!")
+            scheduler_config = config.get("scheduler_config")
+            if not scheduler_config or not scheduler_config.get("schedule"):
+                raise AppException("scheduler_config with a valid schedule is required!")
 
             current_settings = MessageBroadcastProcessor.get_settings(msg_broadcast_id, self.bot)
             MessageBroadcastProcessor.update_scheduled_task(msg_broadcast_id, self.bot, self.user, config)
@@ -177,33 +178,36 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 "is_resend": "False"
             }
 
-            if config.get("scheduler_config"):
-                scheduler_config = config["scheduler_config"]
-                cron_exp = scheduler_config.get("schedule")
-                timezone = scheduler_config.get("timezone")
+            expression_type = scheduler_config.get("expression_type")
+            schedule = scheduler_config.get("schedule")
+            timezone = scheduler_config.get("timezone")
 
-                if not cron_exp:
-                    raise AppException("schedule (cron expression) must be provided for scheduler_config")
+            if expression_type == "cron":
+                if not schedule:
+                    raise AppException("schedule (cron expression) must be provided for cron scheduler_config")
 
                 Utility.request_event_server(
                     EventClass.message_broadcast,
                     payload,
                     method="PUT",
                     is_scheduled=True,
-                    cron_exp=cron_exp,
+                    cron_exp=schedule,
                     timezone=timezone
                 )
 
-            elif config.get("one_time_scheduler_config"):
-                one_time_config = config["one_time_scheduler_config"]
-                run_at = one_time_config.get("run_at")
-                timezone = one_time_config.get("timezone", "UTC")
+            elif expression_type == "epoch":
+                if not schedule:
+                    raise AppException("schedule (epoch timestamp) must be provided for epoch scheduler_config")
 
-                if isinstance(run_at, (int, float)):
-                    tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
-                    run_at = datetime.fromtimestamp(run_at, tzinfo)
+                try:
+                    epoch_time = int(schedule)
+                except ValueError:
+                    raise AppException("schedule must be a valid integer epoch time for epoch expression_type")
 
-                config["one_time_scheduler_config"]["run_at"] = run_at
+                tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                run_at = datetime.fromtimestamp(epoch_time, tzinfo)
+
+                scheduler_config["schedule"] = run_at
 
                 Utility.request_event_server(
                     EventClass.message_broadcast,
@@ -213,6 +217,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                     run_at=run_at.isoformat(),
                     timezone=timezone
                 )
+            else:
+                raise AppException("Invalid expression_type; must be 'cron' or 'epoch'")
 
         except Exception as e:
             logger.error(e)
