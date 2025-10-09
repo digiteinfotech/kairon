@@ -183,8 +183,6 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             timezone = scheduler_config.get("timezone")
 
             if expression_type == "cron":
-                if not schedule:
-                    raise AppException("schedule (cron expression) must be provided for cron scheduler_config")
 
                 Utility.request_event_server(
                     EventClass.message_broadcast,
@@ -196,14 +194,8 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 )
 
             elif expression_type == "epoch":
-                if not schedule:
-                    raise AppException("schedule (epoch timestamp) must be provided for epoch scheduler_config")
 
-                try:
-                    epoch_time = int(schedule)
-                except ValueError:
-                    raise AppException("schedule must be a valid integer epoch time for epoch expression_type")
-
+                epoch_time = int(schedule)
                 tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
                 run_at = datetime.fromtimestamp(epoch_time, tzinfo)
 
@@ -217,8 +209,6 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                     run_at=run_at.isoformat(),
                     timezone=timezone
                 )
-            else:
-                raise AppException("Invalid expression_type; must be 'cron' or 'epoch'")
 
         except Exception as e:
             logger.error(e)

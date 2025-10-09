@@ -498,6 +498,31 @@ def test_update_non_scheduled_event_request():
         "message": "Updating non-scheduled event not supported!",
     }
 
+@patch("kairon.events.scheduler.kscheduler.KScheduler.update_job", autospec=True)
+def test_update_scheduled_event_request_with_both_runat_cron_exp(mock_update_job):
+    mock_update_job.return_value = None
+    request_body = {
+        "data": {
+            "bot": "test",
+            "user": "test_user",
+            "event_id": "6543212345678909876543",
+        },
+        "cron_exp": "* * * * *",
+        "timezone": "Asia/Kolkata",
+        "run_at": "1234567"
+    }
+    response = client.put(
+        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        json=request_body,
+    )
+    response_json = response.json()
+    print(response_json)
+    assert response_json == {
+                            'success': False,
+                             'message': 'Only one of cron_exp or run_at should be provided!',
+                             'data': None,
+                             'error_code': 422
+                             }
 
 @patch("kairon.events.scheduler.kscheduler.KScheduler.delete_job", autospec=True)
 def test_delete_scheduled_event_request(mock_delet_job):

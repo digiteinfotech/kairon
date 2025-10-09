@@ -31935,9 +31935,9 @@ def test_add_one_time_schedule_broadcast(mock_event_server):
         "broadcast_type": "static",
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
-        "one_time_scheduler_config": {
-            "run_at": run_at,
-            "one_time_schedule": "once",
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
             "timezone": "Asia/Calcutta"
         },
         "template_config": [
