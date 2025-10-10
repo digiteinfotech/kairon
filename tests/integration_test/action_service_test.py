@@ -5,7 +5,9 @@ from unittest.mock import patch
 from urllib.parse import urlencode, urljoin
 
 from aioresponses import aioresponses
+from mongoengine.errors import DoesNotExist
 
+from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -15427,3 +15429,15 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
         assert job_state['args'][2]['bot'] == bot
         assert job_state['args'][2]['user'] == 'default'
         assert job_state['args'][2]['flow_name'] == 'greet'
+
+@patch('kairon.actions.definitions.schedule.ScheduleAction')
+def test_retrieve_config_does_not_exist(mock_schedule_action):
+    mock_schedule_action.objects.return_value.get.side_effect = DoesNotExist()
+
+    instance = ActionSchedule("bot1", "missing_action")
+
+    with pytest.raises(ActionFailure) as exc_info:
+        instance.retrieve_config()
+
+    assert "No Schedule action found" in str(exc_info.value)
+    mock_schedule_action.objects.return_value.get.assert_called_once()
