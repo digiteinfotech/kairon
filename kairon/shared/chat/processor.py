@@ -328,24 +328,6 @@ class ChatDataProcessor:
             logger.error(f"Error deleting file to BSP: {str(e)}")
             raise AppException(f"Failed to delete media: {str(e)}")
 
-    @staticmethod
-    def fetch_media_from_bsp(bot: str, channel: str, media_id: str):
-        from ..channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
-        try:
-            channel_config = ChatDataProcessor.get_channel_config(channel, bot)
-            bsp_type = channel_config.get("config").get("bsp_type", "meta")
-            media_url = BusinessServiceProviderFactory.get_instance(bsp_type).fetch_media_file_url(media_id,
-                                                                                                   channel_config)
-            return media_url
-        except DoesNotExist as e:
-            logger.error(
-                f"Media fetch failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
-            raise AppException(
-                "Media fetch failed: No channel found for this bot. Please configure the channel first."
-            ) from e
-        except Exception as e:
-            logger.error(f"Error fetchin url to BSP: {str(e)}")
-            raise AppException(f"Failed to fetch media url: {str(e)}")
 
     @staticmethod
     def validate_media_file_type(file_content: File):
