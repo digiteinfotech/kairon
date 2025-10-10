@@ -81,8 +81,11 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, reference_id, status=status, exception=exception
             )
-            if config and not config.get("scheduler_config"):
-                MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
+            if config:
+                scheduler_config = config.get("scheduler_config")
+                if scheduler_config and scheduler_config.get("expression_type") == "epoch":
+                    MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
+
 
     def _trigger_async(self, config: Dict):
         msg_broadcast_id = None
