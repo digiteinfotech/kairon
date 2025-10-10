@@ -421,4 +421,28 @@ class TestMessageBroadcastProcessor:
                 existing_config["_id"], bot, user, config
             )
 
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_with_invalid_epoch(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "updated_one_time_scheduler",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type":"epoch",
+                "schedule": "mayank",
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        with pytest.raises(AppException, match="schedule must be a valid integer epoch time for 'epoch' type"):
+            MessageBroadcastProcessor.update_scheduled_task(
+                existing_config["_id"], bot, user, config
+            )
 

@@ -31899,6 +31899,38 @@ def test_add_scheduled_broadcast(mock_event_server):
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast_with_invalid_cron(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "mayank",
+            "timezone": "UTC",
+        },
+        "recipients_config": {"recipients": "918958030541,"},
+        "template_config": [
+            {"template_id": "brochure_pdf"}
+        ],
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"] is False
+
+    assert any(
+        "Invalid cron expression: 'mayank'" in str(msg.get("msg", ""))
+        for msg in actual["message"]
+    )
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_one_time_broadcast(mock_event_server):
     config = {
         "name": "one_time_schedule",
@@ -32122,6 +32154,39 @@ def test_add_one_time_schedule_with_invalid_timezone(mock_event_server):
     assert response["error_code"]== 422
     errors = response["message"]
     assert any("Unknown timezone: mayank" in err["msg"] for err in errors)
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", side_effect=Exception("Event server failed"))
+def test_add_one_time_schedule_integration_failure(mock_request_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(minutes=10)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+
+    config = {
+        "name": "one_time_schedule_broadcast_error",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {"template_id": "brochure_pdf"}
+        ],
+    }
+
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    body = response.json()
+    print(body)
+    assert body["success"] is False
+    assert "Event server failed" in body["message"]
 
 
 def test_broadcast_config_error():

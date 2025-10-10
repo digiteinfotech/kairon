@@ -1,6 +1,8 @@
 import os
 import re
+from datetime import datetime, timedelta
 
+import pytz
 from dramatiq.brokers.stub import StubBroker
 from loguru import logger
 from unittest.mock import patch
@@ -304,6 +306,37 @@ def test_scheduled_event_request(mock_add_job):
         "message": "Recurring Event Scheduled!",
     }
 
+@patch("kairon.events.scheduler.kscheduler.KScheduler.add_one_time_job", autospec=True)
+def test_scheduled_event_request_with_epoch(mock_add_one_time_job):
+    mock_add_one_time_job.return_value = None
+
+    future_time = datetime.now(pytz.timezone("Asia/Kolkata")) + timedelta(minutes=5)
+    epoch_time = int(future_time.timestamp())
+
+    request_body = {
+        "data": {
+            "bot": "test",
+            "user": "test_user",
+            "event_id": "6543212345678909876543",
+        },
+        "run_at": epoch_time,
+        "timezone": "Asia/Kolkata",
+    }
+
+    response = client.post(
+        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        json=request_body,
+    )
+
+    response_json = response.json()
+    assert response_json == {
+        "data": None,
+        "success": True,
+        "error_code": 0,
+        "message": "One-time Event Scheduled!",
+    }
+
+    mock_add_one_time_job.assert_called_once()
 
 @patch("kairon.shared.cloud.utils.CloudUtility.trigger_lambda")
 def test_non_scheduled_message_broadcast_request(mock_trigger_lambda):
