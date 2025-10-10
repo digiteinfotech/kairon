@@ -1,6 +1,6 @@
 rasa[full]==3.6.21
 mongoengine==0.29.1
-fastapi==0.115.6
+fastapi==0.118.3
 uvicorn[standard]==0.34.0
 smart-config==0.1.3
 fastapi_sso==0.15.0
