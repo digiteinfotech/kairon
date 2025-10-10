@@ -256,6 +256,38 @@ def test_save_media_content_no_filename():
     with pytest.raises(AppException, match="filename must be provided"):
         UserMedia.save_media_content("bot", "user", "mediaid", b"abc", None)
 
+def test_save_media_content_with_root_dir_and_output_filename():
+    bot = "test_bot"
+    sender_id = "user@example.com"
+    media_id = "12345"
+    binary_data = b"dummy content"
+    filename = "file.txt"
+    root_dir = "/custom/root_dir"
+    output_filename = "/custom/root_dir/custom_output.txt"
+
+    with patch("kairon.shared.chat.user_media.CloudUtility.upload_file_bytes") as mock_upload, \
+            patch("kairon.shared.chat.user_media.UserMedia.mark_user_media_data_upload_done") as mock_mark_done, \
+            patch.dict("kairon.shared.utils.Utility.environment",
+                       {"storage": {"user_media": {"bucket": "dummy-bucket",
+                                                   "allowed_extensions": [".txt", ".pdf"],
+                                                   "root_dir": "/default/root"}}}):
+        mock_upload.return_value = "https://dummy-bucket.s3.amazonaws.com/custom_output.txt"
+        UserMedia.save_media_content(
+            bot=bot,
+            sender_id=sender_id,
+            media_id=media_id,
+            binary_data=binary_data,
+            filename=filename,
+            root_dir=root_dir,
+            output_filename=output_filename
+        )
+        mock_upload.assert_called_once_with(binary_data, "dummy-bucket", output_filename)
+        mock_mark_done.assert_called_once()
+        args, kwargs = mock_mark_done.call_args
+        assert kwargs["media_id"] == media_id
+        assert kwargs["media_url"] == "https://dummy-bucket.s3.amazonaws.com/custom_output.txt"
+        assert kwargs["output_filename"] == output_filename
+        assert kwargs["filesize"] == len(binary_data)
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.extract_media_information")
