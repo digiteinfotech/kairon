@@ -83,7 +83,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
             )
             if config:
                 scheduler_config = config.get("scheduler_config")
-                if scheduler_config and scheduler_config.get("expression_type") == "epoch":
+                if not scheduler_config or scheduler_config.get("expression_type") != "cron":
                     MessageBroadcastProcessor.delete_task(event_id, self.bot, False)
 
 
