@@ -76,6 +76,8 @@ class UserMedia:
                 media_id: str,
                 binary_data: bytes = None,
                 filename: str = None,
+                root_dir: str = None,
+                output_filename: str = None,
                 ):
         """
         Save media content to cloud storage.
@@ -90,7 +92,8 @@ class UserMedia:
             raise AppException('filename must be provided for binary data')
 
         bucket = Utility.environment["storage"]["user_media"].get("bucket")
-        root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
+        if not root_dir:
+            root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
         fpath = Path(filename)
         extension = str(fpath.suffix).lower()
         base_filename = fpath.stem
@@ -102,8 +105,8 @@ class UserMedia:
             raise AppException(
                 f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
             )
-
-        output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
+        if not output_filename:
+            output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
         try:
             url = CloudUtility.upload_file_bytes(binary_data, bucket, output_filename)
             UserMedia.mark_user_media_data_upload_done(media_id=media_id,
@@ -537,10 +540,14 @@ class UserMedia:
     @staticmethod
     def delete_media(bot, media_id: str):
         try:
-            UserMediaData.objects(
+            obj = UserMediaData.objects.get(
                 bot=bot,
                 media_id=media_id
-            ).delete()
+            )
+            filename = obj.output_filename
+            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+            CloudUtility.delete_file(bucket, filename)
+            obj.delete()
             return "Deleted successfully"
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")
