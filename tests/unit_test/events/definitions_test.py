@@ -583,7 +583,7 @@ class TestEventDefinitions:
             "POST", url,
             match=[responses.matchers.json_params_matcher(
                 {"data": {"bot": bot, "user": user, "till_date": str(till_date), "sender_id": "udit.pandey@digite.com"},
-                 "cron_exp": None, "timezone": None})],
+                 "cron_exp": None, "timezone": None, "run_at":None})],
             json={"message": "Success", "success": True, "error_code": 0, "data": {
                 'StatusCode': 200,
                 'FunctionError': None,
@@ -703,7 +703,7 @@ class TestEventDefinitions:
                           responses.matchers.json_params_matcher(
                               {"data": {'bot': pytest.multilingual_bot, 'user': user, 'dest_lang': d_lang,
                                'translate_responses': '', 'translate_actions': '--translate-actions'},
-                               "cron_exp": None, "timezone": None})]
+                               "cron_exp": None, "timezone": None, "run_at":None})]
                       )
         MultilingualEvent(pytest.multilingual_bot, user, dest_lang=d_lang, translate_responses=False,
                           translate_actions=True).enqueue()
@@ -792,7 +792,7 @@ class TestEventDefinitions:
             event.enqueue(EventRequestType.add_schedule.value, config=config)
 
         with patch("kairon.shared.utils.Utility.is_exist", autospec=True):
-            with pytest.raises(AppException, match=r"timezone is required for cron expressions!*"):
+            with pytest.raises(AppException, match=r"timezone is required for all schedules!"):
                 event.enqueue(EventRequestType.add_schedule.value, config=config)
 
     @responses.activate
@@ -1131,7 +1131,7 @@ class TestEventDefinitions:
         )
 
         event = MessageBroadcastEvent(bot, user)
-        with pytest.raises(AppException, match="scheduler_config is required!"):
+        with pytest.raises(AppException, match="scheduler_config with a valid schedule is required!"):
             event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=setting_id, config=config)
 
         assert len(list(MessageBroadcastProcessor.list_settings(bot))) == 2

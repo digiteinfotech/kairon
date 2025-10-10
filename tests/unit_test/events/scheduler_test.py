@@ -1,9 +1,11 @@
 import os
 import re
+from datetime import datetime, timedelta
 
 from unittest.mock import patch
 
 import pytest
+import pytz
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from bson import ObjectId
 from pymongo.results import UpdateResult, DeleteResult
@@ -150,8 +152,9 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
 
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
-            scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                 EventClass.message_broadcast.value, body)
+            scheduler.update_job(event_id, TASK_TYPE.EVENT.value,
+                                 EventClass.message_broadcast.value, body,"Asia/Calcutta",
+                                 cron_exp)
 
             args, kwargs = mock_modify_job.call_args
             assert args[1] == event_id
@@ -183,8 +186,8 @@ class TestMessageBroadcastProcessor:
         mock_find_job.return_value = {}
         with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                     EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value,
+                                     EventClass.message_broadcast.value, body, "Asia/Calcutta", cron_exp)
 
     @patch("pymongo.collection.Collection.find_one")
     @patch("pymongo.collection.Collection.update_one")
@@ -208,8 +211,8 @@ class TestMessageBroadcastProcessor:
             mock_mongo.return_value = mongo_result
 
             with pytest.raises(AppException, match='No job by the id of 6425ca191eaaf86e3a7b5e3f was found'):
-                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, cron_exp,
-                                     EventClass.message_broadcast.value, body)
+                scheduler.update_job(event_id, TASK_TYPE.EVENT.value, EventClass.message_broadcast.value,
+                                     body, "Asia/Calcutta",cron_exp)
 
     @patch("apscheduler.schedulers.background.BackgroundScheduler.remove_job", autospec=True)
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
@@ -249,3 +252,102 @@ class TestMessageBroadcastProcessor:
         scheduler = KScheduler()
         mock_jobstore.return_value = []
         assert scheduler.list_jobs() == []
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.add_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    @patch("pymongo.collection.Collection.create_index")
+    def test_add_one_time_job_success(self, mock_collection, mock_scheduler, mock_add_job):
+        from kairon.events.scheduler.kscheduler import KScheduler
+        bot = "test_bot"
+        user = "test_user"
+        event_id = ObjectId().__str__()
+        run_at = "2099-12-31T23:59:59"
+        body = {"bot": bot, "user": user, "event_id": event_id}
+        scheduler = KScheduler()
+
+        with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
+            scheduler.add_one_time_job(event_id, TASK_TYPE.EVENT.value, run_at,
+                                       EventClass.message_broadcast.value, body, "Asia/Kolkata")
+
+            args, kwargs = mock_add_job.call_args
+
+            assert kwargs["id"] == event_id
+            assert kwargs["name"] == "execute_task"
+            assert kwargs["jobstore"] == "kscheduler"
+
+
+            pos_args = args[3]
+            assert pos_args[0] == EventClass.message_broadcast.value
+            assert pos_args[1] == body
+
+            assert args[4] == {"task_type": TASK_TYPE.EVENT.value}
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.reschedule_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.modify_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    def test_update_schedule_epoch(self, mock_start, mock_modify_job, mock_reschedule_job):
+        from kairon.events.scheduler.kscheduler import KScheduler
+        bot = "test_bot"
+        user = "test_user"
+        event_id = ObjectId().__str__()
+        timezone = "Asia/Calcutta"
+        future_time = datetime.now(pytz.timezone(timezone)) + timedelta(minutes=5)
+
+        body = {"bot": bot, "user": user, "event_id": event_id}
+        scheduler = KScheduler()
+
+        with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
+
+            scheduler.update_job(
+                event_id,
+                TASK_TYPE.EVENT.value,
+                EventClass.message_broadcast.value,
+                body,
+                timezone=timezone,
+                run_at=future_time
+            )
+            args, kwargs = mock_modify_job.call_args
+            assert args[1] == event_id
+            assert args[2] == 'kscheduler'
+            assert kwargs['func'].__name__ == 'execute_task'
+            assert kwargs['func'].__self__.__class__.__name__ == 'LambdaExecutor'
+            assert kwargs['trigger'].__class__.__name__ == 'DateTrigger'
+            assert kwargs['args'][0] == 'message_broadcast'
+            assert kwargs['args'][1] == body
+            assert kwargs['name'] == 'execute_task'
+
+            args, kwargs = mock_reschedule_job.call_args
+            assert args[1] == event_id
+            assert args[2] == 'kscheduler'
+            assert args[3].__class__.__name__ == 'DateTrigger'
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.reschedule_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.modify_job", autospec=True)
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    def test_update_schedule_app_exception(self, mock_start, mock_modify_job, mock_reschedule_job):
+        from kairon.events.scheduler.kscheduler import KScheduler
+
+        bot = "test_bot"
+        user = "test_user"
+        event_id = ObjectId().__str__()
+        timezone = "Asia/Calcutta"
+
+        body = {"bot": bot, "user": user, "event_id": event_id}
+        scheduler = KScheduler()
+
+        with patch.dict(Utility.environment["events"]["executor"], {"type": "aws_lambda"}):
+            with pytest.raises(AppException) as exc_info:
+                scheduler.update_job(
+                    event_id,
+                    TASK_TYPE.EVENT.value,
+                    EventClass.message_broadcast.value,
+                    body,
+                    timezone=timezone
+
+                )
+
+
+            assert "Either cron_exp or run_at must be provided" in str(exc_info.value)
+
+            mock_modify_job.assert_not_called()
+            mock_reschedule_job.assert_not_called()

@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 import ujson as json
 from datetime import datetime
 from typing import Text, Dict, List
@@ -48,14 +50,29 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def update_scheduled_task(notification_id: Text, bot: Text, user: Text, config: Dict):
-        if not config.get("scheduler_config"):
+        if not config.get("scheduler_config") :
             raise AppException("scheduler_config is required!")
+
         try:
             settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
             settings.name = config["name"]
             settings.connector_type = config["connector_type"]
             settings.broadcast_type = config["broadcast_type"]
-            settings.scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
+
+            scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
+
+            if scheduler_config.expression_type == "epoch":
+                try:
+                    epoch_time = int(scheduler_config.schedule)
+                except ValueError:
+                    raise AppException("schedule must be a valid integer epoch time for 'epoch' type")
+
+                tzinfo = ZoneInfo(scheduler_config.timezone) if scheduler_config.timezone else ZoneInfo("UTC")
+                run_at = datetime.fromtimestamp(epoch_time, tzinfo)
+                scheduler_config.schedule = run_at
+
+            settings.scheduler_config = scheduler_config
+
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
             settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
             settings.pyscript = config.get("pyscript")

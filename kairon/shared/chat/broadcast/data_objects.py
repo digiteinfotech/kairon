@@ -1,3 +1,4 @@
+import pytz
 from mongoengine import Document, StringField, DateTimeField, DynamicDocument, EmbeddedDocument, \
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
@@ -11,31 +12,52 @@ from croniter import croniter
 
 class SchedulerConfiguration(EmbeddedDocument):
     """
-    expression_type: Only supports cron jobs for now. Can be extended to ``date``, ``interval`` in future.
-    schedule: When the job should be run.
-            Eg: "* * * * *", "30 5 * * *"
+    Unified scheduler configuration model.
+
+    Supports:
+    - expression_type="cron": recurring schedule based on cron string.
+      Example: "* * * * *", "30 5 * * *"
+    - expression_type="epoch": one-time schedule based on future epoch time.
+      Example: 1765438200
     """
-    expression_type = StringField(default="cron", choices=["cron"])
+
+    expression_type = StringField(required=True, choices=["cron", "epoch"])
     schedule = StringField(required=True)
-    timezone = StringField()
+    timezone = StringField(required=True)
 
     def validate(self, clean=True):
         if clean:
             self.clean()
 
+        if not self.timezone or not self.timezone.strip():
+            raise ValidationError("timezone is required for all schedules!")
+        try:
+            pytz.timezone(self.timezone)
+        except pytz.UnknownTimeZoneError:
+            raise ValidationError(f"Unknown timezone: {self.timezone}")
+
         if self.expression_type == "cron":
             if not self.schedule or not croniter.is_valid(self.schedule):
                 raise ValidationError(f"Invalid cron expression: '{self.schedule}'")
+
             first_occurrence = croniter(self.schedule).get_next(ret_type=datetime)
-            second_occurrence = croniter(self.schedule).get_next(ret_type=datetime, start_time=first_occurrence)
+            second_occurrence = croniter(
+                self.schedule, start_time=first_occurrence
+            ).get_next(ret_type=datetime)
+
             min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
-                raise ValidationError(f"recurrence interval must be at least {min_trigger_interval} seconds!")
-            if Utility.check_empty_string(self.timezone):
-                raise ValidationError("timezone is required for cron expressions!")
+                raise ValidationError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
 
     def clean(self):
-        self.schedule = self.schedule.strip()
+        """Strip strings and normalize types."""
+        if self.schedule and isinstance(self.schedule, str):
+            self.schedule = self.schedule.strip()
+        if self.timezone and isinstance(self.timezone, str):
+            self.timezone = self.timezone.strip()
+
 
 
 class RecipientsConfiguration(EmbeddedDocument):
@@ -53,7 +75,6 @@ class RecipientsConfiguration(EmbeddedDocument):
     def clean(self):
         if not Utility.check_empty_string(self.recipients):
             self.recipients = self.recipients.strip()
-
 
 class TemplateConfiguration(EmbeddedDocument):
     """

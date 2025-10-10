@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import pytz
 from croniter import croniter
 from pydantic import BaseModel, root_validator, validator
 
@@ -30,36 +31,56 @@ class ChannelRequest(BaseModel):
                 )
         return values
 
-
 class SchedulerConfiguration(BaseModel):
-    expression_type: str = "cron"
+    expression_type: str
     schedule: str
     timezone: str = None
 
     @root_validator
-    def validate_config(cls, values):
-        if values.get("expression_type") == "cron":
-            if not values.get("schedule") or not croniter.is_valid(
-                values.get("schedule")
-            ):
-                raise ValueError(f"Invalid cron expression: '{values.get('schedule')}'")
-            first_occurrence = croniter(values.get("schedule")).get_next(
-                ret_type=datetime
-            )
-            second_occurrence = croniter(values.get("schedule")).get_next(
-                ret_type=datetime, start_time=first_occurrence
-            )
-            min_trigger_interval = Utility.environment["events"]["scheduler"][
-                "min_trigger_interval"
-            ]
-            if (
-                second_occurrence - first_occurrence
-            ).total_seconds() < min_trigger_interval:
+    def validate_schedule(cls, values):
+        expression_type = values.get("expression_type")
+        schedule = values.get("schedule")
+        tz = values.get("timezone")
+
+        if not expression_type or expression_type not in ["cron", "epoch"]:
+            raise ValueError("expression_type must be either cron or epoch")
+
+        if not tz or not tz.strip():
+            raise ValueError("timezone is required for all schedules!")
+
+        if not schedule or not schedule.strip():
+            raise ValueError("schedule time is required for all schedules!")
+
+        if expression_type == "cron":
+            if not croniter.is_valid(schedule):
+                raise ValueError(f"Invalid cron expression: '{schedule}'")
+
+            first_occurrence = croniter(schedule).get_next(ret_type=datetime)
+            second_occurrence = croniter(schedule).get_next(ret_type=datetime, start_time=first_occurrence)
+
+            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
                 raise ValueError(
-                    f"recurrence interval must be at least {min_trigger_interval} seconds!"
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
                 )
-            if Utility.check_empty_string(values.get("timezone")):
-                raise ValueError("timezone is required for cron expressions!")
+
+        elif expression_type == "epoch":
+            try:
+                epoch_time = int(schedule)
+            except ValueError:
+                raise ValueError("schedule must be a valid integer epoch time for 'epoch' expression_type")
+
+            try:
+                user_tz = pytz.timezone(tz)
+            except pytz.UnknownTimeZoneError:
+                raise ValueError(f"Unknown timezone: {tz}")
+
+            current_epoch_in_tz = int(datetime.now(user_tz).timestamp())
+
+            if epoch_time <= current_epoch_in_tz:
+                raise ValueError("epoch time (schedule) must be in the future relative to the provided timezone")
+
+            values["schedule"] = epoch_time
 
         return values
 

@@ -138,7 +138,8 @@ class TestMessageBroadcastProcessor:
             "connector_type": "whatsapp",
             "scheduler_config": {
                 "expression_type": "cron",
-                "schedule": "* * * * *"
+                "schedule": "* * * * *",
+                "timezone": "Asia/Calcutta"
             },
             "recipients_config": {
                 "recipients": "918958030541, "
@@ -149,7 +150,7 @@ class TestMessageBroadcastProcessor:
                 }
             ]
         }
-        with pytest.raises(ValidationError, match=f"recurrence interval must be at least 86340 seconds!"):
+        with pytest.raises(ValidationError, match=f"Recurrence interval must be at least 86340 seconds!"):
             MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
 
         config["scheduler_config"]["schedule"] = ""
@@ -331,3 +332,117 @@ class TestMessageBroadcastProcessor:
             'user': 'test_user',
             'status': True
         }
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_one_time_scheduler_success(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "one_time_scheduler_success",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "schedule": "2099-12-31T23:59:59",
+                "timezone": "Asia/Kolkata",
+                "expression_type":"epoch"
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+        result = MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+        assert result
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_one_time_scheduler_with_unkniwn_timezone(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "missing_run_at",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                # missing run_at
+                "expression_type": "epoch",
+                "timezone": "xyvcd cdw ",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+        with pytest.raises(ValidationError, match="Unknown timezone: xyvcd cdw"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_success(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "updated_one_time_scheduler",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type":"epoch",
+                "schedule": 4095161400,
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        # Perform update
+        MessageBroadcastProcessor.update_scheduled_task(
+            existing_config["_id"], bot, user, config
+        )
+
+        updated = MessageBroadcastProcessor.get_settings(existing_config["_id"], bot)
+        assert updated["name"] == config["name"]
+        assert updated["scheduler_config"]["timezone"] == "Asia/Kolkata"
+
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_missing_config(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "missing_one_time_config",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            # missing one_time_scheduler_config
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        with pytest.raises(AppException, match="scheduler_config is required!"):
+            MessageBroadcastProcessor.update_scheduled_task(
+                existing_config["_id"], bot, user, config
+            )
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_update_one_time_scheduler_with_invalid_epoch(self, mock_channel_config):
+        bot = "test_schedule"
+        user = "test_user"
+        config = {
+            "name": "updated_one_time_scheduler",
+            "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {
+                "expression_type":"epoch",
+                "schedule": "mayank",
+                "timezone": "Asia/Kolkata",
+            },
+            "recipients_config": {"recipients": "918958030541,"},
+            "template_config": [{"template_id": "brochure_pdf"}],
+        }
+
+        existing_config = list(MessageBroadcastProcessor.list_settings(bot))[0]
+        assert existing_config
+
+        with pytest.raises(AppException, match="schedule must be a valid integer epoch time for 'epoch' type"):
+            MessageBroadcastProcessor.update_scheduled_task(
+                existing_config["_id"], bot, user, config
+            )
+

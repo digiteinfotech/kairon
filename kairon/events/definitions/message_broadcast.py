@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from typing import Text, Dict
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from loguru import logger
@@ -114,6 +115,39 @@ class MessageBroadcastEvent(ScheduledEventsBase):
                 MessageBroadcastProcessor.delete_task(msg_broadcast_id, self.bot)
             raise AppException(e)
 
+    def _add_one_time_schedule(self, config: Dict):
+        msg_broadcast_id = None
+
+        try:
+            run_at = config["scheduler_config"].get("schedule")
+            timezone = config["scheduler_config"].get("timezone", "UTC")
+            if isinstance(run_at, (int, float)):
+                tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                run_at = datetime.fromtimestamp(run_at, tzinfo)
+
+            msg_broadcast_id = MessageBroadcastProcessor.add_scheduled_task(self.bot, self.user, config)
+
+            payload = {
+                'bot': self.bot,
+                'user': self.user,
+                "event_id": msg_broadcast_id,
+                "is_resend": "False",
+            }
+            Utility.request_event_server(
+                EventClass.message_broadcast,
+                payload,
+                is_scheduled=True,
+                timezone=timezone,
+                run_at = run_at.isoformat()
+            )
+            return msg_broadcast_id
+        except Exception as e:
+            logger.error(e)
+            if msg_broadcast_id:
+                MessageBroadcastProcessor.delete_task(msg_broadcast_id, self.bot)
+            raise AppException(e)
+
+
     def _resend_broadcast(self, msg_broadcast_id: Text):
         try:
             payload = {'bot': self.bot, 'user': self.user,
@@ -127,17 +161,55 @@ class MessageBroadcastEvent(ScheduledEventsBase):
     def _update_schedule(self, msg_broadcast_id: Text, config: Dict):
         settings_updated = False
         current_settings = {}
-        if not config.get("scheduler_config") or not config["scheduler_config"].get("schedule"):
-            raise AppException("scheduler_config is required!")
+
         try:
+            scheduler_config = config.get("scheduler_config")
+            if not scheduler_config or not scheduler_config.get("schedule"):
+                raise AppException("scheduler_config with a valid schedule is required!")
+
             current_settings = MessageBroadcastProcessor.get_settings(msg_broadcast_id, self.bot)
             MessageBroadcastProcessor.update_scheduled_task(msg_broadcast_id, self.bot, self.user, config)
             settings_updated = True
-            cron_exp = config["scheduler_config"]["schedule"]
-            timezone = config["scheduler_config"]["timezone"]
-            payload = {'bot': self.bot, 'user': self.user, "event_id": msg_broadcast_id, "is_resend": "False"}
-            Utility.request_event_server(EventClass.message_broadcast, payload, method="PUT", is_scheduled=True,
-                                         cron_exp=cron_exp, timezone=timezone)
+
+            payload = {
+                "bot": self.bot,
+                "user": self.user,
+                "event_id": msg_broadcast_id,
+                "is_resend": "False"
+            }
+
+            expression_type = scheduler_config.get("expression_type")
+            schedule = scheduler_config.get("schedule")
+            timezone = scheduler_config.get("timezone")
+
+            if expression_type == "cron":
+
+                Utility.request_event_server(
+                    EventClass.message_broadcast,
+                    payload,
+                    method="PUT",
+                    is_scheduled=True,
+                    cron_exp=schedule,
+                    timezone=timezone
+                )
+
+            elif expression_type == "epoch":
+
+                epoch_time = int(schedule)
+                tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
+                run_at = datetime.fromtimestamp(epoch_time, tzinfo)
+
+                scheduler_config["schedule"] = run_at
+
+                Utility.request_event_server(
+                    EventClass.message_broadcast,
+                    payload,
+                    method="PUT",
+                    is_scheduled=True,
+                    run_at=run_at.isoformat(),
+                    timezone=timezone
+                )
+
         except Exception as e:
             logger.error(e)
             if settings_updated:
