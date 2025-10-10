@@ -213,7 +213,7 @@ class TestCloudUtils:
                                 "user_media": {"bucket": "dummy-bucket"},
                                 "temp_media_url_expiry_time": {"ExpiresIn": 3600}
                             }}):
-                with pytest.raises(AppException, match="Failed to upload media to S3: S3 error"):
+                with pytest.raises(AppException, match="Failed to fetch media url from S3: S3 error"):
                     CloudUtility.get_s3_media_url(filename, bot)
 
     def test_file_upload_bucket_not_exists(self):
