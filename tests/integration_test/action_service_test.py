@@ -5,7 +5,9 @@ from unittest.mock import patch
 from urllib.parse import urlencode, urljoin
 
 from aioresponses import aioresponses
+from mongoengine.errors import DoesNotExist
 
+from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -45,7 +47,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType, Dispat
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
-from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE, EventClass
+from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE, EventClass, EventExecutor
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, FALLBACK_MESSAGE, GPT_LLM_FAQ, \
     DEFAULT_NLU_FALLBACK_RESPONSE, STATUSES
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
@@ -15110,7 +15112,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
         assert args[1]['next_run_time']
         assert args[1]['job_state']
         job_state = pickle.loads(args[1]['job_state'])
-        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor(EventExecutor.callback).execute_task)
         assert job_state['args'][1] == 'scheduler_evaluator'
         assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'event', 'user'],
                             ignore_order=True)
@@ -15218,7 +15220,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
         assert args[1]['next_run_time']
         assert args[1]['job_state']
         job_state = pickle.loads(args[1]['job_state'])
-        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor(EventExecutor.callback).execute_task)
         assert job_state['args'][1] == 'scheduler_evaluator'
         assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'event'],
                             ignore_order=True)
@@ -15320,7 +15322,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
         assert args[1]['next_run_time']
         assert args[1]['job_state']
         job_state = pickle.loads(args[1]['job_state'])
-        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor().execute_task)
+        assert job_state['args'][0] == obj_to_ref(ExecutorFactory.get_executor(EventExecutor.callback).execute_task)
         assert job_state['args'][1] == 'scheduler_evaluator'
         print(job_state['args'][2]['predefined_objects'])
         assert not DeepDiff(list(job_state['args'][2]['predefined_objects'].keys()), ['bot', 'user', 'event'],
@@ -15427,3 +15429,15 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
         assert job_state['args'][2]['bot'] == bot
         assert job_state['args'][2]['user'] == 'default'
         assert job_state['args'][2]['flow_name'] == 'greet'
+
+@patch('kairon.actions.definitions.schedule.ScheduleAction')
+def test_retrieve_config_does_not_exist(mock_schedule_action):
+    mock_schedule_action.objects.return_value.get.side_effect = DoesNotExist()
+
+    instance = ActionSchedule("bot1", "missing_action")
+
+    with pytest.raises(ActionFailure) as exc_info:
+        instance.retrieve_config()
+
+    assert "No Schedule action found" in str(exc_info.value)
+    mock_schedule_action.objects.return_value.get.assert_called_once()
