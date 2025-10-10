@@ -40,6 +40,7 @@ class CloudUtility:
 
     @staticmethod
     def upload_file_bytes(file_bytes: bytes, bucket: str, output_filename=None):
+        import mimetypes
         """
         Uploads the selected file to a specific bucket in Amazon Simple Storage Service
 
@@ -54,8 +55,14 @@ class CloudUtility:
             s3.create_bucket(Bucket=bucket)
         if Utility.check_empty_string(output_filename):
             raise AppException('Output filename must be provided')
+        content_type, _ = mimetypes.guess_type(output_filename)
+        if content_type is None:
+            content_type = "application/octet-stream"
         bio = io.BytesIO(file_bytes)
-        s3.upload_fileobj(bio, bucket, output_filename)
+        s3.upload_fileobj(bio, bucket, output_filename,ExtraArgs={
+            "ContentType": content_type,
+            "ContentDisposition": "inline"
+        })
         return "https://{0}.s3.amazonaws.com/{1}".format(bucket, output_filename)
 
     @staticmethod
@@ -207,3 +214,19 @@ class CloudUtility:
     def lambda_execution_failed(response):
         return (response['StatusCode'] != 200 or
                 (response['Payload'].get('statusCode') and response['Payload']['statusCode'] != 200))
+
+    @staticmethod
+    def get_s3_media_url(filename: str, bot: str) -> str:
+        session = Session()
+        try:
+            s3 = session.client("s3")
+            time = Utility.environment["storage"]["temp_media_url_expiry_time"].get("ExpiresIn")
+            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+            url = s3.generate_presigned_url(ClientMethod="get_object",
+                                            Params={"Bucket": bucket,
+                                                    "Key": f"{bot}/template_media/{filename}"},
+                                            ExpiresIn=time)
+            return url
+        except Exception as e:
+            logger.error(f"Error upload file to S3: {str(e)}")
+            raise AppException(f"Failed to upload media to S3: {str(e)}")
