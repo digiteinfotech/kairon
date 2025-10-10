@@ -228,5 +228,5 @@ class CloudUtility:
                                             ExpiresIn=time)
             return url
         except Exception as e:
-            logger.error(f"Error upload file to S3: {str(e)}")
-            raise AppException(f"Failed to upload media to S3: {str(e)}")
+            logger.error(f"Error failed to fetch media url from S3: {str(e)}")
+            raise AppException(f"Failed to fetch media url from S3: {str(e)}")
