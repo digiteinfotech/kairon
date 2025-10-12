@@ -1,5 +1,6 @@
 import io
 from typing import Any, BinaryIO
+import mimetypes
 
 import ujson as json
 import os
@@ -40,7 +41,6 @@ class CloudUtility:
 
     @staticmethod
     def upload_file_bytes(file_bytes: bytes, bucket: str, output_filename=None):
-        import mimetypes
         """
         Uploads the selected file to a specific bucket in Amazon Simple Storage Service
 
@@ -220,12 +220,12 @@ class CloudUtility:
         session = Session()
         try:
             s3 = session.client("s3")
-            time = Utility.environment["storage"]["temp_media_url_expiry_time"].get("ExpiresIn")
+            expiry_time = Utility.environment["storage"]["temp_media_url_expiry_time"].get("ExpiresIn")
             bucket = Utility.environment["storage"]["user_media"].get("bucket")
             url = s3.generate_presigned_url(ClientMethod="get_object",
                                             Params={"Bucket": bucket,
                                                     "Key": f"{bot}/template_media/{filename}"},
-                                            ExpiresIn=time)
+                                            ExpiresIn=expiry_time)
             return url
         except Exception as e:
             logger.error(f"Error failed to fetch media url from S3: {str(e)}")
