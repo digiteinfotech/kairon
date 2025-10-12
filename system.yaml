@@ -26,7 +26,7 @@ storage:
     bucket: ${USER_MEDIA_BUCKET:"meta-catalog-images"}
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
   temp_media_url_expiry_time:
-    ExpiresIn: ${TIME:910}
+    ExpiresIn: ${TIME:900}
 
 security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
