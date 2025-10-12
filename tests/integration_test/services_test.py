@@ -4384,7 +4384,6 @@ def test_delete_media_ids():
     media_id = "715690454858053"
     channel_name = "whatsapp"
 
-
     with patch.dict(
         "kairon.shared.utils.Utility.environment",
         {"storage": {"user_media": {"bucket": "mock-bucket"}}},
@@ -4427,7 +4426,7 @@ def test_delete_media_ids():
             bot=bot,
             timestamp=datetime.utcnow(),
             media_url="",
-            output_filename="mock_file.pdf",  # ensure output_filename exists for delete
+            output_filename="mock_file.pdf",
             external_upload_info={"bsp": "360dialog"}
         ).save()
 
@@ -4517,7 +4516,7 @@ def test_fetch_media_url(mock_get_s3):
     ).save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/{channel_name}/fetch_media_url/{filename}",
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{filename}",
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
     body = response.json()
@@ -4560,7 +4559,7 @@ def test_fetch_media_url_file_not_exist(mock_get_s3):
     missing_filename = "file_not_exist.pdf"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/{channel_name}/fetch_media_url/{missing_filename}",
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{missing_filename}",
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
     body = response.json()
