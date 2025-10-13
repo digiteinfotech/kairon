@@ -550,7 +550,6 @@ class UserMedia:
             CloudUtility.delete_file(bucket, filename)
             obj.delete()
             return "Deleted successfully"
-        
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")
 
