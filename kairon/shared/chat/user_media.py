@@ -87,6 +87,9 @@ class UserMedia:
         :param media_id: media id
         :param binary_data: binary data of the file
         :param filename: name of the file
+        :param root_dir: Base folder for local files to upload to S3
+        :param output_filename: File path/key in S3.
+        :param bucket: s3 bucket
         """
 
         if not filename:
@@ -540,6 +543,13 @@ class UserMedia:
 
     @staticmethod
     def delete_media(bot, media_id: str, bucket: str = None):
+        """
+        Deletes a media file from the database and S3.
+        :param bot: bot name
+        :param media_id: media id
+        :param bucket: s3 bucket
+        :return: success message if deletion is successful.
+        """
         try:
             obj = UserMediaData.objects.get(
                 bot=bot,
