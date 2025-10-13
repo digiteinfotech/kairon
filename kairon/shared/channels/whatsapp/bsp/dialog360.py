@@ -358,10 +358,12 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             set__external_upload_info__expiry_date = expiration_date,
         )
 
-        output_filename = f"{bot}/template_media/{filename}"
+        output_filename = f"template_media/{bot}/{filename}"
+        bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
         with open(file_path, "rb") as f:
             binary_data = f.read()
-        UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename,file_path,output_filename)
+            UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename, file_path,
+                                         output_filename, bucket)
         return external_media_id
 
     @staticmethod

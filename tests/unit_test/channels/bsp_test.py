@@ -1176,7 +1176,7 @@ class TestBusinessServiceProvider:
         channel_config = ChatDataProcessor.get_channel_config("whatsapp", bot)
         with patch("kairon.shared.chat.user_media.UserMedia.save_media_content") as mock_save, \
                 patch.dict("kairon.shared.utils.Utility.environment",
-                           {"storage": {"user_media": {"bucket": "dummy-bucket"}}}):
+                           {"storage": {"whatsapp_media": {"bucket": "dummy-bucket"}}}):
             external_id = await BSP360Dialog.upload_media_file(
                 bot=bot,
                 channel_config=channel_config,
@@ -1303,7 +1303,7 @@ def test_delete_media_success():
     mock_manager.get.return_value = mock_obj
 
     with patch("kairon.shared.chat.user_media.UserMediaData.objects", mock_manager):
-        with patch("kairon.shared.chat.user_media.Utility.environment", {"storage": {"user_media": {"bucket": "test-bucket"}}}):
+        with patch("kairon.shared.chat.user_media.Utility.environment", {"storage": {"whatsapp_media": {"bucket": "test-bucket"}}}):
             with patch("kairon.shared.chat.user_media.CloudUtility.delete_file") as mock_delete:
                 result = UserMedia.delete_media(bot, media_id)
 

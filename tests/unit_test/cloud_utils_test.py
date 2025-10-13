@@ -192,7 +192,7 @@ class TestCloudUtils:
             mock_session.return_value.client.return_value = mock_s3
             with patch.dict("kairon.shared.cloud.utils.Utility.environment",
                             {"storage": {
-                                "user_media": {"bucket": "dummy-bucket"},
+                                "whatsapp_media": {"bucket": "dummy-bucket"},
                                 "temp_media_url_expiry_time": {"ExpiresIn": 3600}
                             }}):
                 url = CloudUtility.get_s3_media_url(filename, bot)
@@ -210,7 +210,7 @@ class TestCloudUtils:
             mock_session.return_value.client.return_value = mock_s3
             with patch.dict("kairon.shared.cloud.utils.Utility.environment",
                             {"storage": {
-                                "user_media": {"bucket": "dummy-bucket"},
+                                "whatsapp_media": {"bucket": "dummy-bucket"},
                                 "temp_media_url_expiry_time": {"ExpiresIn": 3600}
                             }}):
                 with pytest.raises(AppException, match="Failed to fetch media url from S3: S3 error"):

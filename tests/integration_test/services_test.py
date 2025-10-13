@@ -4386,7 +4386,7 @@ def test_delete_media_ids():
 
     with patch.dict(
         "kairon.shared.utils.Utility.environment",
-        {"storage": {"user_media": {"bucket": "mock-bucket"}}},
+        {"storage": {"whatsapp_media": {"bucket": "mock-bucket"}}},
         clear=False
     ), patch(
         "kairon.shared.cloud.utils.CloudUtility.delete_file"

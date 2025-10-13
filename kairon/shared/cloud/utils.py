@@ -220,11 +220,11 @@ class CloudUtility:
         session = Session()
         try:
             s3 = session.client("s3")
-            expiry_time = Utility.environment["storage"]["temp_media_url_expiry_time"].get("ExpiresIn")
-            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+            expiry_time = Utility.environment["storage"]["temp_media_url_expiry_time"]
+            bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
             url = s3.generate_presigned_url(ClientMethod="get_object",
                                             Params={"Bucket": bucket,
-                                                    "Key": f"{bot}/template_media/{filename}"},
+                                                    "Key": f"template_media/{bot}/{filename}"},
                                             ExpiresIn=expiry_time)
             return url
         except Exception as e:

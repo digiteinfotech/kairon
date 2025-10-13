@@ -78,6 +78,7 @@ class UserMedia:
                 filename: str = None,
                 root_dir: str = None,
                 output_filename: str = None,
+                bucket: str = None
                 ):
         """
         Save media content to cloud storage.
@@ -90,8 +91,8 @@ class UserMedia:
 
         if not filename:
             raise AppException('filename must be provided for binary data')
-
-        bucket = Utility.environment["storage"]["user_media"].get("bucket")
+        if not bucket:
+            bucket = Utility.environment["storage"]["user_media"].get("bucket")
         if not root_dir:
             root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
         fpath = Path(filename)
@@ -545,7 +546,7 @@ class UserMedia:
                 media_id=media_id
             )
             filename = obj.output_filename
-            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+            bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
             CloudUtility.delete_file(bucket, filename)
             obj.delete()
             return "Deleted successfully"
