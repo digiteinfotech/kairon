@@ -1327,6 +1327,27 @@ def test_delete_media_failure():
 
     assert "Failed to delete:DB delete failed" in str(exc_info.value)
 
+def test_delete_media_with_custom_bucket():
+    from unittest.mock import patch, MagicMock
+
+    bot = "test_bot"
+    media_id = "media123"
+    custom_bucket = "my-custom-bucket"
+    mock_media = MagicMock()
+    mock_media.output_filename = "test/path/file.jpg"
+    mock_manager = MagicMock()
+    mock_manager.get.return_value = mock_media
+
+    with patch("kairon.shared.chat.user_media.UserMediaData.objects", mock_manager):
+        with patch("kairon.shared.chat.user_media.Utility.environment", {"storage": {"whatsapp_media": {"bucket": "default-bucket"}}}):
+            with patch("kairon.shared.chat.user_media.CloudUtility.delete_file") as mock_delete_file:
+                result = UserMedia.delete_media(bot, media_id, bucket=custom_bucket)
+
+    mock_manager.get.assert_called_once_with(bot=bot, media_id=media_id)
+    mock_delete_file.assert_called_once_with(custom_bucket, "test/path/file.jpg")
+    mock_media.delete.assert_called_once()
+    assert result == "Deleted successfully"
+
 
 def test_delete_media_file_success():
     media_id = "12345"
