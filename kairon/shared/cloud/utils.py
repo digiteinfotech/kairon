@@ -1,5 +1,6 @@
 import io
 from typing import Any, BinaryIO
+import mimetypes
 
 import ujson as json
 import os
@@ -54,8 +55,14 @@ class CloudUtility:
             s3.create_bucket(Bucket=bucket)
         if Utility.check_empty_string(output_filename):
             raise AppException('Output filename must be provided')
+        content_type, _ = mimetypes.guess_type(output_filename)
+        if content_type is None:
+            content_type = "application/octet-stream"
         bio = io.BytesIO(file_bytes)
-        s3.upload_fileobj(bio, bucket, output_filename)
+        s3.upload_fileobj(bio, bucket, output_filename,ExtraArgs={
+            "ContentType": content_type,
+            "ContentDisposition": "inline"
+        })
         return "https://{0}.s3.amazonaws.com/{1}".format(bucket, output_filename)
 
     @staticmethod
@@ -207,3 +214,19 @@ class CloudUtility:
     def lambda_execution_failed(response):
         return (response['StatusCode'] != 200 or
                 (response['Payload'].get('statusCode') and response['Payload']['statusCode'] != 200))
+
+    @staticmethod
+    def get_s3_media_url(filename: str, bot: str) -> str:
+        session = Session()
+        try:
+            s3 = session.client("s3")
+            expiry_time = Utility.environment["storage"]["temp_media_url_expiry_time"]
+            bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+            url = s3.generate_presigned_url(ClientMethod="get_object",
+                                            Params={"Bucket": bucket,
+                                                    "Key": f"template_media/{bot}/{filename}"},
+                                            ExpiresIn=expiry_time)
+            return url
+        except Exception as e:
+            logger.error(f"Error failed to fetch media url from S3: {str(e)}")
+            raise AppException(f"Failed to fetch media url from S3: {str(e)}")

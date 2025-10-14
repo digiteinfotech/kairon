@@ -12,6 +12,7 @@ from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
+from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
@@ -562,12 +563,11 @@ async def delete_media_data(
     UserMedia.delete_media(current_user.get_bot(), media_id)
     return Response(message="Deleted Successfully")
 
-@router.get("/{channel}/fetch_api/{media_id}")
-async def fetch_meta_api(
-        channel: ChannelTypes,
-        media_id: str,
+@router.get("/fetch_media_url/{filename}")
+async def fetch_media_url(
+        filename: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    media_url = ChatDataProcessor.fetch_media_from_bsp(current_user.get_bot(), channel, media_id)
-    return Response(message="Successfully fetched media details", data={"media url": f"{media_url}",
-                                                                        "media id": f"{media_id}"})
+    media_url = CloudUtility.get_s3_media_url(filename, current_user.get_bot())
+    return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
+                                                                        "filename": f"{filename}"})

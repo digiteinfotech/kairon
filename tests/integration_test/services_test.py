@@ -4377,66 +4377,75 @@ def test_get_media_ids():
 
 
 
-@pytest.mark.django_db  
+@pytest.mark.django_db
 @responses.activate
 def test_delete_media_ids():
     bot = pytest.bot
     media_id = "715690454858053"
     channel_name = "whatsapp"
 
-    bot_settings = BotSettings.objects(bot=bot).first()
-    if not bot_settings:
-        bot_settings = BotSettings(bot=bot)
-    bot_settings.whatsapp = "360dialog"
-    bot_settings.save()
+    with patch.dict(
+        "kairon.shared.utils.Utility.environment",
+        {"storage": {"whatsapp_media": {"bucket": "mock-bucket"}}},
+        clear=False
+    ), patch(
+        "kairon.shared.cloud.utils.CloudUtility.delete_file"
+    ) as mock_delete_file:
+        mock_delete_file.return_value = None
 
-    Channels(
-        bot=bot,
-        connector_type=channel_name,
-        config={
-            "client_name": "dummy",
-            "client_id": "dummy",
-            "channel_id": "dummy",
-            "api_key": "dummy_token",
-            "partner_id": "dummy",
-            "waba_account_id": "dummy",
-            "bsp_type": "360dialog"
-        },
-        user="test@example.com",
-        timestamp=datetime.utcnow()
-    ).save()
+        bot_settings = BotSettings.objects(bot=bot).first()
+        if not bot_settings:
+            bot_settings = BotSettings(bot=bot)
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
 
-    UserMediaData(
-        media_id=media_id,
-        filename="Upload_Download Data.pdf",
-        extension=".pdf",
-        upload_status=UserMediaUploadStatus.completed.value,
-        upload_type="broadcast",
-        filesize=410484,
-        sender_id="himanshu.gupta_@digite.com",
-        bot=bot,
-        timestamp=datetime.utcnow(),
-        media_url="",
-        output_filename="",
-        external_upload_info={"bsp": "360dialog"}
-    ).save()
+        Channels(
+            bot=bot,
+            connector_type=channel_name,
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "api_key": "dummy_token",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
 
-    responses.add(
-        responses.DELETE,
-        f"https://waba-v2.360dialog.io/{media_id}",
-        json={"message": "Deleted Successfully"},
-        status=200
-    )
+        UserMediaData(
+            media_id=media_id,
+            filename="Upload_Download Data.pdf",
+            extension=".pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="broadcast",
+            filesize=410484,
+            sender_id="himanshu.gupta_@digite.com",
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            media_url="",
+            output_filename="mock_file.pdf",
+            external_upload_info={"bsp": "360dialog"}
+        ).save()
 
-    response = client.delete(
-        f"/api/bot/{bot}/data/{channel_name}/media/{media_id}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
-    )
+        responses.add(
+            responses.DELETE,
+            f"https://waba-v2.360dialog.io/{media_id}",
+            json={"message": "Deleted Successfully"},
+            status=200
+        )
 
-    body = response.json()
-    UserMediaData.objects(bot=bot).delete()
-    Channels.objects(bot=bot).delete()
-    assert body["message"] == "Deleted Successfully"
+        response = client.delete(
+            f"/api/bot/{bot}/data/{channel_name}/media/{media_id}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        )
+
+        body = response.json()
+        UserMediaData.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
+        assert body["message"] == "Deleted Successfully"
 
 
 @pytest.mark.django_db
@@ -4461,16 +4470,14 @@ def test_delete_media_ids_failure():
     assert body["error_code"] == 422
 
 @responses.activate
-@patch("kairon.shared.chat.processor.ChatDataProcessor.fetch_media_from_bsp")
-def test_fetch_media_url(mock_fetch):
-    mock_fetch.return_value = "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=794331822986650&source=getMedia&ext=1758878354&hash=ARnw-zbwEF-3Xq3jwuYlpdfvy9FEZhdsF1Po9zgC2p4rtA"
+@patch("kairon.shared.cloud.utils.CloudUtility.get_s3_media_url")
+def test_fetch_media_url(mock_get_s3):
+    mock_get_s3.return_value = "https://mock-s3-url.com/Upload_Download_Data.pdf"
 
     bot_settings = BotSettings.objects(bot=pytest.bot).first()
     if bot_settings:
         bot_settings.whatsapp = "360dialog"
         bot_settings.save()
-        bot_settings_dict = bot_settings.to_mongo().to_dict()
-        print(bot_settings_dict)
 
     Channels.objects(bot=pytest.bot).delete()
     channel_obj = Channels(
@@ -4491,11 +4498,11 @@ def test_fetch_media_url(mock_fetch):
     channel_obj.save()
     channel_name = channel_obj.connector_type
 
-    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    filename = "Upload_Download Data.pdf"
     UserMediaData.objects().delete()
     UserMediaData(
-        media_id=media_id,
-        filename="Upload_Download Data.pdf",
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename=filename,
         extension=".pdf",
         upload_status=UserMediaUploadStatus.completed.value,
         upload_type="broadcast",
@@ -4509,16 +4516,17 @@ def test_fetch_media_url(mock_fetch):
     ).save()
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/{channel_name}/fetch_api/{media_id}",
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{filename}",
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
-
     body = response.json()
 
     UserMediaData.objects().delete()
     Channels.objects().delete()
 
     assert body["success"] is True
+    assert body["data"]["filename"] == filename
+    assert body["data"]["media_url"] == "https://mock-s3-url.com/Upload_Download_Data.pdf"
 
 def create_dummy_channel(bot):
     Channels.objects(bot=bot).delete()
@@ -4541,17 +4549,17 @@ def create_dummy_channel(bot):
     return channel_obj.connector_type
 
 
-@patch("kairon.shared.chat.processor.ChatDataProcessor.fetch_media_from_bsp")
-def test_fetch_media_url_media_id_not_exist(mock_fetch):
+@patch("kairon.shared.cloud.utils.CloudUtility.get_s3_media_url")
+def test_fetch_media_url_file_not_exist(mock_get_s3):
     client = TestClient(app)
     channel_name = create_dummy_channel(pytest.bot)
 
-    mock_fetch.return_value = None
+    mock_get_s3.return_value = None
 
-    missing_media_id = "does_not_exist_12345"
+    missing_filename = "file_not_exist.pdf"
 
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/{channel_name}/fetch_api/{missing_media_id}",
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{missing_filename}",
         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
     body = response.json()
@@ -4560,8 +4568,8 @@ def test_fetch_media_url_media_id_not_exist(mock_fetch):
     UserMediaData.objects().delete()
 
     assert body["success"] is True
-    assert body["data"]["media id"] == missing_media_id
-    assert body["data"]["media url"] is None or body["data"]["media url"] == "None"
+    assert body["data"]["filename"] == missing_filename
+    assert body["data"]["media_url"] is None or body["data"]["media_url"] == "None"
     assert "not found" in body["message"].lower() or "media" in body["message"].lower()
 
 @responses.activate

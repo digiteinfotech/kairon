@@ -358,6 +358,12 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             set__external_upload_info__expiry_date = expiration_date,
         )
 
+        output_filename = f"template_media/{bot}/{filename}"
+        bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+        with open(file_path, "rb") as f:
+            binary_data = f.read()
+            UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename, file_path,
+                                         output_filename, bucket)
         return external_media_id
 
     @staticmethod
@@ -371,15 +377,3 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                                      validate_status=True,
                                      err_msg="media file does not exist for this media id.")
         return "Media file deleted successfully"
-
-    @staticmethod
-    def fetch_media_file_url(media_id: str, channel_config):
-        api_key = channel_config.get("config", {}).get("api_key")
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
-        url = f"{base_url}/{media_id}"
-        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
-        headers = {header: api_key}
-        resp = Utility.execute_http_request(request_method="GET", http_url=url, headers=headers,
-                                            validate_status=True,
-                                            err_msg="media url does not exist for this media id.")
-        return resp.get("url")

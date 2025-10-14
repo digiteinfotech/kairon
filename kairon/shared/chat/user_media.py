@@ -76,6 +76,9 @@ class UserMedia:
                 media_id: str,
                 binary_data: bytes = None,
                 filename: str = None,
+                root_dir: str = None,
+                output_filename: str = None,
+                bucket: str = None
                 ):
         """
         Save media content to cloud storage.
@@ -84,13 +87,17 @@ class UserMedia:
         :param media_id: media id
         :param binary_data: binary data of the file
         :param filename: name of the file
+        :param root_dir: Base folder for local files to upload to S3
+        :param output_filename: File path/key in S3.
+        :param bucket: s3 bucket
         """
 
         if not filename:
             raise AppException('filename must be provided for binary data')
-
-        bucket = Utility.environment["storage"]["user_media"].get("bucket")
-        root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
+        if not bucket:
+            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+        if not root_dir:
+            root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
         fpath = Path(filename)
         extension = str(fpath.suffix).lower()
         base_filename = fpath.stem
@@ -102,8 +109,8 @@ class UserMedia:
             raise AppException(
                 f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
             )
-
-        output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
+        if not output_filename:
+            output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
         try:
             url = CloudUtility.upload_file_bytes(binary_data, bucket, output_filename)
             UserMedia.mark_user_media_data_upload_done(media_id=media_id,
@@ -535,12 +542,24 @@ class UserMedia:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
-    def delete_media(bot, media_id: str):
+    def delete_media(bot, media_id: str, bucket: str = None):
+        """
+        Deletes a media file from the database and S3.
+        :param bot: bot name
+        :param media_id: media id
+        :param bucket: s3 bucket
+        :return: success message if deletion is successful.
+        """
         try:
-            UserMediaData.objects(
+            obj = UserMediaData.objects.get(
                 bot=bot,
                 media_id=media_id
-            ).delete()
+            )
+            filename = obj.output_filename
+            if not bucket:
+                bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+            CloudUtility.delete_file(bucket, filename)
+            obj.delete()
             return "Deleted successfully"
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")

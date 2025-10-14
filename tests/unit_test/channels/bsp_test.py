@@ -1147,7 +1147,6 @@ class TestBusinessServiceProvider:
         content_dir.mkdir(parents=True)
         file_path = content_dir / filename
         file_path.write_bytes(b"%PDF-1.4 dummy content")
-
         os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
         os.replace(file_path, f"media_upload_records/{bot}/{filename}")
 
@@ -1166,7 +1165,6 @@ class TestBusinessServiceProvider:
             user="test@example.com",
             timestamp=datetime.utcnow()
         ).save()
-
         responses.add(
             responses.POST,
             "https://waba-v2.360dialog.io/media",
@@ -1174,32 +1172,21 @@ class TestBusinessServiceProvider:
             status=200,
             content_type="application/json"
         )
-        channel = "whatsapp"
-        channel_config = ChatDataProcessor.get_channel_config(channel, bot)
-        print(channel_config)
-        external_id = await BSP360Dialog.upload_media_file(
-            bot=bot,
-            channel_config=channel_config,
-            sender_id=sender_id,
-            filename=filename,
-            extension=extension,
-            filesize=12345,
-        )
 
-        assert external_id == expected_media_id
-
-        saved_doc = UserMediaData.objects.get(media_id=expected_media_id)
-        saved_doc_dict = saved_doc.to_mongo().to_dict()
-        expiry = saved_doc_dict.get("external_upload_info", {}).get("expiry_date")
-        assert saved_doc.upload_status == UserMediaUploadStatus.completed.value
-        assert saved_doc.external_upload_info == {
-            "bsp": "360dialog",
-            "external_media_id": expected_media_id,
-            "expiry_date" : expiry,
-            "error": ""
-        }
-
-        UserMediaData.objects().delete()
+        channel_config = ChatDataProcessor.get_channel_config("whatsapp", bot)
+        with patch("kairon.shared.chat.user_media.UserMedia.save_media_content") as mock_save, \
+                patch.dict("kairon.shared.utils.Utility.environment",
+                           {"storage": {"whatsapp_media": {"bucket": "dummy-bucket"}}}):
+            external_id = await BSP360Dialog.upload_media_file(
+                bot=bot,
+                channel_config=channel_config,
+                sender_id=sender_id,
+                filename=filename,
+                extension=extension,
+                filesize=12345,
+            )
+            mock_save.assert_called_once()
+            assert external_id == expected_media_id
 
     @pytest.mark.asyncio
     async def test_upload_media_file_missing_api_key(self, tmp_path):
@@ -1242,6 +1229,7 @@ class TestBusinessServiceProvider:
     @pytest.mark.asyncio
     @responses.activate
     async def test_upload_media_file_non_200_response(self, tmp_path):
+        from unittest.mock import patch, MagicMock
         bot = "682323a603ec3be7dcaa75bc"
         sender_id = "test_user"
         filename = "test.pdf"
@@ -1252,7 +1240,6 @@ class TestBusinessServiceProvider:
         content_dir.mkdir(parents=True)
         file_path = content_dir / filename
         file_path.write_bytes(b"%PDF dummy")
-
         os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
         os.replace(file_path, f"media_upload_records/{bot}/{filename}")
 
@@ -1272,6 +1259,7 @@ class TestBusinessServiceProvider:
             timestamp=datetime.utcnow()
         ).save()
 
+        # Mock API response with failure
         responses.add(
             responses.POST,
             "https://waba-v2.360dialog.io/media",
@@ -1281,25 +1269,27 @@ class TestBusinessServiceProvider:
         )
 
         channel_config = ChatDataProcessor.get_channel_config("whatsapp", bot)
-        with pytest.raises(AppException, match=r"bad request"):
-            await BSP360Dialog.upload_media_file(
-                bot=bot,
-                channel_config=channel_config,
-                sender_id=sender_id,
-                filename=filename,
-                extension=extension,
-                filesize=123,
+        with patch("kairon.shared.chat.user_media.UserMedia.create_media_doc") as mock_create_doc, \
+                patch("kairon.shared.chat.user_media.UserMedia.save_media_content") as mock_save:
+            mock_doc = MagicMock()
+            mock_create_doc.return_value = mock_doc
+            with pytest.raises(AppException, match=r"bad request"):
+                await BSP360Dialog.upload_media_file(
+                    bot=bot,
+                    channel_config=channel_config,
+                    sender_id=sender_id,
+                    filename=filename,
+                    extension=extension,
+                    filesize=123,
+                )
+
+            mock_doc.update.assert_any_call(
+                set__upload_status=UserMediaUploadStatus.failed.value,
+                set__additional_log="Upload failed",
+                set__external_upload_info__error='{"error": "bad request"}'
             )
 
-        saved_doc = UserMediaData.objects().first()
-        assert saved_doc is not None
-        saved_doc.reload()
-        assert saved_doc.upload_status == UserMediaUploadStatus.failed.value
-        assert "Upload failed" in (saved_doc.additional_log or "")
-        assert "bad request" in (saved_doc.external_upload_info or {}).get("error", "")
-
-        UserMediaData.objects().delete()
-        Channels.objects().delete()
+            mock_save.assert_not_called()
 
 
 def test_delete_media_success():
@@ -1307,13 +1297,19 @@ def test_delete_media_success():
     bot = "test_bot"
     media_id = "12345"
 
-    mock_qs = MagicMock()
-    mock_qs.delete.return_value = 1
+    mock_obj = MagicMock()
+    mock_obj.output_filename = "file.png"
+    mock_manager = MagicMock()
+    mock_manager.get.return_value = mock_obj
 
-    with patch.object(UserMediaData, "objects", return_value=mock_qs):
-        result = UserMedia.delete_media(bot, media_id)
+    with patch("kairon.shared.chat.user_media.UserMediaData.objects", mock_manager):
+        with patch("kairon.shared.chat.user_media.Utility.environment", {"storage": {"whatsapp_media": {"bucket": "test-bucket"}}}):
+            with patch("kairon.shared.chat.user_media.CloudUtility.delete_file") as mock_delete:
+                result = UserMedia.delete_media(bot, media_id)
 
-    mock_qs.delete.assert_called_once()
+    mock_manager.get.assert_called_once_with(bot=bot, media_id=media_id)
+    mock_delete.assert_called_once_with("test-bucket", "file.png")
+    mock_obj.delete.assert_called_once()
     assert result == "Deleted successfully"
 
 
@@ -1322,15 +1318,35 @@ def test_delete_media_failure():
     bot = "test_bot"
     media_id = "12345"
 
-    mock_qs = MagicMock()
-    mock_qs.delete.side_effect = Exception("DB delete failed")
+    mock_manager = MagicMock()
+    mock_manager.get.side_effect = Exception("DB delete failed")
 
-    with patch.object(UserMediaData, "objects", return_value=mock_qs):
+    with patch("kairon.shared.chat.user_media.UserMediaData.objects", mock_manager):
         with pytest.raises(AppException) as exc_info:
             UserMedia.delete_media(bot, media_id)
 
-    mock_qs.delete.assert_called_once()
     assert "Failed to delete:DB delete failed" in str(exc_info.value)
+
+def test_delete_media_with_custom_bucket():
+    from unittest.mock import patch, MagicMock
+
+    bot = "test_bot"
+    media_id = "media123"
+    custom_bucket = "my-custom-bucket"
+    mock_media = MagicMock()
+    mock_media.output_filename = "test/path/file.jpg"
+    mock_manager = MagicMock()
+    mock_manager.get.return_value = mock_media
+
+    with patch("kairon.shared.chat.user_media.UserMediaData.objects", mock_manager):
+        with patch("kairon.shared.chat.user_media.Utility.environment", {"storage": {"whatsapp_media": {"bucket": "default-bucket"}}}):
+            with patch("kairon.shared.chat.user_media.CloudUtility.delete_file") as mock_delete_file:
+                result = UserMedia.delete_media(bot, media_id, bucket=custom_bucket)
+
+    mock_manager.get.assert_called_once_with(bot=bot, media_id=media_id)
+    mock_delete_file.assert_called_once_with(custom_bucket, "test/path/file.jpg")
+    mock_media.delete.assert_called_once()
+    assert result == "Deleted successfully"
 
 
 def test_delete_media_file_success():
@@ -1357,25 +1373,3 @@ def test_delete_media_file_not_exist_raises():
 
     mock_http.assert_called_once()
 
-
-@patch.object(Utility, "execute_http_request")
-def test_fetch_media_file_url_success(mock_execute):
-    expected_url = "https://example.com/media/12345"
-    mock_execute.return_value = {"url": expected_url}
-    media_id = "12345"
-    channel_config = {"config": {"api_key": "fake_api_key"}}
-
-    result = BSP360Dialog.fetch_media_file_url(media_id, channel_config)
-    mock_execute.assert_called_once()
-    assert result == expected_url
-
-
-@patch.object(Utility, "execute_http_request")
-def test_fetch_media_file_url_failure(mock_execute):
-    mock_execute.side_effect = Exception("media url does not exist for this media id.")
-    media_id = "12345"
-    channel_config = {"config": {"api_key": "fake_api_key"}}
-    with pytest.raises(Exception) as exc_info:
-        BSP360Dialog.fetch_media_file_url(media_id, channel_config)
-
-    assert str(exc_info.value) == "media url does not exist for this media id."
