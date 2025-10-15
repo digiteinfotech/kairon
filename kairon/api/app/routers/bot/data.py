@@ -563,7 +563,7 @@ async def delete_media_data(
     UserMedia.delete_media(current_user.get_bot(), media_id)
     return Response(message="Deleted Successfully")
 
-@router.get("/fetch_media_url/{filename}")
+@router.get("/fetch_media_url/{filename}", response_model=Response)
 async def fetch_media_url(
         filename: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
