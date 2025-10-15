@@ -553,7 +553,6 @@ async def get_media_ids(
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
 
-
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(
         channel: ChannelTypes,
