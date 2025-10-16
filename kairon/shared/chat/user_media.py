@@ -92,6 +92,7 @@ class UserMedia:
         :param output_filename: File path/key in S3.
         :param bucket: s3 bucket
         :param is_validation_required: extention validation for media
+
         """
 
         if not filename:
