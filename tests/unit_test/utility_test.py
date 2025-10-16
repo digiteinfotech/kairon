@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import shutil
@@ -8,6 +9,8 @@ from email.mime.text import MIMEText
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlencode
+
+from PIL import Image
 
 from kairon.chat.converters.channels.messenger import MessengerResponseConverter
 from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
@@ -814,6 +817,25 @@ class TestUtility:
             from kairon.shared.utils import Utility
             Utility.load_billablebots_onstartup()
             assert "Model loaded onStartup for botid: test1" in caplog.text
+
+    def test_convert_image_format_success(self):
+        img = Image.new("RGB", (10, 10), color="red")
+        input_buffer = io.BytesIO()
+        img.save(input_buffer, format="JPEG")
+        jpg_bytes = input_buffer.getvalue()
+
+        result = Utility.convert_image_format(jpg_bytes, input_format="jpg", output_format="png")
+
+        assert isinstance(result, bytes)
+        assert result[:8] == b"\x89PNG\r\n\x1a\n"
+
+    def test_convert_image_format_failure(self):
+        bad_bytes = b"notanimage"
+        with patch("kairon.shared.utils.logger.warning") as mock_warn:
+            result = Utility.convert_image_format(bad_bytes, "jpg", "png")
+            mock_warn.assert_called_once()
+            assert result == bad_bytes
+
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)

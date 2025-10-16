@@ -1,8 +1,11 @@
+import io
 from datetime import datetime
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from io import BytesIO
+
+from PIL import Image
 
 from kairon.exceptions import AppException
 from kairon.shared.chat.user_media import UserMedia
@@ -288,6 +291,74 @@ def test_save_media_content_with_root_dir_and_output_filename():
         assert kwargs["media_url"] == "https://dummy-bucket.s3.amazonaws.com/custom_output.txt"
         assert kwargs["output_filename"] == output_filename
         assert kwargs["filesize"] == len(binary_data)
+
+
+@patch("kairon.shared.chat.user_media.CloudUtility.upload_file_bytes")
+@patch("kairon.shared.chat.user_media.UserMedia.mark_user_media_data_upload_done")
+def test_save_media_content_jpg_to_jpeg_conversion(mock_mark_done, mock_upload):
+    """Ensure .jpg images are converted to .jpeg before upload."""
+    img = Image.new("RGB", (10, 10), color="red")
+    jpg_buffer = io.BytesIO()
+    img.save(jpg_buffer, format="JPEG")
+    jpg_bytes = jpg_buffer.getvalue()
+
+    from kairon.shared.chat import user_media
+    user_media.Utility.environment = {
+        "storage": {
+            "user_media": {
+                "bucket": "bucket",
+                "root_dir": "root",
+                "allowed_extensions": [".jpeg", ".jpg", ".png"]
+            }
+        }
+    }
+
+    mock_upload.return_value = "uploaded_url"
+
+    UserMedia.save_media_content("bot", "user", "mediaid", jpg_bytes, "image.jpg")
+
+    mock_upload.assert_called_once()
+    args, kwargs = mock_upload.call_args
+    uploaded_bytes = args[0]
+
+    uploaded_img = Image.open(io.BytesIO(uploaded_bytes))
+    assert uploaded_img.format == "JPEG"
+
+    uploaded_path = args[2]
+    assert uploaded_path.endswith(".jpeg")
+
+    mock_mark_done.assert_called_once()
+
+
+@patch("kairon.shared.chat.user_media.CloudUtility.upload_file_bytes")
+@patch("kairon.shared.chat.user_media.UserMedia.mark_user_media_data_upload_done")
+def test_save_media_content_non_jpg_no_conversion(mock_mark_done, mock_upload):
+    """Ensure non-JPG images or files are not converted."""
+    binary_data = b"test-binary-data"
+
+    from kairon.shared.chat import user_media
+    user_media.Utility.environment = {
+        "storage": {
+            "user_media": {
+                "bucket": "bucket",
+                "root_dir": "root",
+                "allowed_extensions": [".txt", ".jpeg", ".jpg"]
+            }
+        }
+    }
+
+    mock_upload.return_value = "uploaded_url"
+
+    UserMedia.save_media_content("bot", "user", "mediaid", binary_data, "file.txt")
+
+    mock_upload.assert_called_once()
+    args, kwargs = mock_upload.call_args
+
+    assert args[0] == binary_data
+    assert args[2].endswith(".txt")
+
+    mock_mark_done.assert_called_once()
+
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.extract_media_information")

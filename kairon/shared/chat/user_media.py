@@ -109,6 +109,11 @@ class UserMedia:
             raise AppException(
                 f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
             )
+
+        if extension == ".jpg":
+            binary_data = Utility.convert_image_format(binary_data, "jpg", "jpeg")
+            extension = ".jpeg"
+
         if not output_filename:
             output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
         try:
