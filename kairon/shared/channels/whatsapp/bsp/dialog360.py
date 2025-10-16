@@ -363,7 +363,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         with open(file_path, "rb") as f:
             binary_data = f.read()
             UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename, file_path,
-                                         output_filename, bucket)
+                                         output_filename, bucket, False)
         return external_media_id
 
     @staticmethod
