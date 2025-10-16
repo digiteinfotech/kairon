@@ -78,7 +78,8 @@ class UserMedia:
                 filename: str = None,
                 root_dir: str = None,
                 output_filename: str = None,
-                bucket: str = None
+                bucket: str = None,
+                is_validation_required: bool = True
                 ):
         """
         Save media content to cloud storage.
@@ -90,6 +91,7 @@ class UserMedia:
         :param root_dir: Base folder for local files to upload to S3
         :param output_filename: File path/key in S3.
         :param bucket: s3 bucket
+        :param is_validation_required: validation for media extention
         """
 
         if not filename:
@@ -103,7 +105,7 @@ class UserMedia:
         base_filename = fpath.stem
         filesize = len(binary_data)
 
-        if extension not in Utility.environment["storage"]["user_media"].get(
+        if is_validation_required and extension not in Utility.environment["storage"]["user_media"].get(
                 "allowed_extensions"
         ):
             raise AppException(
