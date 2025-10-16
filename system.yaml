@@ -27,7 +27,7 @@ storage:
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
   temp_media_url_expiry_time: ${S3_TEMP_URL_EXPIRY_TIME:900}
   whatsapp_media:
-    root_dir: ${WHATSAPP_MEDIA_ROOT_DIRECTORY:"user_media"}
+    root_dir: ${WHATSAPP_MEDIA_ROOT_DIRECTORY:"template_media"}
     bucket: ${WHATSAPP_MEDIA_BUCKET:"meta-catalog-images"}
 
 security:
