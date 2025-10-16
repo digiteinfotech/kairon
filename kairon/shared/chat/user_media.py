@@ -91,8 +91,7 @@ class UserMedia:
         :param root_dir: Base folder for local files to upload to S3
         :param output_filename: File path/key in S3.
         :param bucket: s3 bucket
-        :param is_validation_required: extention validation for media
-
+        :param is_validation_required: validation for media extention
         """
 
         if not filename:
