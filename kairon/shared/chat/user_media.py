@@ -547,12 +547,24 @@ class UserMedia:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
-    def delete_media(bot, media_id: str):
+    def delete_media(bot, media_id: str, bucket: str = None):
+        """
+        Deletes a media file from the database and S3.
+        :param bot: bot name
+        :param media_id: media id
+        :param bucket: s3 bucket
+        :return: success message if deletion is successful.
+        """
         try:
-            UserMediaData.objects(
+            obj = UserMediaData.objects.get(
                 bot=bot,
                 media_id=media_id
-            ).delete()
+            )
+            filename = obj.output_filename
+            if not bucket:
+                bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+            CloudUtility.delete_file(bucket, filename)
+            obj.delete()
             return "Deleted successfully"
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")
