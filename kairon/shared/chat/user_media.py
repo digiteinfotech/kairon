@@ -109,6 +109,11 @@ class UserMedia:
             raise AppException(
                 f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
             )
+
+        if extension == ".jpg":
+            binary_data = Utility.convert_image_format(binary_data, "jpg", "jpeg")
+            extension = ".jpeg"
+
         if not output_filename:
             output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
         try:
@@ -542,24 +547,12 @@ class UserMedia:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
-    def delete_media(bot, media_id: str, bucket: str = None):
-        """
-        Deletes a media file from the database and S3.
-        :param bot: bot name
-        :param media_id: media id
-        :param bucket: s3 bucket
-        :return: success message if deletion is successful.
-        """
+    def delete_media(bot, media_id: str):
         try:
-            obj = UserMediaData.objects.get(
+            UserMediaData.objects(
                 bot=bot,
                 media_id=media_id
-            )
-            filename = obj.output_filename
-            if not bucket:
-                bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
-            CloudUtility.delete_file(bucket, filename)
-            obj.delete()
+            ).delete()
             return "Deleted successfully"
         except Exception as e:
             raise AppException(f"Failed to delete:{str(e)}")

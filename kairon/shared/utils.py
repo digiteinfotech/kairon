@@ -2,6 +2,7 @@ import ast
 import asyncio
 import hashlib
 import html
+import io
 import os
 import re
 import shutil
@@ -28,6 +29,7 @@ import pytz
 import requests
 import ujson as json
 import yaml
+from PIL import Image
 from botocore.exceptions import ClientError
 from bson import InvalidDocument
 from dateutil import tz
@@ -2326,6 +2328,28 @@ class Utility:
                 logger.info(f"Model loaded onStartup for botid: {botObj.bot}")
             except Exception as ex:
                 logger.exception(f"Failure while loadig model: {ex}")
+
+
+    @staticmethod
+    def convert_image_format(image_bytes: bytes, input_format: str, output_format: str, quality: int = 95) -> bytes:
+        """
+        Converts an image from one format to another using Pillow.
+
+        :param image_bytes: The original image in bytes.
+        :param input_format: Original format (e.g., 'jpg', 'png').
+        :param output_format: Target format (e.g., 'jpeg', 'png').
+        :param quality: Optional quality parameter for lossy formats like JPEG.
+        :return: Converted image bytes.
+        """
+        try:
+            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            buffer = io.BytesIO()
+            img.save(buffer, format=output_format.upper(), quality=quality)
+            logger.info(f"Converted image from {input_format} to {output_format}")
+            return buffer.getvalue()
+        except Exception as e:
+            logger.warning(f"Image conversion {input_format} → {output_format} failed: {e}")
+            return image_bytes
 
 class StoryValidator:
     @staticmethod
