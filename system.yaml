@@ -22,7 +22,6 @@ storage:
     bucket: ${BOT_ASSETS_BUCKET:"ui-bucket"}
     allowed_extensions: ${BOT_ASSETS_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg"]}
   user_media:
-
     root_dir: ${USER_MEDIA_ROOT_DIRECTORY:"user_media"}
     bucket: ${USER_MEDIA_BUCKET:}
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
