@@ -4321,6 +4321,27 @@ def test_upload_media_channel_other_exception(mock_channels):
 
 
 @responses.activate
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+def test_upload_media_file_already_exists(mock_user_media):
+    mock_user_media.return_value.first.return_value = True
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+
+    body = response.json()
+    print(body)
+
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert "file already exists" in body["message"].lower()
+
+
+
+@responses.activate
 def test_get_media_ids():
     bot_settings = BotSettings.objects(bot=pytest.bot).first()
     bot_settings.whatsapp = "360dialog"

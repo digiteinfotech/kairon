@@ -12,6 +12,7 @@ from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
 from ..data.constant import MIME_TYPE_LIMITS
+from ..data.data_objects import UserMediaData
 from ..data.utils import DataUtility
 from ...exceptions import AppException
 
@@ -330,7 +331,7 @@ class ChatDataProcessor:
 
 
     @staticmethod
-    def validate_media_file_type(file_content: File):
+    def validate_media_file_type(bot:str, file_content: File):
         content_type = file_content.content_type
 
         if content_type not in MIME_TYPE_LIMITS:
@@ -350,4 +351,6 @@ class ChatDataProcessor:
                 f"File size {size / (1024 * 1024):.2f} MB exceeds the "
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
-
+        doc = UserMediaData.objects(bot=bot, filename=file_content.filename).first()
+        if doc:
+            raise AppException("File already exists. Please upload a different file.")
