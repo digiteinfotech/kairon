@@ -4319,7 +4319,6 @@ def test_upload_media_channel_other_exception(mock_channels):
     assert body["error_code"] == 422
     assert "some random error" in body["message"].lower()
 
-
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
 def test_upload_media_file_already_exists(mock_user_media):
@@ -4338,8 +4337,6 @@ def test_upload_media_file_already_exists(mock_user_media):
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "file already exists" in body["message"].lower()
-
-
 
 @responses.activate
 def test_get_media_ids():
