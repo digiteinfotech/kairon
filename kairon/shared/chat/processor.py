@@ -353,4 +353,4 @@ class ChatDataProcessor:
             )
         doc = UserMediaData.objects(bot=bot, filename=file_content.filename).first()
         if doc:
-            raise AppException("File already exists. Please upload a different file.")
+            raise AppException(f"File {file_content.filename} already exists. Please upload a different file.")

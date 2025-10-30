@@ -4278,7 +4278,6 @@ def test_upload_media_file_too_large(mock_validate):
     )
 
     body = response.json()
-    print(body)
     assert body['error_code'] == 422
     assert "File size exceeds 100MB" in body["message"]
 
@@ -4296,7 +4295,6 @@ def test_upload_media_channel_missing(mock_channels):
         files={"file_content": ("file.pdf", file_content, "application/pdf")},
     )
     body = response.json()
-    print(body)
     assert body["success"] is False
     assert "no channel" in body["message"].lower()
     assert body["error_code"] == 422
@@ -4314,7 +4312,6 @@ def test_upload_media_channel_other_exception(mock_channels):
     )
 
     body = response.json()
-    print(body)
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "some random error" in body["message"].lower()
@@ -4332,11 +4329,9 @@ def test_upload_media_file_already_exists(mock_user_media):
     )
 
     body = response.json()
-    print(body)
-
     assert body["success"] is False
     assert body["error_code"] == 422
-    assert "file already exists" in body["message"].lower()
+    assert "file file.png already exists" in body["message"].lower()
 
 @responses.activate
 def test_get_media_ids():

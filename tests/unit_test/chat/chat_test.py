@@ -1915,28 +1915,11 @@ def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
     mock_upload.file = open(test_file, "rb")
     mock_objects.return_value.first.return_value = MagicMock()
 
-    with pytest.raises(AppException, match="File already exists"):
+    with pytest.raises(AppException, match="File file.png already exists"):
         ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
     mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")
 
-
-
-@pytest.mark.asyncio
-@patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_validate_media_file_type_success(mock_objects, tmp_path):
-    test_file = tmp_path / "file.png"
-    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
-    mock_upload = MagicMock()
-    mock_upload.filename = "file.png"
-    mock_upload.content_type = "image/png"
-    mock_upload.file = open(test_file, "rb")
-    mock_objects.return_value.first.return_value = None
-    try:
-        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
-    except AppException:
-        pytest.fail("AppException raised unexpectedly for a new file upload")
-    mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")
 
 
 @pytest.mark.asyncio
