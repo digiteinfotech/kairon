@@ -329,9 +329,8 @@ class ChatDataProcessor:
             logger.error(f"Error deleting file to BSP: {str(e)}")
             raise AppException(f"Failed to delete media: {str(e)}")
 
-
     @staticmethod
-    def validate_media_file_type(bot:str, file_content: File):
+    def validate_media_file_type(bot: str, file_content: File):
         content_type = file_content.content_type
 
         if content_type not in MIME_TYPE_LIMITS:
