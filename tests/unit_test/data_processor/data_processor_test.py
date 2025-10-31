@@ -331,6 +331,76 @@ class TestMongoProcessor:
             {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
         ]
 
+    def test_get_broadcast_collection_data_count(self, mock_collection_data):
+        collection_name = "crop_details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "gte",
+                "value": "26"
+            },
+            {
+                "column": "name",
+                "condition": "iendswith",
+                "value": "esh"
+            },
+        ]
+        result = DataProcessor.get_broadcast_collection_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 4
+
+        collection_name = "details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "lt",
+                "value": "26"
+            },
+            {
+                "column": "age",
+                "condition": "gt",
+                "value": "20"
+            },
+            {
+                "column": "name",
+                "condition": "nin",
+                "value": ["Mahesh", "Hitesh"]
+            },
+        ]
+        result = DataProcessor.get_broadcast_collection_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 2
+
+        collection_name = "details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "",
+                "value": "26"
+            }
+        ]
+        result = DataProcessor.get_broadcast_collection_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 1
+
+        collection_name = "details"
+        filters = []
+        result = DataProcessor.get_broadcast_collection_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 4  # should return all 4 records
+
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
         story_name = "story with slot"

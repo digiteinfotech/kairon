@@ -161,6 +161,12 @@ class DataProcessor:
         return data
 
     @staticmethod
+    def get_broadcast_collection_data_count(bot: Text, collection_name: str, filters: List[Dict]):
+        filter_data=DataProcessor.get_broadcast_collection_data(bot, collection_name, filters)
+        filter_count=len(filter_data)
+        return filter_count
+
+    @staticmethod
     def list_collection_data(bot: Text):
         """
         fetches collection data

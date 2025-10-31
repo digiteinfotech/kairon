@@ -1,4 +1,5 @@
 import os
+import json
 from typing import List, Optional
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
@@ -336,6 +337,31 @@ async def get_all_collections(
     names = DataProcessor.get_all_collections(current_user.get_bot())
     return Response(data=names)
 
+@router.get("/collections/{collection_name}/broadcast/filter/count", response_model=Response)
+async def get_broadcast_filter_count(
+    collection_name: str,
+    filters: str = Query(default="[]"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Count of filtered records in broadcast
+    """
+    try:
+        filters_list = json.loads(filters)
+    except json.JSONDecodeError:
+        filters_list = []
+
+    count = DataProcessor.get_broadcast_collection_data_count(
+        current_user.get_bot(),
+        collection_name,
+        filters_list
+    )
+
+    return Response(
+        success=True,
+        message="Filtered count fetched successfully",
+        data={"count": count}
+    )
 
 @router.delete("/collection/delete/{collection_name}", response_model=Response)
 async def delete_collection(
