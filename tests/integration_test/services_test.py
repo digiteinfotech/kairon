@@ -4278,7 +4278,6 @@ def test_upload_media_file_too_large(mock_validate):
     )
 
     body = response.json()
-    print(body)
     assert body['error_code'] == 422
     assert "File size exceeds 100MB" in body["message"]
 
@@ -4296,7 +4295,6 @@ def test_upload_media_channel_missing(mock_channels):
         files={"file_content": ("file.pdf", file_content, "application/pdf")},
     )
     body = response.json()
-    print(body)
     assert body["success"] is False
     assert "no channel" in body["message"].lower()
     assert body["error_code"] == 422
@@ -4314,11 +4312,28 @@ def test_upload_media_channel_other_exception(mock_channels):
     )
 
     body = response.json()
-    print(body)
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "some random error" in body["message"].lower()
 
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+def test_upload_media_file_already_exists(mock_user_media):
+    mock_user_media.return_value.count.return_value = 1
+
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert "file 'file.png' already exists" in body["message"].lower()
+    mock_user_media.assert_called_once_with(bot=pytest.bot, filename="file.png")
 
 @responses.activate
 def test_get_media_ids():

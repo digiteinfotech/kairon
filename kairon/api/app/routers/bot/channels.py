@@ -280,28 +280,28 @@ async def get_user_posts(
     return Response(data=user_posts["data"])
 
 
-@router.post("/{channel}/upload/media_upload", response_model = Response)
+@router.post("/{channel}/upload/media_upload", response_model=Response)
 async def upload_media_file_content(
-    channel: ChannelTypes,
-    file_content: UploadFile = File(...),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes = DESIGNER_ACCESS),
+        channel: ChannelTypes,
+        file_content: UploadFile = File(...),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Handles the upload of file content for processing, validation, and eventual storage.
     """
-    ChatDataProcessor.validate_media_file_type(file_content)
+    ChatDataProcessor.validate_media_file_type(current_user.get_bot(), file_content)
     file_path = await ChatDataProcessor.save_media_file_path(
-        bot = current_user.get_bot(),
-        user = current_user.get_user(),
-        file_content = file_content,
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        file_content=file_content,
     )
 
     media_id = await ChatDataProcessor.upload_media_to_bsp(
-        bot = current_user.get_bot(),
-        user = current_user.get_user(),
-        channel = channel,
-        file_path = file_path,
-        file_info = file_content,
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        channel=channel,
+        file_path=file_path,
+        file_info=file_content,
     )
 
-    return Response(message = "File uploaded successfully!", data = media_id)
+    return Response(message="File uploaded successfully!", data=media_id)
