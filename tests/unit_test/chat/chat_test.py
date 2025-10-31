@@ -1913,9 +1913,8 @@ def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
     mock_upload.filename = "file.png"
     mock_upload.content_type = "image/png"
     mock_upload.file = open(test_file, "rb")
-    mock_objects.return_value.first.return_value = MagicMock()
-
-    with pytest.raises(AppException, match="File file.png already exists"):
+    mock_objects.return_value.count.return_value = 1
+    with pytest.raises(AppException, match="File 'file.png' already exists"):
         ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
     mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")

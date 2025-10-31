@@ -4319,7 +4319,8 @@ def test_upload_media_channel_other_exception(mock_channels):
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
 def test_upload_media_file_already_exists(mock_user_media):
-    mock_user_media.return_value.first.return_value = True
+    mock_user_media.return_value.count.return_value = 1
+
     file_content = io.BytesIO(b"dummy content")
 
     response = client.post(
@@ -4331,7 +4332,8 @@ def test_upload_media_file_already_exists(mock_user_media):
     body = response.json()
     assert body["success"] is False
     assert body["error_code"] == 422
-    assert "file file.png already exists" in body["message"].lower()
+    assert "file 'file.png' already exists" in body["message"].lower()
+    mock_user_media.assert_called_once_with(bot=pytest.bot, filename="file.png")
 
 @responses.activate
 def test_get_media_ids():
