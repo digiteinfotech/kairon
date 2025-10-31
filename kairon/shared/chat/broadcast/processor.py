@@ -158,9 +158,10 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def update_broadcast_logs_with_template(reference_id: Text, event_id: Text, raw_template: List[Dict],
-                                            log_type: MessageBroadcastLogType,
+                                            template_name: Text, log_type: MessageBroadcastLogType,
                                             retry_count: int = 0, **kwargs):
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              template_name=template_name,
                                                               event_id=event_id,
                                                               log_type=log_type,
                                                               retry_count=retry_count)
