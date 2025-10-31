@@ -2584,6 +2584,92 @@ def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler)
     assert actual["error_code"] == 0
     mock_event_instance.enqueue.assert_not_called()
 
+def test_get_broadcast_filter_count():
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details",
+        data={
+            "name": "Mahesh",
+            "mobile_number": "9876543000",
+            "crop": "wheat",
+            "status": "stage-1",
+            "age": "26"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details",
+        data={
+            "name": "Ganesh",
+            "mobile_number": "9876543001",
+            "crop": "Paddy",
+            "status": "stage-2",
+            "age": "26"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details",
+        data={
+            "name": "Hitesh",
+            "mobile_number": "9876543001",
+            "crop": "Okra",
+            "status": "stage-4",
+            "age": "27"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details",
+        data={
+            "name": "Aniket",
+            "mobile_number": "6203115367",
+            "crop": "wheat",
+            "status": "stage-3",
+            "age": "27"
+        }
+    ).save()
+
+
+    filters_list = [
+        {"column": "age", "condition": "gte", "value": "26"},
+        {"column": "name", "condition": "nin", "value": ["Mahesh"]},
+    ]
+
+    # API call
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/collections/crop_details/broadcast/filter/count",
+        params={"filters": json.dumps(filters_list)},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    # Response validation
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Filtered count fetched successfully"
+    assert actual["data"]["count"] == 3
+
+def test_get_broadcast_filter_count_no_filter():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/collections/crop_details/broadcast/filter/count",
+        params={"filters": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Filtered count fetched successfully"
+    assert actual["data"]["count"] == 4
+    CollectionData.objects(collection_name="crop_details").delete()
+
 @pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
