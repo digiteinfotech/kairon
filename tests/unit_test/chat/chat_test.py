@@ -1865,12 +1865,11 @@ def test_validate_media_file_type_valid(tmp_path):
     test_file = tmp_path / "file.pdf"
     test_file.write_bytes(b"x" * (10 * 1024 * 1024))
     bot = "test_bot"
-    sender_id = "sender_id"
     mock_upload = MagicMock()
     mock_upload.content_type = "application/pdf"
     mock_upload.file = open(test_file, "rb")
 
-    ChatDataProcessor.validate_media_file_type(bot, sender_id, mock_upload)
+    ChatDataProcessor.validate_media_file_type(bot,mock_upload)
 
 
 @pytest.mark.asyncio
@@ -1878,7 +1877,6 @@ def test_validate_media_file_type_invalid_type(tmp_path):
     test_file = tmp_path / "file.txt"
     test_file.write_bytes(b"x" * 10)
     bot = "test_bot"
-    sender_id = "sender_id"
     mock_upload = MagicMock()
     mock_upload.content_type = "script"
     mock_upload.file = open(test_file, "rb")
@@ -1889,7 +1887,7 @@ def test_validate_media_file_type_invalid_type(tmp_path):
                                            " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
                                            " application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation,"
                                            " application/pdf, image/jpeg, image/png, image/webp, video/3gpp, video/mp4."):
-        ChatDataProcessor.validate_media_file_type(bot, sender_id, mock_upload)
+        ChatDataProcessor.validate_media_file_type(bot, mock_upload)
 
 
 @pytest.mark.asyncio
@@ -1897,14 +1895,13 @@ def test_validate_media_file_type_too_large(tmp_path):
     test_file = tmp_path / "file.pdf"
     test_file.write_bytes(b"x" * (101 * 1024 * 1024))
     bot = "test_bot"
-    sender_id = "sender_id"
     mock_upload = MagicMock()
     mock_upload.content_type = "application/pdf"
     mock_upload.file = open(test_file, "rb")
 
     with pytest.raises(AppException,
                        match="File size 101.00 MB exceeds the limit of 100.00 MB for application/pdf."):
-        ChatDataProcessor.validate_media_file_type(bot, sender_id, mock_upload)
+        ChatDataProcessor.validate_media_file_type(bot, mock_upload)
 
 
 @pytest.mark.asyncio
@@ -1919,9 +1916,9 @@ def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
     mock_objects.return_value.first.return_value = MagicMock()
 
     with pytest.raises(AppException, match="File file.png already exists"):
-        ChatDataProcessor.validate_media_file_type("test_bot", "sender_id", mock_upload)
+        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
-    mock_objects.assert_called_once_with(bot="test_bot", sender_id="sender_id", filename="file.png")
+    mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")
 
 
 
