@@ -350,6 +350,6 @@ class ChatDataProcessor:
                 f"File size {size / (1024 * 1024):.2f} MB exceeds the "
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
-        doc = UserMediaData.objects(bot=bot, filename=file_content.filename).first()
-        if doc:
-            raise AppException(f"File {file_content.filename} already exists. Please upload a different file.")
+        count = UserMediaData.objects(bot=bot, filename=file_content.filename).count()
+        if count > 0:
+            raise AppException(f"File '{file_content.filename}' already exists. Please upload a different file.")
