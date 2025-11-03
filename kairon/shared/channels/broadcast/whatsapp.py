@@ -337,7 +337,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         return template_params, recipients
 
-    def get_template_params(self, template_params, media_id):
+    def __get_template_params(self, template_params, media_id):
         if not media_id:
             return template_params
 
@@ -367,7 +367,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         template_params = self._get_template_parameters(template_config)
         if media_id:
-            template_params = self.get_template_params(template_params, media_id)
+            template_params = self.__get_template_params(template_params, media_id)
 
         return template_params
 
