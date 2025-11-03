@@ -162,7 +162,6 @@ class Utility:
     @staticmethod
     def get_filename_from_url(url: str = None):
         from urllib.parse import urlparse, unquote
-        import os
 
         if not url:
             return None
