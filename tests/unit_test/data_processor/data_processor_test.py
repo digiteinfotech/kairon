@@ -484,8 +484,8 @@ class TestMongoProcessor:
             filters=filters
         )
         assert result == 4
-        CollectionData.objects(collection_name="crop_details_1").delete()
-        CollectionData.objects(collection_name="details_1").delete()
+        CollectionData.objects(bot = "test_bot", collection_name="crop_details_1").delete()
+        CollectionData.objects(bot = "test_bot", collection_name="details_1").delete()
 
     def test_single_filter_with_condition(self):
         bot = "test_bot"

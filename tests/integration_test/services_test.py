@@ -2668,7 +2668,7 @@ def test_get_broadcast_filter_count_no_filter():
     assert actual["error_code"] == 0
     assert actual["message"] == "Filtered count fetched successfully"
     assert actual["data"]["count"] == 4
-    CollectionData.objects(collection_name="crop_details_test").delete()
+    CollectionData.objects(bot = pytest.bot, collection_name = "crop_details_test").delete()
 
 @pytest.mark.asyncio
 @responses.activate
