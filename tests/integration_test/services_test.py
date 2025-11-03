@@ -2588,7 +2588,7 @@ def test_get_broadcast_filter_count():
     CollectionData(
         bot=pytest.bot,
         user="test_user_1",
-        collection_name="crop_details",
+        collection_name="crop_details_test",
         data={
             "name": "Mahesh",
             "mobile_number": "9876543000",
@@ -2600,7 +2600,7 @@ def test_get_broadcast_filter_count():
     CollectionData(
         bot=pytest.bot,
         user="test_user_1",
-        collection_name="crop_details",
+        collection_name="crop_details_test",
         data={
             "name": "Ganesh",
             "mobile_number": "9876543001",
@@ -2612,7 +2612,7 @@ def test_get_broadcast_filter_count():
     CollectionData(
         bot=pytest.bot,
         user="test_user_1",
-        collection_name="crop_details",
+        collection_name="crop_details_test",
         data={
             "name": "Hitesh",
             "mobile_number": "9876543001",
@@ -2624,7 +2624,7 @@ def test_get_broadcast_filter_count():
     CollectionData(
         bot=pytest.bot,
         user="test_user_1",
-        collection_name="crop_details",
+        collection_name="crop_details_test",
         data={
             "name": "Aniket",
             "mobile_number": "6203115367",
@@ -2642,7 +2642,7 @@ def test_get_broadcast_filter_count():
 
     # API call
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/collections/crop_details/broadcast/filter/count",
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/broadcast/filter/count",
         params={"filters": json.dumps(filters_list)},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2657,7 +2657,7 @@ def test_get_broadcast_filter_count():
 
 def test_get_broadcast_filter_count_no_filter():
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/collections/crop_details/broadcast/filter/count",
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/broadcast/filter/count",
         params={"filters": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2668,7 +2668,7 @@ def test_get_broadcast_filter_count_no_filter():
     assert actual["error_code"] == 0
     assert actual["message"] == "Filtered count fetched successfully"
     assert actual["data"]["count"] == 4
-    CollectionData.objects(collection_name="crop_details").delete()
+    CollectionData.objects(collection_name="crop_details_test").delete()
 
 @pytest.mark.asyncio
 @responses.activate

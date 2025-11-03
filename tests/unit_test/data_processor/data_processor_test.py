@@ -331,8 +331,92 @@ class TestMongoProcessor:
             {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
         ]
 
-    def test_get_broadcast_collection_data_count(self, mock_collection_data):
-        collection_name = "crop_details"
+    def test_get_collection_filter_data_count(self):
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Mayank",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "23"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543001",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Aniket",
+                "mobile_number": "9876543003",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
+        collection_name = "crop_details_1"
         filters = [
             {
                 "column": "age",
@@ -343,16 +427,16 @@ class TestMongoProcessor:
                 "column": "name",
                 "condition": "iendswith",
                 "value": "esh"
-            },
+            }
         ]
-        result = DataProcessor.get_broadcast_collection_data_count(
+        result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
             filters=filters
         )
-        assert result == 4
+        assert result == 3
 
-        collection_name = "details"
+        collection_name = "details_1"
         filters = [
             {
                 "column": "age",
@@ -370,14 +454,14 @@ class TestMongoProcessor:
                 "value": ["Mahesh", "Hitesh"]
             },
         ]
-        result = DataProcessor.get_broadcast_collection_data_count(
+        result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
             filters=filters
         )
         assert result == 2
 
-        collection_name = "details"
+        collection_name = "details_1"
         filters = [
             {
                 "column": "age",
@@ -385,21 +469,100 @@ class TestMongoProcessor:
                 "value": "26"
             }
         ]
-        result = DataProcessor.get_broadcast_collection_data_count(
+        result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
             filters=filters
         )
         assert result == 1
 
-        collection_name = "details"
+        collection_name = "details_1"
         filters = []
-        result = DataProcessor.get_broadcast_collection_data_count(
+        result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
             filters=filters
         )
-        assert result == 4  # should return all 4 records
+        assert result == 4
+        CollectionData.objects(collection_name="crop_details_1").delete()
+        CollectionData.objects(collection_name="details_1").delete()
+
+    def test_single_filter_with_condition(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "age", "condition": "gte", "value": 25}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "data__age__gte": 25
+        }
+
+    def test_multiple_filters_with_conditions(self):
+        bot = "test_bot"
+        collection_name = "farmers"
+        filters = [
+            {"column": "age", "condition": "gte", "value": 20},
+            {"column": "city", "condition": "iexact", "value": "Delhi"},
+            {"column": "status", "condition": "in", "value": ["active", "pending"]}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "farmers",
+            "data__age__gte": 20,
+            "data__city__iexact": "Delhi",
+            "data__status__in": ["active", "pending"]
+        }
+
+    def test_filter_without_condition(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "name", "condition": "", "value": "Mahesh"}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        # when condition is empty, it should not append __condition
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "data__name": "Mahesh"
+        }
+
+    def test_empty_filters_list(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = []
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details"
+        }
+
+    def test_missing_keys_in_filter(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "name", "value": "Mahesh"}  # no condition key
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "data__name": "Mahesh"
+        }
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()

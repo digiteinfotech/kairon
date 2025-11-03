@@ -351,7 +351,7 @@ async def get_broadcast_filter_count(
     except json.JSONDecodeError:
         filters_list = []
 
-    count = DataProcessor.get_broadcast_collection_data_count(
+    count = DataProcessor.get_collection_filter_data_count(
         current_user.get_bot(),
         collection_name,
         filters_list
