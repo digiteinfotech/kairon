@@ -243,7 +243,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         raw_template, template_exception = self.__get_template(template_name, language_code)
         raw_template = raw_template if raw_template else []
         MessageBroadcastProcessor.update_broadcast_logs_with_template(
-            self.reference_id, self.event_id, raw_template=raw_template,
+            self.reference_id, self.event_id, raw_template=raw_template, template_name=template_name,
             log_type=MessageBroadcastLogType.send.value, retry_count=0,
             template_exception=template_exception
         )
@@ -337,6 +337,65 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         return template_params, recipients
 
+    def get_template_params(self, raw_template, template_params, media_id):
+        """
+        Replace media 'link' in template_params with 'id' (media_id) if present.
+        Handles nested [[ ... ]] structures.
+        Works for image, video, and document templates.
+        """
+        if not media_id:
+            return template_params
+
+        for section_group in template_params:
+            for section in section_group:
+                for param in section.get("parameters", []):
+                    for media_type in MEDIA_TYPES:
+                        if media_type in param and "link" in param[media_type]:
+                            # Replace link with media ID
+                            param[media_type] = {"id": media_id}
+
+        return template_params
+
+    def get_filename_from_url(self, url):
+        from urllib.parse import urlparse, unquote
+        import os
+
+        if not url:
+            return None
+
+        parsed_url = urlparse(url)
+        path = parsed_url.path
+        filename = os.path.basename(path)
+        return unquote(filename)
+
+    def __prepare_template_params_with_template_config(self, raw_template, template_config):
+        from kairon.shared.data.data_objects import UserMediaData
+
+        url = self.__extract_single_media_url(raw_template)
+
+        filename = self.get_filename_from_url(url)
+        user_media = (
+            UserMediaData.objects(bot=self.bot, filename=filename).first() if filename else None
+        )
+        media_id = getattr(user_media, "media_id", None) if user_media else None
+
+        template_params = self._get_template_parameters(template_config)
+        if media_id:
+            template_params = self.get_template_params(raw_template, template_params, media_id)
+
+        return template_params
+
+    def __extract_single_media_url(self, raw_template):
+        if not raw_template:
+            return None
+
+        if isinstance(raw_template, list):
+            for comp in raw_template:
+                if isinstance(comp.get("example"), dict):
+                    for value in comp["example"].values():
+                        if isinstance(value, list) and value:
+                            return value[0]
+
     def __send_using_configuration(self, recipients: List):
 
         for i, template_config in enumerate(self.config['template_config']):
@@ -349,17 +408,17 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             if self.config.get('collection_config'):
                 template_params, recipients = self.__prepare_template_params(raw_template, template_id)
             else:
-                template_params = self._get_template_parameters(template_config)
+                template_params = self.__prepare_template_params_with_template_config(raw_template, template_config)
 
-                template_params = template_params * len(recipients) if template_params \
-                    else [template_params] * len(recipients)
+                template_params = template_params if template_params else [template_params] * len(recipients)
 
             total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
             evaluation_log = {
                 f"Template {i + 1}":
                     f"[{template_id}] There are {total} recipients and {len(template_params)} template bodies. "
-                    f"Sending {num_msg} messages to {num_msg} recipients."
+                    f"Sending {num_msg} messages to {num_msg} recipients.",
+                f"template_params_{i + 1}": template_params
             }
 
             message_list = []
@@ -376,11 +435,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
                 event_id=self.event_id, nonsent_recipients=non_sent_recipients,
-                template_params=template_params, recipients=recipients, **evaluation_log
+                recipients=recipients, **evaluation_log
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template,
+                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
@@ -421,7 +480,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template,
+                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
