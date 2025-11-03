@@ -337,43 +337,29 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         return template_params, recipients
 
-    def get_template_params(self, raw_template, template_params, media_id):
-        """
-        Replace media 'link' in template_params with 'id' (media_id) if present.
-        Handles nested [[ ... ]] structures.
-        Works for image, video, and document templates.
-        """
+    def get_template_params(self, template_params, media_id):
         if not media_id:
             return template_params
 
+        def replace_media(param):
+            for media_type in MEDIA_TYPES:
+                media_info = param.get(media_type)
+                if isinstance(media_info, dict) and "link" in media_info:
+                    param[media_type] = {"id": media_id}
+            return param
+
         for section_group in template_params:
             for section in section_group:
-                for param in section.get("parameters", []):
-                    for media_type in MEDIA_TYPES:
-                        if media_type in param and "link" in param[media_type]:
-                            # Replace link with media ID
-                            param[media_type] = {"id": media_id}
+                section["parameters"] = [replace_media(p) for p in section.get("parameters", [])]
 
         return template_params
-
-    def get_filename_from_url(self, url):
-        from urllib.parse import urlparse, unquote
-        import os
-
-        if not url:
-            return None
-
-        parsed_url = urlparse(url)
-        path = parsed_url.path
-        filename = os.path.basename(path)
-        return unquote(filename)
 
     def __prepare_template_params_with_template_config(self, raw_template, template_config):
         from kairon.shared.data.data_objects import UserMediaData
 
-        url = self.__extract_single_media_url(raw_template)
+        url = self.__extract_media_url(raw_template)
 
-        filename = self.get_filename_from_url(url)
+        filename = Utility.get_filename_from_url(url)
         user_media = (
             UserMediaData.objects(bot=self.bot, filename=filename).first() if filename else None
         )
@@ -381,11 +367,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         template_params = self._get_template_parameters(template_config)
         if media_id:
-            template_params = self.get_template_params(raw_template, template_params, media_id)
+            template_params = self.get_template_params(template_params, media_id)
 
         return template_params
 
-    def __extract_single_media_url(self, raw_template):
+    def __extract_media_url(self, raw_template):
         if not raw_template:
             return None
 

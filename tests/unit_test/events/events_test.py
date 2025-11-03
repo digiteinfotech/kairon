@@ -5,7 +5,7 @@ import tempfile
 import textwrap
 import uuid
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 
 from unittest import mock
@@ -2844,6 +2844,186 @@ class TestEventExecution:
                               'bot': 'test_execute_message_broadcast', 'status': STATUSES.SUCCESS.value, 'status_code': 200, 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541', 'template_params': None, "template": template,
+                              'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
+                              'namespace': None, 'retry_count': 0}
+
+        settings = list(MessageBroadcastProcessor.list_settings(bot, status=False, name="one_time_schedule"))
+        assert len(settings) == 1
+        assert settings[0]["status"] == False
+
+    @responses.activate
+    @mongomock.patch(servers=(('localhost', 27017),))
+    @patch("kairon.shared.chat.user_media.UserMediaData.objects")
+    @patch("kairon.shared.channels.whatsapp.bsp.dialog360.BSP360Dialog.get_partner_auth_token", autospec=True)
+    @patch("kairon.chat.handlers.channels.clients.whatsapp.dialog360.BSP360Dialog.send_template_message_async")
+    @patch("kairon.shared.data.processor.MongoProcessor.get_bot_settings")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_execute_message_broadcast_with_static_values_with_media_id(self, mock_is_exist, mock_channel_config,
+                                                                        mock_get_bot_settings, mock_send,
+                                                                        mock_get_partner_auth_token, mock_objects):
+        bot = 'test_execute_message_broadcast_with_static_values_with_media_id'
+        user = 'test_user'
+        mock_doc = MagicMock()
+        mock_doc.output_filename = "sample_image.png"
+        mock_doc.extension = ".png"
+        mock_doc.media_id = "test_media_id"
+        mock_doc.bot = "test_bot"
+        mock_doc.sender_id = "I am sender"
+
+        mock_queryset = MagicMock()
+        mock_queryset.first.return_value = mock_doc
+        mock_objects.return_value = mock_queryset
+
+        config = {
+            "name": "one_time_schedule", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "recipients_config": {
+                "recipients": "918958030541"
+            },
+            "retry_count": 0,
+            "template_config": [
+                {
+                    'language': 'hi',
+                    "template_id": "brochure_pdf",
+                    "data": str([
+                        [
+                            {
+                                "type": "header",
+                                "parameters": [
+                                    {
+                                        "type": "image",
+                                        "image": {
+                                            "link": "https://meta-catalog-images.s3.amazonaws.com/template_media/6902eed06fa346c768f6a2d1/sample_image.png?AWSAccessKeyId=ASIA2UEE6KJFPIVXYEXE&Signature=Nnw9HgayApwYH44ogXbXLpWQJk8%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEC4aCXVzLWVhc3QtMSJHMEUCIQDF%2FenV4QZrnSRfk3lxGFMg3kOb1kKOPSTLT32B2qNbrwIgDoFUKLADyhTEWHmU8smVcBxSBJI7umfoNjatKzy0IwoqhAMI5%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARADGgw3MzA0MjMyNTE1MzAiDGpxn06IromfvBpBUSrYAqcjdvJRA5id0TVTKt%2B%2Fp1VnRO%2Fi9UpfnmvoE1XK7K4awoEect4zxZ2kvWqwv3Z%2FKuwsUsOlBvJ9RZsP8A6%2BDYpcvAjp%2FDxsGT6ToAaR%2F4Xw7cSXM%2BP%2Bw31cXu9nJcOZaP8mUM0TUgCyzfsYbr5PsgmM%2F3p1CqSV%2FqE5wHNXfkzjz%2FPYp31ah%2BO0dtBWulHI%2FlB0pDD5ZX4bBgNSEyqZFPn%2FDPAr3tPziobD%2Bh64OFpCl66Z7Btk0xCxiSPrIUYyVZPW0xgU6MlRMBTWWWkLoSDIeoydyi2vr3v5MWRbUHrdUxbuhvUzDBlJu%2FDJqfyDAxT91GNpKGW3GzpAOcPCp%2BGxywrVxpeIAE4sXH1ByGLj23GUOJZQTEDsJ8YuXKVp8qjGGjJmvCyEmz%2BuhWMP3Xfzime1OwNSUZqHrc%2BpZ65ibnuTk6phov562VddLuUlm87z6pAz%2BALcMNfwi8gGOqUBYZInl0nXO7E0E2qsiSJN4nb2Ls55JN0zHt95yTBw5KOv%2BYGxTK63l4O3fVqO0fYEYK8iAnJKwZJZD3mDIMY6SGso%2B24O9smrwTftzDXVBkRcP3YkUvhmGL6dXhoFy9uaAgm86fFgKHAGGIMOI%2FxDVfFCXx11L6i%2BTMMlEn%2F1FaVOHqwKbpb94c7fZoVDjuRFeajVhGd2IRFa9CKfCVSSdHBSeESZ&Expires=1761804480"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    ])
+                }
+            ]
+        }
+        template = [
+            {
+                "format": "image",
+                "image": {
+                    "link" : "https://meta-catalog-images.s3.amazonaws.com/template_media/6902eed06fa346c768f6a2d1/sample_image.png?AWSAccessKeyId=ASIA2UEE6KJFPIVXYEXE&Signature=Nnw9HgayApwYH44ogXbXLpWQJk8%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEC4aCXVzLWVhc3QtMSJHMEUCIQDF%2FenV4QZrnSRfk3lxGFMg3kOb1kKOPSTLT32B2qNbrwIgDoFUKLADyhTEWHmU8smVcBxSBJI7umfoNjatKzy0IwoqhAMI5%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARADGgw3MzA0MjMyNTE1MzAiDGpxn06IromfvBpBUSrYAqcjdvJRA5id0TVTKt%2B%2Fp1VnRO%2Fi9UpfnmvoE1XK7K4awoEect4zxZ2kvWqwv3Z%2FKuwsUsOlBvJ9RZsP8A6%2BDYpcvAjp%2FDxsGT6ToAaR%2F4Xw7cSXM%2BP%2Bw31cXu9nJcOZaP8mUM0TUgCyzfsYbr5PsgmM%2F3p1CqSV%2FqE5wHNXfkzjz%2FPYp31ah%2BO0dtBWulHI%2FlB0pDD5ZX4bBgNSEyqZFPn%2FDPAr3tPziobD%2Bh64OFpCl66Z7Btk0xCxiSPrIUYyVZPW0xgU6MlRMBTWWWkLoSDIeoydyi2vr3v5MWRbUHrdUxbuhvUzDBlJu%2FDJqfyDAxT91GNpKGW3GzpAOcPCp%2BGxywrVxpeIAE4sXH1ByGLj23GUOJZQTEDsJ8YuXKVp8qjGGjJmvCyEmz%2BuhWMP3Xfzime1OwNSUZqHrc%2BpZ65ibnuTk6phov562VddLuUlm87z6pAz%2BALcMNfwi8gGOqUBYZInl0nXO7E0E2qsiSJN4nb2Ls55JN0zHt95yTBw5KOv%2BYGxTK63l4O3fVqO0fYEYK8iAnJKwZJZD3mDIMY6SGso%2B24O9smrwTftzDXVBkRcP3YkUvhmGL6dXhoFy9uaAgm86fFgKHAGGIMOI%2FxDVfFCXx11L6i%2BTMMlEn%2F1FaVOHqwKbpb94c7fZoVDjuRFeajVhGd2IRFa9CKfCVSSdHBSeESZ&Expires=1761804480"
+                },
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            }
+        ]
+        raw_template = [
+            {
+                "format": "IMAGE",
+                "example": {
+                    "header_handle": ["https://meta-catalog-images.s3.amazonaws.com/template_media/6902eed06fa346c768f6a2d1/sample_image.png?AWSAccessKeyId=ASIA2UEE6KJFPIVXYEXE&Signature=Nnw9HgayApwYH44ogXbXLpWQJk8%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEC4aCXVzLWVhc3QtMSJHMEUCIQDF%2FenV4QZrnSRfk3lxGFMg3kOb1kKOPSTLT32B2qNbrwIgDoFUKLADyhTEWHmU8smVcBxSBJI7umfoNjatKzy0IwoqhAMI5%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARADGgw3MzA0MjMyNTE1MzAiDGpxn06IromfvBpBUSrYAqcjdvJRA5id0TVTKt%2B%2Fp1VnRO%2Fi9UpfnmvoE1XK7K4awoEect4zxZ2kvWqwv3Z%2FKuwsUsOlBvJ9RZsP8A6%2BDYpcvAjp%2FDxsGT6ToAaR%2F4Xw7cSXM%2BP%2Bw31cXu9nJcOZaP8mUM0TUgCyzfsYbr5PsgmM%2F3p1CqSV%2FqE5wHNXfkzjz%2FPYp31ah%2BO0dtBWulHI%2FlB0pDD5ZX4bBgNSEyqZFPn%2FDPAr3tPziobD%2Bh64OFpCl66Z7Btk0xCxiSPrIUYyVZPW0xgU6MlRMBTWWWkLoSDIeoydyi2vr3v5MWRbUHrdUxbuhvUzDBlJu%2FDJqfyDAxT91GNpKGW3GzpAOcPCp%2BGxywrVxpeIAE4sXH1ByGLj23GUOJZQTEDsJ8YuXKVp8qjGGjJmvCyEmz%2BuhWMP3Xfzime1OwNSUZqHrc%2BpZ65ibnuTk6phov562VddLuUlm87z6pAz%2BALcMNfwi8gGOqUBYZInl0nXO7E0E2qsiSJN4nb2Ls55JN0zHt95yTBw5KOv%2BYGxTK63l4O3fVqO0fYEYK8iAnJKwZJZD3mDIMY6SGso%2B24O9smrwTftzDXVBkRcP3YkUvhmGL6dXhoFy9uaAgm86fFgKHAGGIMOI%2FxDVfFCXx11L6i%2BTMMlEn%2F1FaVOHqwKbpb94c7fZoVDjuRFeajVhGd2IRFa9CKfCVSSdHBSeESZ&Expires=1761804480"]
+                },
+                "type": "HEADER"
+            },
+            {
+                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+                "type": "BODY"
+            },
+            {
+                "text": "reply with STOP to unsubscribe",
+                "type": "FOOTER"
+            }
+        ]
+
+        url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        template_url = base_url + '/v1/configs/templates?filters={"business_templates.name": "brochure_pdf"}&sort=business_templates.name'
+        responses.add(
+            "POST", url,
+            json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
+        )
+        responses.add(
+            "GET", template_url,
+            json={"waba_templates": [
+                {"category": "MARKETING", "components": raw_template, "name": "agronomy_support", "language": "hi"}]}
+        )
+
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4,
+                                              "dynamic_broadcast_execution_timeout": 21600}
+        mock_channel_config.return_value = {
+            "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415",
+                       "waba_account_id": "asdfghjk"}}
+        mock_send.return_value = True, 200, {
+            "contacts": [{"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}]}
+        mock_get_partner_auth_token.return_value = None
+
+        with patch.dict(Utility.environment["channels"]["360dialog"], {"partner_id": "sdfghjkjhgfddfghj"}):
+            event = MessageBroadcastEvent(bot, user)
+            event.validate()
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+            event.execute(event_id, is_resend="False")
+
+        logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
+        assert len(logs[0]) == logs[1] == 2
+        logs[0][1].pop("timestamp")
+        reference_id = logs[0][1].pop("reference_id")
+        logged_config = logs[0][1].pop("config")
+        logged_config.pop("_id")
+        logged_config.pop("status")
+        logged_config.pop("timestamp")
+        logged_config.pop('pyscript_timeout')
+        config['collection_config'] = {}
+        assert logged_config == config
+        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
+        logs[0][1].pop('template_params')
+        assert logs[0][1] == {"event_id": event_id, 'log_type': 'common',
+                              'bot': 'test_execute_message_broadcast_with_static_values_with_media_id',
+                              'status': 'Completed',
+                              'user': 'test_user', 'recipients': {'918958030541'},
+                              'failure_cnt': 0, 'total': 1,
+                              'template_params_1': [
+                                  [
+                                      {
+                                          'parameters': [
+                                              {
+                                                  'image': {
+                                                      'id': 'test_media_id',
+                                                  },
+                                                  'type': 'image',
+                                              },
+                                          ],
+                                          'type': 'header',
+                                      },
+                                  ]
+                              ],
+                              'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
+                                            'Sending 1 messages to 1 recipients.'
+                              }
+        logs[0][0].pop("timestamp")
+        logs[0][0].pop("template")
+        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
+                              'bot': 'test_execute_message_broadcast_with_static_values_with_media_id',
+                              'status': STATUSES.SUCCESS.value,
+                              'status_code': 200, 'api_response': {
+                'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
+                              'recipient': '918958030541',
+                              'template_params': [
+                                      {
+                                          'parameters': [
+                                              {
+                                                  'image': {
+                                                      'id': 'test_media_id',
+                                                  },
+                                                  'type': 'image',
+                                              },
+                                          ],
+                                          'type': 'header',
+                                      },
+                                  ],
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0}
 
