@@ -1,5 +1,6 @@
 import os
-from typing import List, Optional
+import json
+from typing import List, Optional, Dict
 
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
@@ -336,6 +337,27 @@ async def get_all_collections(
     names = DataProcessor.get_all_collections(current_user.get_bot())
     return Response(data=names)
 
+@router.get("/collections/{collection_name}/filter/count", response_model=Response)
+async def get_broadcast_filter_count(
+    collection_name: str,
+    filters: Optional[str] = Query(None),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Count of filtered records
+    """
+    parsed_filters: List[Dict] = json.loads(filters) if filters else []
+    count = DataProcessor.get_collection_filter_data_count(
+        current_user.get_bot(),
+        collection_name,
+        parsed_filters
+    )
+
+    return Response(
+        success=True,
+        message="Filtered count fetched successfully",
+        data={"count": count}
+    )
 
 @router.delete("/collection/delete/{collection_name}", response_model=Response)
 async def delete_collection(

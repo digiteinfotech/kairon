@@ -161,6 +161,35 @@ class DataProcessor:
         return data
 
     @staticmethod
+    def get_collection_filter(bot, collection_name, filters):
+        """
+        Build a MongoEngine-style filter dictionary for broadcast collection queries.
+        """
+        filters_dict = {
+            "bot": bot,
+            "collection_name": collection_name
+        }
+
+        for f in filters:
+            column = f.get("column")
+            condition = f.get("condition")
+            value = f.get("value")
+
+            field_name = f"data__{column}" + (f"__{condition}" if condition else "")
+            filters_dict[field_name] = value
+
+        return filters_dict
+
+    @staticmethod
+    def get_collection_filter_data_count(bot: Text, collection_name: str, filters: List[Dict]):
+        """
+        Return the count of documents in the collection matching the broadcast filters.
+        """
+        filter_data_dict = DataProcessor.get_collection_filter(bot, collection_name, filters)
+        filter_data_count = CollectionData.objects(**filter_data_dict).count()
+        return filter_data_count
+
+    @staticmethod
     def list_collection_data(bot: Text):
         """
         fetches collection data
