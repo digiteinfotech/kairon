@@ -2642,7 +2642,7 @@ def test_get_broadcast_filter_count():
 
     # API call
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/broadcast/filter/count",
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/filter/count",
         params={"filters": json.dumps(filters_list)},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -2657,7 +2657,7 @@ def test_get_broadcast_filter_count():
 
 def test_get_broadcast_filter_count_no_filter():
     response = client.get(
-        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/broadcast/filter/count",
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/filter/count",
         params={"filters": []},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
