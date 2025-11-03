@@ -3176,7 +3176,7 @@ class TestEventExecution:
             "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "recipients_config": {
-                "recipients": "918958030541,"
+                "recipients": "918958030541"
             },
             "retry_count": 0,
             "template_config": [
@@ -3294,10 +3294,11 @@ class TestEventExecution:
         assert logged_config == config
         logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'recipients': {'918958030541', ''}, 'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': {'918958030541'}, 'failure_cnt': 0, 'total': 1,
                               'template_params': [[{'body': 'Udit Pandey'}]],
-                              'Template 1': '[agronomy_support] There are 2 recipients and 2 template bodies. '
-                                            'Sending 2 messages to 2 recipients.'
+                              'template_params_1': [[{'body': 'Udit Pandey'}]],
+                              'Template 1': '[agronomy_support] There are 1 recipients and 1 template bodies. '
+                                            'Sending 1 messages to 1 recipients.'
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
