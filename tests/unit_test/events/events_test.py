@@ -2906,19 +2906,21 @@ class TestEventExecution:
         }
         template = [
             {
-                "format": "image",
-                "image": {
-                    "link" : "https://meta-catalog-images.s3.amazonaws.com/template_media/6902eed06fa346c768f6a2d1/sample_image.png?AWSAccessKeyId=ASIA2UEE6KJFPIVXYEXE&Signature=Nnw9HgayApwYH44ogXbXLpWQJk8%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEC4aCXVzLWVhc3QtMSJHMEUCIQDF%2FenV4QZrnSRfk3lxGFMg3kOb1kKOPSTLT32B2qNbrwIgDoFUKLADyhTEWHmU8smVcBxSBJI7umfoNjatKzy0IwoqhAMI5%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARADGgw3MzA0MjMyNTE1MzAiDGpxn06IromfvBpBUSrYAqcjdvJRA5id0TVTKt%2B%2Fp1VnRO%2Fi9UpfnmvoE1XK7K4awoEect4zxZ2kvWqwv3Z%2FKuwsUsOlBvJ9RZsP8A6%2BDYpcvAjp%2FDxsGT6ToAaR%2F4Xw7cSXM%2BP%2Bw31cXu9nJcOZaP8mUM0TUgCyzfsYbr5PsgmM%2F3p1CqSV%2FqE5wHNXfkzjz%2FPYp31ah%2BO0dtBWulHI%2FlB0pDD5ZX4bBgNSEyqZFPn%2FDPAr3tPziobD%2Bh64OFpCl66Z7Btk0xCxiSPrIUYyVZPW0xgU6MlRMBTWWWkLoSDIeoydyi2vr3v5MWRbUHrdUxbuhvUzDBlJu%2FDJqfyDAxT91GNpKGW3GzpAOcPCp%2BGxywrVxpeIAE4sXH1ByGLj23GUOJZQTEDsJ8YuXKVp8qjGGjJmvCyEmz%2BuhWMP3Xfzime1OwNSUZqHrc%2BpZ65ibnuTk6phov562VddLuUlm87z6pAz%2BALcMNfwi8gGOqUBYZInl0nXO7E0E2qsiSJN4nb2Ls55JN0zHt95yTBw5KOv%2BYGxTK63l4O3fVqO0fYEYK8iAnJKwZJZD3mDIMY6SGso%2B24O9smrwTftzDXVBkRcP3YkUvhmGL6dXhoFy9uaAgm86fFgKHAGGIMOI%2FxDVfFCXx11L6i%2BTMMlEn%2F1FaVOHqwKbpb94c7fZoVDjuRFeajVhGd2IRFa9CKfCVSSdHBSeESZ&Expires=1761804480"
+                'format': 'IMAGE',
+                'example': {
+                    'header_handle': [
+                        'https://meta-catalog-images.s3.amazonaws.com/template_media/6902eed06fa346c768f6a2d1/sample_image.png?AWSAccessKeyId=ASIA2UEE6KJFPIVXYEXE&Signature=Nnw9HgayApwYH44ogXbXLpWQJk8%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEC4aCXVzLWVhc3QtMSJHMEUCIQDF%2FenV4QZrnSRfk3lxGFMg3kOb1kKOPSTLT32B2qNbrwIgDoFUKLADyhTEWHmU8smVcBxSBJI7umfoNjatKzy0IwoqhAMI5%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FARADGgw3MzA0MjMyNTE1MzAiDGpxn06IromfvBpBUSrYAqcjdvJRA5id0TVTKt%2B%2Fp1VnRO%2Fi9UpfnmvoE1XK7K4awoEect4zxZ2kvWqwv3Z%2FKuwsUsOlBvJ9RZsP8A6%2BDYpcvAjp%2FDxsGT6ToAaR%2F4Xw7cSXM%2BP%2Bw31cXu9nJcOZaP8mUM0TUgCyzfsYbr5PsgmM%2F3p1CqSV%2FqE5wHNXfkzjz%2FPYp31ah%2BO0dtBWulHI%2FlB0pDD5ZX4bBgNSEyqZFPn%2FDPAr3tPziobD%2Bh64OFpCl66Z7Btk0xCxiSPrIUYyVZPW0xgU6MlRMBTWWWkLoSDIeoydyi2vr3v5MWRbUHrdUxbuhvUzDBlJu%2FDJqfyDAxT91GNpKGW3GzpAOcPCp%2BGxywrVxpeIAE4sXH1ByGLj23GUOJZQTEDsJ8YuXKVp8qjGGjJmvCyEmz%2BuhWMP3Xfzime1OwNSUZqHrc%2BpZ65ibnuTk6phov562VddLuUlm87z6pAz%2BALcMNfwi8gGOqUBYZInl0nXO7E0E2qsiSJN4nb2Ls55JN0zHt95yTBw5KOv%2BYGxTK63l4O3fVqO0fYEYK8iAnJKwZJZD3mDIMY6SGso%2B24O9smrwTftzDXVBkRcP3YkUvhmGL6dXhoFy9uaAgm86fFgKHAGGIMOI%2FxDVfFCXx11L6i%2BTMMlEn%2F1FaVOHqwKbpb94c7fZoVDjuRFeajVhGd2IRFa9CKfCVSSdHBSeESZ&Expires=1761804480'
+                    ]
                 },
-                "type": "HEADER"
+                'type': 'HEADER'
             },
             {
-                "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
-                "type": "BODY"
+                'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
+                'type': 'BODY'
             },
             {
-                "text": "reply with STOP to unsubscribe",
-                "type": "FOOTER"
+                'text': 'reply with STOP to unsubscribe',
+                'type': 'FOOTER'
             }
         ]
         raw_template = [
@@ -3004,13 +3006,13 @@ class TestEventExecution:
                                             'Sending 1 messages to 1 recipients.'
                               }
         logs[0][0].pop("timestamp")
-        logs[0][0].pop("template")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast_with_static_values_with_media_id',
                               'status': STATUSES.SUCCESS.value,
                               'status_code': 200, 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
                               'recipient': '918958030541',
+                              'template': template,
                               'template_params': [
                                       {
                                           'parameters': [
