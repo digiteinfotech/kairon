@@ -97,6 +97,18 @@ class TestHistory:
                                                    till_date_timestamp=till_date_timestamp)
         assert True
 
+    @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
+    def test_delete_user_conversations_till_date(self, mock_history):
+        till_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
+        collection = '5ebc195d5b04bcbaa45c70cc'
+        sender_id = 'fshaikh@digite.com'
+        HistoryProcessor.delete_user_conversations(
+            collection=collection,
+            sender_id=sender_id,
+            till_date_timestamp=till_date_timestamp
+        )
+        assert True
+
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
         till_date = datetime.utcnow().date()

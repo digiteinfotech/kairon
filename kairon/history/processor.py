@@ -1504,6 +1504,7 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
 
                 # Remove Archived Events
+                till_date_timestamp = Utility.get_end_of_till_date(till_date_timestamp)
                 conversations.delete_many(filter={'sender_id': sender_id,
                                                   "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                           {"timestamp": {"$lte": till_date_timestamp}}]})
