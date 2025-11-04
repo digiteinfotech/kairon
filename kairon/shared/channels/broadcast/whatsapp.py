@@ -354,9 +354,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         template_params = self._get_template_parameters(template_config)
         if media_id:
-            for section_group in template_params:
-                for section in section_group:
-                    section["parameters"] = [replace_media(p) for p in section.get("parameters", [])]
+            for template_param in template_params:
+                for param_section in template_param:
+                    param_section["parameters"] = [replace_media(param) for param in param_section.get("parameters", [])]
 
         return template_params
 
