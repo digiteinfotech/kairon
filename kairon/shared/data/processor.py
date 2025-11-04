@@ -80,7 +80,7 @@ from kairon.shared.actions.data_objects import (
     QuickReplies,
     RazorpayAction,
     PromptAction,
-    LlmPrompt,
+    Context,
     FormSlotSet,
     DatabaseAction,
     DbQuery,
@@ -377,8 +377,8 @@ class MongoProcessor:
         if user_question.get('type') == "from_slot" and user_question.get('value') == slot:
             return True
 
-        llm_prompts = config.get("llm_prompts", [])
-        for prompt in llm_prompts:
+        contexts = config.get("contexts", [])
+        for prompt in contexts:
             if prompt.get('source') == "slot" and prompt.get('data') == slot:
                 return True
 
@@ -7041,8 +7041,8 @@ class MongoProcessor:
             Utility.is_exist(
                 PromptAction,
                 bot=bot,
-                llm_prompts__source=LlmPromptSource.action.value,
-                llm_prompts__data=name,
+                contexts__source=LlmPromptSource.action.value,
+                contexts__data=name,
                 exp_message=f"Action with name {name} is attached with PromptAction!",
             )
 
@@ -7928,7 +7928,7 @@ class MongoProcessor:
         if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("contexts", []), bot)
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data["bot"] = bot
         request_data["user"] = user
@@ -7943,8 +7943,8 @@ class MongoProcessor:
         )
         return prompt_action_id
 
-    def __validate_llm_prompts(self, llm_prompts, bot: Text):
-        for prompt in llm_prompts:
+    def __validate_llm_prompts(self, contexts, bot: Text):
+        for prompt in contexts:
             if prompt["source"] == "slot":
                 if not Utility.is_exist(
                         Slots, raise_error=False, name=prompt["data"], bot=bot, status=True
@@ -7995,7 +7995,7 @@ class MongoProcessor:
                 PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True
         ):
             raise AppException("Action not found")
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("contexts", []), bot)
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
@@ -8003,10 +8003,11 @@ class MongoProcessor:
         action.num_bot_responses = request_data.get("num_bot_responses", 5)
         action.hyperparameters = request_data.get("hyperparameters")
         action.llm_type = request_data.get("llm_type")
-        action.llm_prompts = [
-            LlmPrompt(**prompt) for prompt in request_data.get("llm_prompts", [])
+        action.contexts = [
+            Context(**prompt) for prompt in request_data.get("contexts", [])
         ]
-        action.instructions = request_data.get("instructions", [])
+        action.system_prompt = request_data.get("system_prompt", [])
+        action.user_prompt = request_data.get("user_prompt", [])
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
         action.timestamp = datetime.utcnow()

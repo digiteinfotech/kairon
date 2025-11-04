@@ -25,20 +25,12 @@ prompt_action:
     stream: false
     temperature: 0
     top_p: 0
-  instructions: []
-  llm_prompts:
-  - data: 'You are a helpful personal assistant. Answer the question based on the
+  system_prompt: 'You are a helpful personal assistant. Answer the question based on the
       context below. '
-    instructions: ''
-    is_enabled: true
-    name: System Context
-    source: static
-    type: system
+  user_prompt: 'You are a helpful personal assistant. Answer the question based on the
+      context below. '
+  contexts:
   - data: google_search_result
-    instructions: Make sure that your answers are relevant to the question that the
-      user has asked. You can be creative with your answers and crack jokes too but
-      don't make things up. Your answer must be in the same language in which the
-      user asked the question.
     is_enabled: true
     name: Google search context
     source: slot

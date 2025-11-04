@@ -89,7 +89,7 @@ class DataValidation:
                 data['num_bot_responses'] > 5 or not isinstance(data['num_bot_responses'], int)):
             data_error.append(
                 f'num_bot_responses should not be greater than 5 and of type int: {data.get("name")}')
-        llm_prompts_errors = DataValidation.validate_llm_prompts(data['llm_prompts'])
+        llm_prompts_errors = DataValidation.validate_llm_prompts(data['contexts'])
         data_error.extend(llm_prompts_errors)
         if hyperparameters := data.get('hyperparameters'):
             if not data.get("llm_type"):
@@ -132,19 +132,19 @@ class DataValidation:
         return error_list
 
     @staticmethod
-    def validate_llm_prompts(llm_prompts: list):
+    def validate_llm_prompts(contexts: list):
         error_list = []
         system_prompt_count = 0
         history_prompt_count = 0
-        for prompt in llm_prompts:
-            if prompt.get('hyperparameters') is not None:
-                hyperparameters = prompt.get('hyperparameters')
+        for prompt in contexts:
+            if prompt.get('similarity_config') is not None:
+                hyperparameters = prompt.get('similarity_config')
                 for key, value in hyperparameters.items():
                     if key == 'similarity_threshold':
                         if not (0.3 <= value <= 1.0) or not (
                                 isinstance(value, float) or isinstance(value, int)):
                             error_list.append(
-                                "similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
+                                f"similarity_threshold should be within 0.3 and 1.0 and of type int or float!")
                     if key == 'top_results' and (value > 30 or not isinstance(value, int)):
                         error_list.append("top_results should not be greater than 30 and of type int!")
 
@@ -154,7 +154,7 @@ class DataValidation:
                 history_prompt_count += 1
             if prompt.get('type') not in ['user', 'system', 'query']:
                 error_list.append('Invalid prompt type')
-            if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content']:
+            if prompt.get('source') not in ['static', 'slot', 'action', 'history', 'bot_content', 'crud']:
                 error_list.append('Invalid prompt source')
             if prompt.get('type') and not isinstance(prompt.get('type'), str):
                 error_list.append('type in LLM Prompts should be of type string.')

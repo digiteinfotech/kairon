@@ -448,14 +448,6 @@ class UserMedia:
         try:
             instructions = ['Extract all relevant information from the media file and return as a markdown']
 
-            llm_prompts = [
-                {'name': 'System Prompt',
-                 'instructions': f'{instructions[0]}',
-                 'type': 'system',
-                 'data': 'Extract information',
-                 },
-            ]
-
             action_name = f"{UserMedia.MEDIA_EXTRACTION_FLOW_NAME}_prompt_action"
             if not Actions.objects(bot=bot, name=action_name).first():
                 action = Actions(
@@ -471,8 +463,7 @@ class UserMedia:
             if not PromptAction.objects(bot=bot, name=action_name).first():
                 prompt_action = PromptAction(
                     name=action_name,
-                    instructions=instructions,
-                    llm_prompts=llm_prompts,
+                    system_prompt = f'{instructions[0]}',
                     dispatch_response=True,
                     process_media=True,
                     bot=bot,

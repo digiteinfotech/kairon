@@ -12403,20 +12403,22 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {'name': 'test_delete_schema_attached_to_prompt_action',
-              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
+              'contexts': [
                               {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True}],
-              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+              'user_prompt': "Answer in a short manner.Keep it simple.",
+              "system_prompt":"You are a personal assistant.",
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "llm_type": DEFAULT_LLM,
@@ -13125,14 +13127,8 @@ def test_add_prompt_action_with_utter(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "utter_test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
@@ -13144,7 +13140,7 @@ def test_add_prompt_action_with_utter(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13152,13 +13148,14 @@ def test_add_prompt_action_with_utter(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "user_prompt": "Answer in a short manner. Keep it simple.",
+        "system_prompt": "You are a personal assistant.",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13183,19 +13180,13 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_similarity_threshold",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
-                'hyperparameters': {"top_results": 10, "similarity_threshold": 1.70},
+                'similarity_config': {"top_results": 10, "similarity_threshold": 1.70},
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13203,7 +13194,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13217,6 +13208,8 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13228,7 +13221,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+    assert actual["message"] == [{'loc': ['body', 'contexts', 0, 'similarity_config', '__root__'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
@@ -13242,19 +13235,12 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_top_results",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
             {
                 "name": "Similarity Prompt",
-                'hyperparameters': {"top_results": 40, "similarity_threshold": 0.70},
+                'similarity_config': {"top_results": 40, "similarity_threshold": 0.70},
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13270,12 +13256,14 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13287,7 +13275,7 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+    assert actual["message"] == [{'loc': ['body', 'contexts', 0, 'similarity_config', '__root__'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
@@ -13297,18 +13285,11 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
 def test_add_prompt_action_with_invalid_query_prompt():
     action = {
         "name": "test_add_prompt_action_with_invalid_query_prompt",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13316,12 +13297,14 @@ def test_add_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "history",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13335,7 +13318,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Query prompt must have static source!",
             "type": "value_error",
         }
@@ -13348,18 +13331,12 @@ def test_add_prompt_action_with_invalid_query_prompt():
 def test_add_prompt_action_with_invalid_num_bot_responses():
     action = {
         "name": "test_add_prompt_action_with_invalid_num_bot_responses",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13367,7 +13344,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13375,12 +13352,14 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "num_bot_responses": 10,
         "llm_type": DEFAULT_LLM,
@@ -13404,21 +13383,19 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
     assert actual["error_code"] == 422
 
 
-def test_add_prompt_action_with_invalid_system_prompt_source():
+def test_add_prompt_action_with_empty_system_prompt():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings.enable_faq = True
+    bot_settings.save()
+    print(bot_settings.to_json())
     action = {
         "name": "test_add_prompt_action_with_invalid_system_prompt_source",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "history",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13426,7 +13403,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13434,12 +13411,14 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13453,8 +13432,8 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
-            "msg": "System prompt must have static source!",
+            "loc": ["body", "system_prompt"],
+            "msg":'System prompt cannot be empty!',
             "type": "value_error",
         }
     ]
@@ -13466,26 +13445,12 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
 def test_add_prompt_action_with_multiple_system_prompt():
     action = {
         "name": "test_add_prompt_action_with_multiple_system_prompt",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "instructions": "Answer question based on the context below.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13493,7 +13458,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13501,17 +13466,21 @@ def test_add_prompt_action_with_multiple_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": ["You are a personal assistant.","You are a personal assistant."],
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
         "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    print(bot_settings.to_json())
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -13520,8 +13489,68 @@ def test_add_prompt_action_with_multiple_system_prompt():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Only one system prompt can be present!",
+            "type": "value_error",
+        }
+    ]
+    assert not actual["data"]
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+def test_add_prompt_action_with_empty_user_prompt():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.llm_settings.enable_faq = True
+    bot_settings.save()
+    print(bot_settings.to_json())
+    action = {
+        "name": "test_add_prompt_action_with_invalid_system_prompt_source",
+        "contexts": [
+
+            {
+                "name": "Similarity Prompt",
+                "data": "Science",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                # "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                # "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "user_prompt": "",
+        "system_prompt": "Resolve the query",
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    print(bot_settings.to_json())
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == [
+        {
+            "loc": ["body", "user_prompt"],
+            "msg":  'User prompt cannot be empty!',
             "type": "value_error",
         }
     ]
@@ -13533,14 +13562,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
 def test_add_prompt_action_with_empty_llm_prompt_name():
     action = {
         "name": "test_add_prompt_action_with_empty_llm_prompt_name",
-        "llm_prompts": [
-            {
-                "name": "",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
@@ -13550,7 +13572,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
                 "is_enabled": True,
             },
             {
-                "name": "Query Prompt",
+                "name": "",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
                 "instructions": "Answer according to the context",
                 "type": "query",
@@ -13566,6 +13588,8 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13579,7 +13603,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Name cannot be empty!",
             "type": "value_error",
         }
@@ -13592,14 +13616,8 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
 def test_add_prompt_action_with_empty_data_for_static_prompt():
     action = {
         "name": "test_add_prompt_action_with_empty_data_for_static_prompt",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
@@ -13625,6 +13643,8 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13638,7 +13658,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "data is required for static prompts!",
             "type": "value_error",
         }
@@ -13651,14 +13671,8 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
 def test_add_prompt_action_with_multiple_history_source_prompts():
     action = {
         "name": "test_add_prompt_action_with_multiple_history_source_prompts",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "History Prompt",
                 "type": "user",
@@ -13674,7 +13688,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13688,6 +13702,8 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13701,7 +13717,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
     actual = response.json()
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Only one history source can be present!",
             "type": "value_error",
         }
@@ -13714,14 +13730,8 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
 def test_add_prompt_action_with_gpt_feature_disabled():
     action = {
         "name": "test_add_prompt_action_with_gpt_feature_disabled",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
@@ -13729,11 +13739,14 @@ def test_add_prompt_action_with_gpt_feature_disabled():
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
+               "similarity_config": {
+                     "top_results": 10,
+                     "similarity_threshold": 0.7}
             },
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13741,16 +13754,16 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
-        "top_results": 10,
-        "similarity_threshold": 0.70,
         "llm_type": DEFAULT_LLM,
         "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
@@ -13780,18 +13793,11 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_llm_type", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13799,7 +13805,7 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13807,13 +13813,14 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Answer in a short manner.Keep it simple.",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": "test",
@@ -13828,6 +13835,7 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
     assert not DeepDiff(actual["message"],
                         [{'loc': ['body', 'llm_type'], 'msg': 'Invalid llm type', 'type': 'value_error'}],
                         ignore_order=True)
+
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -13847,18 +13855,12 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_invalid_hyperameters", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13866,7 +13868,7 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13874,13 +13876,14 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13893,8 +13896,9 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
     )
     actual = response.json()
     assert not DeepDiff(actual["message"],
-                        [{'loc': ['body', 'hyperparameters'],
-                          'msg': "['temperature']: 3.0 is greater than the maximum of 2.0", 'type': 'value_error'}],
+                        [{'loc': ['body', '__root__'],
+                          'msg': "['temperature']: 3.0 is greater than the maximum of 2.0",
+                          'type': 'value_error'}],
                         ignore_order=True)
     assert not actual["success"]
     assert not actual["data"]
@@ -13912,18 +13916,12 @@ def test_add_prompt_action(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13931,7 +13929,7 @@ def test_add_prompt_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13939,13 +13937,14 @@ def test_add_prompt_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -13975,18 +13974,12 @@ def test_add_prompt_action_already_exist(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13994,7 +13987,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14002,13 +13995,14 @@ def test_add_prompt_action_already_exist(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -14029,18 +14023,12 @@ def test_add_prompt_action_already_exist(monkeypatch):
 def test_update_prompt_action_does_not_exist():
     action = {
         "name": "test_update_prompt_action_does_not_exist",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14048,7 +14036,7 @@ def test_update_prompt_action_does_not_exist():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14056,12 +14044,14 @@ def test_update_prompt_action_does_not_exist():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -14082,19 +14072,13 @@ def test_update_prompt_action_does_not_exist():
 def test_update_prompt_action_with_invalid_similarity_threshold():
     action = {
         "name": "test_update_prompt_action_with_invalid_similarity_threshold",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                'hyperparameters': {"top_results": 9, "similarity_threshold": 1.50},
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                'similarity_config': {"top_results": 9, "similarity_threshold": 1.50},
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14102,7 +14086,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14110,12 +14094,14 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": "updated_failure_message",
         "llm_type": DEFAULT_LLM,
@@ -14127,7 +14113,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+    assert actual["message"] == [{'loc': ['body', 'contexts', 0, 'similarity_config', '__root__'],
                                   'msg': 'similarity_threshold should be within 0.3 and 1', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
@@ -14137,19 +14123,13 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
 def test_update_prompt_action_with_invalid_top_results():
     action = {
         "name": "test_update_prompt_action_with_invalid_top_results",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection"
-                , 'hyperparameters': {"top_results": 39, "similarity_threshold": 0.50},
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                , 'similarity_config': {"top_results": 39, "similarity_threshold": 0.50},
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14157,12 +14137,14 @@ def test_update_prompt_action_with_invalid_top_results():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming here.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": "updated_failure_message",
         "llm_type": DEFAULT_LLM,
@@ -14174,7 +14156,7 @@ def test_update_prompt_action_with_invalid_top_results():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    assert actual["message"] == [{'loc': ['body', 'llm_prompts', 1, 'hyperparameters', '__root__'],
+    assert actual["message"] == [{'loc': ['body', 'contexts', 0, 'similarity_config', '__root__'],
                                   'msg': 'top_results should not be greater than 30', 'type': 'value_error'}]
     assert not actual["data"]
     assert not actual["success"]
@@ -14184,18 +14166,12 @@ def test_update_prompt_action_with_invalid_top_results():
 def test_update_prompt_action_with_invalid_num_bot_responses():
     action = {
         "name": "test_update_prompt_action_with_invalid_num_bot_responses",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14203,12 +14179,14 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 50,
         "failure_message": "updated_failure_message",
         "llm_type": DEFAULT_LLM,
@@ -14232,18 +14210,12 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
 def test_update_prompt_action_with_invalid_query_prompt():
     action = {
         "name": "test_update_prompt_action_with_invalid_query_prompt",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14251,12 +14223,14 @@ def test_update_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "history",
                 "is_enabled": True,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "num_bot_responses": 5,
         "use_query_prompt": True,
@@ -14273,7 +14247,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
 
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Query prompt must have static source!",
             "type": "value_error",
         }
@@ -14284,18 +14258,12 @@ def test_update_prompt_action_with_invalid_query_prompt():
 def test_update_prompt_action_with_query_prompt_with_false():
     action = {
         "name": "test_update_prompt_action_with_query_prompt_with_false",
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14303,12 +14271,14 @@ def test_update_prompt_action_with_query_prompt_with_false():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "bot_content",
                 "is_enabled": False,
             },
         ],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "failure_message": "updated_failure_message",
         "num_bot_responses": 5,
         "set_slots": [
@@ -14332,7 +14302,7 @@ def test_update_prompt_action_with_query_prompt_with_false():
 
     assert actual["message"] == [
         {
-            "loc": ["body", "llm_prompts"],
+            "loc": ["body", "contexts"],
             "msg": "Query prompt must have static source!",
             "type": "value_error",
         }
@@ -14343,18 +14313,12 @@ def test_update_prompt_action_with_query_prompt_with_false():
 def test_update_prompt_action():
     action = {
         "name": "test_update_prompt_action", 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity_analytical Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14362,7 +14326,7 @@ def test_update_prompt_action():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14370,13 +14334,14 @@ def test_update_prompt_action():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming language,",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": "updated_failure_message",
         "llm_type": DEFAULT_LLM,
@@ -14427,18 +14392,12 @@ def test_get_prompt_action():
             'frequency_penalty': 0.0,
             'logit_bias': {}
         },
-        'llm_prompts': [
-            {
-                'name': 'System Prompt',
-                'data': 'You are a personal assistant.',
-                'type': 'system',
-                'source': 'static',
-                'is_enabled': True
-            },
+        'contexts': [
+
             {
                 'name': 'Similarity_analytical Prompt',
                 'data': 'Bot_collection',
-                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
                 'is_enabled': True
@@ -14446,7 +14405,7 @@ def test_get_prompt_action():
             {
                 'name': 'Query Prompt',
                 'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
@@ -14454,13 +14413,14 @@ def test_get_prompt_action():
             {
                 'name': 'Query Prompt',
                 'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
             }
         ],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         'set_slots': [],
         'dispatch_response': True,
         'status': True
@@ -14483,18 +14443,12 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     action = {
         "name": "test_add_prompt_action_with_empty_collection_for_bot_content_prompt",
         'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14502,7 +14456,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14510,13 +14464,14 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+         "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -14567,18 +14522,12 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             'frequency_penalty': 0.0,
             'logit_bias': {}
         },
-        'llm_prompts': [
-            {
-                'name': 'System Prompt',
-                'data': 'You are a personal assistant.',
-                'type': 'system',
-                'source': 'static',
-                'is_enabled': True
-            },
+        'contexts': [
+
             {
                 'name': 'Similarity Prompt',
                 'data': 'default',
-                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
                 'is_enabled': True
@@ -14586,7 +14535,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 'name': 'Query Prompt',
                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
@@ -14594,13 +14543,14 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 'name': 'Query Prompt',
                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
             }
         ],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+         "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         'set_slots': [],
         'dispatch_response': True,
         'status': True
@@ -14643,25 +14593,33 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     assert actual["error_code"] == 0
 
     action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload',
-              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
+              'contexts': [
                               {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                'type': 'user', 'source': 'bot_content', 'data': 'states', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True}],
-              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+             "system_prompt": "You are a personal assistant.",
+              "user_prompt":"Resolve the query",
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "llm_type": DEFAULT_LLM,
               "hyperparameters": Utility.get_default_llm_hyperparameters()
               }
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    # print(actual)
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -14674,6 +14632,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
     action_data = actual["data"][2]
     action_data.pop("_id", None)
 
@@ -14695,18 +14654,12 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
             'frequency_penalty': 0.0,
             'logit_bias': {}
         },
-        'llm_prompts': [
-            {
-                'name': 'System Prompt',
-                'data': 'You are a personal assistant.',
-                'type': 'system',
-                'source': 'static',
-                'is_enabled': True
-            },
+        'contexts': [
+
             {
                 'name': 'Similarity Prompt',
                 'data': 'states',
-                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
                 'is_enabled': True
@@ -14714,7 +14667,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
             {
                 'name': 'Query Prompt',
                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
@@ -14722,13 +14675,14 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
             {
                 'name': 'Query Prompt',
                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
             }
         ],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         'set_slots': [],
         'dispatch_response': True,
         'status': True
@@ -14773,20 +14727,22 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
     assert actual["error_code"] == 0
 
     action = {'name': 'test_add_prompt_action_with_bot_content_prompt_with_content',
-              'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                               'source': 'static', 'is_enabled': True},
+              'contexts': [
                               {'name': 'Similarity Prompt',
-                               'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                               # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True},
                               {'name': 'Query Prompt',
                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                               'instructions': 'Answer according to the context', 'type': 'query',
+                               # 'instructions': 'Answer according to the context',
+                               'type': 'query',
                                'source': 'static', 'is_enabled': True}],
-              'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                      "system_prompt": "You are a personal assistant.",
+                "user_prompt":"Resolve the query",
               'num_bot_responses': 5,
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "llm_type": DEFAULT_LLM,
@@ -14825,18 +14781,12 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
             'frequency_penalty': 0.0,
             'logit_bias': {}
         },
-        'llm_prompts': [
-            {
-                'name': 'System Prompt',
-                'data': 'You are a personal assistant.',
-                'type': 'system',
-                'source': 'static',
-                'is_enabled': True
-            },
+        'contexts': [
+
             {
                 'name': 'Similarity Prompt',
                 'data': 'python',
-                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                # 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
                 'is_enabled': True
@@ -14844,7 +14794,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
             {
                 'name': 'Query Prompt',
                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
@@ -14852,13 +14802,14 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
             {
                 'name': 'Query Prompt',
                 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                'instructions': 'Answer according to the context',
+                # 'instructions': 'Answer according to the context',
                 'type': 'query',
                 'source': 'static',
                 'is_enabled': True
             }
         ],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+                "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         'set_slots': [],
         'dispatch_response': True,
         'status': True
@@ -14894,17 +14845,11 @@ def test_add_prompt_action_with_crud(monkeypatch):
     action = {
         "name": "test_add_prompt_action_crud",
         'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "CRUD Prompt",
-                "instructions": "Fetch data from the collection and answer accordingly.",
+                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -14916,7 +14861,8 @@ def test_add_prompt_action_with_crud(monkeypatch):
                 }
             }
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+                "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -14949,17 +14895,11 @@ def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
     action = {
         "name": "test_add_prompt_action_crud_string_query",
         'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "CRUD Prompt",
-                "instructions": "Fetch data from the collection and answer accordingly.",
+                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -14971,7 +14911,8 @@ def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
                 }
             }
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -15005,17 +14946,11 @@ def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
     action = {
         "name": "test_add_prompt_action_crud_invalid_json",
         "user_question": {"type": "from_user_message"},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "CRUD Prompt",
-                "instructions": "Fetch data from the collection and answer accordingly.",
+                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -15027,7 +14962,8 @@ def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
                 }
             }
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -15060,17 +14996,11 @@ def test_add_prompt_action_with_crud_query_source_slot_valid(monkeypatch):
     action = {
         "name": "test_add_prompt_action_crud_slot_query",
         "user_question": {"type": "from_user_message"},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "CRUD Prompt",
-                "instructions": "Fetch data from the collection and answer accordingly.",
+                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -15082,7 +15012,8 @@ def test_add_prompt_action_with_crud_query_source_slot_valid(monkeypatch):
                 }
             }
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -15118,17 +15049,11 @@ def test_add_prompt_action_with_crud_query_source_slot_invalid(monkeypatch):
     action = {
         "name": "test_add_prompt_action_crud_slot_query_invalid",
         "user_question": {"type": "from_user_message"},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "CRUD Prompt",
-                "instructions": "Fetch data from the collection and answer accordingly.",
+                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -15140,7 +15065,8 @@ def test_add_prompt_action_with_crud_query_source_slot_invalid(monkeypatch):
                 }
             }
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "system_prompt": "You are a personal assistant.",
+        "user_prompt": "Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -15441,17 +15367,14 @@ def save_actions():
             bot=pytest.bot,
             user="user"
         ).save()
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
+
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
     PromptAction(
@@ -15459,9 +15382,11 @@ def save_actions():
         llm_type="openai",
         hyperparameters=Utility.get_llm_hyperparameters("openai"),
         num_bot_responses=2,
-        llm_prompts=llm_prompts,
+        contexts=contexts,
         user_question=UserQuestion(type="from_slot", value="name"),
         set_slots=[SetSlotsFromResponse(name="location", value="${data.a.b.d.0}")],
+        system_prompt = "You are a personal assistant.",
+        user_prompt= "Resolve the query",
         bot=pytest.bot,
         user="user"
     ).save()
@@ -15470,32 +15395,40 @@ def save_actions():
         llm_type="openai",
         hyperparameters=Utility.get_llm_hyperparameters("openai"),
         num_bot_responses=2,
-        llm_prompts=llm_prompts,
+        contexts=contexts,
         user_question=UserQuestion(type="from_slot", value="location"),
         set_slots=[SetSlotsFromResponse(name="name", value="${data.a.b.d}")],
+        system_prompt="You are a personal assistant.",
+        user_prompt="Resolve the query",
         bot=pytest.bot,
         user="user"
     ).save()
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
-        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
-         'type': 'query', 'source': 'static', 'is_enabled': False},
+    contexts = [
+        {'name': 'History Prompt',
+         'type': 'user',
+         'source': 'history',
+         'is_enabled': True},
+        {'name': 'Query Prompt',
+         'data': "What kind of language is python?",
+         'type': 'query',
+         'source': 'static',
+         'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'type': 'user',
+         'source': 'bot_content',
+         'data': 'python',
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True},
         {'name': 'Name Prompt',
          'data': 'name',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+        'type': 'user',
+         'source': 'slot',
          'is_enabled': True},
         {'name': 'Location Prompt',
          'data': 'location',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+        'type': 'user',
+         'source': 'slot',
          'is_enabled': True}
     ]
     PromptAction(
@@ -15503,8 +15436,10 @@ def save_actions():
         llm_type="anthropic",
         hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
         num_bot_responses=2,
-        llm_prompts=llm_prompts,
+        contexts=contexts,
         user_question=UserQuestion(type="from_user_message", value="hello"),
+        system_prompt="You are a personal assistant.",
+        user_prompt="Resolve the query",
         bot=pytest.bot,
         user="user"
     ).save()
@@ -36597,18 +36532,12 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "test_add_prompt_action_with_stop_hyperparameters", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -36616,7 +36545,7 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -36624,13 +36553,14 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+                "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,
@@ -36840,18 +36770,12 @@ def test_add_parallel_action(monkeypatch):
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
     action = {
         "name": "prompt_action", 'user_question': {'type': 'from_user_message'},
-        "llm_prompts": [
-            {
-                "name": "System Prompt",
-                "data": "You are a personal assistant.",
-                "type": "system",
-                "source": "static",
-                "is_enabled": True,
-            },
+        "contexts": [
+
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -36859,7 +36783,7 @@ def test_add_parallel_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -36867,13 +36791,14 @@ def test_add_parallel_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                "instructions": "Answer according to the context",
+                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
             },
         ],
-        "instructions": ["Answer in a short manner.", "Keep it simple."],
+                "system_prompt": "You are a personal assistant.",
+        "user_prompt":"Resolve the query",
         "num_bot_responses": 5,
         "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
         "llm_type": DEFAULT_LLM,

@@ -263,7 +263,7 @@ prompt_action:
     stop: null
     stream: false
     model: gpt-4.1-mini
-  llm_prompts:
+  contexts:
     - name: System Prompt
       data: You are a personal assistant.
       type: system
@@ -288,7 +288,7 @@ prompt_action:
     stop: null
     stream: false
     model: gpt-4.1-mini
-  llm_prompts:
+  contexts:
     - name: System Prompt
       data: You are a personal assistant.
       type: system

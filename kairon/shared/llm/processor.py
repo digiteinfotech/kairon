@@ -410,7 +410,7 @@ class LLMProcessor(LLMBase):
         for similarity_context_prompt in similarity_prompt:
             use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
             similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
-            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+            # similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
             limit = similarity_context_prompt.get('top_results', 10)
             score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
             extracted_values = []
@@ -432,7 +432,7 @@ class LLMProcessor(LLMBase):
                     else:
                         extracted_values.append(entry['payload']['content'])
                 if extracted_values:
-                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n"
                     context_prompt = f"{context_prompt}\n{similarity_context}"
         return context_prompt
 
