@@ -12369,19 +12369,17 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
+    user_prompt="Answer in a short manner. Keep it simple.",
+    system_prompt= "You are a personal assistant.",
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
@@ -12423,8 +12421,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts,user_prompt=user_prompt,
+                 system_prompt=system_prompt,user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"] = {"bot": bot, "prompt_question": user_msg}
@@ -12460,19 +12458,17 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
+    user_prompt="Answer in a short manner. Keep it simple."
+    system_prompt= "You are a personal assistant."
     mock_execute_request_async.return_value = (
         {
             'formatted_response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
@@ -12484,7 +12480,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     expected_body = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
+        {'role': 'system', 'content': 'You are a personal assistant\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
                                                                                                 'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
         'metadata': {'user': 'udit.pandey', 'bot': '5f50fd0a56b698ca10d35d2l', 'invocation': 'prompt_action'},
@@ -12529,8 +12525,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 llm_type="perplexity", hyperparameters=hyperparameters,
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts,
+                 llm_type="perplexity", hyperparameters=hyperparameters,user_prompt=user_prompt,
+                 system_prompt=system_prompt,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -12589,19 +12586,17 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
+    user_prompt = "Answer in a short manner. Keep it simple."
+    system_prompt = "You are a personal assistant."
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
@@ -12654,7 +12649,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     PromptAction(name=action_name,
                  llm_type="anthropic",
                  hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
-                 bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
+                 bot=bot, user=user, num_bot_responses=2, contexts=contexts,
+                 user_prompt=user_prompt,
+                 system_prompt=system_prompt,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -12692,20 +12689,17 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
-
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     expected_body = {'messages': [
@@ -12746,7 +12740,8 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts, user_prompt=user_prompt,
+                 system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12787,20 +12782,18 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True}
     ]
-
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
@@ -12841,8 +12834,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
-                 instructions=instructions).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts,
+                system_prompt=system_prompt, user_prompt=user_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12882,22 +12875,22 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
+
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+
          'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-         'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+         'data': 'python', 'similarity_config': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Query Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+         'type': 'query', 'source': 'static',
          'is_enabled': True},
         {'name': 'Query Prompt',
          'data': 'If there is no specific query, assume that user is asking about java programming.',
-         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
+         'type': 'query', 'source': 'static', 'is_enabled': True}
     ]
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
 
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
@@ -12937,7 +12930,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     llm_secret.save()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -12976,19 +12969,20 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+    contexts = [
+
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+       'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True
          },
         {'name': 'Data science prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+       'type': 'user', 'source': 'bot_content',
          'data': 'data_science'},
     ]
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     aioresponses.add(
         url=urljoin(Utility.environment['vector']['db'],
                     f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/search"),
@@ -13036,7 +13030,7 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     PromptAction(name=action_name,
                  bot=bot,
                  user=user,
-                 llm_prompts=llm_prompts).save()
+                 contexts=contexts,system_prompt=system_prompt, user_prompt=user_prompt).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13071,16 +13065,18 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
+    contexts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+        'type': 'system', 'source': 'static'},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+          'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True
          }
     ]
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
@@ -13119,7 +13115,7 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     llm_secret.save()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13158,16 +13154,17 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
                        'frequency_penalty': 0.0, 'logit_bias': {}}
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+    contexts = [
+
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
+          'type': 'user', 'source': 'bot_content',
          'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70},
          'is_enabled': True
          }
     ]
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
@@ -13209,7 +13206,7 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     )
     llm_secret.save()
 
-    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13323,23 +13320,21 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'is_enabled': True, 'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+        'type': 'user', 'source': 'static',
          'is_enabled': True},
         {'name': 'Java Prompt',
          'data': 'Java is a programming language and computing platform first released by Sun Microsystems in 1995.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+          'type': 'user', 'source': 'static',
          'is_enabled': True}
     ]
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
 
     def mock_completion_for_answer(*args, **kwargs):
         return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
@@ -13393,7 +13388,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     )
     llm_secret.save()
 
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13467,25 +13462,22 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         payload=resp_msg,
         status=200,
     )
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
+    contexts = [
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+
          'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True,
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+         'similarity_config': {"top_results": 10, "similarity_threshold": 0.70}},
         {'name': 'Python Prompt',
          'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+        'type': 'user', 'source': 'static',
          'is_enabled': True},
         {'name': 'Java Prompt',
          'data': 'Java is a programming language and computing platform first released by Sun Microsystems in 1995.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
+        'type': 'user', 'source': 'static',
          'is_enabled': True},
         {'name': 'Action Prompt',
          'data': 'http_action',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
+         'type': 'user', 'source': 'action',
          'is_enabled': True}
     ]
 
@@ -13526,8 +13518,9 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         user=user
     )
     llm_secret.save()
-
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13612,13 +13605,15 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
             'link': "https://www.digite.com/kanban/what-is-kanban-agile/"
         }]
 
-    llm_prompts = [
+    contexts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'is_enabled': True,
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+      'type': 'system', 'source': 'static'},
         {'name': 'Google search Prompt', 'data': 'custom_search_action',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action', 'is_enabled': True}
+        'type': 'user', 'source': 'action', 'is_enabled': True}
     ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
@@ -13716,16 +13711,14 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
+    contexts = [
+
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+
          'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+       'type': 'user', 'source': 'slot',
          'is_enabled': True},
     ]
 
@@ -13753,7 +13746,8 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         method="POST",
         status=200
     )
-
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -13766,7 +13760,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     )
     llm_secret.save()
 
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, dispatch_response=False, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -13833,10 +13827,8 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
+    contexts = [
+
         {'name': 'Qdrant Prompt',
          'data': "Convert user questions into json requests in qdrant such that they will either filter, apply range queries "
                  "and search the payload in qdrant. Sample payload present in qdrant looks like below with each of the points starting with 1 to 5 is a record in qdrant."
@@ -13844,7 +13836,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                  "2. {\"Category (Risk, Issue, Action Item)\": \"Action Item\", \"Date Added\": 1673721000.0,"
                  "For eg: to find category of record created on 15/01/2023, the filter query is:"
                  "{\"filter\": {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}}",
-         'instructions': 'Create qdrant filter query out of user message based on above instructions.',
+
          'type': 'user', 'source': 'static', 'is_enabled': True},
     ]
 
@@ -13881,8 +13873,9 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
-
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False,
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, dispatch_response=False,user_prompt=user_prompt,system_prompt=system_prompt,
                  set_slots=[
                      SetSlotsFromResponse(name="api_type", value="${data['api_type']}", evaluation_type="script"),
                      SetSlotsFromResponse(name="query", value="${data['filter']}",
@@ -13964,16 +13957,13 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
+    contexts = [
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+
          'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
         {'name': 'Language Prompt',
          'data': 'type',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
+       'type': 'user', 'source': 'slot',
          'is_enabled': True},
     ]
 
@@ -14001,7 +13991,8 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
         method="POST",
         status=200
     )
-
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
@@ -14014,7 +14005,7 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     )
     llm_secret.save()
 
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -14102,18 +14093,11 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
         user=user
     ).save()
 
-    llm_prompts = [
-        {
-            'name': 'System Prompt',
-            'data': 'You are a personal assistant.',
-            'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
-        },
+    contexts = [
+
         {
             'name': 'CRUD Prompt',
-            'instructions': 'Fetch details from the database and answer the question.',
+
             'type': 'user',
             'source': 'crud',
             'is_enabled': True,
@@ -14124,7 +14108,9 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
             }
         },
     ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     aioresponses.add(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
@@ -14216,18 +14202,10 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
 
 
-    llm_prompts = [
-        {
-            'name': 'System Prompt',
-            'data': 'You are a personal assistant.',
-            'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
-        },
+    contexts = [
+
         {
             'name': 'CRUD Prompt',
-            'instructions': 'Fetch details from the database and answer the question.',
             'type': 'user',
             'source': 'crud',
             'is_enabled': True,
@@ -14239,7 +14217,9 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
             }
         },
     ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     aioresponses.add(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
@@ -14332,18 +14312,10 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
     LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
 
-    llm_prompts = [
-        {
-            'name': 'System Prompt',
-            'data': 'You are a personal assistant.',
-            'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
-        },
+    contexts = [
+
         {
             'name': 'CRUD Prompt',
-            'instructions': 'Fetch details from the database and answer the question.',
             'type': 'user',
             'source': 'crud',
             'is_enabled': True,
@@ -14355,7 +14327,9 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
             }
         },
     ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     aioresponses.add(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
@@ -14447,18 +14421,10 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_app_excepti
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
     LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
 
-    llm_prompts = [
-        {
-            'name': 'System Prompt',
-            'data': 'You are a personal assistant.',
-            'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
-        },
+    contexts = [
+
         {
             'name': 'CRUD Prompt',
-            'instructions': 'Fetch details from the database and answer the question.',
             'type': 'user',
             'source': 'crud',
             'is_enabled': True,
@@ -14470,7 +14436,9 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_app_excepti
             }
         },
     ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts,user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
@@ -14509,12 +14477,9 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
+    contexts = [
+
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
     ]
 
@@ -14555,8 +14520,9 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
         user=user
     )
     llm_secret.save()
-
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -14587,17 +14553,14 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    contexts = [
+
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': hyperparameters,
+         'similarity_config': hyperparameters,
          'is_enabled': True}
     ]
 
@@ -14641,8 +14604,9 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
         user=user
     )
     llm_secret.save()
-
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts, user_prompt=user_prompt, system_prompt=system_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -14675,18 +14639,15 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     value = "keyvalue"
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
+    similarity_config = {"top_results": 10, "similarity_threshold": 0.70}
+    contexts = [
+
         {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
+        {'name': 'Query Prompt', 'data': "What kind of language is python?",
          'type': 'query', 'source': 'static', 'is_enabled': False},
         {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
          'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': hyperparameters,
+         'similarity_config': similarity_config,
          'is_enabled': False}
     ]
 
@@ -14697,7 +14658,7 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
         {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
-        "hyperparameters": hyperparameters,
+        "similarity_config": similarity_config,
         'user': user,
         'invocation': 'prompt_action'
     }
@@ -14720,10 +14681,11 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
         user=user
     )
     llm_secret.save()
-
+    user_prompt = "Answer in a short manner. Keep it simple.",
+    system_prompt = "You are a personal assistant.",
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, contexts=contexts, system_prompt=system_prompt, user_prompt=user_prompt).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
