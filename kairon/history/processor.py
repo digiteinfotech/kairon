@@ -1448,6 +1448,7 @@ class HistoryProcessor:
         till_date_timestamp = Utility.get_timestamp_from_date(till_date)
         HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
                                               till_date_timestamp=till_date_timestamp)
+        till_date_timestamp = Utility.get_end_of_till_date(till_date_timestamp)
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
                                                    till_date_timestamp=till_date_timestamp)
 
@@ -1504,7 +1505,6 @@ class HistoryProcessor:
                 conversations = db.get_collection(collection)
 
                 # Remove Archived Events
-                till_date_timestamp = Utility.get_end_of_till_date(till_date_timestamp)
                 conversations.delete_many(filter={'sender_id': sender_id,
                                                   "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                           {"timestamp": {"$lte": till_date_timestamp}}]})
