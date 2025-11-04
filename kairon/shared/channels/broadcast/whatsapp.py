@@ -337,37 +337,26 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         return template_params, recipients
 
-    def __get_template_params(self, template_params, media_id):
-        if not media_id:
-            return template_params
-
-        def replace_media(param):
-            for media_type in MEDIA_TYPES:
-                media_info = param.get(media_type)
-                if isinstance(media_info, dict) and "link" in media_info:
-                    param[media_type] = {"id": media_id}
-            return param
-
-        for section_group in template_params:
-            for section in section_group:
-                section["parameters"] = [replace_media(p) for p in section.get("parameters", [])]
-
-        return template_params
-
     def __prepare_template_params_with_template_config(self, raw_template, template_config):
         from kairon.shared.data.data_objects import UserMediaData
+
+        def replace_media(param):
+            media_type = param.get("type")
+            if media_type in MEDIA_TYPES and isinstance(param.get(media_type), dict) and "link" in param[media_type]:
+                param[media_type] = {"id": media_id}
+            return param
 
         url = self.__extract_media_url(raw_template)
 
         filename = Utility.get_filename_from_url(url)
-        user_media = (
-            UserMediaData.objects(bot=self.bot, filename=filename).first() if filename else None
-        )
-        media_id = getattr(user_media, "media_id", None) if user_media else None
+        media_id = getattr(UserMediaData.objects(bot=self.bot, filename=filename).only("media_id").first(),
+                           "media_id", None) if filename else None
 
         template_params = self._get_template_parameters(template_config)
         if media_id:
-            template_params = self.__get_template_params(template_params, media_id)
+            for section_group in template_params:
+                for section in section_group:
+                    section["parameters"] = [replace_media(p) for p in section.get("parameters", [])]
 
         return template_params
 
@@ -377,10 +366,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         if isinstance(raw_template, list):
             for comp in raw_template:
-                if isinstance(comp.get("example"), dict):
-                    for value in comp["example"].values():
-                        if isinstance(value, list) and value:
-                            return value[0]
+                example = comp.get("example", {})
+                if isinstance(example, dict) and "header_handle" in example:
+                    value = example["header_handle"]
+                    if isinstance(value, list) and value:
+                        return value[0]
+        return None
 
     def __send_using_configuration(self, recipients: List):
 
