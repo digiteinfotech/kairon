@@ -10,7 +10,7 @@ import string
 import tarfile
 import tempfile
 import uuid
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone, time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -748,6 +748,12 @@ class Utility:
     def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
+
+    @staticmethod
+    def get_end_of_till_date(till_date: float):
+        dt = datetime.fromtimestamp(till_date, tz=timezone.utc)
+        end_of_day = datetime.combine(dt.date(), time(23, 59, 59, tzinfo=dt.tzinfo))
+        return end_of_day.timestamp()
 
     @staticmethod
     def get_back_date_1month(request: Request):
