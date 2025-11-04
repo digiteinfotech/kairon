@@ -13140,7 +13140,7 @@ def test_add_prompt_action_with_utter(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
+
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13148,7 +13148,6 @@ def test_add_prompt_action_with_utter(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13186,7 +13185,6 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
                 "name": "Similarity Prompt",
                 'similarity_config': {"top_results": 10, "similarity_threshold": 1.70},
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13194,7 +13192,6 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13240,7 +13237,6 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
                 "name": "Similarity Prompt",
                 'similarity_config': {"top_results": 40, "similarity_threshold": 0.70},
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13256,7 +13252,6 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13289,7 +13284,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13297,7 +13291,6 @@ def test_add_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "history",
                 "is_enabled": True,
@@ -13336,7 +13329,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13344,7 +13336,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13352,7 +13343,6 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13395,7 +13385,6 @@ def test_add_prompt_action_with_empty_system_prompt():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13403,7 +13392,6 @@ def test_add_prompt_action_with_empty_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13411,7 +13399,6 @@ def test_add_prompt_action_with_empty_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13450,7 +13437,6 @@ def test_add_prompt_action_with_multiple_system_prompt():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13458,7 +13444,6 @@ def test_add_prompt_action_with_multiple_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13466,7 +13451,6 @@ def test_add_prompt_action_with_multiple_system_prompt():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13510,7 +13494,6 @@ def test_add_prompt_action_with_empty_user_prompt():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13518,7 +13501,6 @@ def test_add_prompt_action_with_empty_user_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13526,7 +13508,6 @@ def test_add_prompt_action_with_empty_user_prompt():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13688,7 +13669,6 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13746,7 +13726,6 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13754,7 +13733,6 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13797,7 +13775,6 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13805,7 +13782,6 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13813,7 +13789,6 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13860,7 +13835,6 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13868,7 +13842,6 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13876,7 +13849,6 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13921,7 +13893,6 @@ def test_add_prompt_action(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13929,7 +13900,6 @@ def test_add_prompt_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13937,7 +13907,6 @@ def test_add_prompt_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13979,7 +13948,6 @@ def test_add_prompt_action_already_exist(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -13987,7 +13955,6 @@ def test_add_prompt_action_already_exist(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -13995,7 +13962,6 @@ def test_add_prompt_action_already_exist(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14028,7 +13994,6 @@ def test_update_prompt_action_does_not_exist():
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14036,7 +14001,6 @@ def test_update_prompt_action_does_not_exist():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14044,7 +14008,6 @@ def test_update_prompt_action_does_not_exist():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14078,7 +14041,6 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
                 'similarity_config': {"top_results": 9, "similarity_threshold": 1.50},
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14086,7 +14048,6 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14094,7 +14055,6 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14129,7 +14089,6 @@ def test_update_prompt_action_with_invalid_top_results():
                 "name": "Similarity Prompt",
                 "data": "Bot_collection"
                 , 'similarity_config': {"top_results": 39, "similarity_threshold": 0.50},
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14137,7 +14096,6 @@ def test_update_prompt_action_with_invalid_top_results():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming here.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14171,7 +14129,6 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Similarity Prompt",
                 "data": "Science",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14179,7 +14136,6 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14215,7 +14171,6 @@ def test_update_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14223,7 +14178,6 @@ def test_update_prompt_action_with_invalid_query_prompt():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "history",
                 "is_enabled": True,
@@ -14263,7 +14217,6 @@ def test_update_prompt_action_with_query_prompt_with_false():
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14271,7 +14224,6 @@ def test_update_prompt_action_with_query_prompt_with_false():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "bot_content",
                 "is_enabled": False,
@@ -14318,7 +14270,6 @@ def test_update_prompt_action():
             {
                 "name": "Similarity_analytical Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14326,7 +14277,6 @@ def test_update_prompt_action():
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14334,7 +14284,6 @@ def test_update_prompt_action():
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming language,",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14448,7 +14397,6 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 "name": "Similarity Prompt",
                 "data": "",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -14456,7 +14404,6 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14464,7 +14411,6 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -14849,7 +14795,6 @@ def test_add_prompt_action_with_crud(monkeypatch):
 
             {
                 "name": "CRUD Prompt",
-                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -14899,13 +14844,12 @@ def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
 
             {
                 "name": "CRUD Prompt",
-                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
                 "crud_config": {
                     "collections": ["test_collection"],
-                    "query": '{"key": "value"}',  # JSON string to hit the isinstance check
+                    "query": '{"key": "value"}',
                     "result_limit": 5,
                     "query_source": "value"
                 }
@@ -14950,7 +14894,6 @@ def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
 
             {
                 "name": "CRUD Prompt",
-                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -15000,7 +14943,6 @@ def test_add_prompt_action_with_crud_query_source_slot_valid(monkeypatch):
 
             {
                 "name": "CRUD Prompt",
-                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
@@ -15053,13 +14995,12 @@ def test_add_prompt_action_with_crud_query_source_slot_invalid(monkeypatch):
 
             {
                 "name": "CRUD Prompt",
-                # "instructions": "Fetch data from the collection and answer accordingly.",
                 "type": "user",
                 "source": "crud",
                 "is_enabled": True,
                 "crud_config": {
                     "collections": ["test_collection"],
-                    "query": {"slot": "value"},  # Invalid: query must be a string for slot source
+                    "query": {"slot": "value"},
                     "result_limit": 5,
                     "query_source": "slot"
                 }
@@ -36537,7 +36478,6 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -36545,7 +36485,6 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -36553,7 +36492,6 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -36775,7 +36713,6 @@ def test_add_parallel_action(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 "data": "Bot_collection",
-                # "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
                 "is_enabled": True,
@@ -36783,7 +36720,6 @@ def test_add_parallel_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
@@ -36791,7 +36727,6 @@ def test_add_parallel_action(monkeypatch):
             {
                 "name": "Query Prompt",
                 "data": "If there is no specific query, assume that user is aking about java programming.",
-                # "instructions": "Answer according to the context",
                 "type": "query",
                 "source": "static",
                 "is_enabled": True,
