@@ -2864,16 +2864,19 @@ class TestEventExecution:
                                                                         mock_get_partner_auth_token, mock_objects):
         bot = 'test_execute_message_broadcast_with_static_values_with_media_id'
         user = 'test_user'
+
         mock_doc = MagicMock()
         mock_doc.output_filename = "sample_image.png"
         mock_doc.extension = ".png"
         mock_doc.media_id = "test_media_id"
-        mock_doc.bot = "test_bot"
+        mock_doc.bot = bot
         mock_doc.sender_id = "I am sender"
 
-        mock_queryset = MagicMock()
-        mock_queryset.first.return_value = mock_doc
-        mock_objects.return_value = mock_queryset
+        mock_query = MagicMock()
+        mock_query.only.return_value = mock_query
+        mock_query.first.return_value = mock_doc
+
+        mock_objects.return_value = mock_query
 
         config = {
             "name": "one_time_schedule", "broadcast_type": "static",
