@@ -92,29 +92,38 @@ class TestHistory:
     @mock.patch('kairon.history.processor.Utility.get_timestamp_from_date', autospec=True)
     @mock.patch('kairon.history.processor.HistoryProcessor.archive_user_history', autospec=True)
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
-    def test_delete_user_history_with_mock_functions(
+    def test_delete_user_history_calls_get_end_of_till_date(
         self,
-        mock_delete_history,
+        mock_delete_user_conversations,
         mock_archive_user_history,
         mock_get_timestamp_from_date,
-        mock_get_end_of_till_date
+        mock_get_end_of_till_date,
     ):
-        till_date = datetime.utcnow().date()
+
+        till_date = datetime(2025, 11, 4).date()
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
 
         mock_get_timestamp_from_date.return_value = 1761955199.0
-        mock_get_end_of_till_date.return_value = 1761955199.0
-
+        mock_get_end_of_till_date.return_value = 1761993599.0
         HistoryProcessor.delete_user_history(
             collection=collection,
             sender_id=sender_id,
             till_date=till_date
         )
+
+        mock_get_timestamp_from_date.assert_called_once_with(till_date)
         mock_get_end_of_till_date.assert_called_once_with(1761955199.0)
-        mock_archive_user_history.assert_called_once()
-        mock_delete_history.assert_called_once()
-        assert True
+        mock_archive_user_history.assert_called_once_with(
+            collection=collection,
+            sender_id=sender_id,
+            till_date_timestamp=1761955199.0
+        )
+        mock_delete_user_conversations.assert_called_once_with(
+            collection=collection,
+            sender_id=sender_id,
+            till_date_timestamp=1761993599.0
+        )
 
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_conversations(self, mock_history):
