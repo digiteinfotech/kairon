@@ -5,7 +5,7 @@ import tempfile
 import textwrap
 import uuid
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 
 from unittest import mock
@@ -1305,12 +1305,11 @@ class TestEventExecution:
             'recipients': {'9876543001', '9876543003'},
             'failure_cnt': 0,
             'total': 2,
-            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
-                                 {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
-                                [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
-                                 {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 2 recipients and 2 template bodies. '
-                          'Sending 2 messages to 2 recipients.'
+            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
+                                   {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
+                                  [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+                                   {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
         }
         print(logs[0][1])
         assert logs[0][1] == {
@@ -1502,10 +1501,9 @@ class TestEventExecution:
             'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
+            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
                                  {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
-                          'Sending 1 messages to 1 recipients.'
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -1706,10 +1704,9 @@ class TestEventExecution:
             'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params': [[{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
+            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
                                  {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
-                          'Sending 1 messages to 1 recipients.'
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -1915,14 +1912,13 @@ class TestEventExecution:
             'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params': [[{
+            'template_params_1': [[{
                 'parameters': [
                     {'type': 'document',
                      'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
                 'type': 'header'},
                 {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
-                          'Sending 1 messages to 1 recipients.'
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -2127,15 +2123,14 @@ class TestEventExecution:
             'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params': [[{
+            'template_params_1': [[{
                 'parameters': [
                     {'type': 'video',
                      'video': {
                          'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
                 'type': 'header'},
                 {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
-                          'Sending 1 messages to 1 recipients.'
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -2341,14 +2336,13 @@ class TestEventExecution:
             'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params': [[{
+            'template_params_1': [[{
                 'parameters': [
                     {'type': 'video',
                      'video': {'id': '157283928392083'}}],
                 'type': 'header'},
                 {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
-            'Template 1': '[brochure_pdf] There are 1 recipients and 1 template bodies. '
-                          'Sending 1 messages to 1 recipients.'
+            'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
         print(logs[0][0])
@@ -2832,12 +2826,11 @@ class TestEventExecution:
         config['collection_config'] = {}
         assert logged_config == config
         logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
-        logs[0][1].pop('template_params')
+        logs[0][1].pop('template_params_1')
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
                               'user': 'test_user', 'recipients': {'', '918958030541'},
                               'failure_cnt': 0, 'total': 2,
-                              'Template 1': '[brochure_pdf] There are 2 recipients and 2 template bodies. '
-                                            'Sending 2 messages to 2 recipients.'
+                              'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
@@ -2950,14 +2943,23 @@ class TestEventExecution:
         assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
                               'status': 'Completed', 'user': 'test_user',
                               'recipients': {'876543212345', '9876543210'},
-                              'template_params': [[{'type': 'header', 'parameters': [{'type': 'document', 'document': {
+                              'template_params_1': [[{'type': 'header',
+                                                      'parameters': [{'type': 'document', 'document': {
                                   'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
                                   'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
                                   {'type': 'document', 'document': {
                                       'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}]], 'failure_cnt': 0, 'total': 2,
-                              'Template 1': '[brochure_pdf] There are 2 recipients and 4 template bodies. '
-                                            'Sending 2 messages to 2 recipients.'
+                                      'filename': 'Brochure.pdf'}}]}]],
+                              'template_params': [[{'type': 'header',
+                                                      'parameters': [{'type': 'document', 'document': {
+                                                          'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                          'filename': 'Brochure.pdf'}}]}],
+                                                    [{'type': 'header', 'parameters': [
+                                                        {'type': 'document', 'document': {
+                                                            'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
+                                                            'filename': 'Brochure.pdf'}}]}]],
+                              'failure_cnt': 0, 'total': 2,
+                              'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
                               }
         logs[0][1].pop("timestamp")
         logs[0][1].pop("recipient")
@@ -3166,7 +3168,7 @@ class TestEventExecution:
             "name": "one_time_schedule", "broadcast_type": "static",
             "connector_type": "whatsapp",
             "recipients_config": {
-                "recipients": "918958030541,"
+                "recipients": "918958030541"
             },
             "retry_count": 0,
             "template_config": [
@@ -3284,10 +3286,10 @@ class TestEventExecution:
         assert logged_config == config
         logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'recipients': {'918958030541', ''}, 'failure_cnt': 0, 'total': 2,
+                              'user': 'test_user', 'recipients': {'918958030541'}, 'failure_cnt': 0, 'total': 1,
                               'template_params': [[{'body': 'Udit Pandey'}]],
-                              'Template 1': '[agronomy_support] There are 2 recipients and 2 template bodies. '
-                                            'Sending 2 messages to 2 recipients.'
+                              'template_params_1': [[{'body': 'Udit Pandey'}]],
+                              'Template 1': "[agronomy_support] Broadcasting 'agronomy_support' template message to one recipient."
                               }
         logs[0][0].pop("timestamp")
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send', 'template': template,
@@ -3541,7 +3543,9 @@ class TestEventExecution:
             'retry_count': 0
         }
         MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
-                                                                      raw_template=template, log_type="send",
+                                                                      raw_template=template,
+                                                                      template_name="brochure_pdf",
+                                                                      log_type="send",
                                                                       retry_count=0)
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
         assert len(logs[0]) == logs[1] == 4
@@ -3825,7 +3829,9 @@ class TestEventExecution:
             'retry_count': 0
         }
         MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
-                                                                      raw_template=[], log_type="send",
+                                                                      raw_template=[],
+                                                                      template_name='brochure_pdf',
+                                                                      log_type="send",
                                                                       retry_count=0,
                                                                       template_exception=template_exception)
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)

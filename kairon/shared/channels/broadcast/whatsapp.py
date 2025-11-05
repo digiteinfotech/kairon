@@ -243,7 +243,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         raw_template, template_exception = self.__get_template(template_name, language_code)
         raw_template = raw_template if raw_template else []
         MessageBroadcastProcessor.update_broadcast_logs_with_template(
-            self.reference_id, self.event_id, raw_template=raw_template,
+            self.reference_id, self.event_id, raw_template=raw_template, template_name=template_name,
             log_type=MessageBroadcastLogType.send.value, retry_count=0,
             template_exception=template_exception
         )
@@ -351,15 +351,15 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             else:
                 template_params = self._get_template_parameters(template_config)
 
-                template_params = template_params * len(recipients) if template_params \
-                    else [template_params] * len(recipients)
+                template_params = template_params if template_params else [template_params] * len(recipients)
 
             total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
+            no_of_recipients = "one recipient" if total == 1 else f"{total} recipients"
             evaluation_log = {
                 f"Template {i + 1}":
-                    f"[{template_id}] There are {total} recipients and {len(template_params)} template bodies. "
-                    f"Sending {num_msg} messages to {num_msg} recipients."
+                    f"[{template_id}] Broadcasting '{template_id}' template message to {no_of_recipients}.",
+                f"template_params_{i + 1}": template_params
             }
 
             message_list = []
@@ -376,11 +376,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             MessageBroadcastProcessor.add_event_log(
                 self.bot, MessageBroadcastLogType.common.value, self.reference_id, failure_cnt=failure_cnt, total=total,
                 event_id=self.event_id, nonsent_recipients=non_sent_recipients,
-                template_params=template_params, recipients=recipients, **evaluation_log
+                recipients=recipients, **evaluation_log
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template,
+                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
@@ -394,12 +394,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             lang = template_config["language"]
             template_params = self._get_template_parameters(template_config)
             raw_template, template_exception = self.__get_template(template_id, lang)
-            template_params = template_params * len(recipients) if template_params else [template_params] * len(
-                recipients)
+            template_params = template_params if template_params else [template_params] * len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
+            no_of_recipients = "one recipient" if total == 1 else f"{total} recipients"
             evaluation_log = {
-                f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
-                                     f"Sending {num_msg} messages to {num_msg} recipients."
+                f"Template {i + 1}":
+                    f"[{template_id}] Broadcasting '{template_id}' template message to {no_of_recipients}.",
+                f"template_params_{i + 1}": template_params
             }
 
             message_list = []
@@ -421,7 +422,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             )
 
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template,
+                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
