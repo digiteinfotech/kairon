@@ -12,7 +12,6 @@ class DefaultLogHandler(BaseLogHandler):
             self.page_size).exclude("bot", "id")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
-        
         return logs, count
 
     def get_logs_for_search_query(self):
