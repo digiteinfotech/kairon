@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from typing import Dict, Text, List
 import re
 from mongoengine import DoesNotExist
-
+from urllib.parse import unquote
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
@@ -181,13 +181,26 @@ class DataProcessor:
         return filters_dict
 
     @staticmethod
-    def get_collection_filter_data_count(bot: Text, collection_name: str, filters: List[Dict]):
+    def get_collection_filter_data_count(bot: Text, collection_name: str, filters):
         """
         Return the count of documents in the collection matching the broadcast filters.
         """
-        filter_data_dict = DataProcessor.get_collection_filter(bot, collection_name, filters)
+        parsed_filter = DataProcessor.get_decoded_data(filters)
+        filter_data_dict = DataProcessor.get_collection_filter(bot, collection_name, parsed_filter)
         filter_data_count = CollectionData.objects(**filter_data_dict).count()
         return filter_data_count
+
+    @staticmethod
+    def get_decoded_data(data):
+        parsed_data = []
+        if data:
+            try:
+                decoded_json = unquote(data)
+                parsed_data = json.loads(decoded_json)
+            except:
+                raise ValueError("Invalid data format.")
+
+        return parsed_data
 
     @staticmethod
     def list_collection_data(bot: Text):

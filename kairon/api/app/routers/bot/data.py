@@ -1,7 +1,5 @@
 import os
-import json
-from typing import List, Optional, Dict
-from urllib.parse import unquote
+from typing import List, Optional
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -346,15 +344,10 @@ async def get_collection_filter_count(
     """
     Count of filtered records
     """
-    parsed_filters: List[Dict] = []
-    if filters:
-        decoded_json = unquote(filters)
-        parsed_filters = json.loads(decoded_json)
-
     count = DataProcessor.get_collection_filter_data_count(
         current_user.get_bot(),
         collection_name,
-        parsed_filters
+        filters
     )
 
     return Response(
