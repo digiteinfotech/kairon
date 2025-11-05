@@ -792,11 +792,9 @@ class CrudConfig(EmbeddedDocument):
     def clean(self):
         self.collections = [col.strip() for col in self.collections if col and col.strip()]
 
-class LlmPrompt(EmbeddedDocument):
+class Context(EmbeddedDocument):
     name = StringField(required=True)
-    hyperparameters = EmbeddedDocumentField(PromptHyperparameter)
     data = StringField()
-    instructions = StringField()
     type = StringField(
         required=True,
         choices=[
@@ -818,6 +816,7 @@ class LlmPrompt(EmbeddedDocument):
     )
     is_enabled = BooleanField(default=True)
     crud_config = EmbeddedDocumentField(CrudConfig)
+    similarity_config = EmbeddedDocumentField(PromptHyperparameter)
 
     def validate(self, clean=True):
         if (
@@ -833,8 +832,6 @@ class LlmPrompt(EmbeddedDocument):
                 self.crud_config.validate()
         elif self.crud_config:
             raise ValidationError("crud_config should only be provided when source is 'crud'")
-        if self.hyperparameters:
-            self.hyperparameters.validate()
         if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):
             self.data = "default"
 
@@ -857,11 +854,12 @@ class PromptAction(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     llm_type = StringField(default=DEFAULT_LLM, choices=Utility.get_llms())
     hyperparameters = DictField(default=Utility.get_default_llm_hyperparameters)
-    llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
-    instructions = ListField(StringField())
+    contexts = EmbeddedDocumentListField(Context)
+    system_prompt = StringField(required=True)
+    user_prompt = StringField(required=True)
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
-    process_media=BooleanField(default=False)
+    process_media = BooleanField(default=False)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -876,13 +874,13 @@ class PromptAction(Auditlog):
             self.clean()
         if self.num_bot_responses > 5:
             raise ValidationError("num_bot_responses should not be greater than 5")
-        if not self.llm_prompts:
+        if not self.contexts:
             raise ValidationError("llm_prompts are required!")
-        for prompts in self.llm_prompts:
+        for prompts in self.contexts:
             prompts.validate()
         dict_data = self.to_mongo().to_dict()
         Utility.validate_kairon_faq_llm_prompts(
-            dict_data["llm_prompts"], ValidationError
+            dict_data["contexts"], ValidationError
         )
         Utility.validate_llm_hyperparameters(
             dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError

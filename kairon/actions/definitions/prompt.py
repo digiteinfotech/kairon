@@ -152,27 +152,31 @@ class ActionPrompt(ActionsBase):
         similarity_prompt = []
         params = {}
         num_bot_responses = k_faq_action_config['num_bot_responses']
-        for prompt in k_faq_action_config['llm_prompts']:
-            if prompt['type'] == LlmPromptType.system.value and prompt['is_enabled']:
-                system_prompt = f"{prompt['data']}\n"
-            elif prompt['type'] == LlmPromptType.user.value and prompt['is_enabled']:
+        system_prompt = k_faq_action_config.get("system_prompt", "")
+        user_prompt = k_faq_action_config.get("user_prompt", "")
+
+        for prompt in k_faq_action_config.get("contexts", []):
+            if prompt['type'] == LlmPromptType.user.value and prompt['is_enabled']:
                 if prompt['source'] == LlmPromptSource.history.value:
                     history_prompt = ActionUtility.prepare_bot_responses(tracker, num_bot_responses)
+
                 elif prompt['source'] == LlmPromptSource.bot_content.value and prompt['is_enabled']:
                     use_similarity_prompt = True
-                    hyperparameters = prompt.get("hyperparameters", {})
-                    similarity_prompt.append({'similarity_prompt_name': prompt['name'],
-                                              'similarity_prompt_instructions': prompt['instructions'],
-                                              'collection': prompt['data'],
-                                              'use_similarity_prompt': use_similarity_prompt,
-                                              'top_results': hyperparameters.get('top_results', 10),
-                                              'similarity_threshold': hyperparameters.get('similarity_threshold',
-                                                                                          0.70)})
+                    sim_cfg = prompt.get("similarity_config") or {}
+                    top_results = sim_cfg.get("top_results", 10)
+                    similarity_threshold = sim_cfg.get("similarity_threshold", 0.7)
+                    similarity_prompt.append({
+                        'similarity_prompt_name': prompt['name'],
+                        'collection': prompt['data'],
+                        'use_similarity_prompt': use_similarity_prompt,
+                        'top_results': top_results,
+                        'similarity_threshold': similarity_threshold
+                    })
+
                 elif prompt['source'] == LlmPromptSource.slot.value:
                     slot_data = tracker.get_slot(prompt['data'])
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
-                    if prompt['instructions']:
-                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+
                 elif prompt['source'] == LlmPromptSource.crud.value:
                     crud_config = prompt.get('crud_config', {})
                     collections = crud_config.get('collections', [])
@@ -210,29 +214,26 @@ class ActionPrompt(ActionsBase):
                         data_list = [rec["data"] for rec in records]
                         context_prompt += f"Collection data for {prompt['name']}:\n{data_list}\n"
 
-                    if prompt['instructions']:
-                        context_prompt += f"Instructions on how to use collection {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
                     action = ActionFactory.get_instance(self.bot, prompt['data'])
                     await action.execute(dispatcher, tracker, domain, **kwargs)
                     if action.is_success:
                         response = action.response
                         context_prompt += f"{prompt['name']}:\n{response}\n"
-                        if prompt['instructions']:
-                            context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                        # if prompt.get('instructions'):
+                        #     context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+
                 else:
                     context_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
-                    if prompt['instructions']:
-                        context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+
             elif prompt['type'] == LlmPromptType.query.value and prompt['is_enabled']:
                 query_prompt += f"{prompt['name']}:\n{prompt['data']}\n"
-                if prompt['instructions']:
-                    query_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
                 is_query_prompt_enabled = True
                 query_prompt_dict.update({'query_prompt': query_prompt, 'use_query_prompt': is_query_prompt_enabled})
 
         params["hyperparameters"] = k_faq_action_config['hyperparameters']
         params["system_prompt"] = system_prompt
+        params["user_prompt"] = user_prompt
         params["context_prompt"] = context_prompt
         params["query_prompt"] = query_prompt_dict
         params["previous_bot_responses"] = history_prompt

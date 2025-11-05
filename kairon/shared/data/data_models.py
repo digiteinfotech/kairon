@@ -1102,9 +1102,9 @@ class CrudConfigRequest(BaseModel):
     result_limit: int = 10
     query_source: Optional[Literal["value", "slot"]] = None
 
-class LlmPromptRequest(BaseModel, use_enum_values=True):
+class Context(BaseModel, use_enum_values=True):
     name: str
-    hyperparameters: PromptHyperparameters = None
+    similarity_config: Optional[PromptHyperparameters] = None
     data: str = None
     instructions: str = None
     type: LlmPromptType
@@ -1135,8 +1135,11 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
         else:
             values.pop('crud_config', None)
 
-        if values.get('source') == LlmPromptSource.bot_content.value and Utility.check_empty_string(values.get('data')):
-            values['data'] = "default"
+        if values.get('source') == LlmPromptSource.bot_content.value:
+            if Utility.check_empty_string(values.get('data')):
+                values['data'] = "default"
+        else:
+            values.pop('similarity_config', None)
 
         return values
 
@@ -1153,8 +1156,9 @@ class PromptActionConfigUploadValidation(BaseModel):
     user_question: UserQuestionModel = UserQuestionModel()
     llm_type: str
     hyperparameters: dict
-    llm_prompts: List[LlmPromptRequest]
-    instructions: List[str] = []
+    contexts: List[Context] = []
+    system_prompt: str
+    user_prompt: str
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
 
@@ -1166,8 +1170,9 @@ class PromptActionConfigRequest(BaseModel):
     user_question: UserQuestionModel = UserQuestionModel()
     llm_type: str
     hyperparameters: dict
-    llm_prompts: List[LlmPromptRequest]
-    instructions: List[str] = []
+    contexts: List[Context] = Field(default_factory=list)
+    system_prompt: str
+    user_prompt: str
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
     process_media: bool = False
@@ -1180,7 +1185,7 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("Invalid llm type")
         return v
 
-    @validator("llm_prompts")
+    @validator("contexts")
     def validate_llm_prompts(cls, v, values, **kwargs):
         from kairon.shared.utils import Utility
 
@@ -1195,14 +1200,33 @@ class PromptActionConfigRequest(BaseModel):
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
-    @validator("hyperparameters")
-    def validate_hyperparameters(cls, v, values, **kwargs):
+    @validator("user_prompt", "system_prompt", pre=True, always=True)
+    def validate_user_and_system_prompts(cls, v, field):
+        from kairon.shared.utils import Utility
+
+        if isinstance(v, list):
+            if len(v) != 1:
+                raise ValueError(f"Only one {field.name.replace('_', ' ')} is allowed.")
+            v = v[0]
+
+        if Utility.check_empty_string(v):
+            raise ValueError(f"{field.name.replace('_', ' ').capitalize()} cannot be empty!")
+
+        if not isinstance(v, str):
+            raise ValueError(f"{field.name.replace('_', ' ').capitalize()} must be a string.")
+
+        return v
+
+    @root_validator()
+    def validate_hyperparameters(cls, values):
         from kairon.shared.utils import Utility
         bot = values.get('bot')
-        llm_type = values.get('llm_type')
-        if llm_type and v:
-            Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
-        return v
+        llm_type = values.get("llm_type")
+        hyperparams = values.get("hyperparameters")
+        if llm_type and hyperparams:
+            Utility.validate_llm_hyperparameters(hyperparams, llm_type, bot, ValueError)
+
+        return values
 
     @root_validator(pre=True)
     def validate_required_fields(cls, values):

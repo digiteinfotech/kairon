@@ -2184,15 +2184,10 @@ class Utility:
         return uuid.UUID(hex=hex_string).__str__()
 
     @staticmethod
-    def validate_kairon_faq_llm_prompts(llm_prompts: List, exception_class):
+    def validate_kairon_faq_llm_prompts(contexts: List, exception_class):
         system_prompt_count = 0
         history_prompt_count = 0
-        for prompt in llm_prompts:
-            if (
-                prompt["type"] == LlmPromptType.system.value
-                and prompt["source"] != LlmPromptSource.static.value
-            ):
-                raise exception_class("System prompt must have static source!")
+        for prompt in contexts:
             if (
                 Utility.check_empty_string(prompt.get("data"))
                 and prompt["source"] == LlmPromptSource.action.value
@@ -2203,7 +2198,7 @@ class Utility:
                 and prompt["source"] == LlmPromptSource.slot.value
             ):
                 raise exception_class("Data must contain slot name!")
-            if Utility.check_empty_string(prompt.get("name")):
+            if Utility. check_empty_string(prompt.get("name")):
                 raise exception_class("Name cannot be empty!")
             if (
                 Utility.check_empty_string(prompt.get("data"))
@@ -2222,14 +2217,8 @@ class Utility:
                 and prompt["source"] != LlmPromptSource.static.value
             ):
                 raise exception_class("Query prompt must have static source!")
-            if prompt.get("type") == LlmPromptType.system.value:
-                system_prompt_count += 1
-            elif prompt.get("source") == LlmPromptSource.history.value:
+            if prompt.get("source") == LlmPromptSource.history.value:
                 history_prompt_count += 1
-        if system_prompt_count > 1:
-            raise exception_class("Only one system prompt can be present!")
-        if system_prompt_count == 0:
-            raise exception_class("System prompt is required!")
         if history_prompt_count > 1:
             raise exception_class("Only one history source can be present!")
 

@@ -263,18 +263,15 @@ prompt_action:
     stop: null
     stream: false
     model: gpt-4.1-mini
-  llm_prompts:
-    - name: System Prompt
-      data: You are a personal assistant.
-      type: system
-      source: static
-      is_enabled: True
+  contexts:
     - name: Query Prompt
       data: A programming language is a system of notation for writing computer programs.
       instructions: Answer according to the context.
       type: query
       source: static
       is_enabled: True
+  system_prompt: You are a personal assistant.
+  user_prompt: Give me a response
 - name: prompt_action_2
   num_bot_responses: 5
   llm_type: openai
@@ -288,15 +285,11 @@ prompt_action:
     stop: null
     stream: false
     model: gpt-4.1-mini
-  llm_prompts:
-    - name: System Prompt
-      data: You are a personal assistant.
-      type: system
-      source: static
-      is_enabled: True
+  contexts:
     - name: Similarity Prompt
       data: Data Science is an emerging field.
-      instructions: Answer according to the context.
       type: user
       source: static
       is_enabled: True
+  system_prompt: You are a personal assistant.
+  user_prompt: Give me a response

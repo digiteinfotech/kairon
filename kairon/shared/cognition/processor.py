@@ -314,7 +314,7 @@ class CognitionDataProcessor:
 
     @staticmethod
     def validate_collection_name(bot: Text, collection: Text):
-        prompt_action = list(PromptAction.objects(bot=bot, llm_prompts__data__iexact=collection))
+        prompt_action = list(PromptAction.objects(bot=bot, contexts__data__iexact=collection))
         database_action = list(DatabaseAction.objects(bot=bot, collection__iexact=collection))
         if prompt_action:
             raise AppException(f'Cannot remove collection {collection} linked to action "{prompt_action[0].name}"!')

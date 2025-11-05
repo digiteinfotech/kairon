@@ -9,7 +9,7 @@ from pipedrive.exceptions import UnauthorizedError, BadRequestError
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.exceptions import AppException
 from kairon.shared.admin.data_objects import LLMSecret
-from kairon.shared.data.data_models import LlmPromptRequest, CrudConfigRequest
+from kairon.shared.data.data_models import Context, CrudConfigRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import LlmPromptSource
 from kairon.shared.utils import Utility
@@ -46,7 +46,7 @@ from kairon.shared.actions.data_objects import HttpActionRequestBody, HttpAction
     Actions, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction, ZendeskAction, \
     PipedriveLeadsAction, SetSlots, HubspotFormsAction, HttpActionResponse, CustomActionRequestParameters, \
     KaironTwoStageFallbackAction, SetSlotsFromResponse, PromptAction, PyscriptActionConfig, WebSearchAction, \
-    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig, LlmPrompt
+    CustomActionParameters, ParallelActionConfig, DatabaseAction, CrudConfig, Context
 from kairon.actions.handlers.processor import ActionProcessor
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.actions.exception import ActionFailure
@@ -3308,20 +3308,18 @@ class TestActions:
         )
         llm_secret.save()
         actual = ActionUtility.get_action(bot, 'kairon_faq_action')
-        llm_prompts = [
-                    {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                     'source': 'static', 'is_enabled': True},
-
-                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-
-                    {'name': 'Similarity Prompt',
-                     "data": "default",
-                     'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
-                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                     'type': 'user', 'source': 'bot_content', 'is_enabled': True}
-                ]
-
-        PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
+        contexts = [
+            {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+            {'name': 'Similarity Prompt',
+             "data": "default",
+             'similarity_config': {'top_results': 30,
+                                   'similarity_threshold': 0.3},
+             'type': 'user', 'source': 'bot_content', 'is_enabled': True}
+        ]
+        sp = "You are a personal assistant."
+        up = "Answer question based on the context above, if answer is not in the context go check previous logs."
+        PromptAction(name='kairon_faq_action', bot=bot, user=user, system_prompt=sp, user_prompt=up,
+                     contexts=contexts).save()
 
         assert actual['type'] == ActionType.prompt_action.value
         actual_config, bot_settings = ActionPrompt(bot, 'kairon_faq_action').retrieve_config()
@@ -3337,16 +3335,20 @@ class TestActions:
                                                      'logit_bias': {}},
                                  'llm_type': 'openai',
                                  'process_media': False,
-                                 'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                                  'type': 'system', 'source': 'static', 'is_enabled': True},
-                                                 {'name': 'History Prompt', 'type': 'user',
-                                                  'source': 'history', 'is_enabled': True},
-                                                 {'name': 'Similarity Prompt',
-                                                  'hyperparameters': {'top_results': 30, 'similarity_threshold': 0.3},
-                                                  'data': 'default',
-                                                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                                  'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
-                                 'instructions': [], 'set_slots': [], 'dispatch_response': True}
+                                 'set_slots': [],
+                                 'dispatch_response': True,
+
+                                 'contexts': [
+                                       {'name': 'History Prompt', 'type': 'user',
+                                        'source': 'history', 'is_enabled': True},
+                                       {'name': 'Similarity Prompt',
+                                        'similarity_config': {'top_results': 30,
+                                                            'similarity_threshold': 0.3},
+                                        'data': 'default',
+                                        'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
+                      "system_prompt":"You are a personal assistant.",
+                                       "user_prompt":"Answer question based on the context above, if answer is not in the context go check previous logs.",
+                      }
         bot_settings.pop("_id")
         bot_settings.pop("timestamp")
         bot_settings.pop("status")
@@ -4696,17 +4698,17 @@ class TestActions:
         )
         llm_secret.save()
 
-        llm_prompts = [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True},
+        contexts = [
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                        {'name': 'Similarity Prompt',
                         "data": "default",
-                        'hyperparameters': {'top_results': 30,
+                        'similarity_config': {'top_results': 30,
                                             'similarity_threshold': 0.3},
-                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True}
                        ]
-        PromptAction(name='kairon_faq_action', bot=bot, user=user, llm_prompts=llm_prompts).save()
+        sp="You are a personal assistant."
+        up="Answer question based on the context above, if answer is not in the context go check previous logs."
+        PromptAction(name='kairon_faq_action', bot=bot, user=user, system_prompt=sp, user_prompt= up,contexts=contexts).save()
         k_faq_action_config = ActionUtility.get_faq_action_config(bot, "kairon_faq_action")
         k_faq_action_config.pop('timestamp')
         assert k_faq_action_config == {'name': 'kairon_faq_action', 'num_bot_responses': 5,
@@ -4719,17 +4721,16 @@ class TestActions:
                                            'logit_bias': {}}, 'dispatch_response': True, 'set_slots': [],
                        'llm_type': 'openai',
                        'process_media': False,
-                       'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                        'type': 'system', 'source': 'static', 'is_enabled': True},
+                       'contexts': [
                                        {'name': 'History Prompt', 'type': 'user',
                                         'source': 'history', 'is_enabled': True},
                                        {'name': 'Similarity Prompt',
-                                        'hyperparameters': {'top_results': 30,
+                                        'similarity_config': {'top_results': 30,
                                                             'similarity_threshold': 0.3},
                                         'data': 'default',
-                                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                         'type': 'user', 'source': 'bot_content', 'is_enabled': True}],
-                       'instructions': [],
+                      "system_prompt":"You are a personal assistant.",
+                                       "user_prompt":"Answer question based on the context above, if answer is not in the context go check previous logs.",
                        'status': True}
         LLMSecret.objects.delete()
 
@@ -4756,9 +4757,8 @@ class TestActions:
             pytest.fail(f"Validation raised an unexpected exception: {e}")
 
     def test_crud_source_missing_crud_config(self):
-        prompt = LlmPrompt(
+        prompt = Context(
             name="CRUD Prompt",
-            instructions="Fetch details from the database and answer the question.",
             type="user",
             source=LlmPromptSource.crud.value,  # Source is crud
             is_enabled=True,
@@ -4771,10 +4771,9 @@ class TestActions:
         assert str(exc.value) == "crud_config is required when source is 'crud'"
 
     def test_non_crud_source_with_crud_config(self):
-        prompt = LlmPrompt(
+        prompt = Context(
             name="System Prompt",
             data="You are a personal assistant.",
-            instructions="Answer question based on the context below.",
             type="system",
             source="static",  # Not crud
             is_enabled=True,
@@ -4792,7 +4791,7 @@ class TestActions:
 
     def test_crud_config_query_source_value_with_invalid_json(self):
         from pydantic import ValidationError
-
+        from kairon.shared.data.data_models import Context
         crud_config = CrudConfigRequest(
             collections=['test_collection'],
             query='{"invalid_json"',  # Malformed JSON string
@@ -4800,9 +4799,8 @@ class TestActions:
             query_source='value'
         )
         with pytest.raises(ValidationError) as exc_info:
-            LlmPromptRequest(
+            Context(
                 name="CRUD Prompt",
-                instructions="Fetch details from the database and answer the question.",
                 type="user",
                 source=LlmPromptSource.crud.value,
                 is_enabled=True,
@@ -4812,7 +4810,7 @@ class TestActions:
 
     def test_crud_config_query_source_value_with_invalid_query_type(self):
         from pydantic import ValidationError
-
+        from kairon.shared.data.data_models import Context
         crud_config = CrudConfigRequest(
             collections=['test_collection'],
             query=1234,  # Invalid type
@@ -4820,9 +4818,8 @@ class TestActions:
             query_source='value'
         )
         with pytest.raises(ValidationError) as exc_info:
-            LlmPromptRequest(
+            Context(
                 name="CRUD Prompt",
-                instructions="Fetch details from the database and answer the question.",
                 type="user",
                 source=LlmPromptSource.crud.value,
                 is_enabled=True,
@@ -4832,7 +4829,7 @@ class TestActions:
 
     def test_crud_config_query_source_slot_with_invalid_query_type(self):
         from pydantic import ValidationError
-
+        from kairon.shared.data.data_models import Context
         crud_config = CrudConfigRequest(
             collections=['test_collection'],
             query={"slot": "value"},  # Should be a string
@@ -4840,10 +4837,8 @@ class TestActions:
             query_source='slot'
         )
         with pytest.raises(ValidationError) as exc_info:
-            LlmPromptRequest(
-                name="CRUD Prompt",
-                instructions="Fetch details from the database and answer the question.",
-                type="user",
+            Context(
+                name="CRUD Prompt",                type="user",
                 source=LlmPromptSource.crud.value,
                 is_enabled=True,
                 crud_config=crud_config
@@ -4878,15 +4873,15 @@ class TestActions:
             }
         }
 
-        llm_prompts = [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+        contexts = [
+            {
              'source': 'static', 'is_enabled': True, 'collections': [], 'result_limit': 10, 'query': {}},
             crud_prompt
         ]
 
         request = {
             'name': 'kairon_faq_action_missing_collection_test',
-            'llm_prompts': llm_prompts,
+            'contexts': contexts,
             'dispatch_response': True
         }
 
