@@ -417,7 +417,7 @@ class TestMongoProcessor:
             }
         ).save()
         collection_name = "crop_details_1"
-        filters = [
+        filters = """[
             {
                 "column": "age",
                 "condition": "gte",
@@ -428,7 +428,7 @@ class TestMongoProcessor:
                 "condition": "iendswith",
                 "value": "esh"
             }
-        ]
+        ]"""
         result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
@@ -437,7 +437,7 @@ class TestMongoProcessor:
         assert result == 3
 
         collection_name = "details_1"
-        filters = [
+        filters = '''[
             {
                 "column": "age",
                 "condition": "lt",
@@ -452,8 +452,8 @@ class TestMongoProcessor:
                 "column": "name",
                 "condition": "nin",
                 "value": ["Mahesh", "Hitesh"]
-            },
-        ]
+            }
+        ]'''
         result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
@@ -462,13 +462,13 @@ class TestMongoProcessor:
         assert result == 2
 
         collection_name = "details_1"
-        filters = [
+        filters = """[
             {
                 "column": "age",
                 "condition": "",
                 "value": "26"
             }
-        ]
+        ]"""
         result = DataProcessor.get_collection_filter_data_count(
             bot="test_bot",
             collection_name=collection_name,
@@ -563,6 +563,44 @@ class TestMongoProcessor:
             "collection_name": "crop_details",
             "data__name": "Mahesh"
         }
+
+    def test_get_decoded_data_with_valid_encoded_json(self):
+        """Should decode and parse valid URL-encoded JSON string."""
+        data = '[{"column": "brand", "condition": "equals", "value": "city"}]'
+        result = DataProcessor.get_decoded_data(data)
+        assert isinstance(result, list)
+        assert result[0]["column"] == "brand"
+        assert result[0]["value"] == "city"
+
+    def test_get_decoded_data_with_valid_json_string(self):
+        """Should parse normal JSON string without URL encoding."""
+        data = '[{"column": "brand", "condition": "equals"}]'
+        result = DataProcessor.get_decoded_data(data)
+        assert isinstance(result, list)
+        assert result[0]["column"] == "brand"
+
+    def test_get_decoded_data_with_none(self):
+        """Should return default '[]' when data is None."""
+        result = DataProcessor.get_decoded_data(None)
+        assert result == []
+
+    def test_get_decoded_data_with_empty_string(self):
+        """Should return default '[]' when data is empty."""
+        result = DataProcessor.get_decoded_data("")
+        assert result == []
+
+    def test_get_decoded_data_with_invalid_json(self):
+        """Should raise ValueError for invalid JSON."""
+        with pytest.raises(ValueError, match="Invalid data format."):
+            DataProcessor.get_decoded_data("not_json")
+
+    def test_get_decoded_data_with_partial_encoding(self):
+        """Should handle cases with partial URL encoding correctly."""
+        raw_data = '[{"key":"val ue"}]'
+        encoded = '%5B%7B%22key%22%3A%22val ue%22%7D%5D'
+        result = DataProcessor.get_decoded_data(encoded)
+        assert isinstance(result, list)
+        assert result[0]["key"] == "val ue"
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
