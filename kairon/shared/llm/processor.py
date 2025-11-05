@@ -121,7 +121,11 @@ class LLMProcessor(LLMBase):
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
             answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type,
                                              media_ids=media_ids, should_process_media=should_process_media, **kwargs)
-            response = {"content": answer, "similarity_context": context}
+            response = {
+                "content": answer.get("content"),
+                "similarity_context": context,
+                "litellm_call_id": answer.get("litellm_call_id")
+            }
         except Exception as e:
             logging.exception(e)
             if embeddings_created:
@@ -249,7 +253,8 @@ class LLMProcessor(LLMBase):
                                                                should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
-        return completion
+        litellm_call_id = raw_response.get("litellm_call_id")
+        return {"content": completion, "litellm_call_id": litellm_call_id}
 
     async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):
         invocation = kwargs.pop('invocation')
