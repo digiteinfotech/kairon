@@ -355,10 +355,10 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
             total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
+            no_of_recipients = "one recipient" if total == 1 else f"{total} recipients"
             evaluation_log = {
                 f"Template {i + 1}":
-                    f"[{template_id}] There are {total} recipients and {len(template_params)} template bodies. "
-                    f"Sending {num_msg} messages to {num_msg} recipients.",
+                    f"[{template_id}] Broadcasting '{template_id}' template message to {no_of_recipients}.",
                 f"template_params_{i + 1}": template_params
             }
 
@@ -394,12 +394,13 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             lang = template_config["language"]
             template_params = self._get_template_parameters(template_config)
             raw_template, template_exception = self.__get_template(template_id, lang)
-            template_params = template_params * len(recipients) if template_params else [template_params] * len(
-                recipients)
+            template_params = template_params if template_params else [template_params] * len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
+            no_of_recipients = "one recipient" if total == 1 else f"{total} recipients"
             evaluation_log = {
-                f"Template {i + 1}": f"There are {total} recipients and {len(template_params)} template bodies. "
-                                     f"Sending {num_msg} messages to {num_msg} recipients."
+                f"Template {i + 1}":
+                    f"[{template_id}] Broadcasting '{template_id}' template message to {no_of_recipients}.",
+                f"template_params_{i + 1}": template_params
             }
 
             message_list = []
