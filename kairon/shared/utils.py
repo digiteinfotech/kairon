@@ -160,19 +160,6 @@ class Utility:
             return False
 
     @staticmethod
-    def get_filename_from_url(url: str = None):
-        from urllib.parse import urlparse, unquote
-
-        if not url:
-            return None
-
-        parsed_url = urlparse(url)
-        path = parsed_url.path
-        filename = os.path.basename(path)
-        return unquote(filename)
-
-
-    @staticmethod
     def check_character_limit(value: str):
         """
         checks for character limit
