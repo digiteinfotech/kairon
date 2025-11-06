@@ -39,8 +39,6 @@ class LLMLogHandler(BaseLogHandler):
                         llm_call_id = [llm_call_id]
                 except (SyntaxError, ValueError):
                     llm_call_id = [llm_call_id]
-            elif not isinstance(llm_call_id, list):
-                llm_call_id = [llm_call_id]
 
             query["llm_call_id__in"] = llm_call_id
 
