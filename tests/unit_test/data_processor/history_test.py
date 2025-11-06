@@ -1,6 +1,6 @@
 import ujson as json
 import os
-from datetime import datetime
+from datetime import datetime, timezone, date
 
 from unittest import mock
 import mongomock
@@ -88,6 +88,40 @@ class TestHistory:
         HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
         assert True
 
+    @mock.patch('kairon.history.processor.HistoryProcessor.archive_user_history', autospec=True)
+    @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
+    @mock.patch('kairon.history.processor.Utility.get_timestamp_from_date', autospec=True)
+    def test_delete_user_history_deletes_till_end_of_given_date(
+            self,
+            mock_get_timestamp_from_date,
+            mock_delete_user_conversations,
+            mock_archive_user_history,
+    ):
+
+        collection = "5ebc195d5b04bcbaa45c70cc"
+        sender_id = "fshaikh@digite.com"
+        till_date = date(2025, 11, 4)
+
+        start_of_day = datetime(till_date.year, till_date.month, till_date.day, 0, 0, 0,
+                                tzinfo=timezone.utc).timestamp()
+        mock_get_timestamp_from_date.return_value = start_of_day
+        HistoryProcessor.delete_user_history(
+            collection=collection,
+            sender_id=sender_id,
+            till_date=till_date,
+        )
+        mock_archive_user_history.assert_called_once()
+        mock_delete_user_conversations.assert_called_once()
+        called_args = mock_delete_user_conversations.call_args.kwargs
+        end_timestamp = called_args["till_date_timestamp"]
+
+        result_dt = datetime.fromtimestamp(end_timestamp, tz=timezone.utc)
+        assert result_dt.date() == till_date, "Date mismatch — should delete till same date"
+        assert (result_dt.hour, result_dt.minute, result_dt.second) == (23, 59, 59), \
+            "Should delete till end of given date (23:59:59)"
+        assert called_args["collection"] == collection
+        assert called_args["sender_id"] == sender_id
+
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_conversations(self, mock_history):
         till_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
@@ -96,6 +130,7 @@ class TestHistory:
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
                                                    till_date_timestamp=till_date_timestamp)
         assert True
+
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
