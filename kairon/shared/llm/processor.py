@@ -253,7 +253,7 @@ class LLMProcessor(LLMBase):
                                                                should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
-        litellm_call_id = raw_response.get("litellm_call_id")
+        litellm_call_id = raw_response.get("litellm_call_id") if isinstance(raw_response, dict) else None
         return {"content": completion, "litellm_call_id": litellm_call_id}
 
     async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):
