@@ -61,6 +61,7 @@ class ActionPrompt(ActionsBase):
         llm_logs = None
         recommendations = None
         user_msg = None
+        litellm_call_id = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         slots_to_fill = {}
         events = []
