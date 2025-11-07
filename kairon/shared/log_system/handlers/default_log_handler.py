@@ -22,6 +22,7 @@ class DefaultLogHandler(BaseLogHandler):
             self.kwargs["stamp"] = "start_timestamp"
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
+        
 
         logs_cursor = (
             self.doc_type.objects(**query)
