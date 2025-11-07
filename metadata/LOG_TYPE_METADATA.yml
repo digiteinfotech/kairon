@@ -62,11 +62,11 @@ logs:
 
   history_deletion:
     - header: common.user
-      id: user
+      id: deleted_by
       cellComponent: ClickableNameCell
       filterType: text
     - header: logsPage.sender
-      id: sender_id
+      id: deleted_user
       cellComponent: SimpleCell
       filterType: text
     - id: till_date

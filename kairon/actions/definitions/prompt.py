@@ -61,6 +61,7 @@ class ActionPrompt(ActionsBase):
         llm_logs = None
         recommendations = None
         user_msg = None
+        litellm_call_id = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         slots_to_fill = {}
         events = []
@@ -92,6 +93,7 @@ class ActionPrompt(ActionsBase):
             status = STATUSES.FAIL.value if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             bot_response = llm_response['content']
+            litellm_call_id = llm_response.get("litellm_call_id")
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
             slot_values, slot_eval_log, time_taken_slots = ActionUtility.fill_slots_from_response(
@@ -133,11 +135,15 @@ class ActionPrompt(ActionsBase):
                 user_msg=user_msg,
                 media_ids=media_ids,
                 time_elapsed=total_time_elapsed,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                llm_call_id = litellm_call_id
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
-        slots_to_fill.update({KaironSystemSlots.kairon_action_response.value: bot_response})
+        slots_to_fill.update({
+            KaironSystemSlots.kairon_action_response.value: bot_response,
+            KaironSystemSlots.llm_call_id.value: litellm_call_id
+        })
 
         return slots_to_fill
 

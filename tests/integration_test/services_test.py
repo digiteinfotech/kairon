@@ -15194,7 +15194,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 19
+    assert len(actual['data']) == 20
     assert actual["success"]
 
 
@@ -15959,7 +15959,7 @@ def test_list_entities():
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
-                'subject', 'body', 'media_ids','flow_docs'}
+                'subject', 'body', 'media_ids','flow_docs','llm_call_id'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -16600,12 +16600,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 26
+    assert len(actual["data"]) == 27
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 19
+    assert default_slots_count == 20
 
 
 def test_add_slots():
@@ -36227,6 +36227,67 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
     assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
+    llm_call_id_param = f"'{call_id}'"
+    search_with_call_id = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = search_with_call_id.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
+    llm_call_id_param = [call_id]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?"
+        f"from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+
+    log = actual["data"]["logs"][0]
+    assert log["llm_call_id"] == call_id
+    assert log["metadata"]["bot"] == pytest.bot
+    assert log["metadata"]["user"] == "test"
+
+    llm_call_id_param = f"['{call_id}']"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?"
+        f"from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+
+    log = actual["data"]["logs"][0]
+    assert log["llm_call_id"] == call_id
+    assert log["metadata"]["bot"] == pytest.bot
+    assert log["metadata"]["user"] == "test"
 
 
 def test_add_custom_widget_invalid_config():

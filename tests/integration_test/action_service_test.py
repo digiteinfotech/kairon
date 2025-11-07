@@ -12400,7 +12400,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
         status=200,
-        payload={'formatted_response': generated_text, 'response': generated_text},
+        payload={'formatted_response': generated_text, 'response': generated_text
+                 },
         body=json.dumps(expected_body)
     )
 
@@ -12440,7 +12441,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': None},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12460,6 +12463,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
+    litellm_call_id = "abc-123-test-id"
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -12567,7 +12572,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     user_message = called_args.kwargs['request_body']['messages'][-1]['content']
     assert "inurl:domain1.com|domain2.com" in user_message
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': None},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12588,6 +12595,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt',
@@ -12618,7 +12626,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body,
         repeat=True
     )
@@ -12671,7 +12681,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12691,6 +12703,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt',
@@ -12723,7 +12736,9 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -12763,7 +12778,9 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12786,6 +12803,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     instructions = ['Answer in a short way.', 'Keep it simple.']
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt',
@@ -12818,7 +12836,9 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -12859,7 +12879,9 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12881,6 +12903,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     rephrased_query = "Explain python is called high level programming language in laymen terms?"
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     hyperparameters = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt',
@@ -12912,7 +12935,9 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body,
         repeat=True
     )
@@ -12954,7 +12979,9 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -12975,6 +13002,7 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
     hyperparameters = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13019,7 +13047,9 @@ def test_prompt_response_action(mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13048,7 +13078,9 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -13070,6 +13102,7 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     instructions = ['Answer in a short way.', 'Keep it simple.']
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13097,7 +13130,9 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body,
     )
 
@@ -13131,7 +13166,9 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -13157,6 +13194,7 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
                        'presence_penalty': 0.0,
                        'frequency_penalty': 0.0, 'logit_bias': {}}
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13185,7 +13223,9 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13220,7 +13260,9 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -13253,7 +13295,9 @@ def test_prompt_response_action_failure(mock_search):
     response_json = response.json()
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': DEFAULT_NLU_FALLBACK_RESPONSE}]
+         'value': DEFAULT_NLU_FALLBACK_RESPONSE},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': None},
+    ]
     assert response_json['responses'] == [
         {'text': DEFAULT_NLU_FALLBACK_RESPONSE, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -13278,7 +13322,9 @@ def test_prompt_response_action_disabled():
     response_json = response.json()
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': 'Faq feature is disabled for the bot! Please contact support.'}]
+         'value': 'Faq feature is disabled for the bot! Please contact support.'},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': None},
+    ]
     assert response_json['responses'] == [
         {'text': 'Faq feature is disabled for the bot! Please contact support.', 'buttons': [], 'elements': [],
          'custom': {}, 'template': None,
@@ -13322,6 +13368,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt',
@@ -13368,7 +13415,9 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13410,7 +13459,9 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -13432,6 +13483,7 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
     KeyVault(key="FIRSTNAME", value="nupur", bot=bot, user=user).save()
@@ -13503,7 +13555,9 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13546,7 +13600,9 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
          'image': None, 'attachment': None}]
@@ -13579,6 +13635,7 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     user = 'test_user'
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
@@ -13633,7 +13690,9 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13649,7 +13708,9 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [{'text': generated_text,
                                            'buttons': [], 'elements': [], 'custom': {}, 'template': None,
                                            'response': None, 'image': None,
@@ -13693,7 +13754,9 @@ def test_prompt_response_action_with_action_not_found():
     response_json = response.json()
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-         'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"}]
+         'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': None},
+    ]
     assert response_json['responses'] == [
         {'text': "I'm sorry, I didn't quite understand that. Could you rephrase?", 'buttons': [], 'elements': [],
          'custom': {}, 'template': None, 'response': None, 'image': None, 'attachment': None}]
@@ -13715,6 +13778,7 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13742,7 +13806,9 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13783,7 +13849,9 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
                                    status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
@@ -13802,7 +13870,9 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
          'llm_response_log':
-             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+              'litellm_call_id': 'abc-123-test-id',
+              }
          }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
     ]
     expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
@@ -13832,6 +13902,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     generated_text = "{\"api_type\": \"filter\", {\"filter\": {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}}}"
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13861,7 +13932,9 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -13906,7 +13979,10 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                                        {'event': 'slot', 'timestamp': None, 'name': 'query',
                                         'value': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
                                        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
-                                        'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}]
+                                        'value': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'},
+                                       {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None,
+                                        'value': 'abc-123-test-id'},
+                                       ]
     assert response_json['responses'] == []
     log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
                                    status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
@@ -13925,7 +14001,9 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         {'type': 'llm_response',
          'response': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
          'llm_response_log': {
-             'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}'}},
+             'content': '{"api_type": "filter", {"filter": {"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}}}',
+             'litellm_call_id': 'abc-123-test-id',
+         }},
         {'type': 'slots_to_fill',
          'data': {'api_type': 'filter', 'query': '{"must": [{"key": "Date Added", "match": {"value": 1673721000.0}}]}'},
          'slot_eval_log': ['initiating slot evaluation', 'Slot: api_type', 'Slot: api_type',
@@ -13963,6 +14041,7 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -13990,7 +14069,9 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -14031,7 +14112,9 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -14054,7 +14137,9 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
         {'type': 'llm_response',
          'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
          'llm_response_log':
-             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.'}
+             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
+              'litellm_call_id': 'abc-123-test-id'
+              }
          }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
     ]
     expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
@@ -14085,6 +14170,7 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
     user_msg       = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparams    = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14169,7 +14255,8 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
             'response': {
                 'choices': [
                     {'message': {'content': generated_text, 'role': 'assistant'}}
-                ]
+                ],
+                'litellm_call_id': litellm_call_id
             }
         }
     )
@@ -14188,7 +14275,8 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
     resp_json = response.json()
 
     assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+         {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
     ]
     assert resp_json['responses'][0]['text'] == generated_text
 
@@ -14205,6 +14293,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparams = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14283,8 +14372,11 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
             'formatted_response': generated_text,
             'response': {
                 'choices': [
-                    {'message': {'content': generated_text, 'role': 'assistant'}}
-                ]
+                    {'message': {'content': generated_text, 'role': 'assistant'}},
+
+                ],
+                'litellm_call_id': litellm_call_id
+
             }
         }
     )
@@ -14304,7 +14396,9 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     resp_json = response.json()
 
     assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+
     ]
     assert resp_json['responses'][0]['text'] == generated_text
 
@@ -14322,6 +14416,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparams = Utility.get_default_llm_hyperparameters()
+    litellm_call_id = "abc-123-test-id"
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14400,7 +14495,8 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
             'response': {
                 'choices': [
                     {'message': {'content': generated_text, 'role': 'assistant'}}
-                ]
+                ],
+                'litellm_call_id': litellm_call_id
             }
         }
     )
@@ -14421,7 +14517,9 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     resp_json = response.json()
 
     assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+
     ]
     assert resp_json['responses'][0]['text'] == generated_text
 
@@ -14508,6 +14606,7 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     generated_text = "YES you can use both in a single project. However, in order to run the Sprint, you should only use the 'Scrum board'. On the other hand 'Kanban board' is only to track the progress or status of the Jira issues."
     hyperparameters = Utility.get_default_llm_hyperparameters()
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    litellm_call_id = "abc-123-test-id"
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -14532,7 +14631,9 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id': litellm_call_id
+                              }},
         body=expected_body
     )
 
@@ -14570,7 +14671,9 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -14587,6 +14690,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
+    litellm_call_id = "abc-123-test-id"
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -14619,7 +14724,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                              'litellm_call_id':litellm_call_id}},
         body=expected_body
     )
 
@@ -14659,7 +14765,9 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
@@ -14676,6 +14784,8 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
+    litellm_call_id = "abc-123-test-id"
+
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
@@ -14708,7 +14818,9 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]}},
+                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                 'litellm_call_id': litellm_call_id}
+                 },
         body=expected_body
     )
 
@@ -14740,7 +14852,9 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text}]
+        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
+        {'event': 'slot', 'name': 'llm_call_id','timestamp': None,'value': 'abc-123-test-id'},
+    ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
          'response': None, 'image': None, 'attachment': None}
