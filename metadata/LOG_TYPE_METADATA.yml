@@ -212,7 +212,7 @@ logs:
     - id: llm_call_id
       header: logsPage.llmCallId
       cellComponent: ClickableNameCell
-      filterType: text
+      filterType: list
     - id: user
       accessorFunction: getUserFromMetadata
       header: common.user
@@ -331,12 +331,15 @@ logs:
     - id: file_name
       header: logsPage.fileName
       cellComponent: ClickableNameCell
+      filterType: text
     - id: upload_type
       header: logsPage.uploadType
       cellComponent: SimpleCell
+      filterType: text
     - id: collection_name
       header: logsPage.collectionName
       cellComponent: SimpleCell
+      filterType: text
     - id: start_timestamp
       accessorFunction: formatStartTime
       header: common.startTimeHeader
@@ -352,3 +355,4 @@ logs:
     - id: event_status
       header: logsPage.eventStatus
       cellComponent: StatusCell
+      filterType: status
