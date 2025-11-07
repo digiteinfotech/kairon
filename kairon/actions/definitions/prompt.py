@@ -135,7 +135,8 @@ class ActionPrompt(ActionsBase):
                 user_msg=user_msg,
                 media_ids=media_ids,
                 time_elapsed=total_time_elapsed,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                llm_call_id = litellm_call_id
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)

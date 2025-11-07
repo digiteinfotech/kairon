@@ -13752,7 +13752,6 @@ def test_prompt_response_action_with_action_not_found():
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    print(response_json)
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response',
          'value': "I'm sorry, I didn't quite understand that. Could you rephrase?"},
