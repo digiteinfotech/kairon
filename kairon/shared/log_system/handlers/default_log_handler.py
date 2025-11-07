@@ -28,7 +28,7 @@ class DefaultLogHandler(BaseLogHandler):
             .order_by(sort_field)
             .skip(self.start_idx)
             .limit(self.page_size)
-            .exclude("bot", "user", "id")
+            .exclude("bot", "id")
         )
 
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
