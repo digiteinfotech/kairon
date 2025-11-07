@@ -23,7 +23,6 @@ class DefaultLogHandler(BaseLogHandler):
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
 
-
         logs_cursor = (
             self.doc_type.objects(**query)
             .order_by(sort_field)
