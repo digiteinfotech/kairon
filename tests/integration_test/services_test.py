@@ -36228,6 +36228,27 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
     assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
 
+    llm_call_id_param = f"'{call_id}'"
+    search_with_call_id = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = search_with_call_id.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert actual["data"]["logs"][0]['cost']
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
     llm_call_id_param = [call_id]
 
     response = client.get(

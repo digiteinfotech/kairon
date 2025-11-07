@@ -36,7 +36,7 @@ class LLMLogHandler(BaseLogHandler):
                     if isinstance(parsed, list):
                         llm_call_id = parsed
                     else:
-                        llm_call_id = [llm_call_id]
+                        llm_call_id = [parsed]
                 except (SyntaxError, ValueError):
                     llm_call_id = [llm_call_id]
 

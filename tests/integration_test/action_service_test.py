@@ -12369,7 +12369,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    litellm_call_id = "abc-123-test-id"
     llm_prompts = [
         {'name': 'System Prompt',
          'data': 'You are a personal assistant. Answer question based on the context below.',
