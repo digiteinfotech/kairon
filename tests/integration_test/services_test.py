@@ -124,7 +124,7 @@ def setup():
     llm_secret = LLMSecret(
         llm_type="anthropic",
         api_key='value',
-        models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+        models=[ "claude-3-7-sonnet-20250219"],
         user='user'
     )
     llm_secret.save()
@@ -1929,7 +1929,7 @@ def test_get_llm_metadata():
 
     assert "anthropic" in actual["data"]
     assert "model" in actual["data"]["anthropic"]["properties"]
-    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"]
+    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["claude-3-7-sonnet-20250219"]
 
 
 def test_get_llm_metadata_bot_specific_model_exists():

@@ -1639,7 +1639,7 @@ class TestMongoProcessor:
         llm_secret = LLMSecret(
             llm_type="anthropic",
             api_key='value',
-            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            models=["claude-3-7-sonnet-20250219"],
             bot=bot,
             user=user
         )
@@ -4315,7 +4315,7 @@ class TestMongoProcessor:
         llm_secret = LLMSecret(
             llm_type="anthropic",
             api_key='value',
-            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            models=[ "claude-3-7-sonnet-20250219"],
             user='test-user'
         )
         llm_secret.save()

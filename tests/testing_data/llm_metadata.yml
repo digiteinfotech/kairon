@@ -77,8 +77,8 @@ anthropic:
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
     model:
       type: "string"
-      default: "claude-3-5-sonnet-20240620"
-      enum: ["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"]
+      default: "claude-3-7-sonnet-20250219"
+      enum: ["claude-3-7-sonnet-20250219"]
       description: "The model hyperparameter is the ID of the Anthropic model or a custom model that you have trained or fine-tuned."
 gemini:
   $schema: "https://json-schema.org/draft/2020-12/schema"
@@ -99,8 +99,8 @@ gemini:
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion."
     model:
       type: "string"
-      default: "gemini/gemini-1.5-flash"
-      enum: ["gemini/gemini-1.5-flash", "gemini/gemini-pro"]
+      default: "gemini/gemini-pro"
+      enum: ["gemini/gemini-pro"]
       description: "The model hyperparameter is the ID of the model to use."
     top_p:
       type: "number"
