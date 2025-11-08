@@ -12653,7 +12653,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     llm_secret = LLMSecret(
         llm_type="anthropic",
         api_key=value,
-        models=["claude-3-sonnet-20240229", "claude-3-haiku-20240307", "claude-3-5-sonnet-20240620"],
+        models=["claude-3-sonnet-20240229", "claude-3-haiku-20240307", "claude-3-7-sonnet-20250219"],
         bot=bot,
         user=user
     )

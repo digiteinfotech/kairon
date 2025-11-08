@@ -1639,7 +1639,7 @@ class TestMongoProcessor:
         llm_secret = LLMSecret(
             llm_type="anthropic",
             api_key='value',
-            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            models=["claude-3-7-sonnet-20250219"],
             bot=bot,
             user=user
         )
@@ -1677,7 +1677,7 @@ class TestMongoProcessor:
             'num_bot_responses': 5,
             'failure_message': 'updated_failure_message',
             'user_question': {'type': 'from_user_message'},
-            'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-5-sonnet-20240620'},
+            'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-7-sonnet-20250219'},
             'llm_type': 'anthropic',
             "process_media": False,
             'llm_prompts': [
@@ -4315,7 +4315,7 @@ class TestMongoProcessor:
         llm_secret = LLMSecret(
             llm_type="anthropic",
             api_key='value',
-            models=["claude-3-5-sonnet-20240620", "claude-3-7-sonnet-20250219"],
+            models=[ "claude-3-7-sonnet-20250219"],
             user='test-user'
         )
         llm_secret.save()
