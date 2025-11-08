@@ -61,12 +61,12 @@ logs:
       cellComponent: AuditLogsTimestampInProgressCell
 
   history_deletion:
-    - header: common.user
-      id: deleted_by
+    - header: logsPage.deleted_by
+      id: user
       cellComponent: ClickableNameCell
       filterType: text
-    - header: logsPage.sender
-      id: deleted_user
+    - header: logsPage.deleted_user
+      id: sender_id
       cellComponent: SimpleCell
       filterType: text
     - id: till_date
@@ -355,4 +355,4 @@ logs:
     - id: event_status
       header: logsPage.eventStatus
       cellComponent: StatusCell
-      filterType: status
+
