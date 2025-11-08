@@ -356,4 +356,3 @@ logs:
       header: logsPage.eventStatus
       cellComponent: StatusCell
       filterType: status
-
