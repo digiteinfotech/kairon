@@ -10024,6 +10024,33 @@ def test_delete_collection_data():
     assert actual["message"] == 'Record deleted!'
     assert actual["success"]
 
+def test_get_collection_data_pagination():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?page_size=2&start_idx=4",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
+    assert isinstance(actual["data"], list)
+    assert len(actual["data"]) <= 2
+
+def test_get_collection_data_no_pagination():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert response.status_code == 200
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert isinstance(actual["data"], list)
+
 
 def test_get_collection_data_after_delete():
     response = client.get(
