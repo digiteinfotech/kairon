@@ -5201,10 +5201,10 @@ class TestMongoProcessor:
             }
         ]
 
-    def test_get_collection_data_pagination_positive(self, mocker):
+    def test_get_collection_data_pagination_positive(self):
+        from unittest.mock import MagicMock, patch
         bot = "test_bot"
-
-        mock_obj = mocker.MagicMock()
+        mock_obj = MagicMock()
         mock_obj.to_mongo().to_dict.return_value = {
             "_id": ObjectId(),
             "collection_name": "user",
@@ -5213,31 +5213,27 @@ class TestMongoProcessor:
             "data": {"name": "A"},
         }
 
-        mock_queryset = mocker.MagicMock()
+        mock_queryset = MagicMock()
         mock_queryset.__iter__.return_value = iter([mock_obj])
-
-        objects_mock = mocker.patch(
-            "kairon.shared.data.collection_processor.CollectionData.objects"
-        )
-        objects_mock.return_value.order_by.return_value.skip.return_value.limit.return_value = mock_queryset
-
-        results = list(
-            DataProcessor.get_collection_data(
-                bot,
-                collection_name="user",
-                key=[],
-                value=[],
-                page_size=2,
-                start_idx=4,
+        with patch("kairon.shared.data.collection_processor.CollectionData.objects") as objects_mock:
+            objects_mock.return_value.order_by.return_value.skip.return_value.limit.return_value = mock_queryset
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    page_size=2,
+                    start_idx=4,
+                )
             )
-        )
-        assert len(results) == 1
-        assert results[0]["data"]["name"] == "A"
+            assert len(results) == 1
+            assert results[0]["data"]["name"] == "A"
 
-    def test_get_collection_data_pagination_negative_when_start_or_size_none(self, mocker):
+    def test_get_collection_data_pagination_negative_when_start_or_size_none(self):
+        from unittest.mock import patch, MagicMock
         bot = "test_bot"
-
-        mock_obj = mocker.MagicMock()
+        mock_obj = MagicMock()
         mock_obj.to_mongo().to_dict.return_value = {
             "_id": ObjectId(),
             "collection_name": "user",
@@ -5246,29 +5242,28 @@ class TestMongoProcessor:
             "data": {"name": "A"},
         }
 
-        mock_queryset = mocker.MagicMock()
+        mock_queryset = MagicMock()
         mock_queryset.__iter__.return_value = iter([mock_obj])
-        objects_mock = mocker.patch(
-            "kairon.shared.data.collection_processor.CollectionData.objects",
-            return_value=mock_queryset
-        )
-        results = list(
-            DataProcessor.get_collection_data(
-                bot,
-                collection_name="user",
-                key=[],
-                value=[],
-                start_idx=None,
-                page_size=5,
+        with patch(
+                "kairon.shared.data.collection_processor.CollectionData.objects",
+                return_value=mock_queryset
+        ) as objects_mock:
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    start_idx=None,
+                    page_size=5,
+                )
             )
-        )
 
-        assert len(results) == 1
-        assert results[0]["data"]["name"] == "A"
-
-        objects_mock.return_value.order_by.assert_not_called()
-        objects_mock.return_value.skip.assert_not_called()
-        objects_mock.return_value.limit.assert_not_called()
+            assert len(results) == 1
+            assert results[0]["data"]["name"] == "A"
+            objects_mock.return_value.order_by.assert_not_called()
+            objects_mock.return_value.skip.assert_not_called()
+            objects_mock.return_value.limit.assert_not_called()
 
     def test_get_collection_data_with_collection_id(self):
         bot = 'test_bot'
