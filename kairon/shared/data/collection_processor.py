@@ -276,7 +276,7 @@ class DataProcessor:
         start_idx = kwargs.pop("start_idx", None)
         if result_limit is not None:
             mongo_query = CollectionData.objects(**query).limit(result_limit)
-        elif page_size and start_idx:
+        elif page_size is not None and start_idx is not None:
             mongo_query = CollectionData.objects(**query).order_by("-timestamp").skip(start_idx).limit(page_size)
         else:
             mongo_query = CollectionData.objects(**query)
