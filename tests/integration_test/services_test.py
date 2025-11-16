@@ -9528,7 +9528,6 @@ def test_get_collection_data():
         url=f"/api/bot/{pytest.bot}/data/collection/bank_details",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     actual = response.json()
     assert actual["error_code"] == 0
     assert not actual["message"]
