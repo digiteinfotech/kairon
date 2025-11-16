@@ -9597,7 +9597,6 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-
     data = actual["data"]
     for coll_data in data:
         coll_data.pop("_id")
