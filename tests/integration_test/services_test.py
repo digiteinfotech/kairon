@@ -9472,7 +9472,6 @@ def test_get_collection_data_with_mismatch_filter_length():
     assert actual["message"] == 'Keys and values lists must be of the same length.'
     assert not actual["success"]
 
-
 def test_get_collection_data():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection/user?key=name&value=Hitesh",
@@ -9491,7 +9490,6 @@ def test_get_collection_data():
             'collection_name': 'user',
             'is_secure': [],
             'is_non_editable': [],
-
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -9543,7 +9541,6 @@ def test_get_collection_data():
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
             'is_non_editable': [],
-
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -9569,6 +9566,17 @@ def test_get_collection_data():
     assert data == [
         {
             'collection_name': 'user',
+            'is_secure': [],
+            'is_non_editable': [],
+            'data': {
+                'name': 'Hitesh',
+                'age': 25,
+                'mobile_number': '989284928928',
+                'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
             'is_non_editable': [],
             'data': {
@@ -9576,18 +9584,6 @@ def test_get_collection_data():
                 'age': 24,
                 'mobile_number': '9876543210',
                 'location': 'Bangalore'
-            }
-        },
-        {
-            'collection_name': 'user',
-            'is_secure': [],
-            'is_non_editable': [],
-
-            'data': {
-                'name': 'Hitesh',
-                'age': 25,
-                'mobile_number': '989284928928',
-                'location': 'Mumbai'
             }
         }
     ]
@@ -10025,18 +10021,40 @@ def test_delete_collection_data():
     assert actual["success"]
 
 def test_get_collection_data_pagination():
-    response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?page_size=2&start_idx=4",
+    # 1. Fetch full dataset
+    full_response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
-    actual = response.json()
-    assert response.status_code == 200
+    full_data = full_response.json()["data"]
+    assert isinstance(full_data, list)
+
+    # Pagination parameters
+    page_size = 2
+    start_idx = 4
+
+    # 2. Expected slice from full dataset (safe even if length < 5)
+    expected_slice = full_data[start_idx : start_idx + page_size]
+
+    # 3. Call API with pagination
+    paginated_response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user?page_size={page_size}&start_idx={start_idx}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = paginated_response.json()
+    assert paginated_response.status_code == 200
     assert actual["error_code"] == 0
     assert actual["success"]
-
     assert isinstance(actual["data"], list)
-    assert len(actual["data"]) <= 2
+
+    # 4. Compare paginated response with expected slice
+    assert actual["data"] == expected_slice
+
+    # 5. Verify record order matches
+    for a, b in zip(actual["data"], expected_slice):
+        assert a == b
 
 def test_get_collection_data_no_pagination():
     response = client.get(
