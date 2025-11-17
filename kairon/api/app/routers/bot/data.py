@@ -279,7 +279,6 @@ async def get_collection_metadata(
     """
     Fetches collection data of the bot
     """
-    
     return {"data": DataProcessor.get_crud_metadata(bot=current_user.get_bot(), collection_name=collection_name)}
 
 
