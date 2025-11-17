@@ -9660,6 +9660,7 @@ def test_get_collection_data_pagination():
     for a, b in zip(actual["data"], expected_slice, strict=True):
         assert a == b
 
+
 def test_get_collection_data_with_collection_id():
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection/data/{pytest.collection_id}",
