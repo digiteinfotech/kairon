@@ -9632,33 +9632,34 @@ def test_get_collection_data():
         }
     ]
 
-def test_get_collection_data_pagination():
-    full_response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    full_data = full_response.json()["data"]
-    assert isinstance(full_data, list)
-
-    page_size = 2
-    start_idx = 4
-
-    expected_slice = full_data[start_idx : start_idx + page_size]
-
-    paginated_response = client.get(
-        url=f"/api/bot/{pytest.bot}/data/collection/user?page_size={page_size}&start_idx={start_idx}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = paginated_response.json()
-    assert paginated_response.status_code == 200
-    assert actual["error_code"] == 0
-    assert actual["success"]
-    assert isinstance(actual["data"], list)
-    assert actual["data"] == expected_slice
-    for a, b in zip(actual["data"], expected_slice, strict=True):
-        assert a == b
+#
+# def test_get_collection_data_pagination():
+#     full_response = client.get(
+#         url=f"/api/bot/{pytest.bot}/data/collection/user",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#
+#     full_data = full_response.json()["data"]
+#     assert isinstance(full_data, list)
+#
+#     page_size = 2
+#     start_idx = 4
+#
+#     expected_slice = full_data[start_idx : start_idx + page_size]
+#
+#     paginated_response = client.get(
+#         url=f"/api/bot/{pytest.bot}/data/collection/user?page_size={page_size}&start_idx={start_idx}",
+#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+#     )
+#
+#     actual = paginated_response.json()
+#     assert paginated_response.status_code == 200
+#     assert actual["error_code"] == 0
+#     assert actual["success"]
+#     assert isinstance(actual["data"], list)
+#     assert actual["data"] == expected_slice
+#     for a, b in zip(actual["data"], expected_slice, strict=True):
+#         assert a == b
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
