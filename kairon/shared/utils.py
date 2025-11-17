@@ -750,9 +750,9 @@ class Utility:
         return date_time.timestamp()
 
     @staticmethod
-    def get_end_of_till_date(till_date: float):
+    def get_end_of_till_date(till_date: float) -> float:
         dt = datetime.fromtimestamp(till_date, tz=timezone.utc)
-        end_of_day = datetime.combine(dt.date(), time(23, 59, 59, tzinfo=dt.tzinfo))
+        end_of_day = datetime.combine(dt.date(), time(18, 29, 59, tzinfo=dt.tzinfo))
         return end_of_day.timestamp()
 
     @staticmethod
