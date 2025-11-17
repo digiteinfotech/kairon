@@ -298,7 +298,6 @@ async def get_collection_data(
                                                            page_size=page_size))}
 
 
-
 @router.get("/collection/{collection_name}/filter", response_model=Response)
 async def get_collection_data_with_timestamp(
         collection_name: str,
