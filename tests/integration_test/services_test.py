@@ -9659,7 +9659,6 @@ def test_get_collection_data_pagination():
     assert actual["data"] == expected_slice
     for a, b in zip(actual["data"], expected_slice, strict=True):
         assert a == b
-        
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
