@@ -397,7 +397,7 @@ class CallbackScriptUtility:
         if not bot:
             raise Exception("Missing bot id")
 
-        for index, item in enumerate(payload):
+        for _, item in enumerate(payload):
             collection_id = item.get("_id")
             collection_name = item.get("collection_name")
             data = item.get("data", {})
