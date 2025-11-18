@@ -14,6 +14,7 @@ import pytz
 import responses
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
+from bson import ObjectId
 from dateutil.parser import isoparse
 from mongoengine import connect
 from pymongo import MongoClient
@@ -26,6 +27,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
@@ -3949,3 +3951,109 @@ def test_encrypt_response_success(monkeypatch):
     monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64encode", lambda data: b"BASE64ENC")
     result = CallbackScriptUtility.encrypt_response(response_body, aes_key_buffer, iv_buffer)
     assert result == "BASE64ENC"
+
+def test_save_data_success_returns_id():
+    # Arrange
+    bot_id = "bot123"
+    user = "aniket"
+    payload = {
+        "collection_name": "orders",
+        "data": {"a": 1},
+        "source": "whatsapp",
+        "received_at": datetime.utcnow(),
+    }
+
+    fake_id=ObjectId()
+
+    with patch.object(AnalyticsCollectionData, "save", return_value=AnalyticsCollectionData(id=fake_id)) as mock_save:
+        obj = AnalyticsCollectionData(id=fake_id)
+        mock_save.return_value = obj
+
+        # Act
+        result = CallbackScriptUtility.save_data(user=user, payload=payload, bot=bot_id)
+
+        # Assert
+        assert result["message"] == "Record saved!"
+        assert result["data"]["_id"] == str(fake_id)
+
+        mock_save.assert_called_once()
+
+def test_fetch_data_returns_correct_format():
+    # Arrange
+    bot_id = "bot123"
+    collection_name = "orders"
+
+    fake_doc = AnalyticsCollectionData(
+        id=ObjectId(),
+        bot=bot_id,
+        collection_name=collection_name,
+        source="whatsapp",
+        received_at=datetime.utcnow(),
+        data={"x": 1},
+        is_data_processed=False,
+    )
+
+    # Patch the query call
+    with patch.object(AnalyticsCollectionData, "objects", return_value=[fake_doc]) as mock_query:
+        # Act
+        result = CallbackScriptUtility.fetch_data(collection_name, bot_id)
+
+        # Assert
+        assert "data" in result
+        assert len(result["data"]) == 1
+
+        row = result["data"][0]
+        assert row["collection_name"] == collection_name
+        assert row["data"] == {"x": 1}
+        assert row["source"] == "whatsapp"
+        assert row["is_data_processed"] is False
+
+        mock_query.assert_called_once()
+
+
+@patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects")
+def test_mark_as_processed_success(mock_objects):
+    bot_id = "test_bot"
+    user = "aniket"
+
+    fake_id = ObjectId()
+    fake_obj = MagicMock()
+    fake_obj.id = fake_id
+
+    payload = [{
+        "_id": str(fake_id),
+        "collection_name": "orders",
+        "data": {"x": 2},
+        "source": "instagram",
+        "received_at": datetime.utcnow()
+    }]
+
+    # Mock: AnalyticsCollectionData.objects(...) → returns a queryset
+    mock_qs = MagicMock()
+    mock_qs.get.return_value = fake_obj
+
+    mock_objects.return_value = mock_qs
+
+    # Act
+    result = CallbackScriptUtility.mark_as_processed(
+        user=user,
+        payload=payload,
+        bot=bot_id
+    )
+
+    # Assert
+    mock_objects.assert_called_once()
+    mock_qs.get.assert_called_once()
+    fake_obj.save.assert_called_once()
+
+    assert fake_obj.user == user
+    assert fake_obj.data == {"x": 2}
+    assert fake_obj.source == "instagram"
+    assert fake_obj.is_data_processed is True
+
+    assert result == {
+        "message": "Records updated!",
+        "data": {}
+    }
+
+
