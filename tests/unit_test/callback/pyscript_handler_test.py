@@ -3968,7 +3968,7 @@ def test_save_data_success_returns_id():
         obj = AnalyticsCollectionData(id=fake_id)
         mock_save.return_value = obj
 
-        result = CallbackScriptUtility.save_data_analytics(user=user, payload=payload, bot=bot_id)
+        result = CallbackScriptUtility.add_data_analytics(user=user, payload=payload, bot=bot_id)
 
         assert result["message"] == "Record saved!"
         assert result["data"]["_id"] == str(fake_id)
@@ -3990,7 +3990,7 @@ def test_fetch_data_returns_correct_format():
     )
 
     with patch.object(AnalyticsCollectionData, "objects", return_value=[fake_doc]) as mock_query:
-        result = CallbackScriptUtility.fetch_data_analytics(collection_name, bot_id)
+        result = CallbackScriptUtility.get_data_analytics(collection_name, bot_id)
 
         assert "data" in result
         assert len(result["data"]) == 1

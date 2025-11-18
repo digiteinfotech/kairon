@@ -8,7 +8,6 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
-from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
 from uuid6 import uuid7
@@ -18,7 +17,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
-from bson import Binary, ObjectId
+from bson import Binary
 from types import ModuleType
 from requests import Response
 from cryptography.hazmat.primitives import hashes
@@ -340,7 +339,7 @@ class CallbackScriptUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
     @staticmethod
-    def fetch_data_analytics(collection_name: str, bot: Text = None):
+    def get_data_analytics(collection_name: str, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -370,7 +369,7 @@ class CallbackScriptUtility:
         return {"data": final_data}
 
     @staticmethod
-    def save_data_analytics(user: str, payload: dict, bot: str = None):
+    def add_data_analytics(user: str, payload: dict, bot: str = None):
         if not bot:
             raise Exception("Missing bot id")
 
