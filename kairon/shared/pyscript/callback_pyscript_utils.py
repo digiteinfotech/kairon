@@ -340,7 +340,7 @@ class CallbackScriptUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
     @staticmethod
-    def fetch_data(collection_name: str, bot: Text = None):
+    def fetch_data_analytics(collection_name: str, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -370,7 +370,7 @@ class CallbackScriptUtility:
         return {"data": final_data}
 
     @staticmethod
-    def save_data(user: str, payload: dict, bot: str = None):
+    def save_data_analytics(user: str, payload: dict, bot: str = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -393,32 +393,20 @@ class CallbackScriptUtility:
         }
 
     @staticmethod
-    def mark_as_processed(user: str, payload: List[dict], bot: str = None):
+    def mark_as_processed(user: str, collection_name: str, bot: str = None):
         if not bot:
             raise Exception("Missing bot id")
 
-        for _, item in enumerate(payload):
-            collection_id = item.get("_id")
-            collection_name = item.get("collection_name")
-            data = item.get("data", {})
-            source=item.get("source")
-            received_at = item.get("received_at")
+        queryset = AnalyticsCollectionData.objects(bot=bot, collection_name=collection_name)
 
-            try:
-                collection_obj = AnalyticsCollectionData.objects(bot=bot, id=ObjectId(collection_id),
-                                                        collection_name=collection_name).get()
-                collection_obj.collection_name = collection_name
-                collection_obj.user = user
-                collection_obj.timestamp = datetime.utcnow()
-                collection_obj.data = data
-                collection_obj.source = source
-                collection_obj.is_data_processed = True
-                collection_obj.received_at = received_at
-                collection_obj.save()
-            except DoesNotExist:
-                raise AppException("Collection Data with given id and collection_name not found!")
+        if not queryset:
+            raise AppException("No records found for given bot and collection_name")
+
+        for item in queryset:
+            item.user = user
+            item.is_data_processed = True
+            item.save()
 
         return {
-            "message": "Records updated!",
-            "data": {}
+            "message": "Records updated!"
         }
