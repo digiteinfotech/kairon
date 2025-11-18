@@ -8,6 +8,7 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
+from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
 from uuid6 import uuid7
@@ -17,7 +18,7 @@ from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
-from bson import Binary
+from bson import Binary, ObjectId
 from types import ModuleType
 from requests import Response
 from cryptography.hazmat.primitives import hashes
@@ -28,6 +29,7 @@ from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 
 
 class CallbackScriptUtility:
@@ -336,3 +338,87 @@ class CallbackScriptUtility:
             return media_id
         except Exception as e:
             raise Exception(f"encryption failed-{str(e)}")
+
+    @staticmethod
+    def fetch_data(collection_name: str, bot: Text = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        normalized_name = collection_name.lower()
+        query = {"bot": bot, "collection_name": normalized_name}
+        collection_data = AnalyticsCollectionData.objects(__raw__=query)
+
+        final_data = []
+
+        for value in collection_data:
+            item = value.to_mongo().to_dict()
+
+            coll_name = item.pop("collection_name", None)
+            data = item.pop("data")
+
+            row = {
+                "_id": str(item.get("_id")),
+                "collection_name": coll_name,
+                "received_at": item.get("received_at"),
+                "source": item.get("source"),
+                "is_data_processed": item.get("is_data_processed"),
+                "data": data
+            }
+
+            final_data.append(row)
+
+        return {"data": final_data}
+
+    @staticmethod
+    def save_data(user: str, payload: dict, bot: str = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        collection_name = payload.get("collection_name", None)
+        data = payload.get('data')
+        source=payload.get('source')
+        received_at=payload.get('received_at')
+        collection_obj = AnalyticsCollectionData()
+        collection_obj.bot = bot
+        collection_obj.data = data
+        collection_obj.collection_name = collection_name
+        collection_obj.source = source
+        collection_obj.received_at = received_at
+        collection_obj.user=user
+        collection_id = collection_obj.save().to_mongo().to_dict()["_id"].__str__()
+
+        return {
+            "message": "Record saved!",
+            "data": {"_id": collection_id}
+        }
+
+    @staticmethod
+    def mark_as_processed(user: str, payload: List[dict], bot: str = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        for index, item in enumerate(payload):
+            collection_id = item.get("_id")
+            collection_name = item.get("collection_name")
+            data = item.get("data", {})
+            source=item.get("source")
+            received_at = item.get("received_at")
+
+            try:
+                collection_obj = AnalyticsCollectionData.objects(bot=bot, id=ObjectId(collection_id),
+                                                        collection_name=collection_name).get()
+                collection_obj.collection_name = collection_name
+                collection_obj.user = user
+                collection_obj.timestamp = datetime.utcnow()
+                collection_obj.data = data
+                collection_obj.source = source
+                collection_obj.is_data_processed = True
+                collection_obj.received_at = received_at
+                collection_obj.save()
+            except DoesNotExist:
+                raise AppException("Collection Data with given id and collection_name not found!")
+
+        return {
+            "message": "Records updated!",
+            "data": {}
+        }
