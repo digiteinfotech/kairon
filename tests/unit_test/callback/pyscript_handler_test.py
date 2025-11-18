@@ -3953,7 +3953,6 @@ def test_encrypt_response_success(monkeypatch):
     assert result == "BASE64ENC"
 
 def test_save_data_success_returns_id():
-    # Arrange
     bot_id = "bot123"
     user = "aniket"
     payload = {
@@ -3969,17 +3968,14 @@ def test_save_data_success_returns_id():
         obj = AnalyticsCollectionData(id=fake_id)
         mock_save.return_value = obj
 
-        # Act
-        result = CallbackScriptUtility.save_data(user=user, payload=payload, bot=bot_id)
+        result = CallbackScriptUtility.save_data_analytics(user=user, payload=payload, bot=bot_id)
 
-        # Assert
         assert result["message"] == "Record saved!"
         assert result["data"]["_id"] == str(fake_id)
 
         mock_save.assert_called_once()
 
 def test_fetch_data_returns_correct_format():
-    # Arrange
     bot_id = "bot123"
     collection_name = "orders"
 
@@ -3993,12 +3989,9 @@ def test_fetch_data_returns_correct_format():
         is_data_processed=False,
     )
 
-    # Patch the query call
     with patch.object(AnalyticsCollectionData, "objects", return_value=[fake_doc]) as mock_query:
-        # Act
-        result = CallbackScriptUtility.fetch_data(collection_name, bot_id)
+        result = CallbackScriptUtility.fetch_data_analytics(collection_name, bot_id)
 
-        # Assert
         assert "data" in result
         assert len(result["data"]) == 1
 
@@ -4015,45 +4008,28 @@ def test_fetch_data_returns_correct_format():
 def test_mark_as_processed_success(mock_objects):
     bot_id = "test_bot"
     user = "aniket"
+    collection_name = "orders"
 
-    fake_id = ObjectId()
-    fake_obj = MagicMock()
-    fake_obj.id = fake_id
 
-    payload = [{
-        "_id": str(fake_id),
-        "collection_name": "orders",
-        "data": {"x": 2},
-        "source": "instagram",
-        "received_at": datetime.utcnow()
-    }]
+    fake_item1 = MagicMock()
+    fake_item2 = MagicMock()
+    mock_queryset = [fake_item1, fake_item2]
 
-    # Mock: AnalyticsCollectionData.objects(...) → returns a queryset
-    mock_qs = MagicMock()
-    mock_qs.get.return_value = fake_obj
+    mock_objects.return_value = mock_queryset
 
-    mock_objects.return_value = mock_qs
-
-    # Act
     result = CallbackScriptUtility.mark_as_processed(
         user=user,
-        payload=payload,
+        collection_name=collection_name,
         bot=bot_id
     )
 
-    # Assert
-    mock_objects.assert_called_once()
-    mock_qs.get.assert_called_once()
-    fake_obj.save.assert_called_once()
+    mock_objects.assert_called_once_with(bot=bot_id, collection_name=collection_name)
 
-    assert fake_obj.user == user
-    assert fake_obj.data == {"x": 2}
-    assert fake_obj.source == "instagram"
-    assert fake_obj.is_data_processed is True
+    for item in mock_queryset:
+        assert item.user == user
+        assert item.is_data_processed is True
+        item.save.assert_called_once()
 
-    assert result == {
-        "message": "Records updated!",
-        "data": {}
-    }
+    assert result == {"message": "Records updated!"}
 
 
