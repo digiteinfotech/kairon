@@ -291,6 +291,7 @@ async def get_collection_data(
     """
     Fetches collection data based on the multiple filters provided
     """
+    print(collection_name,"collection name")
     return {"data": list(DataProcessor.get_collection_data(current_user.get_bot(),
                                                                  collection_name=collection_name,
                                                                  key=key, value=value))}
