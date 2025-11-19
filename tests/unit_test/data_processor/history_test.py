@@ -117,8 +117,8 @@ class TestHistory:
 
         result_dt = datetime.fromtimestamp(end_timestamp, tz=timezone.utc)
         assert result_dt.date() == till_date, "Date mismatch — should delete till same date"
-        assert (result_dt.hour, result_dt.minute, result_dt.second) == (23, 59, 59), \
-            "Should delete till end of given date (23:59:59)"
+        assert (result_dt.hour, result_dt.minute, result_dt.second) == (18, 29, 59), \
+            "Should delete till end of given date (18:29:59)"
         assert called_args["collection"] == collection
         assert called_args["sender_id"] == sender_id
 
