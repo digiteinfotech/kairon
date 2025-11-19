@@ -38,7 +38,7 @@ jobs:
     - name: Coverage with coveralls
       run: |
         pip install rasa[full]==3.6.21
-        python -m pip install coveralls==4.0.1
+        python -m pip install coveralls==4.0.1   --use-deprecated=legacy-resolver
         pip list
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/ --disable-warnings
     - env:
