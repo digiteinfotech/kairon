@@ -39,7 +39,7 @@ jobs:
     # Coveralls related steps
     - name: Coverage with coveralls
       run: | 
-        python -m pip install --no-cache-dir coveralls==4.0.1
+        python -m pip install --no-cache-dir coveralls
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/
     - env:
         COVERALLS_PARALLEL: true
