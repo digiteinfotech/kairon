@@ -45,6 +45,7 @@ jobs:
       run: |
         pip list
         python -m pip install --no-cache-dir coveralls==4.0.1
+        python -m pip install --no-cache-dir pytest-xdist
         coverage run --parallel-mode --source=kairon -m pytest -n auto --dist loadfile tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/ --disable-warnings
     - env:
         COVERALLS_PARALLEL: true
