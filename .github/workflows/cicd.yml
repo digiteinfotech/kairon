@@ -20,6 +20,8 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: "3.10.19"
+    - name: Clean pip cache
+      run: pip cache purge
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -35,10 +37,14 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     # Coveralls related steps
+    - name: Remove TensorFlow
+      run: |
+        sudo rm -rf /usr/local/lib/python*/dist-packages/tensorflow*
+        sudo rm -rf /usr/local/lib/python*/dist-packages/tf_keras*
     - name: Coverage with coveralls
       run: |
         pip list
-        python -m pip install coveralls==4.0.1
+        python -m pip install --no-cache-dir coveralls==4.0.1
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/ --disable-warnings
     - env:
         COVERALLS_PARALLEL: true
