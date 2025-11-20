@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python 3.10
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v5
       with:
         python-version: "3.10.19"
     - name: Clean pip cache
@@ -38,9 +38,9 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     # Coveralls related steps
     - name: Coverage with coveralls
-      run: |
+      run: | 
         python -m pip install --no-cache-dir coveralls==4.0.1
-        coverage run --source=kairon -m pytest -q tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/
+        coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/
     - env:
         COVERALLS_PARALLEL: true
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,7 +49,7 @@ jobs:
         coveralls --service=github
     - name: Generate Sphinx files
       run: |
-        python -m pip install -U sphinx 
+        python -m pip install -U sphinx
         python -m pip install sphinx_rtd_theme
         cd docs
         # sphinx-quickstart
