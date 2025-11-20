@@ -37,6 +37,7 @@ jobs:
     # Coveralls related steps
     - name: Coverage with coveralls
       run: |
+        pip list
         python -m pip install coveralls==4.0.1
         coverage run --source=kairon -m pytest tests/ --ignore tests/unit_test/augmentation/ --ignore stress_test/ --disable-warnings
     - env:
