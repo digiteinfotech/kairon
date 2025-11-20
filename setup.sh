@@ -1,5 +1,5 @@
 #!/bin/bash
-python -m pip install -r requirements/dev.txt
+python -m pip install --no-cache-dir -r requirements/dev.txt
 python -c "import spacy; spacy.cli.download('en_core_web_md')"
 python -c "import nltk;nltk.download('averaged_perceptron_tagger_eng')"
 python -c "import nltk;nltk.download('averaged_perceptron_tagger')"
