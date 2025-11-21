@@ -286,6 +286,7 @@ async def get_collection_metadata(
 async def get_collection_data(
         collection_name: str,
         key: List[str] = Query([]), value: List[str] = Query([]),
+        start_idx: int = 0, page_size: int = 10,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
@@ -293,7 +294,8 @@ async def get_collection_data(
     """
     return {"data": list(DataProcessor.get_collection_data(current_user.get_bot(),
                                                                  collection_name=collection_name,
-                                                                 key=key, value=value))}
+                                                                 key=key, value=value, start_idx=start_idx,
+                                                           page_size=page_size))}
 
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
