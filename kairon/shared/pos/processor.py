@@ -12,10 +12,6 @@ from kairon.shared.utils import Utility
 
 
 BASE_URL = Utility.environment["pos"]["odoo_url"]
-print(BASE_URL)
-# BASE_URL = "http://localhost:8080"
-# HOST = "http://localhost"
-# PORT = 8080
 
 
 class OdooProcessor:
@@ -141,13 +137,13 @@ class OdooProcessor:
         return record
 
     @staticmethod
-    def get_client_details(bot: str, user: str):
+    def get_client_details(bot: str):
         """
         Get Odoo client details for the current bot & user.
         Decrypt the stored password before returning.
         """
 
-        record = OdooClientDetails.objects(bot=bot, user=user).first()
+        record = OdooClientDetails.objects(bot=bot).first()
 
         if not record:
             raise AppException("No Odoo client configuration found for this bot.")
@@ -312,7 +308,7 @@ class OdooProcessor:
 
             for user in users:
                 group_ids = user.pop("groups_id", [])
-                partner_id = user.pop("partner_id", [])
+                user.pop("partner_id", [])
 
                 if pos_manager_group in group_ids:
                     user["pos_role"] = "manager"
@@ -338,7 +334,7 @@ class OdooProcessor:
         )
 
         if not data:
-            raise Exception(f"Group XML-ID '{xml_id}' not found")
+            raise AppException(f"Group XML-ID '{xml_id}' not found")
 
         return data[0]["res_id"]
 
@@ -666,7 +662,7 @@ class OdooProcessor:
         )
 
         if not pos_configs:
-            raise Exception("No POS Config found")
+            raise AppException("No POS Config found")
 
         config = pos_configs[0]
         config_id = config["id"]

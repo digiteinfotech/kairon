@@ -20,7 +20,8 @@ def index():
 
 
 @router.post("/login")
-def odoo_login(req: LoginRequest):
+def odoo_login(req: LoginRequest,
+               current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     """
     Returns session_id + cookies using /web/session/authenticate
     """
@@ -29,7 +30,8 @@ def odoo_login(req: LoginRequest):
 
 
 @router.get("/session/info", response_model=Response)
-def session_info(session_id: str):
+def session_info(session_id: str,
+                 current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     """
     Returns session_id + cookies using /web/session/authenticate
     """
@@ -58,14 +60,15 @@ def register(
 def get_client_details(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
-    data = odoo_processor.get_client_details(current_user.get_bot(), current_user.get_user())
+    data = odoo_processor.get_client_details(current_user.get_bot())
     return Response(data=data)
 
 
 @router.post("/install_module", response_model=Response)
 def install_module(
     session_id: str = Query(..., description="Odoo session_id"),
-    module_name: str = Query("point_of_sale", description="Module to install")
+    module_name: str = Query("point_of_sale", description="Module to install"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     success, msg = odoo_processor.install_module(session_id, module_name)
     return Response(success=success, message=msg)
@@ -74,7 +77,8 @@ def install_module(
 @router.post("/uninstall_module", response_model=Response)
 def uninstall_module(
     session_id: str = Query(..., description="Odoo session_id"),
-    module_name: str = Query("point_of_sale", description="Module to uninstall")
+    module_name: str = Query("point_of_sale", description="Module to uninstall"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     result = odoo_processor.uninstall_module_with_session(session_id, module_name)
     return Response(data=result)
@@ -82,7 +86,8 @@ def uninstall_module(
 
 @router.get("/user", response_model=Response)
 def get_pos_users(
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     res = odoo_processor.get_pos_users(session_id)
     return Response(data=res, message="POS users fetched successfully")
@@ -91,7 +96,8 @@ def get_pos_users(
 @router.post("/user", response_model=Response)
 def create_user(
     req: CreateUserRequest,
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     result = odoo_processor.create_user(
         session_id=session_id,
@@ -107,7 +113,8 @@ def create_user(
 @router.delete("/user/{user_id}", response_model=Response)
 def delete_user(
     user_id: int,
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     result = odoo_processor.delete_user(session_id, user_id)
     return Response(data=result)
@@ -117,7 +124,8 @@ def delete_user(
 def update_user_role(
     user_id: int,
     pos_role: str = Query(..., description="POS ROLE (user / manager)"),
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     result = odoo_processor.update_user_role(session_id, user_id, pos_role)
     return Response(data=result)
@@ -126,7 +134,8 @@ def update_user_role(
 @router.post("/toggle_product/{product_id}", response_model=Response)
 def toggle_product(
     product_id: int,
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     res = odoo_processor.toggle_product_in_pos(
         session_id=session_id,
@@ -138,14 +147,16 @@ def toggle_product(
 @router.get("/pos_order", response_model=Response)
 def list_pos_orders(
     session_id: str = Query(..., description="Odoo session_id"),
-    status: str | None = Query(None, description="Filter by POS order state")
+    status: str | None = Query(None, description="Filter by POS order state"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     res = odoo_processor.list_pos_orders(session_id, status)
     return Response(data={"data": res, "count": len(res)}, message="POS orders fetched")
 
 
 @router.post("/pos_order", response_model=Response)
-def create_order(req: POSOrderRequest, session_id: str = Query(...)):
+def create_order(req: POSOrderRequest, session_id: str = Query(...),
+                 current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     result = odoo_processor.create_pos_order(
         session_id=session_id,
         products=[p.dict() for p in req.products],
@@ -157,7 +168,8 @@ def create_order(req: POSOrderRequest, session_id: str = Query(...)):
 @router.post("/pos_order/accept/{order_id}", response_model=Response)
 def accept_order(
     order_id: int,
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     res = odoo_processor.accept_pos_order(session_id, order_id)
     return {"success": res.get("accepted", False), "message": "Order accepted", "data": res}
@@ -166,7 +178,8 @@ def accept_order(
 @router.post("/pos_order/reject/{order_id}", response_model=Response)
 def reject_order(
     order_id: int,
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     res = odoo_processor.reject_pos_order(session_id, order_id)
     return {"success": res["status"] == "cancelled", "message": "Order rejected", "data": res}
@@ -174,11 +187,8 @@ def reject_order(
 
 @router.get("/product", response_model=Response)
 async def get_pos_products(
-    session_id: str = Query(..., description="Odoo session_id")
+    session_id: str = Query(..., description="Odoo session_id"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
-    try:
-        products = odoo_processor.get_pos_products(session_id)
-        return {"success": True, "count": len(products), "data": products}
-    except Exception as e:
-        return {"success": False, "message": str(e), "data": []}
-
+    products = odoo_processor.get_pos_products(session_id)
+    return {"success": True, "count": len(products), "data": products}
