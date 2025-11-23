@@ -157,9 +157,8 @@ class OdooProcessor:
         return data
 
     def create_database(
-            self, db_name: str, bot: str, user: str, company: str = None,
-            admin_username: str = "admin", admin_password: str = "admin",
-            demo: bool = False, lang: str = "en_US"
+            self, db_name: str, bot: str, user: str, admin_username: str, admin_password: str,
+            company: str = None, demo: bool = False, lang: str = "en_US"
     ):
 
         OdooProcessor.save_client_details(

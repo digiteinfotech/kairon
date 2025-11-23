@@ -21,3 +21,8 @@ class OdooClientDetails(Auditlog):
     def validate(self, clean=True):
         if Utility.check_empty_string(self.client_name):
             raise ValidationError("Client Name cannot be empty or blank spaces")
+        if Utility.check_empty_string(self.username):
+            raise ValidationError("Username cannot be empty or blank spaces")
+        if Utility.check_empty_string(self.password):
+            raise ValidationError("Password cannot be empty or blank spaces")
+
