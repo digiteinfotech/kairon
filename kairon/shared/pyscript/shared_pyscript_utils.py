@@ -140,3 +140,13 @@ class PyscriptSharedUtility:
             raise AppException(http_response)
         else:
             logger.info(http_response)
+
+    @staticmethod
+    def typing_indicator(message_id: str, api_key: str, bot: str):
+        request_data = {"messaging_product": "whatsapp", "status": "read",
+                        "message_id": message_id,
+                        "typing_indicator": {"type": "text"}}
+        headers = {"D360-API-KEY": api_key}
+        response = ActionUtility.execute_http_request("https://waba-v2.360dialog.io/messages", "POST", request_data,
+                                                      headers=headers)
+        return response
