@@ -21,7 +21,7 @@ class CreateUserRequest(BaseModel):
     password: str
     name: str
     partner_id: Optional[int] = None
-    pos_role: str = "user"  # user / manager
+    pos_role: str = "manager"  # user / manager
 
 
 class ProductItem(BaseModel):
