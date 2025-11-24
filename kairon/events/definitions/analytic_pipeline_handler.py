@@ -8,6 +8,7 @@ from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
 from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
+from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import EventClass, ActorType
 from kairon.shared.utils import Utility
@@ -40,7 +41,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         exception = None
 
         try:
-            config, reference_id = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
+            config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
 
             pipeline_name = config["pipeline_name"]
             callback_name = config["callback_name"]
@@ -62,22 +63,8 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 "slot": {"bot": self.bot},
             }
 
-            script_variables = ActorOrchestrator.run(
-                ActorType.analytics_runner.value,
-                source_code=source_code,
-                timeout=60,
-                predefined_objects=predefined_objects
-            )
-
-            AnalyticsPipelineProcessor.handle_pipeline_result(
-                bot=self.bot,
-                user=self.user,
-                pipeline_name=pipeline_name,
-                callback_name=callback_name,
-                result=script_variables,
-                config=config
-            )
-
+            runner = AnalyticsRunner()
+            output = runner.execute(source_code, predefined_objects=predefined_objects)
             status = EVENT_STATUS.COMPLETED.value
 
         except Exception as e:
@@ -96,21 +83,6 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             )
             if config and config.get("scheduler_config", {}).get("expression_type") != "cron":
                 AnalyticsPipelineProcessor.delete_task(event_id, self.bot)
-
-
-    def _trigger_async(self, config: Dict):
-        """Run event immediately."""
-        event_id = None
-        try:
-            event_id = AnalyticsPipelineProcessor.add_scheduled_task(self.bot, self.user, config)
-            payload = {"bot": self.bot, "user": self.user, "event_id": event_id}
-            Utility.request_event_server(EventClass.analytics_pipeline, payload)
-            return event_id
-        except Exception as e:
-            logger.error(e)
-            if event_id:
-                AnalyticsPipelineProcessor.delete_task(event_id, self.bot)
-            raise e
 
 
     def _add_schedule(self, config: Dict):
@@ -173,7 +145,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             raise AppException(e)
 
 
-    def delete_schedule(self, event_id: Text):
+    def delete_analytics_event(self, event_id: Text):
         """Delete a scheduled analytics pipeline event."""
         try:
             if not Utility.is_exist(AnalyticsPipelineConfig, raise_error=False, bot=self.bot,
@@ -204,8 +176,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             payload = {
                 "bot": self.bot,
                 "user": self.user,
-                "event_id": event_id,
-                "is_resend": "False"
+                "event_id": event_id
             }
 
             expression_type = scheduler_config.get("expression_type")
@@ -215,7 +186,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             if expression_type == "cron":
 
                 Utility.request_event_server(
-                    EventClass.message_broadcast,
+                    EventClass.analytics_pipeline,
                     payload,
                     method="PUT",
                     is_scheduled=True,
@@ -232,7 +203,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 scheduler_config["schedule"] = run_at
 
                 Utility.request_event_server(
-                    EventClass.message_broadcast,
+                    EventClass.analytics_pipeline,
                     payload,
                     method="PUT",
                     is_scheduled=True,

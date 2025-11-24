@@ -12,8 +12,7 @@ from kairon.shared.constants import ActorType
 class ActorFactory:
     __actors = {
         ActorType.pyscript_runner.value: (PyScriptRunner, PyScriptRunner.start().proxy()),
-        ActorType.callable_runner.value: (CallableRunner, CallableRunner.start().proxy()),
-        ActorType.analytics_runner.value: (AnalyticsRunner, CallableRunner.start().proxy()),
+        ActorType.callable_runner.value: (CallableRunner, CallableRunner.start().proxy())
 
     }
 

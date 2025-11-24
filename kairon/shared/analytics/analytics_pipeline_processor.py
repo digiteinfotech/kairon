@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Text, Dict
 from zoneinfo import ZoneInfo
 
-from bson import ObjectId
 from fastapi import HTTPException
 from loguru import logger
 from mongoengine import DoesNotExist
@@ -10,9 +9,8 @@ from mongoengine import DoesNotExist
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import AnalyticsSchedulerConfig
-from kairon.shared.data.processor import MongoProcessor
 
 
 class AnalyticsPipelineProcessor:
@@ -20,7 +18,7 @@ class AnalyticsPipelineProcessor:
     @staticmethod
     def add_scheduled_task(bot, user, config):
         """Store event config."""
-        Utility.is_exist(AnalyticsPipelineConfig, f"Schedule with name '{config['name']}' exists!", bot=bot,
+        Utility.is_exist(AnalyticsPipelineConfig, f"Schedule with name '{config['pipeline_name']}' exists!", bot=bot,
                          name=config['name'], status=True)
         config["bot"] = bot
         config["user"] = user
@@ -49,26 +47,6 @@ class AnalyticsPipelineProcessor:
         except DoesNotExist:
             raise AppException("Notification settings not found!")
 
-    @staticmethod
-    def add_event_log(bot, event_id, reference_id, status, exception, config):
-        MongoProcessor.add_analytics_event_log(
-            bot=bot,
-            event_id=event_id,
-            status=status,
-            exception=exception,
-            reference_id=reference_id,
-            config=config,
-            timestamp=datetime.utcnow()
-        )
-
-    @staticmethod
-    def execute_pipeline(bot, user, pipeline_name, callback_name, config):
-        """
-        Here you call your actual pipeline logic.
-        Example: call lambda, invoke internal function, etc.
-        """
-        print(f"Running pipeline {pipeline_name} via callback {callback_name}")
-
 
     @staticmethod
     def get_analytics_pipeline(bot: str, pipeline_name: str):
@@ -79,7 +57,19 @@ class AnalyticsPipelineProcessor:
 
     @staticmethod
     def get_all_analytics_pipelines(bot: str):
-        return list(AnalyticsPipelineConfig.objects(bot=bot))
+        """
+        Fetch all analytics pipeline events for a bot with proper formatting.
+        All heavy lifting stays inside business logic.
+        """
+        events = AnalyticsPipelineConfig.objects(bot=bot)
+
+        formatted = []
+        for event in events:
+            doc = event.to_mongo().to_dict()
+            doc["_id"] = str(doc["_id"])
+            formatted.append(doc)
+
+        return formatted
 
 
     @staticmethod
