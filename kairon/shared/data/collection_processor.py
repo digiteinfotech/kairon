@@ -273,10 +273,16 @@ class DataProcessor:
         })
         result_limit = kwargs.pop("result_limit", None)
 
+        page_size = kwargs.pop("page_size", None)
+        start_idx = kwargs.pop("start_idx", None)
+
+        mongo_query = CollectionData.objects(**query)
+
+        if page_size is not None and start_idx is not None:
+            mongo_query = mongo_query.order_by("-timestamp").skip(start_idx).limit(page_size)
+
         if result_limit is not None:
-            mongo_query = CollectionData.objects(**query).limit(result_limit)
-        else:
-            mongo_query = CollectionData.objects(**query)
+            mongo_query = mongo_query.limit(result_limit)
 
         for value in mongo_query:
             final_data = {}
