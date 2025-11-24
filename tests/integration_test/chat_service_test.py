@@ -788,6 +788,7 @@ def test_chat():
         headers={"Authorization": token_type + " " + token},
         timeout=0,
     )
+    print(response)
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
