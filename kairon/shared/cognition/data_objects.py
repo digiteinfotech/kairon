@@ -122,3 +122,29 @@ class CollectionData(Auditlog):
     def clean(self):
         if self.collection_name:
             self.collection_name = self.collection_name.strip().lower()
+
+
+class AnalyticsCollectionData(Auditlog):
+    bot = StringField(required=True)
+    collection_name = StringField(required=True)
+    user = StringField(required=True)
+    source = StringField()
+    data = DictField()
+    received_at = DateTimeField(default=datetime.utcnow)
+    is_data_processed = BooleanField(default=False)
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not self.collection_name or not self.collection_name.strip():
+            raise ValidationError("collection_name should not be empty")
+
+        if self.data is not None and not isinstance(self.data, dict):
+            raise ValidationError("data must be a dictionary")
+
+    def clean(self):
+        if self.collection_name:
+            self.collection_name = self.collection_name.strip().lower()

@@ -336,3 +336,75 @@ class CallbackScriptUtility:
             return media_id
         except Exception as e:
             raise Exception(f"encryption failed-{str(e)}")
+
+    @staticmethod
+    def add_analyitcs_raw_data(collection_name: str, bot: Text = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        normalized_name = collection_name.lower()
+        query = {"bot": bot, "collection_name": normalized_name}
+        collection_data = AnalyticsCollectionData.objects(__raw__=query)
+
+        final_data = []
+
+        for value in collection_data:
+            item = value.to_mongo().to_dict()
+
+            coll_name = item.pop("collection_name", None)
+            data = item.pop("data")
+
+            row = {
+                "_id": str(item.get("_id")),
+                "collection_name": coll_name,
+                "received_at": item.get("received_at"),
+                "source": item.get("source"),
+                "is_data_processed": item.get("is_data_processed"),
+                "data": data
+            }
+
+            final_data.append(row)
+
+        return {"data": final_data}
+
+    @staticmethod
+    def get_analyitcs_raw_data(user: str, payload: dict, bot: str = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        collection_name = payload.get("collection_name", None)
+        data = payload.get('data')
+        source = payload.get('source')
+        received_at = payload.get('received_at')
+        collection_obj = AnalyticsCollectionData()
+        collection_obj.bot = bot
+        collection_obj.data = data
+        collection_obj.collection_name = collection_name
+        collection_obj.source = source
+        collection_obj.received_at = received_at
+        collection_obj.user = user
+        collection_id = collection_obj.save().to_mongo().to_dict()["_id"].__str__()
+
+        return {
+            "message": "Record saved!",
+            "data": {"_id": collection_id}
+        }
+
+    @staticmethod
+    def processed_analyitcs_raw_data(user: str, collection_name: str, bot: str = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        queryset = AnalyticsCollectionData.objects(bot=bot, collection_name=collection_name)
+
+        if not queryset:
+            raise AppException("No records found for given bot and collection_name")
+
+        for item in queryset:
+            item.user = user
+            item.is_data_processed = True
+            item.save()
+
+        return {
+            "message": "Records updated!"
+        }
