@@ -269,4 +269,4 @@ broadcast:
 pos:
   odoo:
     odoo_url: ${ODOO_URL:"http://localhost:8080"}
-    odoo_master_password: ${ODOO_MASTER_PASSWORD:}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD}
