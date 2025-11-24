@@ -5,11 +5,12 @@ from fastapi import HTTPException
 from unittest.mock import patch, MagicMock
 
 import pytest
-from mongoengine import DoesNotExist
+from mongoengine import ValidationError
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 import shutil
 from kairon.exceptions import AppException
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
@@ -1529,3 +1530,65 @@ def test_validate_file_type_invalid(monkeypatch):
 def test_validate_file_type_case_insensitive_extension(monkeypatch):
     file_content = DummyFile("report.CSV", "application/json")
     MongoProcessor.validate_file_type(file_content)
+
+def test_validate_called_directly_success():
+    bot = "b10"
+    user = "u10"
+
+    obj = AnalyticsCollectionData(
+        bot=bot,
+        user=user,
+        collection_name=" invoices ",
+        data={"x": 10}
+    )
+
+    obj.validate(clean=True)
+
+    assert obj.collection_name == "invoices"
+    assert isinstance(obj.data, dict)
+
+
+def test_validate_rejects_invalid_data_type():
+    bot = "b11"
+    user = "u11"
+
+    obj = AnalyticsCollectionData(
+        bot=bot,
+        user=user,
+        collection_name="billing",
+        data="not-a-dict"
+    )
+
+    with pytest.raises(ValidationError):
+        obj.validate(clean=True)
+
+
+def test_validate_rejects_missing_collection_name():
+    bot = "b12"
+    user = "u12"
+
+    obj = AnalyticsCollectionData(
+        bot=bot,
+        user=user,
+        collection_name="  ",
+        data={}
+    )
+
+    with pytest.raises(ValidationError):
+        obj.validate(clean=True)
+
+
+def test_clean_trims_and_lowercases():
+    bot = "b13"
+    user = "u13"
+
+    obj = AnalyticsCollectionData(
+        bot=bot,
+        user=user,
+        collection_name="   REPORTS   ",
+        data={}
+    )
+
+    obj.clean()
+
+    assert obj.collection_name == "reports"
