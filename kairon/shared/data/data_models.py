@@ -1494,3 +1494,17 @@ class ParallelActionRequest(BaseModel):
             names = [a.name for a in existing]
             raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
         return values
+
+class AnalyticsSchedulerConfig(BaseModel):
+    expression_type: str
+    schedule: Any
+    timezone: Optional[str] = "UTC"
+
+
+class AnalyticsPipelineEventRequest(BaseModel):
+    pipeline_name: str
+    callback_name: str
+    scheduler_config: AnalyticsSchedulerConfig = None
+    timestamp: str
+    data_deletion_policy: Optional[List[Any]] = []
+    triggers: Optional[List[Dict[str, Any]]] = []

@@ -1,6 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
+import pytz
+from croniter import croniter
 from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
@@ -1052,3 +1054,69 @@ class ParallelActionConfig(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+class SchedulerConfiguration(EmbeddedDocument):
+    """
+    Unified scheduler configuration model.
+
+    Supports:
+    - expression_type="cron": recurring schedule based on cron string.
+      Example: "* * * * *", "30 5 * * *"
+    - expression_type="epoch": one-time schedule based on future epoch time.
+      Example: 1765438200
+    """
+
+    expression_type = StringField(required=True, choices=["cron", "epoch"])
+    schedule = StringField(required=True)
+    timezone = StringField(required=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not self.timezone or not self.timezone.strip():
+            raise ValidationError("timezone is required for all schedules!")
+        try:
+            pytz.timezone(self.timezone)
+        except pytz.UnknownTimeZoneError:
+            raise ValidationError(f"Unknown timezone: {self.timezone}")
+
+        if self.expression_type == "cron":
+            if not self.schedule or not croniter.is_valid(self.schedule):
+                raise ValidationError(f"Invalid cron expression: '{self.schedule}'")
+
+            first_occurrence = croniter(self.schedule).get_next(ret_type=datetime)
+            second_occurrence = croniter(
+                self.schedule, start_time=first_occurrence
+            ).get_next(ret_type=datetime)
+
+            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
+                raise ValidationError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
+
+@auditlogger.log
+@push_notification.apply
+class AnalyticsPipelineConfig(Auditlog):
+    pipeline_name = StringField(required=True)
+    callback_name = StringField(required=True)
+    scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+    data_deletion_policy = ListField(DictField(), default=list)
+    triggers = ListField(DictField(), default=list)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "pipeline_name"], "unique": True},
+            {"fields": ["bot", "status"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if self.scheduler_config:
+            self.scheduler_config.validate()
+

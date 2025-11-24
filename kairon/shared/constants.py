@@ -87,6 +87,7 @@ class EventClass(str, Enum):
     agentic_flow = "agentic_flow"
     catalog_integration = "catalog_integration"
     upload_file_handler = "upload_file_handler"
+    analytics_pipeline = "analytics_pipeline"
 
 class CatalogSyncClass(str, Enum):
     petpooja = "petpooja"
@@ -190,3 +191,4 @@ class VectorEmbeddingsDatabases(str, Enum):
 class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
     callable_runner = "callable_runner"
+    analytics_runner = "analytics_runner"
