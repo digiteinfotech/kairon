@@ -344,7 +344,7 @@ class OdooProcessor:
             password: str,
             name: str,
             partner_id: int = None,
-            pos_role: str = "user"  # user / manager
+            pos_role: str = "manager"  # user / manager
     ):
         """
         Create Odoo user with POS access using JSON-RPC session_id.
