@@ -28,6 +28,7 @@ from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 
 
 class CallbackScriptUtility:
@@ -338,7 +339,7 @@ class CallbackScriptUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
     @staticmethod
-    def add_analyitcs_raw_data(collection_name: str, bot: Text = None):
+    def get_analyitcs_raw_data(collection_name: str, bot: Text = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -368,7 +369,7 @@ class CallbackScriptUtility:
         return {"data": final_data}
 
     @staticmethod
-    def get_analyitcs_raw_data(user: str, payload: dict, bot: str = None):
+    def add_analyitcs_raw_data(user: str, payload: dict, bot: str = None):
         if not bot:
             raise Exception("Missing bot id")
 
@@ -398,7 +399,7 @@ class CallbackScriptUtility:
         queryset = AnalyticsCollectionData.objects(bot=bot, collection_name=collection_name)
 
         if not queryset:
-            raise AppException("No records found for given bot and collection_name")
+            raise Exception("No records found for given bot and collection_name")
 
         for item in queryset:
             item.user = user

@@ -25,12 +25,10 @@ async def create_pipeline_event(
     event.validate(request.pipeline_name)
 
     if request.scheduler_config:
-        et = request.scheduler_config.expression_type
-        if et == "cron":
+        if request.scheduler_config.expression_type == "cron":
             event_type = EventRequestType.add_schedule.value
-        elif et == "epoch":
+        elif request.scheduler_config.expression_type == "epoch":
             event_type = EventRequestType.add_one_time_schedule.value
-
     event_id = event.enqueue(event_type, config=request.dict())
     return Response(message="Event scheduled!", data={"event_id": event_id})
 
@@ -39,8 +37,8 @@ async def create_pipeline_event(
 async def list_pipeline_events(
     current_user: User = Security(Authentication.get_current_user_and_bot)
 ):
-    events = AnalyticsPipelineProcessor.get_all_analytics_pipelines(current_user.get_bot())
-    return Response(message="Events fetched", data=[e.to_mongo() for e in events])
+    data = AnalyticsPipelineProcessor.get_all_analytics_pipelines(current_user.get_bot())
+    return Response(message="Events fetched", data=data)
 
 
 @router.get("/events/{event_id}", response_model=Response)
@@ -48,10 +46,8 @@ async def get_pipeline_event(
     event_id: str,
     current_user: User = Security(Authentication.get_current_user_and_bot)
 ):
-    event = AnalyticsPipelineProcessor.get_analytics_pipeline(current_user.get_bot(), event_id)
-    if not event:
-        raise Exception(404, "Event not found")
-    return Response(message="Event retrieved", data=event.to_mongo())
+    config = AnalyticsPipelineProcessor.retrieve_config(event_id, current_user.get_bot())
+    return Response(message="Event retrieved", data=config)
 
 
 @router.delete("/events/{event_id}", response_model=Response)
@@ -59,10 +55,7 @@ async def delete_pipeline_event(
     event_id: str,
     current_user: User = Security(Authentication.get_current_user_and_bot)
 ):
-    AnalyticsPipelineEvent(
-        current_user.get_bot(),
-        current_user.get_user()
-    ).delete_schedule(event_id)
+    AnalyticsPipelineEvent(current_user.get_bot(),current_user.get_user()).delete_analytics_event(event_id)
 
     return Response(message="Event deleted")
 
@@ -78,6 +71,5 @@ async def update_pipeline_event(
         current_user.get_user()
     )
 
-    event.update_schedule(event_id, request.dict(exclude_none=True))
-
+    event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=request.dict())
     return Response(message="Event updated", data={"event_id": event_id})

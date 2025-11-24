@@ -82,9 +82,9 @@ class CallbackUtility:
                                                            channel=channel)
         predefined_objects['save_as_pdf'] = partial(CallbackScriptUtility.save_as_pdf,
                                                             bot=bot, sender_id=sender_id)
-        predefined_objects['add_analyitcs_raw_data'] = partial(CallbackScriptUtility.add_data_analytics, bot=bot)
-        predefined_objects['get_analyitcs_raw_data'] = partial(CallbackScriptUtility.get_data_analytics, bot=bot)
-        predefined_objects['processed_analyitcs_raw_data'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
+        predefined_objects['add_analyitcs_raw_data'] = partial(CallbackScriptUtility.add_analyitcs_raw_data, bot=bot)
+        predefined_objects['get_analyitcs_raw_data'] = partial(CallbackScriptUtility.get_analyitcs_raw_data, bot=bot)
+        predefined_objects['processed_analyitcs_raw_data'] = partial(CallbackScriptUtility.processed_analyitcs_raw_data, bot=bot)
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
