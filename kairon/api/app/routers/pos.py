@@ -48,6 +48,7 @@ def register(
         db_name=req.client_name,
         admin_username=req.admin_username,
         admin_password=req.admin_password,
+        company=req.company,
         bot=current_user.get_bot(),
         user=current_user.get_user()
     )

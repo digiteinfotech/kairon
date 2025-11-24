@@ -88,6 +88,7 @@ class OdooProcessor:
             password: str,
             bot: str,
             user: str,
+            company: str = None
     ):
         """
         Save Odoo Client Configuration Details.
@@ -97,6 +98,7 @@ class OdooProcessor:
         :param password: Odoo admin password
         :param bot: Bot ID
         :param user: User who is saving
+        :param company: Optional company name
         :return: Saved client details as dict
         """
 
@@ -122,6 +124,7 @@ class OdooProcessor:
             "client_name": client_name.strip(),
             "username": username.strip(),
             "password": Utility.encrypt_message(password.strip()),
+            "company": company.strip() if company else None
         }
 
         record = (
@@ -164,7 +167,7 @@ class OdooProcessor:
 
     def create_database(
             self, db_name: str, bot: str, user: str, admin_password: str, admin_username: str = "admin",
-            demo: bool = False, lang: str = "en_US"
+            demo: bool = False, lang: str = "en_US", company: str = None
     ):
 
         url = f"{BASE_URL}/jsonrpc"
@@ -211,6 +214,7 @@ class OdooProcessor:
             client_name=db_name,
             username=admin_username,
             password=admin_password,
+            company=company,
             bot=bot,
             user=user,
         )

@@ -12,6 +12,7 @@ class RegisterRequest(BaseModel):
     client_name: str
     admin_username: str
     admin_password: str
+    company: str = None
 
 
 class DeleteDBRequest(BaseModel):
