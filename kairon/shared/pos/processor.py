@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional
 
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
-from kairon.shared.pos.data_objects import OdooClientDetails
+from kairon.shared.pos.constants import POSType
+from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
 
 
@@ -59,7 +60,6 @@ class OdooProcessor:
 
     def get_session_info(self, session_id: str):
         url = f"{BASE_URL}/web/session/get_session_info"
-        print(url)
         payload = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -88,7 +88,6 @@ class OdooProcessor:
             password: str,
             bot: str,
             user: str,
-            company: str = None,
     ):
         """
         Save Odoo Client Configuration Details.
@@ -98,7 +97,6 @@ class OdooProcessor:
         :param password: Odoo admin password
         :param bot: Bot ID
         :param user: User who is saving
-        :param company: Optional company name
         :return: Saved client details as dict
         """
 
@@ -115,18 +113,21 @@ class OdooProcessor:
             raise AppException("Client name can only contain letters, numbers, spaces and underscores.")
 
         Utility.is_exist(
-            OdooClientDetails,
+            POSClientDetails,
             exp_message="Client name already exists.",
-            client_name__iexact=client_name.strip(),
+            config__client_name__iexact=client_name.strip(),
             check_base_fields=False,
         )
+        client_details = {
+            "client_name": client_name.strip(),
+            "username": username.strip(),
+            "password": Utility.encrypt_message(password.strip()),
+        }
 
         record = (
-            OdooClientDetails(
-                client_name=client_name.strip(),
-                username=username.strip(),
-                password=Utility.encrypt_message(password.strip()),
-                company=company.strip() if company else None,
+            POSClientDetails(
+                pos_type=POSType.odoo.value,
+                config=client_details,
                 bot=bot.strip(),
                 user=user.strip(),
             )
@@ -139,36 +140,32 @@ class OdooProcessor:
     @staticmethod
     def get_client_details(bot: str):
         """
-        Get Odoo client details for the current bot & user.
+        Get Odoo client details for the current bot.
         Decrypt the stored password before returning.
         """
 
-        record = OdooClientDetails.objects(bot=bot).first()
+        record = POSClientDetails.objects(bot=bot).first()
 
         if not record:
             raise AppException("No Odoo client configuration found for this bot.")
 
         data = record.to_mongo().to_dict()
 
-        data["password"] = Utility.decrypt_message(data["password"])
+        config = data.get("config", {})
 
-        data["_id"] = str(data["_id"])
+        # Decrypt password before returning
+        if "password" in config:
+            config["password"] = Utility.decrypt_message(config["password"])
 
-        return data
+        # Make _id JSON safe
+        config["_id"] = str(data["_id"])
+
+        return config
 
     def create_database(
-            self, db_name: str, bot: str, user: str, admin_username: str, admin_password: str,
-            company: str = None, demo: bool = False, lang: str = "en_US"
+            self, db_name: str, bot: str, user: str, admin_password: str, admin_username: str = "admin",
+            demo: bool = False, lang: str = "en_US"
     ):
-
-        OdooProcessor.save_client_details(
-            client_name=db_name,
-            username=admin_username,
-            password=admin_password,
-            bot=bot,
-            user=user,
-            company=company,
-        )
 
         url = f"{BASE_URL}/jsonrpc"
 
@@ -208,9 +205,77 @@ class OdooProcessor:
         resp = requests.post(url, json=create_payload).json()
 
         if "error" in resp:
-            return {"success": False, "message": resp["error"]["data"]["message"]}
+            raise HTTPException(400, detail=resp["error"]["data"]["message"])
+
+        OdooProcessor.save_client_details(
+            client_name=db_name,
+            username=admin_username,
+            password=admin_password,
+            bot=bot,
+            user=user,
+        )
 
         return {"success": True, "message": f"Client '{db_name}' created."}
+
+    @staticmethod
+    def delete_client_details(client_name: str):
+        """
+        Delete stored Odoo Client Configuration Details.
+
+        :param client_name: Name of the client (unique)
+        :return: success or error message
+        """
+
+        if Utility.check_empty_string(client_name):
+            raise AppException("Client name cannot be empty.")
+
+        record = POSClientDetails.objects(config__client_name__iexact=client_name.strip()).first()
+
+        if not record:
+            raise HTTPException(400, detail=f"Client '{client_name}' not found in stored details.")
+
+        record.delete()
+        return {"success": True, "message": f"Client '{client_name}' details removed successfully."}
+
+    def drop_database(self, db_name: str, admin_password: str):
+        url = f"{BASE_URL}/jsonrpc"
+
+        list_payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "db",
+                "method": "list",
+                "args": []
+            },
+            "id": 1
+        }
+        dbs = requests.post(url, json=list_payload).json().get("result", [])
+        if db_name not in dbs:
+            raise HTTPException(400, detail=f"Client '{db_name}' not found")
+
+        drop_payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "db",
+                "method": "drop",
+                "args": [
+                    admin_password,
+                    db_name
+                ],
+            },
+            "id": 2
+        }
+
+        resp = requests.post(url, json=drop_payload).json()
+
+        if "error" in resp:
+            raise HTTPException(400, detail=resp["error"]["data"]["message"])
+
+        self.delete_client_details(db_name)
+
+        return {"success": True, "message": f"Client '{db_name}' deleted successfully"}
 
     def jsonrpc_call(self, session_id: str, model: str, method: str, args: Optional[list] = None, kwargs: Optional[dict] = None) -> Any:
         """
