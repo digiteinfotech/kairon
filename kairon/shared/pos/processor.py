@@ -202,7 +202,7 @@ class POSProcessor:
 
         self.install_module(session_id, "point_of_sale")
 
-        logger.info(f"point_of_sale Activated")
+        logger.info("point_of_sale Activated")
 
         return {"success": True, "message": f"Client '{db_name}' created and POS Activated"}
 
