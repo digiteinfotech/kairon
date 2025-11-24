@@ -392,6 +392,56 @@ class TestWhatsappHandler:
         assert media_ids == expected_media_ids
 
     @pytest.mark.asyncio
+    async def test_whatsapp_typing_indicator_end_to_end(self, monkeypatch):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        from unittest.mock import MagicMock, AsyncMock
+
+        channel_config = {
+            "connector_type": "whatsapp",
+            "config": {
+                "bsp_type": "meta",
+                "api_key": "DUMMY",
+                "access_token": "DUMMY"
+            }
+        }
+
+        handler = Whatsapp(channel_config)
+
+        handler.client = MagicMock()
+        handler.client.post = AsyncMock(return_value=MagicMock(status_code=200))
+
+        metadata = {"id": "msg123"}
+
+        monkeypatch.setattr(
+            WhatsappBot,
+            "typing_indicator",
+            AsyncMock()
+        )
+
+        monkeypatch.setattr(
+            WhatsappBot,
+            "mark_as_read",
+            AsyncMock()
+        )
+
+        text = "hello"
+        sender = "user123"
+        bot = "bot_test"
+
+        await handler._handle_user_message(
+            text=text,
+            sender_id=sender,
+            metadata=metadata,
+            bot=bot,
+            media_ids=[]
+        )
+
+        WhatsappBot.mark_as_read.assert_awaited_once_with("msg123")
+
+        WhatsappBot.typing_indicator.assert_awaited_once_with("msg123")
+        assert handler.client.post.await_count >= 0
+
+    @pytest.mark.asyncio
     async def test_whatsapp_valid_location_message_request(self):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         with patch.object(WhatsappBot, "mark_as_read"):
@@ -608,8 +658,8 @@ class TestWhatsappHandler:
 
                 handler = Whatsapp(channel_config)
                 await handler.handle_meta_payload(payload,
-                                        {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
-                                                 bot)
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
+                                                  bot)
                 args, kwargs = mock_message.call_args
 
                 assert args[0] == bot
@@ -620,76 +670,94 @@ class TestWhatsappHandler:
     @pytest.mark.asyncio
     @responses.activate
     async def test_valid_attachment_message_request(self):
+        import responses
+        from unittest.mock import patch
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         document_id = "sdfghj567"
         access_token = 'ERTYUIEFDGHGFHJKLFGHJKGHJ'
-        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+
         with open("./tests/testing_data/sample.pdf", 'rb') as file:
             body_bytes = file.read()
 
-        responses.get(url=f'https://graph.facebook.com/v22.0/{document_id}?fields=url',
-                      json={'url': 'https://test.com/download', 'mime_type': 'application/pdf'})
-        responses.get(url=f'https://test.com/download',
-                      body=body_bytes)
-        with patch.object(WhatsappBot, "mark_as_read"):
-            with patch.object(Whatsapp, "process_message") as mock_message:
-                mock_message.return_value = "Hi, How may i help you!"
-                channel_config = {
-                    "connector_type": "whatsapp",
-                    "config": {
-                        "app_secret": "jagbd34567890",
-                        "access_token": access_token,
-                        "verify_token": "valid",
-                        "phone_number": "1234567890",
-                    }
-                }
+        responses.get(
+            url=f'https://graph.facebook.com/v22.0/{document_id}?fields=url',
+            json={'url': 'https://test.com/download', 'mime_type': 'application/pdf'}
+        )
+        responses.get(
+            url='https://test.com/download',
+            body=body_bytes
+        )
 
-                bot = "whatsapp_test"
-                payload = {
-                    "object": "whatsapp_business_account",
-                    "entry": [
-                        {
-                            "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
-                            "changes": [
-                                {
-                                    "value": {
-                                        "messaging_product": "whatsapp",
-                                        "metadata": {
-                                            "display_phone_number": "910123456789",
-                                            "phone_number_id": "12345678",
-                                        },
-                                        "contacts": [
-                                            {
-                                                "profile": {"name": "udit"},
-                                                "wa_id": "wa-123456789",
-                                            }
-                                        ],
-                                        "messages": [
-                                            {
-                                                "from": "910123456789",
-                                                "id": "wappmsg.ID",
-                                                "timestamp": "21-09-2022 12:05:00",
-                                                "document": {"id": "sdfghj567"},
-                                                "type": "document",
-                                            }
-                                        ],
+        responses.add(
+            responses.POST,
+            "https://graph.facebook.com/v19.0/12345678/messages",
+            json={"messages": [{"id": "wamid.1234"}]},
+            status=200
+        )
+
+        with patch.object(WhatsappBot, "mark_as_read"), \
+                patch.object(Whatsapp, "process_message") as mock_message:
+            mock_message.return_value = "Hi, How may i help you!"
+
+            channel_config = {
+                "connector_type": "whatsapp",
+                "config": {
+                    "app_secret": "jagbd34567890",
+                    "access_token": access_token,
+                    "verify_token": "valid",
+                    "phone_number": "1234567890",
+                }
+            }
+
+            bot = "whatsapp_test"
+            payload = {
+                "object": "whatsapp_business_account",
+                "entry": [
+                    {
+                        "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                        "changes": [
+                            {
+                                "value": {
+                                    "messaging_product": "whatsapp",
+                                    "metadata": {
+                                        "display_phone_number": "910123456789",
+                                        "phone_number_id": "12345678",
                                     },
-                                    "field": "messages",
-                                }
-                            ],
-                        }
-                    ],
-                }
+                                    "contacts": [
+                                        {
+                                            "profile": {"name": "udit"},
+                                            "wa_id": "wa-123456789",
+                                        }
+                                    ],
+                                    "messages": [
+                                        {
+                                            "from": "910123456789",
+                                            "id": "wappmsg.ID",
+                                            "timestamp": "21-09-2022 12:05:00",
+                                            "document": {"id": document_id},
+                                            "type": "document",
+                                        }
+                                    ],
+                                },
+                                "field": "messages",
+                            }
+                        ],
+                    }
+                ],
+            }
 
-                handler = Whatsapp(channel_config)
-                await handler.handle_meta_payload(payload,
-                                        {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
-                                                 bot)
-                args, kwargs = mock_message.call_args
+            handler = Whatsapp(channel_config)
+            await handler.handle_meta_payload(
+                payload,
+                {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
+                bot
+            )
 
-                assert args[0] == bot
-                user_message = args[1]
-
-                assert user_message.text == '/k_multimedia_msg{"document": "'+document_id+'"}'
+            args, kwargs = mock_message.call_args
+            assert args[0] == bot
+            user_message = args[1]
+            expected_text = f'/k_multimedia_msg{{"document": "{document_id}"}}'
+            assert user_message.text == expected_text
 
     @pytest.mark.asyncio
     async def test_payment_message_request(self):
@@ -759,8 +827,8 @@ class TestWhatsappHandler:
 
                 handler = Whatsapp(channel_config)
                 await handler.handle_meta_payload(payload,
-                                        {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
-                                                 bot)
+                                                  {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"},
+                                                  bot)
                 args, kwargs = mock_message.call_args
 
                 assert args[0] == bot
