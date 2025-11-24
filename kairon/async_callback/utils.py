@@ -66,6 +66,7 @@ class CallbackUtility:
         predefined_objects['datetime']= datetime
         predefined_objects['add_schedule_job'] = partial(CallbackScriptUtility.add_schedule_job, bot=bot)
         predefined_objects['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
+        predefined_objects['typing_indicator'] = partial(PyscriptSharedUtility.typing_indicator, bot=bot)
         predefined_objects['send_email'] = partial(CallbackScriptUtility.send_email, bot=bot)
         predefined_objects['add_data'] = partial(PyscriptSharedUtility.add_data, bot=bot)
         predefined_objects['get_data'] = partial(PyscriptSharedUtility.get_data, bot=bot)
