@@ -10,23 +10,6 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     client_name: str
-    admin_username: str
-    admin_password: str
-    company: str = None
-
-
-class DeleteDBRequest(BaseModel):
-    client_name: str
-    admin_password: str
-
-
-class CreateUserRequest(BaseModel):
-    db_name: str
-    login: str
-    password: str
-    name: str
-    partner_id: Optional[int] = None
-    pos_role: str = "manager"  # user / manager
 
 
 class ProductItem(BaseModel):
@@ -45,3 +28,8 @@ class ResponseMessage(BaseModel):
     success: bool
     message: str
     data: Optional[dict] = None
+
+
+class DeleteDBRequest(BaseModel):
+    client_name: str
+

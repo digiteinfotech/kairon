@@ -267,4 +267,6 @@ broadcast:
   whatsapp_broadcast_batch_size: ${WHATSAPP_BROADCAST_BATCH_SIZE:10}
 
 pos:
-  odoo_url: ${ODOO_URL:"http://localhost:8080"}
+  odoo:
+    odoo_url: ${ODOO_URL:"http://localhost:8080"}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD:}

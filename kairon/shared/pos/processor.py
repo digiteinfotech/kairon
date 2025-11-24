@@ -4,6 +4,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from typing import Any, Dict, List, Optional
+from loguru import logger
 
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
@@ -12,10 +13,11 @@ from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
 
 
-BASE_URL = Utility.environment["pos"]["odoo_url"]
+BASE_URL = Utility.environment["pos"]["odoo"]["odoo_url"]
+MASTER_PASSWORD = Utility.environment["pos"]["odoo"]["odoo_master_password"]
 
 
-class OdooProcessor:
+class POSProcessor:
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""
@@ -34,7 +36,7 @@ class OdooProcessor:
 
         return data
 
-    def odoo_login(self, db_name: str, username: str, password: str) -> Dict[str, Any]:
+    def pos_login(self, db_name: str, username: str, password: str) -> Dict[str, Any]:
         """
         Authenticate against Odoo and return {'uid','session_id','result'}.
         Uses /web/session/authenticate JSON endpoint.
@@ -58,29 +60,6 @@ class OdooProcessor:
 
         return {"uid": result.get("uid"), "session_id": session_id, "result": result}
 
-    def get_session_info(self, session_id: str):
-        url = f"{BASE_URL}/web/session/get_session_info"
-        payload = {
-            "jsonrpc": "2.0",
-            "method": "call",
-            "params": {}
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Cookie": f"session_id={session_id}"
-        }
-        try:
-            resp = requests.post(url, json=payload, headers=headers)
-            data = resp.json()
-
-            if "error" in data:
-                raise HTTPException(400, f"Odoo Error: {data['error']}")
-
-            return data["result"]
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching POS session info: {e}")
-
     @staticmethod
     def save_client_details(
             client_name: str,
@@ -88,7 +67,6 @@ class OdooProcessor:
             password: str,
             bot: str,
             user: str,
-            company: str = None
     ):
         """
         Save Odoo Client Configuration Details.
@@ -98,7 +76,6 @@ class OdooProcessor:
         :param password: Odoo admin password
         :param bot: Bot ID
         :param user: User who is saving
-        :param company: Optional company name
         :return: Saved client details as dict
         """
 
@@ -117,19 +94,18 @@ class OdooProcessor:
         Utility.is_exist(
             POSClientDetails,
             exp_message="Client name already exists.",
-            config__client_name__iexact=client_name.strip(),
+            client_name__iexact=client_name.strip(),
             check_base_fields=False,
         )
         client_details = {
-            "client_name": client_name.strip(),
             "username": username.strip(),
             "password": Utility.encrypt_message(password.strip()),
-            "company": company.strip() if company else None
         }
 
         record = (
             POSClientDetails(
                 pos_type=POSType.odoo.value,
+                client_name=client_name.strip(),
                 config=client_details,
                 bot=bot.strip(),
                 user=user.strip(),
@@ -147,27 +123,26 @@ class OdooProcessor:
         Decrypt the stored password before returning.
         """
 
-        record = POSClientDetails.objects(bot=bot).first()
+        record = POSClientDetails.objects(bot=bot, pos_type=POSType.odoo.value).first()
 
         if not record:
-            raise AppException("No Odoo client configuration found for this bot.")
+            raise AppException("No POS client configuration found for this bot.")
 
         data = record.to_mongo().to_dict()
 
         config = data.get("config", {})
 
-        # Decrypt password before returning
         if "password" in config:
             config["password"] = Utility.decrypt_message(config["password"])
 
-        # Make _id JSON safe
-        config["_id"] = str(data["_id"])
+        config["client_name"] = str(data["client_name"])
 
         return config
 
     def create_database(
-            self, db_name: str, bot: str, user: str, admin_password: str, admin_username: str = "admin",
-            demo: bool = False, lang: str = "en_US", company: str = None
+            self, db_name: str, bot: str, user: str,
+            admin_password: str = MASTER_PASSWORD, admin_username: str = "admin",
+            demo: bool = False, lang: str = "en_US"
     ):
 
         url = f"{BASE_URL}/jsonrpc"
@@ -210,16 +185,26 @@ class OdooProcessor:
         if "error" in resp:
             raise HTTPException(400, detail=resp["error"]["data"]["message"])
 
-        OdooProcessor.save_client_details(
+        POSProcessor.save_client_details(
             client_name=db_name,
             username=admin_username,
             password=admin_password,
-            company=company,
             bot=bot,
             user=user,
         )
+        logger.info(f"Client '{db_name}' created.")
 
-        return {"success": True, "message": f"Client '{db_name}' created."}
+        data = self.pos_login(db_name=db_name, username=admin_username, password=admin_password)
+
+        session_id = data.get("session_id")
+
+        logger.info(f"User logged in, Session id: {session_id}")
+
+        self.install_module(session_id, "point_of_sale")
+
+        logger.info(f"point_of_sale Activated")
+
+        return {"success": True, "message": f"Client '{db_name}' created and POS Activated"}
 
     @staticmethod
     def delete_client_details(client_name: str):
@@ -233,7 +218,7 @@ class OdooProcessor:
         if Utility.check_empty_string(client_name):
             raise AppException("Client name cannot be empty.")
 
-        record = POSClientDetails.objects(config__client_name__iexact=client_name.strip()).first()
+        record = POSClientDetails.objects(client_name__iexact=client_name.strip()).first()
 
         if not record:
             raise HTTPException(400, detail=f"Client '{client_name}' not found in stored details.")
@@ -241,7 +226,7 @@ class OdooProcessor:
         record.delete()
         return {"success": True, "message": f"Client '{client_name}' details removed successfully."}
 
-    def drop_database(self, db_name: str, admin_password: str):
+    def drop_database(self, db_name: str, admin_password: str = MASTER_PASSWORD):
         url = f"{BASE_URL}/jsonrpc"
 
         list_payload = {
@@ -351,242 +336,6 @@ class OdooProcessor:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error toggling product: {e}")
-
-    def get_pos_users(self, session_id: str):
-        """
-        Return all users along with their POS role (user/manager/none).
-        """
-
-        try:
-            pos_user_group = self.get_group_id(session_id, "point_of_sale.group_pos_user")
-            pos_manager_group = self.get_group_id(session_id, "point_of_sale.group_pos_manager")
-
-            users = self.jsonrpc_call(
-                session_id,
-                "res.users",
-                "search_read",
-                args=[[]],
-                kwargs={
-                    "fields": [
-                        "id", "name", "login", "active",
-                        "groups_id", "partner_id"
-                    ]
-                }
-            )
-
-            for user in users:
-                group_ids = user.pop("groups_id", [])
-                user.pop("partner_id", [])
-
-                if pos_manager_group in group_ids:
-                    user["pos_role"] = "manager"
-                elif pos_user_group in group_ids:
-                    user["pos_role"] = "user"
-                else:
-                    user["pos_role"] = "none"
-
-            return users
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching users: {e}")
-
-    def get_group_id(self, session_id: str, xml_id: str) -> int:
-        module, name = xml_id.split(".")
-
-        data = self.jsonrpc_call(
-            session_id=session_id,
-            model="ir.model.data",
-            method="search_read",
-            args=[[["module", "=", module], ["name", "=", name]]],
-            kwargs={"fields": ["res_id"], "limit": 1}
-        )
-
-        if not data:
-            raise AppException(f"Group XML-ID '{xml_id}' not found")
-
-        return data[0]["res_id"]
-
-    def create_user(
-            self,
-            session_id: str,
-            login: str,
-            password: str,
-            name: str,
-            partner_id: int = None,
-            pos_role: str = "manager"  # user / manager
-    ):
-        """
-        Create Odoo user with POS access using JSON-RPC session_id.
-        pos_role = "user" or "manager"
-        """
-
-        existing_users = self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="search_read",
-            args=[[["login", "=", login]]],
-            kwargs={"fields": ["id"], "limit": 1}
-        )
-
-        if existing_users:
-            return {
-                "message": f"User {login} already exists",
-                "user_id": existing_users[0]["id"]
-            }
-
-        if not partner_id:
-            partner_id = self.jsonrpc_call(
-                session_id=session_id,
-                model="res.partner",
-                method="create",
-                args=[{"name": name}]
-            )
-
-        base_internal_user = self.get_group_id(session_id, "base.group_user")
-
-        if pos_role == "manager":
-            pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_manager")
-        else:
-            pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_user")
-
-        groups = [base_internal_user, pos_group]
-
-        user_vals = {
-            "name": name,
-            "login": login,
-            "partner_id": partner_id,
-            "groups_id": [(6, 0, groups)]
-        }
-
-        user_id = self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="create",
-            args=[user_vals]
-        )
-
-        self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="write",
-            args=[[user_id], {"password": password}]
-        )
-
-        return {
-            "message": f"User created with login {login} and POS {pos_role} access",
-            "user_id": user_id
-        }
-
-    def delete_user(self, session_id: str, user_id: int):
-        """
-        Delete user via JSON-RPC using existing session_id.
-        """
-
-        user = self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="search_read",
-            args=[[["id", "=", user_id]]],
-            kwargs={"fields": ["id"], "limit": 1}
-        )
-
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User not found with user_id: {user_id}")
-
-        try:
-            self.jsonrpc_call(
-                session_id=session_id,
-                model="res.users",
-                method="unlink",
-                args=[[user_id]]
-            )
-
-            return {"message": "User deleted", "user_id": user_id}
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unable to delete user: {e}")
-
-    def update_user_role(self, session_id: str, user_id: int, pos_role: str):
-        """
-        Update only the POS role of the user.
-        """
-
-        if pos_role not in ["user", "manager"]:
-            raise HTTPException(status_code=400, detail="Invalid role. Use 'user' or 'manager'.")
-
-        user = self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="search_read",
-            args=[[["id", "=", user_id]]],
-            kwargs={"fields": ["id"], "limit": 1}
-        )
-
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User not found with user_id: {user_id}")
-
-        base_internal_user = self.get_group_id(session_id, "base.group_user")
-
-        if pos_role == "manager":
-            pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_manager")
-        else:
-            pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_user")
-
-        self.jsonrpc_call(
-            session_id=session_id,
-            model="res.users",
-            method="write",
-            args=[[user_id], {"groups_id": [(6, 0, [base_internal_user, pos_group])]}]
-        )
-
-        return {
-            "message": f"POS role updated to {pos_role}",
-            "user_id": user_id
-        }
-
-    def uninstall_module_with_session(self, session_id: str, module_name: str) -> Dict[str, Any]:
-        """
-        Uninstall a module by name using session_id:
-          1) Search module by name in ir.module.module
-          2) Check if installed
-          3) Call button_immediate_uninstall
-        """
-        try:
-            module_ids = self.jsonrpc_call(
-                session_id,
-                "ir.module.module",
-                "search",
-                args=[[["name", "=", module_name]]]
-            )
-
-            if not module_ids:
-                return {"success": False, "message": f"Module {module_name} not found"}
-
-            module_data = self.jsonrpc_call(
-                session_id,
-                "ir.module.module",
-                "read",
-                args=[module_ids, ["state"]]
-            )
-
-            state = module_data[0].get("state")
-
-            if state != "installed":
-                return {"success": False,
-                        "message": f"Module '{module_name}' is not installed (current state: {state})"}
-
-            res = self.jsonrpc_call(
-                session_id,
-                "ir.module.module",
-                "button_immediate_uninstall",
-                args=[module_ids]
-            )
-
-            return {"success": True, "message": f"Module '{module_name}' uninstalled successfully",
-                    "odoo_response": res}
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error uninstalling module: {e}")
 
     def install_module(self, session_id: str, module_name: str):
         try:
