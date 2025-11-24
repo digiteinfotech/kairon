@@ -272,7 +272,7 @@ app.include_router(multilingual.router, prefix="/api/bot/{bot}/multilingual", ta
 app.include_router(metric.router, prefix="/api/bot/{bot}/metric", tags=["Metric"])
 app.include_router(augment.router, prefix="/api/augment", tags=["Augmentation"])
 app.include_router(history.router, prefix="/api/history/{bot}", tags=["History"])
-app.include_router(pos.router, prefix="/api/bot/{bot}/pos", tags=["POS"])
+app.include_router(pos.router, prefix="/api/bot/{bot}/pos/{pos_type}", tags=["POS"])
 app.include_router(idp.router, prefix="/api/idp", tags=["SSO", "IDP"])
 app.include_router(system.router, prefix="/api/system", tags=["Application"])
 app.include_router(data.router, prefix="/api/bot/{bot}/data", tags=["File Upload/Download"])

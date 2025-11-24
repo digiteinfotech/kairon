@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Security
 from kairon.shared.pos.models import (
     RegisterRequest, CreateUserRequest, POSOrderRequest,
-    LoginRequest
+    LoginRequest, DeleteDBRequest
 )
 from kairon.api.models import Response
 from kairon.shared.pos.processor import OdooProcessor
@@ -48,9 +48,21 @@ def register(
         db_name=req.client_name,
         admin_username=req.admin_username,
         admin_password=req.admin_password,
-        company=req.company,
         bot=current_user.get_bot(),
         user=current_user.get_user()
+    )
+
+    return Response(data=result)
+
+
+@router.delete("/client/delete", response_model=Response)
+def delete_database(
+        req: DeleteDBRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
+    result = odoo_processor.drop_database(
+        db_name=req.client_name,
+        admin_password=req.admin_password
     )
 
     return Response(data=result)

@@ -1,28 +1,23 @@
 from datetime import datetime
 
-from mongoengine import StringField, DateTimeField
+from mongoengine import StringField, DateTimeField, DictField
 from mongoengine.errors import ValidationError
 
-from kairon.shared.utils import Utility
+from kairon.shared.pos.constants import POSType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger
 
 
 @auditlogger.log
-class OdooClientDetails(Auditlog):
-    client_name = StringField(required=True)
-    username = StringField(required=True)
-    password = StringField(required=True)
-    company = StringField()
+class POSClientDetails(Auditlog):
+    pos_type = StringField(required=True, default=POSType.odoo.value,
+                           choices=[pos_type.value for pos_type in POSType])
+    config = DictField(required=True)
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
     def validate(self, clean=True):
-        if Utility.check_empty_string(self.client_name):
-            raise ValidationError("Client Name cannot be empty or blank spaces")
-        if Utility.check_empty_string(self.username):
-            raise ValidationError("Username cannot be empty or blank spaces")
-        if Utility.check_empty_string(self.password):
-            raise ValidationError("Password cannot be empty or blank spaces")
+        if not self.config:
+            raise ValidationError("POS Config is required")
 
