@@ -531,25 +531,33 @@ class TestUtility:
     def test_verify_privacy_policy_and_terms_consent_without_both_consents(self):
         accepted_privacy_policy = False
         accepted_terms = False
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: privacy policy, terms and conditions"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent_without_privacy_policy(self):
         accepted_privacy_policy = False
         accepted_terms = True
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: privacy policy"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent_without_terms(self):
         accepted_privacy_policy = True
         accepted_terms = False
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: terms and conditions"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent(self):
         accepted_privacy_policy = True
         accepted_terms = True
-        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+        accepted_ai_guidelines = True
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                        accepted_ai_guidelines)
 
     def test_validate_only_stories_and_nlu(
         self, resource_validate_only_stories_and_nlu

@@ -163,6 +163,7 @@ class ListData(BaseModel):
 class ConsentRequest(BaseModel):
     accepted_privacy_policy: bool
     accepted_terms: bool
+    accepted_ai_guidelines: bool
 
 
 class RegisterAccount(RecaptchaVerifiedRequest):
@@ -175,6 +176,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     fingerprint: str = None
     accepted_privacy_policy: bool
     accepted_terms: bool
+    accepted_ai_guidelines: bool
 
     @validator("email")
     def validate_email(cls, v, values, **kwargs):
