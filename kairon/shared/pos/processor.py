@@ -9,7 +9,7 @@ from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.pos.constants import POSType, PageType, OnboardingStatus
+from kairon.shared.pos.constants import POSType, OnboardingStatus
 from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
 
