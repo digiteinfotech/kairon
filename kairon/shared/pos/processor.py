@@ -88,14 +88,8 @@ class POSProcessor:
         :return: Saved client details as dict
         """
 
-        if (
-                Utility.check_empty_string(client_name)
-                or Utility.check_empty_string(username)
-                or Utility.check_empty_string(password)
-                or Utility.check_empty_string(bot)
-                or Utility.check_empty_string(user)
-        ):
-            raise AppException("Client Name, Username, Password, Bot and User cannot be empty.")
+        if Utility.check_empty_string(client_name):
+            raise AppException("Client Name cannot be empty.")
 
         if not Utility.special_match(client_name, search=RE_ALPHA_NUM):
             raise AppException("Client name can only contain letters, numbers, spaces and underscores.")
