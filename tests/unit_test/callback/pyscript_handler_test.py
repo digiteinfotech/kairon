@@ -3955,67 +3955,89 @@ def test_encrypt_response_success(monkeypatch):
 def test_save_data_success_returns_id():
     bot_id = "bot123"
     user = "aniket"
-    payload = {
+    payload = [{
         "collection_name": "orders",
         "data": {"a": 1},
         "source": "whatsapp",
         "received_at": datetime.utcnow(),
-    }
+    }]
+    fake_id = ObjectId()
 
-    fake_id=ObjectId()
+    mock_insert_many_result = MagicMock()
+    mock_insert_many_result.inserted_ids = [fake_id]
 
-    with patch.object(AnalyticsCollectionData, "save", return_value=AnalyticsCollectionData(id=fake_id)) as mock_save:
-        obj = AnalyticsCollectionData(id=fake_id)
-        mock_save.return_value = obj
+    mock_collection = MagicMock()
+    mock_collection.insert_many.return_value = mock_insert_many_result
 
-        result = CallbackScriptUtility.add_data_analytics(user=user, payload=payload, bot=bot_id)
+    with patch.object(
+        AnalyticsCollectionData,
+        "_get_collection",
+        return_value=mock_collection
+    ):
+        result = CallbackScriptUtility.add_data_analytics(
+            user=user,
+            payload=payload,
+            bot=bot_id
+        )
 
-        assert result["message"] == "Record saved!"
-        assert result["data"]["_id"] == str(fake_id)
+        assert result["message"] == "Records saved!"
 
-        mock_save.assert_called_once()
+        mock_collection.insert_many.assert_called_once()
+
+        docs = mock_collection.insert_many.call_args[0][0]
+        assert len(docs) == 1
+
+        doc = docs[0]
+        assert doc["bot"] == bot_id
+        assert doc["user"] == user
+        assert doc["collection_name"] == "orders"
+        assert doc["data"] == {"a": 1}
+        assert doc["source"] == "whatsapp"
+        assert doc["is_data_processed"] is False
 
 def test_fetch_data_returns_correct_format():
     bot_id = "bot123"
     collection_name = "orders"
 
-    fake_doc = AnalyticsCollectionData(
-        id=ObjectId(),
-        bot=bot_id,
-        collection_name=collection_name,
-        source="whatsapp",
-        received_at=datetime.utcnow(),
-        data={"x": 1},
-        is_data_processed=False,
-    )
+    fake_result = [{
+        "_id": str(ObjectId()),
+        "collection_name": collection_name,
+        "source": "whatsapp",
+        "received_at": datetime.utcnow(),
+        "data": {"x": 1},
+        "is_data_processed": False
+    }]
 
-    with patch.object(AnalyticsCollectionData, "objects", return_value=[fake_doc]) as mock_query:
+    mock_cursor = MagicMock()
+    mock_cursor.__iter__.return_value = fake_result
+
+    with patch.object(
+        AnalyticsCollectionData._get_collection(),
+        "aggregate",
+        return_value=mock_cursor
+    ) as mock_agg:
+
         result = CallbackScriptUtility.get_data_analytics(collection_name, bot_id)
 
         assert "data" in result
         assert len(result["data"]) == 1
 
         row = result["data"][0]
+
         assert row["collection_name"] == collection_name
         assert row["data"] == {"x": 1}
         assert row["source"] == "whatsapp"
         assert row["is_data_processed"] is False
 
-        mock_query.assert_called_once()
-
+        mock_agg.assert_called_once()
 
 @patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects")
 def test_mark_as_processed_success(mock_objects):
-    bot_id = "test_bot"
+    bot_id = "bot123"
     user = "aniket"
     collection_name = "orders"
 
-
-    fake_item1 = MagicMock()
-    fake_item2 = MagicMock()
-    mock_queryset = [fake_item1, fake_item2]
-
-    mock_objects.return_value = mock_queryset
+    mock_objects.return_value.update.return_value = 2  # updated rows
 
     result = CallbackScriptUtility.mark_as_processed(
         user=user,
@@ -4023,13 +4045,12 @@ def test_mark_as_processed_success(mock_objects):
         bot=bot_id
     )
 
-    mock_objects.assert_called_once_with(bot=bot_id, collection_name=collection_name)
-
-    for item in mock_queryset:
-        assert item.user == user
-        assert item.is_data_processed is True
-        item.save.assert_called_once()
+    mock_objects.return_value.update.assert_called_once_with(
+        set__user=user,
+        set__is_data_processed=True,
+        multi=True
+    )
 
     assert result == {"message": "Records updated!"}
-
+    AnalyticsCollectionData.objects(bot="bot123", collection_name="orders").delete()
 

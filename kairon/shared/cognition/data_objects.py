@@ -127,12 +127,12 @@ class AnalyticsCollectionData(Auditlog):
     bot = StringField(required=True)
     collection_name = StringField(required=True)
     user = StringField(required=True)
-    source = StringField()
+    source = StringField(default="")
     data = DictField()
     received_at = DateTimeField(default=datetime.utcnow)
     is_data_processed = BooleanField(default=False)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {"indexes": [{"fields": ["bot", "collection_name"]}]}
 
     def validate(self, clean=True):
         if clean:

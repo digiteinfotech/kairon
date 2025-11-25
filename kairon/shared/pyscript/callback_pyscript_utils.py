@@ -339,56 +339,52 @@ class CallbackScriptUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
     @staticmethod
-    def get_data_analytics(collection_name: str, bot: Text = None):
+    def get_data_analytics(collection_name: str, bot: str):
+
         if not bot:
             raise Exception("Missing bot id")
 
         normalized_name = collection_name.lower()
-        query = {"bot": bot, "collection_name": normalized_name}
-        collection_data = AnalyticsCollectionData.objects(__raw__=query)
 
-        final_data = []
+        cursor = AnalyticsCollectionData._get_collection().aggregate([
+            {"$match": {"bot": bot, "collection_name": normalized_name}},
+            {"$project": {
+                "_id": {"$toString": "$_id"},
+                "collection_name": 1,
+                "received_at": 1,
+                "source": 1,
+                "is_data_processed": 1,
+                "data": 1
+            }}
+        ])
 
-        for value in collection_data:
-            item = value.to_mongo().to_dict()
-
-            coll_name = item.pop("collection_name", None)
-            data = item.pop("data")
-
-            row = {
-                "_id": str(item.get("_id")),
-                "collection_name": coll_name,
-                "received_at": item.get("received_at"),
-                "source": item.get("source"),
-                "is_data_processed": item.get("is_data_processed"),
-                "data": data
-            }
-
-            final_data.append(row)
-
-        return {"data": final_data}
+        return {"data": list(cursor)}
 
     @staticmethod
-    def add_data_analytics(user: str, payload: dict, bot: str = None):
+    def add_data_analytics(user: str, payload, bot: str = None):
         if not bot:
             raise Exception("Missing bot id")
 
-        collection_name = payload.get("collection_name", None)
-        data = payload.get('data')
-        source=payload.get('source')
-        received_at=payload.get('received_at')
-        collection_obj = AnalyticsCollectionData()
-        collection_obj.bot = bot
-        collection_obj.data = data
-        collection_obj.collection_name = collection_name
-        collection_obj.source = source
-        collection_obj.received_at = received_at
-        collection_obj.user=user
-        collection_id = collection_obj.save().to_mongo().to_dict()["_id"].__str__()
+        if not isinstance(payload, list):
+            raise Exception("Payload must be a list of dicts")
+
+        docs = []
+
+        for item in payload:
+            docs.append({
+                "bot": bot,
+                "user": user,
+                "collection_name": item.get("collection_name", "").lower().strip(),
+                "data": item.get("data"),
+                "source": item.get("source", ""),
+                "received_at": item.get("received_at") or datetime.utcnow(),
+                "is_data_processed": False
+            })
+
+        AnalyticsCollectionData._get_collection().insert_many(docs)
 
         return {
-            "message": "Record saved!",
-            "data": {"_id": collection_id}
+            "message": "Records saved!"
         }
 
     @staticmethod
@@ -396,15 +392,19 @@ class CallbackScriptUtility:
         if not bot:
             raise Exception("Missing bot id")
 
-        queryset = AnalyticsCollectionData.objects(bot=bot, collection_name=collection_name)
+        collection_name = collection_name.lower().strip()
 
-        if not queryset:
+        result = AnalyticsCollectionData.objects(
+            bot=bot,
+            collection_name=collection_name
+        ).update(
+            set__user=user,
+            set__is_data_processed=True,
+            multi=True
+        )
+
+        if result == 0:
             raise AppException("No records found for given bot and collection_name")
-
-        for item in queryset:
-            item.user = user
-            item.is_data_processed = True
-            item.save()
 
         return {
             "message": "Records updated!"
