@@ -8,7 +8,8 @@ from loguru import logger
 
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
-from kairon.shared.pos.constants import POSType
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.pos.constants import POSType, PageType, OnboardingStatus
 from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
 
@@ -36,15 +37,21 @@ class POSProcessor:
 
         return data
 
-    def pos_login(self, db_name: str, username: str, password: str) -> Dict[str, Any]:
+    def pos_login(self, client_name: str, bot: str) -> Dict[str, Any]:
         """
         Authenticate against Odoo and return {'uid','session_id','result'}.
         Uses /web/session/authenticate JSON endpoint.
         """
+        if not MongoProcessor.is_pos_enabled(bot):
+            raise AppException("point of sale is not enabled")
+
+        client_details = POSProcessor.get_client_details(bot)
+        username = client_details.get("username")
+        password = client_details.get("password")
         url = f"{BASE_URL}/web/session/authenticate"
         payload = {
             "jsonrpc": "2.0",
-            "params": {"db": db_name, "login": username, "password": password}
+            "params": {"db": client_name, "login": username, "password": password}
         }
 
         resp = requests.post(url, json=payload)
@@ -58,7 +65,7 @@ class POSProcessor:
         if not session_id:
             raise HTTPException(status_code=401, detail="Login succeeded but session cookie missing")
 
-        return {"uid": result.get("uid"), "session_id": session_id, "result": result}
+        return {"uid": result.get("uid"), "session_id": session_id}
 
     @staticmethod
     def save_client_details(
@@ -67,6 +74,7 @@ class POSProcessor:
             password: str,
             bot: str,
             user: str,
+            pos_type: POSType = POSType.odoo.value
     ):
         """
         Save Odoo Client Configuration Details.
@@ -76,6 +84,7 @@ class POSProcessor:
         :param password: Odoo admin password
         :param bot: Bot ID
         :param user: User who is saving
+        :param pos_type: POS Type
         :return: Saved client details as dict
         """
 
@@ -104,7 +113,7 @@ class POSProcessor:
 
         record = (
             POSClientDetails(
-                pos_type=POSType.odoo.value,
+                pos_type=pos_type,
                 client_name=client_name.strip(),
                 config=client_details,
                 bot=bot.strip(),
@@ -135,15 +144,18 @@ class POSProcessor:
         if "password" in config:
             config["password"] = Utility.decrypt_message(config["password"])
 
-        config["client_name"] = str(data["client_name"])
+        config["client_name"] = data["client_name"]
 
         return config
 
-    def create_database(
-            self, db_name: str, bot: str, user: str,
+    def onboarding_client(
+            self, client_name: str, bot: str, user: str, pos_type: POSType = POSType.odoo.value,
             admin_password: str = MASTER_PASSWORD, admin_username: str = "admin",
             demo: bool = False, lang: str = "en_US"
     ):
+
+        if not MongoProcessor.is_pos_enabled(bot):
+            raise AppException("point of sale is not enabled")
 
         url = f"{BASE_URL}/jsonrpc"
 
@@ -159,8 +171,17 @@ class POSProcessor:
         }
 
         dbs = requests.post(url, json=list_payload).json().get("result", [])
-        if db_name in dbs:
-            return {"success": False, "message": f"Client {db_name} already exists"}
+        if client_name in dbs:
+            return {"success": False, "message": f"Client {client_name} already exists"}
+
+        POSProcessor.save_client_details(
+            client_name=client_name,
+            pos_type=pos_type,
+            username=admin_username,
+            password=admin_password,
+            bot=bot,
+            user=user,
+        )
 
         create_payload = {
             "jsonrpc": "2.0",
@@ -170,7 +191,7 @@ class POSProcessor:
                 "method": "create_database",
                 "args": [
                     admin_password,
-                    db_name,
+                    client_name,
                     demo,
                     lang,
                     admin_password,
@@ -185,26 +206,32 @@ class POSProcessor:
         if "error" in resp:
             raise HTTPException(400, detail=resp["error"]["data"]["message"])
 
-        POSProcessor.save_client_details(
-            client_name=db_name,
-            username=admin_username,
-            password=admin_password,
-            bot=bot,
-            user=user,
-        )
-        logger.info(f"Client '{db_name}' created.")
+        logger.info(f"Client '{client_name}' created.")
 
-        data = self.pos_login(db_name=db_name, username=admin_username, password=admin_password)
+        POSProcessor.update_onboarding_status(bot, client_name, OnboardingStatus.client_db_created)
+
+        data = self.pos_login(client_name=client_name, bot=bot)
 
         session_id = data.get("session_id")
 
         logger.info(f"User logged in, Session id: {session_id}")
 
-        self.install_module(session_id, "point_of_sale")
+        self.activate_module(session_id, "point_of_sale")
 
         logger.info("point_of_sale Activated")
 
-        return {"success": True, "message": f"Client '{db_name}' created and POS Activated"}
+        POSProcessor.update_onboarding_status(bot, client_name, OnboardingStatus.completed)
+
+        return {"message": f"Client '{client_name}' created and POS Activated"}
+
+    @staticmethod
+    def update_onboarding_status(bot: str, client_name: str, status: OnboardingStatus):
+        record = POSClientDetails.objects(bot=bot, client_name=client_name).first()
+        if not record:
+            raise AppException("POS Client not found")
+
+        record.onboarding_status = status.value
+        record.save()
 
     @staticmethod
     def delete_client_details(client_name: str):
@@ -226,7 +253,7 @@ class POSProcessor:
         record.delete()
         return {"success": True, "message": f"Client '{client_name}' details removed successfully."}
 
-    def drop_database(self, db_name: str, admin_password: str = MASTER_PASSWORD):
+    def drop_client(self, client_name: str, admin_password: str = MASTER_PASSWORD):
         url = f"{BASE_URL}/jsonrpc"
 
         list_payload = {
@@ -240,8 +267,8 @@ class POSProcessor:
             "id": 1
         }
         dbs = requests.post(url, json=list_payload).json().get("result", [])
-        if db_name not in dbs:
-            raise HTTPException(400, detail=f"Client '{db_name}' not found")
+        if client_name not in dbs:
+            raise HTTPException(400, detail=f"Client '{client_name}' not found")
 
         drop_payload = {
             "jsonrpc": "2.0",
@@ -251,7 +278,7 @@ class POSProcessor:
                 "method": "drop",
                 "args": [
                     admin_password,
-                    db_name
+                    client_name
                 ],
             },
             "id": 2
@@ -262,9 +289,9 @@ class POSProcessor:
         if "error" in resp:
             raise HTTPException(400, detail=resp["error"]["data"]["message"])
 
-        self.delete_client_details(db_name)
+        self.delete_client_details(client_name)
 
-        return {"success": True, "message": f"Client '{db_name}' deleted successfully"}
+        return {"message": f"Client '{client_name}' deleted successfully"}
 
     def jsonrpc_call(self, session_id: str, model: str, method: str, args: Optional[list] = None, kwargs: Optional[dict] = None) -> Any:
         """
@@ -337,7 +364,7 @@ class POSProcessor:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error toggling product: {e}")
 
-    def install_module(self, session_id: str, module_name: str):
+    def activate_module(self, session_id: str, module_name: str):
         try:
             module_ids = self.jsonrpc_call(
                 session_id,
@@ -347,7 +374,7 @@ class POSProcessor:
             )
 
             if not module_ids:
-                return False, f"Module '{module_name}' not found."
+                raise HTTPException(status_code=400, detail=f"Module '{module_name}' not found.")
 
             module = self.jsonrpc_call(
                 session_id,
@@ -359,7 +386,7 @@ class POSProcessor:
             state = module.get("state")
 
             if state in ("installed", "to upgrade"):
-                return True, f"Module '{module_name}' is already installed."
+                raise HTTPException(status_code=400, detail=f"Module '{module_name}' is already installed.")
 
             if state in ("to install", "uninstalled"):
                 self.jsonrpc_call(
@@ -370,10 +397,10 @@ class POSProcessor:
                 )
                 return True, f"Module '{module_name}' installed successfully."
 
-            return False, f"Unknown module state: {state}"
+            raise HTTPException(status_code=400, detail=f"Unknown module state: {state}")
 
         except Exception as e:
-            return False, f"Error installing module '{module_name}': {e}"
+            raise HTTPException(status_code=500, detail=f"Error installing module '{module_name}': {e}")
 
     def list_pos_orders(self, session_id: str, status: str | None = None):
         """

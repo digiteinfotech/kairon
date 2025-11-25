@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Query, Security, Path
 
+from kairon.pos.definitions.factory import POSFactory
 from kairon.shared.pos.constants import POSType
 from kairon.shared.pos.models import (
-    RegisterRequest, POSOrderRequest,
-    LoginRequest, DeleteDBRequest
+    LoginRequest, ClientRequest, POSOrderRequest
 )
 from kairon.api.models import Response
 from kairon.shared.pos.processor import POSProcessor
@@ -23,43 +23,46 @@ def pos_login(req: LoginRequest,
     """
     Returns session_id + cookies using /web/session/authenticate
     """
-    data = pos_processor.pos_login(req.client_name, req.username, req.password)
+    pos_instance = POSFactory.get_instance(pos_type)
+    data = pos_instance().authenticate(client_name=req.client_name, page_type=req.page_type, bot=current_user.get_bot())
+
     return Response(data=data)
 
 
 @router.post("/register", response_model=Response)
 def register(
-        req: RegisterRequest,
+        req: ClientRequest,
         pos_type: POSType = Path(description="pos type", examples=["odoo"]),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
-    result = pos_processor.create_database(
-        db_name=req.client_name,
+    pos_instance = POSFactory.get_instance(pos_type)
+    data = pos_instance().onboarding(
+        client_name=req.client_name,
         bot=current_user.get_bot(),
         user=current_user.get_user()
     )
 
-    return Response(data=result)
+    return Response(data=data)
 
 
 @router.delete("/client/delete", response_model=Response)
-def delete_database(
-        req: DeleteDBRequest,
+def delete_client(
+        req: ClientRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
-    result = pos_processor.drop_database(
-        db_name=req.client_name,
+    result = pos_processor.drop_client(
+        client_name=req.client_name,
     )
 
     return Response(data=result)
 
 
-@router.get("/client_details", response_model=Response)
-def get_client_details(
+@router.get("/client_name", response_model=Response)
+def get_client_name(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     data = pos_processor.get_client_details(current_user.get_bot())
-    return Response(data=data)
+    return Response(data={"client_name": data.get("client_name")})
 
 
 @router.post("/toggle_product/{product_id}", response_model=Response)

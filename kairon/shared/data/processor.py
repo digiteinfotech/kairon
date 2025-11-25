@@ -8539,6 +8539,12 @@ class MongoProcessor:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
 
+    @staticmethod
+    def is_pos_enabled(bot: str):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        return bot_setting.get("pos_enabled")
+
+
     def add_callback(self, request_data: dict, bot: Text):
         """
         Add callback config.
