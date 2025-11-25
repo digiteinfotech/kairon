@@ -3374,6 +3374,7 @@ class TestActions:
                                 'system_limits': {'file_upload_limit': 5},
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
+                                'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
                                 'max_instagram_user_posts': 5}
@@ -4679,6 +4680,7 @@ class TestActions:
                                 'cognition_columns_per_collection_limit': 5,
                                 'integrations_per_user_limit': 3,
                                 'live_agent_enabled': False,
+                                'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
                                 'max_instagram_user_posts': 5}

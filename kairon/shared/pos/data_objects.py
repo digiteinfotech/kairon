@@ -4,20 +4,23 @@ from mongoengine import StringField, DateTimeField, DictField
 from mongoengine.errors import ValidationError
 
 from kairon import Utility
-from kairon.shared.pos.constants import POSType
+from kairon.shared.pos.constants import POSType, OnboardingStatus
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger
 
 
 @auditlogger.log
 class POSClientDetails(Auditlog):
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    client_name = StringField(required=True)
     pos_type = StringField(required=True, default=POSType.odoo.value,
                            choices=[pos_type.value for pos_type in POSType])
-    client_name = StringField(required=True)
+    onboarding_status = StringField(required=True, default=OnboardingStatus.initiated.value,
+                                    choices=[status.value for status in OnboardingStatus])
+    bot = StringField(required=True)
+    user = StringField(required=True)
     config = DictField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
 
     meta = {
         "indexes": [
@@ -31,4 +34,3 @@ class POSClientDetails(Auditlog):
             raise ValidationError("Client Name is required")
         if not self.config:
             raise ValidationError("POS Config is required")
-

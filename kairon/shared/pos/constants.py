@@ -5,6 +5,18 @@ class POSType(str, Enum):
     odoo = "odoo"
 
 
+class OnboardingStatus(str, Enum):
+    initiated = "Initiated"
+    client_db_created = "Client DB Created"
+    pos_activated = "POS Activated"
+    completed = "Completed"
+
+
+class PageType(str, Enum):
+    pos_products = "pos_products"
+    pos_orders = "pos_orders"
+
+
 class OdooPOSActions(str, Enum):
     ACTION_POS_PRODUCT_LIST = 388
     ACTION_POS_ORDER_LIST = 380
