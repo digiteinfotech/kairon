@@ -185,6 +185,7 @@ class Whatsapp:
         out_channel = WhatsappBot(self.client)
         self.client.metadata = metadata
         await out_channel.mark_as_read(metadata["id"])
+        await out_channel.typing_indicator(metadata["id"])
         user_msg = UserMessage(
             text, out_channel, sender_id, input_channel=self.name(), metadata=metadata
         )
@@ -246,6 +247,13 @@ class WhatsappBot(OutputChannel):
             msg_id: message id
         """
         self.whatsapp_client.mark_as_read(msg_id)
+
+    async def typing_indicator(self, msg_id: Text) -> None:
+        """typing indicator in chat.
+        Args:
+            msg_id: message id
+        """
+        self.whatsapp_client.typing_indicator(msg_id)
 
     async def send_custom_json(
             self,

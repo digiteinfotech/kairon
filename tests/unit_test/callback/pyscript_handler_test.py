@@ -2046,6 +2046,58 @@ def test_delete_schedule_job_failure(monkeypatch):
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
 
+
+def test_typing_indicator_success():
+    from unittest.mock import patch
+    message_id = "test_msg_id"
+    api_key = "test_api_key"
+    bot = "test_bot"
+
+    mock_response = {"status": "ok"}
+
+    with patch.object(ActionUtility, "execute_http_request", return_value=mock_response) as mock_request:
+        response = CallbackScriptUtility.typing_indicator(message_id, api_key, bot)
+
+        mock_request.assert_called_once_with(
+            "https://waba-v2.360dialog.io/messages",
+            "POST",
+            {
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+                "typing_indicator": {"type": "text"},
+            },
+            headers={"D360-API-KEY": api_key},
+        )
+
+        assert response == mock_response
+
+
+def test_typing_indicator_http_error_raises_exception():
+    message_id = "test_msg_id"
+    api_key = "test_api_key"
+    bot = "test_bot"
+
+    inner_err = Exception("HTTP 500")
+
+    with patch.object(ActionUtility, "execute_http_request", side_effect=inner_err) as mock_request:
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.typing_indicator(message_id, api_key, bot)
+
+        assert str(exc.value) == "HTTP 500"
+
+        mock_request.assert_called_once_with(
+            "https://waba-v2.360dialog.io/messages",
+            "POST",
+            {
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+                "typing_indicator": {"type": "text"},
+            },
+            headers={"D360-API-KEY": api_key},
+        )
+
 @pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
@@ -3852,6 +3904,58 @@ def test_save_as_pdf_error_raises_wrapped_exception():
             filepath="report.pdf"
         )
 
+
+
+def test_typing_indicator_success():
+    from unittest.mock import patch
+    message_id = "test_msg_id"
+    api_key = "test_api_key"
+    bot = "test_bot"
+
+    mock_response = {"status": "ok"}
+
+    with patch.object(ActionUtility, "execute_http_request", return_value=mock_response) as mock_request:
+        response = CallbackScriptUtility.typing_indicator(message_id, api_key, bot)
+
+        mock_request.assert_called_once_with(
+            "https://waba-v2.360dialog.io/messages",
+            "POST",
+            {
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+                "typing_indicator": {"type": "text"},
+            },
+            headers={"D360-API-KEY": api_key},
+        )
+
+        assert response == mock_response
+
+
+def test_typing_indicator_http_error_raises_exception():
+    message_id = "test_msg_id"
+    api_key = "test_api_key"
+    bot = "test_bot"
+
+    inner_err = Exception("HTTP 500")
+
+    with patch.object(ActionUtility, "execute_http_request", side_effect=inner_err) as mock_request:
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.typing_indicator(message_id, api_key, bot)
+
+        assert str(exc.value) == "HTTP 500"
+
+        mock_request.assert_called_once_with(
+            "https://waba-v2.360dialog.io/messages",
+            "POST",
+            {
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+                "typing_indicator": {"type": "text"},
+            },
+            headers={"D360-API-KEY": api_key},
+        )
 def test_decrypt_request_missing_fields():
 
     with pytest.raises(Exception) as exc:
