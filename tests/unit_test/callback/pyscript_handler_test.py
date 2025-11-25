@@ -4031,13 +4031,28 @@ def test_fetch_data_returns_correct_format():
 
         mock_agg.assert_called_once()
 
+def test_add_data_analytics_invalid_payload_type():
+    bot_id = "bot123"
+    user = "aniket"
+
+    payload = {"collection_name": "orders"}
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.add_data_analytics(
+            user=user,
+            payload=payload,
+            bot=bot_id
+        )
+
+    assert str(exc.value) == "Payload must be a list of dicts"
+
 @patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects")
 def test_mark_as_processed_success(mock_objects):
     bot_id = "bot123"
     user = "aniket"
     collection_name = "orders"
 
-    mock_objects.return_value.update.return_value = 2  # updated rows
+    mock_objects.return_value.update.return_value = 2
 
     result = CallbackScriptUtility.mark_as_processed(
         user=user,
@@ -4052,5 +4067,18 @@ def test_mark_as_processed_success(mock_objects):
     )
 
     assert result == {"message": "Records updated!"}
-    AnalyticsCollectionData.objects(bot="bot123", collection_name="orders").delete()
+
+def test_mark_as_processed_no_records_found():
+    with patch.object(AnalyticsCollectionData, "objects") as mock_objects:
+        mock_objects.return_value.update.return_value = 0
+
+        with pytest.raises(AppException) as exc:
+            CallbackScriptUtility.mark_as_processed(
+                user="aniket",
+                collection_name="orders",
+                bot="test_bot"
+            )
+
+        assert str(exc.value) == "No records found for given bot and collection_name"
+        AnalyticsCollectionData.objects(bot="bot123", collection_name="orders").delete()
 
