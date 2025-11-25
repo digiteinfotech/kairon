@@ -4,10 +4,10 @@ from kairon.shared.pos.constants import OdooPOSMenus, OdooPOSActions, PageType
 from kairon.shared.pos.processor import POSProcessor
 
 pos_processor = POSProcessor()
-BASE_URL = Utility.environment["pos"]["odoo"]["odoo_url"]
 
 
 class OdooPOS(POSBase):
+    __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
 
     def onboarding(self, **kwargs):
         client_name = kwargs.get("client_name")
@@ -37,8 +37,8 @@ class OdooPOS(POSBase):
     def products_list(self, **kwargs):
         action = OdooPOSActions.ACTION_POS_PRODUCT_LIST.value
         menu = OdooPOSMenus.MENU_POS_PRODUCTS.value
-        product_list_json={
-            "url": f"{BASE_URL}/web#action={action}&model=product.template&view_type=kanban&cids=1&menu_id={menu}"
+        product_list_json = {
+            "url": f"{self.__base_url}/web#action={action}&model=product.template&view_type=kanban&cids=1&menu_id={menu}"
         }
         return product_list_json
 
@@ -46,7 +46,7 @@ class OdooPOS(POSBase):
         action = OdooPOSActions.ACTION_POS_ORDER_LIST.value
         menu = OdooPOSMenus.MENU_POS_ORDERS.value
         order_list_json = {
-            "url": f"{BASE_URL}/web#action={action}&model=pos.order&view_type=list&cids=1&menu_id={menu}"
+            "url": f"{self.__base_url}/web#action={action}&model=pos.order&view_type=list&cids=1&menu_id={menu}"
         }
         return order_list_json
 

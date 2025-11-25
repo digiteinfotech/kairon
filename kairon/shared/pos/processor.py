@@ -14,11 +14,10 @@ from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
 
 
-BASE_URL = Utility.environment["pos"]["odoo"]["odoo_url"]
-MASTER_PASSWORD = Utility.environment["pos"]["odoo"]["odoo_master_password"]
-
-
 class POSProcessor:
+
+    __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
+    __master_password = Utility.environment["pos"]["odoo"]["odoo_master_password"]
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""
@@ -48,13 +47,13 @@ class POSProcessor:
         client_details = POSProcessor.get_client_details(bot)
         username = client_details.get("username")
         password = client_details.get("password")
-        url = f"{BASE_URL}/web/session/authenticate"
+        url = f"{self.__base_url}/web/session/authenticate"
         payload = {
             "jsonrpc": "2.0",
             "params": {"db": client_name, "login": username, "password": password}
         }
 
-        resp = requests.post(url, json=payload)
+        resp = requests.post(url, json=payload, timeout=30)
         data = self._raise_if_error(resp, "Login")
 
         result = data.get("result")
@@ -143,15 +142,17 @@ class POSProcessor:
         return config
 
     def onboarding_client(
-            self, client_name: str, bot: str, user: str, pos_type: POSType = POSType.odoo.value,
-            admin_password: str = MASTER_PASSWORD, admin_username: str = "admin",
+            self, client_name: str, bot: str, user: str,
+            pos_type: POSType = POSType.odoo.value,
+            admin_username: str = "admin",
             demo: bool = False, lang: str = "en_US"
     ):
 
         if not MongoProcessor.is_pos_enabled(bot):
             raise AppException("point of sale is not enabled")
 
-        url = f"{BASE_URL}/jsonrpc"
+        url = f"{self.__base_url}/jsonrpc"
+        admin_password = self.__master_password
 
         list_payload = {
             "jsonrpc": "2.0",
@@ -164,7 +165,7 @@ class POSProcessor:
             "id": 1
         }
 
-        dbs = requests.post(url, json=list_payload).json().get("result", [])
+        dbs = requests.post(url, json=list_payload, timeout=30).json().get("result", [])
         if client_name in dbs:
             return {"success": False, "message": f"Client {client_name} already exists"}
 
@@ -195,7 +196,7 @@ class POSProcessor:
             "id": 2
         }
 
-        resp = requests.post(url, json=create_payload).json()
+        resp = requests.post(url, json=create_payload, timeout=30).json()
 
         if "error" in resp:
             raise HTTPException(400, detail=resp["error"]["data"]["message"])
@@ -247,8 +248,9 @@ class POSProcessor:
         record.delete()
         return {"success": True, "message": f"Client '{client_name}' details removed successfully."}
 
-    def drop_client(self, client_name: str, admin_password: str = MASTER_PASSWORD):
-        url = f"{BASE_URL}/jsonrpc"
+    def drop_client(self, client_name: str):
+        url = f"{self.__base_url}/jsonrpc"
+        admin_password = self.__master_password
 
         list_payload = {
             "jsonrpc": "2.0",
@@ -260,7 +262,7 @@ class POSProcessor:
             },
             "id": 1
         }
-        dbs = requests.post(url, json=list_payload).json().get("result", [])
+        dbs = requests.post(url, json=list_payload, timeout=30).json().get("result", [])
         if client_name not in dbs:
             raise HTTPException(400, detail=f"Client '{client_name}' not found")
 
@@ -278,7 +280,7 @@ class POSProcessor:
             "id": 2
         }
 
-        resp = requests.post(url, json=drop_payload).json()
+        resp = requests.post(url, json=drop_payload, timeout=30).json()
 
         if "error" in resp:
             raise HTTPException(400, detail=resp["error"]["data"]["message"])
@@ -293,7 +295,7 @@ class POSProcessor:
         Requires a valid session_id cookie (stateless).
         Returns the "result" or raises HTTPException on error.
         """
-        url = f"{BASE_URL}/web/dataset/call_kw"
+        url = f"{self.__base_url}/web/dataset/call_kw"
         payload = {
             "jsonrpc": "2.0",
             "method": "call",
