@@ -5201,6 +5201,88 @@ class TestMongoProcessor:
             }
         ]
 
+    def test_get_collection_data_pagination_full_verification(self):
+        bot = "test_bot"
+        from unittest.mock import patch, MagicMock
+
+        mock_docs = []
+        for i in range(5):
+            mock_obj = MagicMock()
+            mock_obj.to_mongo().to_dict.return_value = {
+                "_id": ObjectId(),
+                "collection_name": "user",
+                "is_secure": [],
+                "is_non_editable": [],
+                "data": {"index": i},
+            }
+            mock_docs.append(mock_obj)
+
+        full_queryset = MagicMock()
+        full_queryset.__iter__.return_value = iter(mock_docs)
+
+        paginated_queryset = MagicMock()
+        paginated_queryset.__iter__.return_value = iter(mock_docs[2:4])
+
+        with patch("kairon.shared.data.collection_processor.CollectionData.objects") as objects_mock:
+            objects_mock.return_value.order_by.return_value = objects_mock.return_value
+            objects_mock.return_value.skip.return_value = objects_mock.return_value
+            objects_mock.return_value.limit.return_value = paginated_queryset
+
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    page_size=2,
+                    start_idx=2,
+                )
+            )
+
+            assert len(results) == 2
+            assert results[0]["data"]["index"] == 2
+            assert results[1]["data"]["index"] == 3
+
+            objects_mock.return_value.order_by.assert_called_once()
+            objects_mock.return_value.skip.assert_called_once_with(2)
+            objects_mock.return_value.limit.assert_called_once_with(2)
+
+    def test_get_collection_data_pagination_negative_when_start_or_size_none(self):
+        from unittest.mock import patch, MagicMock
+        bot = "test_bot"
+        mock_obj = MagicMock()
+        mock_obj.to_mongo().to_dict.return_value = {
+            "_id": ObjectId(),
+            "collection_name": "user",
+            "is_secure": [],
+            "is_non_editable": [],
+            "data": {"name": "A"},
+        }
+
+        mock_queryset = MagicMock()
+        mock_queryset.__iter__.return_value = iter([mock_obj])
+        with patch(
+                "kairon.shared.data.collection_processor.CollectionData.objects",
+                return_value=mock_queryset
+        ) as objects_mock:
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    start_idx=None,
+                    page_size=5,
+                )
+            )
+
+            assert len(results) == 1
+            assert results[0]["data"]["name"] == "A"
+            objects_mock.return_value.order_by.assert_not_called()
+            objects_mock.return_value.skip.assert_not_called()
+            objects_mock.return_value.limit.assert_not_called()
+
+
     def test_get_collection_data_with_collection_id(self):
         bot = 'test_bot'
         user = 'test_user'

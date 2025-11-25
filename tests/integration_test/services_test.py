@@ -9569,17 +9569,6 @@ def test_get_collection_data():
     assert data == [
         {
             'collection_name': 'user',
-            'is_secure': ['name', 'mobile_number'],
-            'is_non_editable': [],
-            'data': {
-                'name': 'Mahesh',
-                'age': 24,
-                'mobile_number': '9876543210',
-                'location': 'Bangalore'
-            }
-        },
-        {
-            'collection_name': 'user',
             'is_secure': [],
             'is_non_editable': [],
 
@@ -9588,6 +9577,17 @@ def test_get_collection_data():
                 'age': 25,
                 'mobile_number': '989284928928',
                 'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
             }
         }
     ]
@@ -9632,6 +9632,39 @@ def test_get_collection_data():
         }
     ]
 
+
+def test_get_collection_data_pagination():
+    full_response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert full_response.status_code == 200
+    full_data = full_response.json()["data"]
+    assert isinstance(full_data, list)
+    assert len(full_data) >= 1
+
+    page_size = 1
+    start_idx = 0
+
+    expected_slice = full_data[start_idx : start_idx + page_size]
+
+    paginated_response = client.get(
+        url=(
+            f"/api/bot/{pytest.bot}/data/collection/user"
+            f"?page_size={page_size}&start_idx={start_idx}"
+        ),
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = paginated_response.json()
+
+    assert paginated_response.status_code == 200
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert isinstance(actual["data"], list)
+
+    assert actual["data"] == expected_slice
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
