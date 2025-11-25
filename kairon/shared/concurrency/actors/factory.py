@@ -3,6 +3,7 @@ from typing import Text
 from pykka import ActorProxy
 
 from kairon.exceptions import AppException
+from .analytics_runner import AnalyticsRunner
 from .callable_runner import CallableRunner
 from ..actors.pyscript_runner import PyScriptRunner
 from kairon.shared.constants import ActorType
@@ -12,6 +13,7 @@ class ActorFactory:
     __actors = {
         ActorType.pyscript_runner.value: (PyScriptRunner, PyScriptRunner.start().proxy()),
         ActorType.callable_runner.value: (CallableRunner, CallableRunner.start().proxy())
+
     }
 
     @staticmethod
