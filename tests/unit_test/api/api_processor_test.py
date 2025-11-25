@@ -535,6 +535,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 1.0
         }
         ).save()
@@ -546,6 +547,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 2.0
         }
         ).save()
@@ -557,6 +559,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 3.0
         }
         ).save()
@@ -602,6 +605,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 1.0
         }
         ).save()
@@ -644,6 +648,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 1.0
         }
         ).save()
@@ -684,6 +689,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 1.0
         }
         ).save()
@@ -735,6 +741,7 @@ class TestAccountProcessor:
             "username": email,
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True,
             "terms_and_policy_version": 1.0
         }
         ).save()

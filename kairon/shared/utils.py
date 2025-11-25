@@ -1670,12 +1670,15 @@ class Utility:
                 return {"account_owned": [], "shared": [bot_details]}
 
     @staticmethod
-    def verify_privacy_policy_and_terms_consent(accepted_privacy_policy: bool, accepted_terms: bool):
+    def verify_privacy_policy_and_terms_consent(accepted_privacy_policy: bool, accepted_terms: bool,
+                                                accepted_ai_guidelines: bool):
         missing_consents = []
         if not accepted_privacy_policy:
             missing_consents.append("privacy policy")
         if not accepted_terms:
             missing_consents.append("terms and conditions")
+        if not accepted_ai_guidelines:
+            missing_consents.append("ai guidelines")
 
         if missing_consents:
             raise AppException(f"Should be agreed to: {', '.join(missing_consents)}")
@@ -1902,13 +1905,21 @@ class Utility:
     def compare_terms_and_policy_version(user_activity_log):
         if user_activity_log:
             terms_and_policy_version = float(user_activity_log.get("data", {}).get("terms_and_policy_version"))
+            accepted_privacy_policy = user_activity_log.get("data", {}).get("accepted_privacy_policy")
+            accepted_terms = user_activity_log.get("data", {}).get("accepted_terms")
+            accepted_ai_guidelines = user_activity_log.get("data", {}).get("accepted_ai_guidelines")
             latest_terms_and_policy_version = float(Utility.environment["app"]["terms_and_policy_version"])
-            show_updated_terms_and_policy = True if latest_terms_and_policy_version > terms_and_policy_version else False
+
+            version_outdated = latest_terms_and_policy_version > terms_and_policy_version
+            need_to_accept_any = not (accepted_privacy_policy and accepted_terms and accepted_ai_guidelines)
+
+            show_updated_terms_and_policy = version_outdated or need_to_accept_any
         else:
             user_activity_log = {
                 "data": {
                     "accepted_terms": False,
                     "accepted_privacy_policy": False,
+                    "accepted_ai_guidelines": False
                 }
             }
             show_updated_terms_and_policy = True

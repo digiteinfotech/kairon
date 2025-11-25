@@ -347,7 +347,7 @@ def test_book_a_demo_with_valid_data(trigger_smtp_mock, validate_recaptcha_mock,
     assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
 
-def test_account_registration_without_privacy_policy_and_terms_consent(monkeypatch):
+def test_account_registration_without_privacy_policy_and_terms_consent_and_accepted_ai_guidelines(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
@@ -359,11 +359,12 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": False,
-            "accepted_terms": False
+            "accepted_terms": False,
+            "accepted_ai_guidelines": False
         },
     )
     actual = response.json()
-    assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions"
+    assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions, ai guidelines"
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -375,14 +376,15 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['timestamp']
     assert user_activity_log['account'] == -1
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['accepted_ai_guidelines'] is False
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
-def test_account_registration_without_privacy_policy(monkeypatch):
+def test_account_registration_without_privacy_policy_and_accepted_ai_guidelines(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
@@ -394,11 +396,12 @@ def test_account_registration_without_privacy_policy(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": False,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": False
         },
     )
     actual = response.json()
-    assert actual["message"] == "Should be agreed to: privacy policy"
+    assert actual["message"] == "Should be agreed to: privacy policy, ai guidelines"
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -410,10 +413,11 @@ def test_account_registration_without_privacy_policy(monkeypatch):
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['accepted_ai_guidelines'] is False
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
@@ -429,7 +433,8 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": False
+            "accepted_terms": False,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -445,10 +450,11 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is True
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['accepted_ai_guidelines'] is True
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
@@ -464,7 +470,8 @@ def test_account_registration_error():
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -500,7 +507,8 @@ def test_recaptcha_verified_request(monkeypatch):
             "account": "integration1234567890",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -525,7 +533,8 @@ def test_recaptcha_verified_request(monkeypatch):
             "bot": "integration",
             "add_trusted_device": True,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -564,7 +573,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -587,7 +597,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -607,7 +618,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -660,7 +672,8 @@ def test_account_registation_temporary_email():
                 "account": "integration",
                 "bot": "integration",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -714,7 +727,8 @@ def test_account_registation_invalid_email():
                 "account": "integration",
                 "bot": "integration",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -772,7 +786,8 @@ def test_account_registation_invalid_email_quick_email_valid():
                 "account": "email_validation",
                 "bot": "email_validation",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -791,7 +806,8 @@ def test_account_registration(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -810,7 +826,8 @@ def test_account_registration(monkeypatch):
             "bot": "integrationtest",
             "fingerprint": "asdfghj4567890",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -829,7 +846,8 @@ def test_account_registration(monkeypatch):
             "bot": "integration2",
             "fingerprint": "asdfghj4567890",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -866,7 +884,8 @@ def test_account_registration_enable_sso_only(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -1127,6 +1146,7 @@ def test_add_user_consent_details():
         json={
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1144,19 +1164,21 @@ def test_add_user_consent_details():
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is True
     assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['accepted_ai_guidelines'] is True
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
-def test_add_user_consent_details_without_terms():
+def test_add_user_consent_details_without_terms_and_accepted_ai_guidelines():
     response = client.post(
         "/api/user/consent/details",
         json={
             "accepted_privacy_policy": True,
             "accepted_terms": False,
+            "accepted_ai_guidelines": False
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1164,15 +1186,16 @@ def test_add_user_consent_details_without_terms():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
-    assert actual["message"] == "Should be agreed to: terms and conditions"
+    assert actual["message"] == "Should be agreed to: terms and conditions, ai guidelines"
 
 
-def test_add_user_consent_details_without_privacy_policy():
+def test_add_user_consent_details_without_privacy_policy_and_accepted_ai_guidelines():
     response = client.post(
         "/api/user/consent/details",
         json={
             "accepted_privacy_policy": False,
             "accepted_terms": True,
+            "accepted_ai_guidelines": False
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1180,7 +1203,7 @@ def test_add_user_consent_details_without_privacy_policy():
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
-    assert actual["message"] == "Should be agreed to: privacy policy"
+    assert actual["message"] == "Should be agreed to: privacy policy, ai guidelines"
 
 
 def test_add_user_consent_details_without_both_privacy_policy_and_terms():
@@ -1189,6 +1212,7 @@ def test_add_user_consent_details_without_both_privacy_policy_and_terms():
         json={
             "accepted_privacy_policy": False,
             "accepted_terms": False,
+            "accepted_ai_guidelines": True
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -1269,7 +1293,8 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
             "bot": "integration",
             "fingerprint": None,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -21047,7 +21072,8 @@ def test_account_registration_with_confirmation(monkeypatch):
             "account": "integration33",
             "bot": "integration33",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -21574,7 +21600,8 @@ def test_update_member_role_not_exists(monkeypatch):
             "confirm_password": "Welcome@10",
             "account": "user@kairon.ai",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -21622,7 +21649,8 @@ def test_update_member_role(monkeypatch):
             "confirm_password": "Welcome@10",
             "account": "integration_email_false@demo.ai",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -36041,7 +36069,8 @@ def test_add_member_with_view_role():
             "confirm_password": "Welcome@10",
             "account": email,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -37372,7 +37401,7 @@ def test_delete_account(mock_password_reset):
     UserActivityLog(
         type="user_consent",
         user="integration@demo.ai",
-        message=['Privacy Policy, Terms and Conditions consent'],
+        message=['Privacy Policy, Terms and Conditions and AI Guidelines consent'],
         data={
             "username": "integration@demo.ai",
             "accepted_privacy_policy": True,
@@ -37421,7 +37450,8 @@ def test_get_responses_post_passwd_reset(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = regsiter_response.json()
@@ -37546,7 +37576,8 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
             "account": "samepasswrd",
             "bot": "samepasswrd",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     token = Authentication.create_access_token(data={"mail_id": email})
@@ -37580,7 +37611,8 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
             "account": "samepasswrd2",
             "bot": "samepasswrd2",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     token = Authentication.create_access_token(data={"mail_id": email})
@@ -37742,7 +37774,8 @@ def test_idp_callback(monkeypatch):
             "given_name": "test",
             "family_name": "user",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         }
 
     monkeypatch.setattr(IDPProcessor, "get_idp_token", _get_idp_token)
@@ -37800,7 +37833,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_owner",
             "bot": "mayank_owner",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -37817,7 +37851,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_tester",
             "bot": "mayank_tester",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -37834,7 +37869,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_admin",
             "bot": "mayank_admin",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()

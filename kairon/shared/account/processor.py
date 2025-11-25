@@ -813,15 +813,17 @@ class AccountProcessor:
         terms_and_policy_version = Utility.environment["app"]["terms_and_policy_version"]
         accepted_privacy_policy = consent_details.get("accepted_privacy_policy")
         accepted_terms = consent_details.get("accepted_terms")
-        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+        accepted_ai_guidelines = consent_details.get("accepted_ai_guidelines")
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms, accepted_ai_guidelines)
         UserActivityLogger.add_user_activity_log(
             a_type=UserActivityType.user_consent.value,
             email=email,
-            message=["Privacy Policy, Terms and Conditions consent"],
+            message=["Privacy Policy, Terms and Conditions and AI Guidelines consent"],
             data={
                 "username": email,
                 "accepted_privacy_policy": accepted_privacy_policy,
                 "accepted_terms": accepted_terms,
+                "accepted_ai_guidelines": accepted_ai_guidelines,
                 "terms_and_policy_version": terms_and_policy_version
             }
         )
@@ -848,18 +850,20 @@ class AccountProcessor:
         user = account_setup.get("email")
         accepted_privacy_policy = account_setup.get("accepted_privacy_policy")
         accepted_terms = account_setup.get("accepted_terms")
+        accepted_ai_guidelines = account_setup.get("accepted_ai_guidelines")
         UserActivityLogger.add_user_activity_log(
             a_type=UserActivityType.user_consent.value,
             email=user,
-            message=["Privacy Policy, Terms and Conditions consent"],
+            message=["Privacy Policy, Terms and Conditions and AI Guidelines consent"],
             data={
                 "username": user,
                 "accepted_privacy_policy": accepted_privacy_policy,
                 "accepted_terms": accepted_terms,
+                "accepted_ai_guidelines": accepted_ai_guidelines,
                 "terms_and_policy_version": terms_and_policy_version
             }
         )
-        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms, accepted_ai_guidelines)
 
     @staticmethod
     async def account_setup(account_setup: Dict):
