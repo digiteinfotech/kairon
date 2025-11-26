@@ -933,6 +933,7 @@ class BotSettings(Auditlog):
     cognition_columns_per_collection_limit = IntField(default=5)
     integrations_per_user_limit = IntField(default=3)
     live_agent_enabled = BooleanField(default=False)
+    pos_enabled = BooleanField(default=False)
     max_actions_per_parallel_action = IntField(default=5)
     catalog_sync_limit_per_day = IntField(default=5)
     max_instagram_user_posts = IntField(default=5)
