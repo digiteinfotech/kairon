@@ -292,10 +292,11 @@ async def get_collection_data(
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(DataProcessor.get_collection_data(current_user.get_bot(),
+    data = list(DataProcessor.get_collection_data(current_user.get_bot(),
                                                            collection_name=collection_name,
                                                            key=key, value=value, start_idx=start_idx,
-                                                           page_size=page_size))}
+                                                           page_size=page_size))
+    return {"data": {"logs": data, "total": len(data)}}
 
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
