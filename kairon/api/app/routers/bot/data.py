@@ -296,9 +296,17 @@ async def get_collection_data(
                                                            collection_name=collection_name,
                                                            key=key, value=value, start_idx=start_idx,
                                                            page_size=page_size))
+    query = {
+        "bot": current_user.get_bot(),
+        "collection_name": collection_name.lower()
+    }
 
-    count = CollectionData.objects(bot=current_user.get_bot(), collection_name=collection_name).count()
-    return {"data": {"logs": data, "total": count}}
+    query.update({
+        f"data__{k}": v for k, v in zip(key, value) if k and v
+    })
+    total = CollectionData.objects(**query).count()
+
+    return {"data": {"logs": data, "total": total}}
 
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
