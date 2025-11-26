@@ -14,6 +14,7 @@ import pytz
 import responses
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
+from bson import ObjectId
 from dateutil.parser import isoparse
 from mongoengine import connect
 from pymongo import MongoClient
@@ -26,6 +27,7 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
@@ -3949,3 +3951,134 @@ def test_encrypt_response_success(monkeypatch):
     monkeypatch.setattr("kairon.shared.pyscript.callback_pyscript_utils.base64.b64encode", lambda data: b"BASE64ENC")
     result = CallbackScriptUtility.encrypt_response(response_body, aes_key_buffer, iv_buffer)
     assert result == "BASE64ENC"
+
+def test_save_data_success_returns_id():
+    bot_id = "bot123"
+    user = "aniket"
+    payload = [{
+        "collection_name": "orders",
+        "data": {"a": 1},
+        "source": "whatsapp",
+        "received_at": datetime.utcnow(),
+    }]
+    fake_id = ObjectId()
+
+    mock_insert_many_result = MagicMock()
+    mock_insert_many_result.inserted_ids = [fake_id]
+
+    mock_collection = MagicMock()
+    mock_collection.insert_many.return_value = mock_insert_many_result
+
+    with patch.object(
+        AnalyticsCollectionData,
+        "_get_collection",
+        return_value=mock_collection
+    ):
+        result = CallbackScriptUtility.add_data_analytics(
+            user=user,
+            payload=payload,
+            bot=bot_id
+        )
+
+        assert result["message"] == "Records saved!"
+
+        mock_collection.insert_many.assert_called_once()
+
+        docs = mock_collection.insert_many.call_args[0][0]
+        assert len(docs) == 1
+
+        doc = docs[0]
+        assert doc["bot"] == bot_id
+        assert doc["user"] == user
+        assert doc["collection_name"] == "orders"
+        assert doc["data"] == {"a": 1}
+        assert doc["source"] == "whatsapp"
+        assert doc["is_data_processed"] is False
+
+def test_fetch_data_returns_correct_format():
+    bot_id = "bot123"
+    collection_name = "orders"
+
+    fake_result = [{
+        "_id": str(ObjectId()),
+        "collection_name": collection_name,
+        "source": "whatsapp",
+        "received_at": datetime.utcnow(),
+        "data": {"x": 1},
+        "is_data_processed": False
+    }]
+
+    mock_cursor = MagicMock()
+    mock_cursor.__iter__.return_value = fake_result
+
+    with patch.object(
+        AnalyticsCollectionData._get_collection(),
+        "aggregate",
+        return_value=mock_cursor
+    ) as mock_agg:
+
+        result = CallbackScriptUtility.get_data_analytics(collection_name, bot_id)
+
+        assert "data" in result
+        assert len(result["data"]) == 1
+
+        row = result["data"][0]
+
+        assert row["collection_name"] == collection_name
+        assert row["data"] == {"x": 1}
+        assert row["source"] == "whatsapp"
+        assert row["is_data_processed"] is False
+
+        mock_agg.assert_called_once()
+
+def test_add_data_analytics_invalid_payload_type():
+    bot_id = "bot123"
+    user = "aniket"
+
+    payload = {"collection_name": "orders"}
+
+    with pytest.raises(Exception) as exc:
+        CallbackScriptUtility.add_data_analytics(
+            user=user,
+            payload=payload,
+            bot=bot_id
+        )
+
+    assert str(exc.value) == "Payload must be a list of dicts"
+
+@patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects")
+def test_mark_as_processed_success(mock_objects):
+    bot_id = "bot123"
+    user = "aniket"
+    collection_name = "orders"
+
+    mock_objects.return_value.update.return_value = 2
+
+    result = CallbackScriptUtility.mark_as_processed(
+        user=user,
+        collection_name=collection_name,
+        bot=bot_id
+    )
+
+    mock_objects.return_value.update.assert_called_once_with(
+        set__user=user,
+        set__is_data_processed=True,
+        multi=True
+    )
+
+    assert result == {"message": "Records updated!"}
+
+def test_mark_as_processed_no_records_found():
+    with patch.object(AnalyticsCollectionData, "objects") as mock_objects:
+        mock_objects.return_value.update.return_value = 0
+
+        with pytest.raises(AppException) as exc:
+            CallbackScriptUtility.mark_as_processed(
+                user="aniket",
+                collection_name="orders",
+                bot="test_bot"
+            )
+
+        assert str(exc.value) == "No records found for given bot and collection_name"
+        AnalyticsCollectionData.objects(bot="bot123", collection_name="orders").delete()
+
