@@ -12,7 +12,7 @@ from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.cognition.data_objects import CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType, CatalogSyncClass, UploadHandlerClass, ChannelTypes
@@ -296,7 +296,9 @@ async def get_collection_data(
                                                            collection_name=collection_name,
                                                            key=key, value=value, start_idx=start_idx,
                                                            page_size=page_size))
-    return {"data": {"logs": data, "total": len(data)}}
+
+    count = CollectionData.objects(bot=current_user.get_bot(), collection_name=collection_name).count()
+    return {"data": {"logs": data, "total": count}}
 
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
