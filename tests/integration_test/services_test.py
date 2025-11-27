@@ -9668,8 +9668,6 @@ def test_get_collection_data_pagination():
     full_data = full_response.json()["data"]["logs"]
     assert isinstance(full_data, list)
     assert len(full_data) >= 1
-
-    # NEW: expected total
     total_expected = len(full_data)
 
     page_size = 1
@@ -9690,11 +9688,7 @@ def test_get_collection_data_pagination():
     assert actual["error_code"] == 0
     assert actual["success"]
     assert isinstance(actual["data"]["logs"], list)
-
-    # validate pagination
     assert actual["data"]["logs"] == expected_slice
-
-    # NEW ASSERT FOR total
     assert actual["data"]["total"] == total_expected
 
 def test_get_collection_data_with_collection_id():
