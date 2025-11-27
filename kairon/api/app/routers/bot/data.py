@@ -12,7 +12,7 @@ from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.cognition.data_objects import CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ActorType, CatalogSyncClass, UploadHandlerClass, ChannelTypes
@@ -292,11 +292,19 @@ async def get_collection_data(
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(DataProcessor.get_collection_data(current_user.get_bot(),
-                                                           collection_name=collection_name,
-                                                           key=key, value=value, start_idx=start_idx,
-                                                           page_size=page_size))}
-
+    data = list(DataProcessor.get_collection_data(current_user.get_bot(),
+                                                  collection_name=collection_name,
+                                                  key=key, value=value, start_idx=start_idx,
+                                                  page_size=page_size))
+    query = {
+        "bot": current_user.get_bot(),
+        "collection_name": collection_name.lower()
+    }
+    query.update({
+        f"data__{k}": v for k, v in zip(key, value) if k and v
+    })
+    total = CollectionData.objects(**query).count()
+    return {"data": {"logs": data, "total": total}}
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
 async def get_collection_data_with_timestamp(
