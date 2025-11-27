@@ -1558,7 +1558,7 @@ def test_secure_collection_crud_lifecycle():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     assert list_resp.status_code == 200
-    listed_data = list_resp.json()["data"]
+    listed_data = list_resp.json()["data"]["logs"]
     assert any(doc["_id"] == doc_id for doc in listed_data)
 
     # Step 4: Update the document
@@ -1587,7 +1587,7 @@ def test_secure_collection_crud_lifecycle():
         f"/api/bot/{bot_id}/data/collection/testing_create_colection_secure",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
-    updated_doc = next(doc for doc in list_resp_after_update.json()["data"] if doc["_id"] == doc_id)
+    updated_doc = next(doc for doc in list_resp_after_update.json()["data"]["logs"] if doc["_id"] == doc_id)
     assert updated_doc["data"]["name"] == "testing_updated"
     assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_non_editable
 
@@ -9508,7 +9508,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
@@ -9534,7 +9534,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
@@ -9560,7 +9560,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
@@ -9588,7 +9588,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
@@ -9626,7 +9626,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == []
@@ -9640,7 +9640,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
@@ -9665,13 +9665,13 @@ def test_get_collection_data_pagination():
     )
 
     assert full_response.status_code == 200
-    full_data = full_response.json()["data"]
+    full_data = full_response.json()["data"]["logs"]
     assert isinstance(full_data, list)
     assert len(full_data) >= 1
+    total_expected = len(full_data)
 
     page_size = 1
     start_idx = 0
-
     expected_slice = full_data[start_idx : start_idx + page_size]
 
     paginated_response = client.get(
@@ -9687,9 +9687,9 @@ def test_get_collection_data_pagination():
     assert paginated_response.status_code == 200
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert isinstance(actual["data"], list)
-
-    assert actual["data"] == expected_slice
+    assert isinstance(actual["data"]["logs"], list)
+    assert actual["data"]["logs"] == expected_slice
+    assert actual["data"]["total"] == total_expected
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
