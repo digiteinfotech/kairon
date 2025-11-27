@@ -185,6 +185,10 @@ class WhatsappCloud(object):
         payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
         return self.send_action(payload)
 
+    def typing_indicator(self, msg_id, timeout=None):
+        payload = {   "messaging_product": "whatsapp",   "status": "read",   "message_id": msg_id,   "typing_indicator": {     "type": "text"   } }
+        return self.send_action(payload)
+
     def generate_appsecret_proof(self):
         """
             @outputs:
