@@ -64,11 +64,7 @@ class POSProcessor:
         if not session_id:
             raise HTTPException(status_code=401, detail="Login succeeded but session cookie missing")
 
-        return {
-            "message": "Logged in successfully",
-            "session_id": session_id,
-            "uid": result.get("uid"),
-        }
+        return {"uid": result.get("uid"), "session_id": session_id}
 
     @staticmethod
     def save_client_details(
