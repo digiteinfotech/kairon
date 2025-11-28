@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
@@ -35,6 +36,23 @@ class POSProcessor:
             raise HTTPException(status_code=400, detail=f"{context} - {msg}")
 
         return data
+
+    @staticmethod
+    def set_odoo_session_cookie(data: dict):
+        response = JSONResponse(data)
+        odoo_domain = Utility.environment['pos']['odoo']['odoo_domain']
+
+        response.set_cookie(
+            key="session_id",
+            value=data["session_id"],
+            domain=odoo_domain,
+            path="/",
+            httponly=True,
+            secure=True,
+            samesite="None"  # iframe-compatible
+        )
+
+        return response
 
     def pos_login(self, client_name: str, bot: str) -> Dict[str, Any]:
         """
