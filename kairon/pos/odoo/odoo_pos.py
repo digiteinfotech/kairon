@@ -32,7 +32,10 @@ class OdooPOS(POSBase):
         elif page_type == PageType.pos_orders.value:
             page_url_json = self.orders_list()
         data.update(page_url_json)
-        return data
+
+        response = pos_processor.set_odoo_session_cookie(data)
+
+        return response
 
     def products_list(self, **kwargs):
         action = OdooPOSActions.ACTION_POS_PRODUCT_LIST.value
