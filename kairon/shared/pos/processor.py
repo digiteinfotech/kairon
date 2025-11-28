@@ -49,7 +49,7 @@ class POSProcessor:
             path="/",
             httponly=True,
             secure=True,
-            samesite="None"  # iframe-compatible
+            samesite="Lax"  # iframe-compatible
         )
 
         return response
