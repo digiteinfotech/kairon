@@ -36,7 +36,7 @@ class POSProcessor:
 
         return data
 
-    def pos_login(self, client_name: str, bot: str):
+    def pos_login(self, client_name: str, bot: str) -> Dict[str, Any]:
         """
         Authenticate against Odoo and return {'uid','session_id','result'}.
         Uses /web/session/authenticate JSON endpoint.
