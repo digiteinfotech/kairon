@@ -36,7 +36,7 @@ class POSProcessor:
 
         return data
 
-    def pos_login(self, client_name: str, bot: str) -> Dict[str, Any]:
+    def pos_login(self, client_name: str, bot: str):
         """
         Authenticate against Odoo and return {'uid','session_id','result'}.
         Uses /web/session/authenticate JSON endpoint.
@@ -64,7 +64,11 @@ class POSProcessor:
         if not session_id:
             raise HTTPException(status_code=401, detail="Login succeeded but session cookie missing")
 
-        return {"uid": result.get("uid"), "session_id": session_id}
+        return {
+            "message": "Logged in successfully",
+            "session_id": session_id,
+            "uid": result.get("uid"),
+        }
 
     @staticmethod
     def save_client_details(

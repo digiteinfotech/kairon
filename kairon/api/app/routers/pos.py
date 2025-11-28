@@ -24,9 +24,9 @@ def pos_login(req: LoginRequest,
     Returns session_id + cookies using /web/session/authenticate
     """
     pos_instance = POSFactory.get_instance(pos_type)
-    data = pos_instance().authenticate(client_name=req.client_name, page_type=req.page_type, bot=current_user.get_bot())
+    response = pos_instance().authenticate(client_name=req.client_name, page_type=req.page_type, bot=current_user.get_bot())
 
-    return Response(data=data)
+    return response
 
 
 @router.post("/register", response_model=Response)

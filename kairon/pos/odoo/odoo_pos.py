@@ -1,3 +1,5 @@
+from fastapi.responses import JSONResponse
+
 from kairon import Utility
 from kairon.pos.definitions.base import POSBase
 from kairon.shared.pos.constants import OdooPOSMenus, OdooPOSActions, PageType
@@ -32,7 +34,19 @@ class OdooPOS(POSBase):
         elif page_type == PageType.pos_orders.value:
             page_url_json = self.orders_list()
         data.update(page_url_json)
-        return data
+
+        response = JSONResponse(data)
+
+        odoo_domain = Utility.environment['pos']['odoo']['odoo_domain']
+        response.set_cookie(
+            key="session_id",
+            value=data["session_id"],
+            domain=odoo_domain,
+            path="/",
+            httponly=False,
+            samesite="Lax"
+        )
+        return response
 
     def products_list(self, **kwargs):
         action = OdooPOSActions.ACTION_POS_PRODUCT_LIST.value
