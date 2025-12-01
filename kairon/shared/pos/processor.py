@@ -229,13 +229,32 @@ class POSProcessor:
 
         logger.info(f"User logged in, Session id: {session_id}")
 
+        self.update_apps_list(session_id)
+        logger.info("Updated Apps List")
+
         self.activate_module(session_id, "point_of_sale")
 
         logger.info("point_of_sale Activated")
 
+        POSProcessor.update_onboarding_status(bot, client_name, OnboardingStatus.pos_activated)
+
+        self.activate_module(session_id, "custom_hide_navbar")
+        logger.info("Installed custom_hide_navbar")
+
         POSProcessor.update_onboarding_status(bot, client_name, OnboardingStatus.completed)
 
         return {"message": f"Client '{client_name}' created and POS Activated"}
+
+    def update_apps_list(self, session_id: str):
+        """Equivalent to clicking 'Update Apps List' in Odoo UI."""
+
+        return self.jsonrpc_call(
+            session_id=session_id,
+            model="ir.module.module",
+            method="update_list",
+            args=[],
+            kwargs={}
+        )
 
     @staticmethod
     def update_onboarding_status(bot: str, client_name: str, status: OnboardingStatus):
