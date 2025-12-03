@@ -557,7 +557,6 @@ class POSProcessor:
             subtotal_excl = price_unit * qty
             subtotal_incl = subtotal_excl + tax_total
 
-            subtotal = price_unit * qty
             total += subtotal_incl
 
             order_lines.append([0, 0, {
