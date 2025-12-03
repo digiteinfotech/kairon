@@ -185,7 +185,7 @@ class POSProcessor:
 
         dbs = requests.post(url, json=list_payload, timeout=30).json().get("result", [])
         if client_name in dbs:
-            return {"success": False, "message": f"Client {client_name} already exists"}
+            raise AppException(f"Client {client_name} already exists")
 
         POSProcessor.save_client_details(
             client_name=client_name,
@@ -508,27 +508,71 @@ class POSProcessor:
                 args=[{"name": "POS Customer", "customer_rank": 1}]
             )
 
+        order_lines = []
+        total = 0.0
+
         for p in products:
             product_id = p["product_id"]
+            qty = p["qty"]
 
             product_data = self.jsonrpc_call(
                 session_id=session_id,
                 model="product.product",
                 method="read",
                 args=[[product_id]],
-                kwargs={"fields": ["available_in_pos", "name"]}
+                kwargs={"fields": [
+                    "name", "display_name", "lst_price",
+                    "available_in_pos", "uom_id", "taxes_id"
+                ]}
             )
 
             if not product_data:
-                raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
+                raise HTTPException(404, f"Product {product_id} not found")
 
             prod = product_data[0]
 
-            if not prod.get("available_in_pos", False):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Product '{prod['name']}' (ID {product_id}) is not available in POS"
+            if not prod["available_in_pos"]:
+                raise HTTPException(400, f"Product {prod['name']} not available in POS")
+
+            price_unit = prod["lst_price"]
+
+            uom_id = prod["uom_id"][0] if prod["uom_id"] else False
+            tax_ids = prod["taxes_id"] or []
+
+            tax_total = 0.0
+
+            if tax_ids:
+                taxes = self.jsonrpc_call(
+                    session_id=session_id,
+                    model="account.tax",
+                    method="read",
+                    args=[tax_ids],
+                    kwargs={"fields": ["amount", "amount_type", "price_include"]}
                 )
+
+                for t in taxes:
+                    if t["amount_type"] == "percent":
+                        tax_total += (price_unit * qty) * (t["amount"] / 100)
+
+            subtotal_excl = price_unit * qty
+            subtotal_incl = subtotal_excl + tax_total
+
+            total += subtotal_incl
+
+            order_lines.append([0, 0, {
+                "product_id": product_id,
+                "qty": qty,
+                "price_unit": price_unit,
+                "tax_ids": [[6, 0, tax_ids]],
+
+                "product_name": prod.get("display_name") or prod.get("name"),
+                "full_product_name": prod.get("display_name") or prod.get("name"),
+                "uom_id": uom_id,
+
+                "price_subtotal": subtotal_excl,
+                "price_subtotal_incl": subtotal_incl,
+                "discount": 0,
+            }])
 
         pos_configs = self.jsonrpc_call(
             session_id=session_id,
@@ -599,21 +643,6 @@ class POSProcessor:
             raise HTTPException(status_code=400, detail="No POS payment methods found")
 
         payment_method_id = pay_method[0]["id"]
-
-        order_lines = []
-        total = 0.0
-
-        for p in products:
-            subtotal = p["qty"] * p["unit_price"]
-            total += subtotal
-
-            order_lines.append([0, 0, {
-                "product_id": p["product_id"],
-                "qty": p["qty"],
-                "price_unit": p["unit_price"],
-                "price_subtotal": subtotal,
-                "price_subtotal_incl": subtotal
-            }])
 
         order_data = {
             "name": f"POS/{int(time.time())}",
