@@ -138,7 +138,7 @@ from .constant import (
     LogType,
     DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes, STATUSES,
 )
-from .data_models import PipelineCreate, PipelineUpdate
+
 from .data_objects import (
     Responses,
     SessionConfigs,

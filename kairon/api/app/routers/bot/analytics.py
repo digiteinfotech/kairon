@@ -22,7 +22,8 @@ async def create_pipeline_event(
     event_type = EventRequestType.trigger_async.value
 
     event = AnalyticsPipelineEvent(current_user.get_bot(), current_user.get_user())
-    event.validate(request.pipeline_name)
+    event.callback_name = request.callback_name
+    event.validate()
 
     if request.scheduler_config:
         if request.scheduler_config.expression_type == "cron":
@@ -55,7 +56,7 @@ async def delete_pipeline_event(
     event_id: str,
     current_user: User = Security(Authentication.get_current_user_and_bot)
 ):
-    AnalyticsPipelineEvent(current_user.get_bot(),current_user.get_user()).delete_analytics_event(event_id)
+    AnalyticsPipelineEvent(current_user.get_bot(),current_user.get_user()).delete_schedule(event_id)
 
     return Response(message="Event deleted")
 
@@ -73,3 +74,5 @@ async def update_pipeline_event(
 
     event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=request.dict())
     return Response(message="Event updated", data={"event_id": event_id})
+
+

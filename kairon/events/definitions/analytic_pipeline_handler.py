@@ -8,9 +8,9 @@ from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
 from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
-from kairon.shared.concurrency.orchestrator import ActorOrchestrator
-from kairon.shared.constants import EventClass, ActorType
+from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
 from kairon.shared.data.constant import EVENT_STATUS
 
@@ -20,34 +20,32 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
     Event handler for analytics pipeline execution.
     """
 
-    def __init__(self, bot: Text, user: Text):
-        super().__init__()
+    def __init__(self, bot: Text, user: Text, **kwargs):
+        super(AnalyticsPipelineEvent, self).__init__()
         self.bot = bot
         self.user = user
 
-    def validate(self, pipeline_name: Text):
+    def validate(self):
         """Check if pipeline exists and is active."""
-        pipeline = AnalyticsPipelineProcessor.get_analytics_pipeline(self.bot, pipeline_name)
-        if not pipeline or not pipeline.status:
-            raise AppException("Pipeline not found or inactive!")
+        callback_config = CallbackConfig.objects(
+            bot=self.bot,
+            name=self.callback_name
+        ).first()
 
-    def execute(self, event_id: Text, **kwargs):
-        """
-        Worker executes this method when event server triggers it.
-        """
+        if not callback_config:
+            raise AppException(f"No callback config found for callback: {self.callback_name}")
+
+    def execute(self, event_id: str, **kwargs):
         config = None
-        reference_id = None
-        status = EVENT_STATUS.INITIATED.value
+        status = EVENT_STATUS.INITIATED
         exception = None
+        start_time = datetime.utcnow()
+        end_time = None
 
         try:
             config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
-
             pipeline_name = config["pipeline_name"]
             callback_name = config["callback_name"]
-
-            logger.info(f"Executing analytics pipeline: {pipeline_name}")
-
             source_code = AnalyticsPipelineProcessor.get_pipeline_code(
                 bot=self.bot,
                 callback_name=callback_name
@@ -56,7 +54,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             predefined_objects = {
                 "config": config,
                 "bot": self.bot,
-                "user": self.user,
+                "sender_id": self.user,
                 "pipeline_name": pipeline_name,
                 "callback_name": callback_name,
                 "event_id": event_id,
@@ -64,22 +62,23 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             }
 
             runner = AnalyticsRunner()
-            output = runner.execute(source_code, predefined_objects=predefined_objects)
-            status = EVENT_STATUS.COMPLETED.value
+            runner.execute(source_code, predefined_objects=predefined_objects)
+            status = EVENT_STATUS.COMPLETED
 
         except Exception as e:
-            logger.exception(e)
-            status = EVENT_STATUS.FAIL.value
+            status = EVENT_STATUS.FAIL
             exception = str(e)
 
         finally:
+            end_time = datetime.utcnow()
             AnalyticsPipelineProcessor.add_event_log(
-                bot=self.bot,
                 event_id=event_id,
-                reference_id=reference_id,
                 status=status,
                 exception=exception,
-                config=config
+                pipeline_name = pipeline_name,
+                callback_name = callback_name,
+                start_time=start_time,
+                end_time=end_time
             )
             if config and config.get("scheduler_config", {}).get("expression_type") != "cron":
                 AnalyticsPipelineProcessor.delete_task(event_id, self.bot)
@@ -88,7 +87,6 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
     def _add_schedule(self, config: Dict):
         """Add cron schedule."""
         event_id = None
-
         if not config.get("scheduler_config") or not config["scheduler_config"].get("schedule"):
             raise AppException("scheduler_config is required!")
         try:
@@ -145,7 +143,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             raise AppException(e)
 
 
-    def delete_analytics_event(self, event_id: Text):
+    def delete_schedule(self, event_id: Text):
         """Delete a scheduled analytics pipeline event."""
         try:
             if not Utility.is_exist(AnalyticsPipelineConfig, raise_error=False, bot=self.bot,
@@ -217,3 +215,8 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 AnalyticsPipelineProcessor.update_scheduled_task(event_id, self.bot, self.user, current_settings)
             raise e
 
+    def _trigger_async(self, config: Dict):
+        pass
+
+    def _resend_broadcast(self, config: Dict):
+        pass

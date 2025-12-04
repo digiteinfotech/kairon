@@ -143,3 +143,24 @@ class MessageBroadcastLogs(DynamicDocument):
     timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "reference_id", "-timestamp")]}]}
+
+
+@push_notification.apply
+class AnalyticsPipelineLogs(DynamicDocument):
+    event_id = StringField(required=True)
+    status = StringField(required=True)
+    pipeline_name = StringField()
+    callback_name = StringField
+    exception = StringField()
+    start_time = DateTimeField()
+    end_time = DateTimeField()
+
+    meta = {
+        "indexes": [
+            "event_id",
+            "status",
+            "-start_time",
+            "-end_time"
+        ]
+    }
+

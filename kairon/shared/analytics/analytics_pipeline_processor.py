@@ -8,9 +8,9 @@ from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
+from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration
 from kairon.shared.callback.data_objects import CallbackConfig
-from kairon.shared.data.data_models import AnalyticsSchedulerConfig
+from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
 
 
 class AnalyticsPipelineProcessor:
@@ -18,8 +18,9 @@ class AnalyticsPipelineProcessor:
     @staticmethod
     def add_scheduled_task(bot, user, config):
         """Store event config."""
+
         Utility.is_exist(AnalyticsPipelineConfig, f"Schedule with name '{config['pipeline_name']}' exists!", bot=bot,
-                         name=config['name'], status=True)
+                         pipeline_name=config['pipeline_name'], status=True)
         config["bot"] = bot
         config["user"] = user
         return AnalyticsPipelineConfig(**config).save().id.__str__()
@@ -91,15 +92,12 @@ class AnalyticsPipelineProcessor:
             raise AppException("scheduler_config is required!")
 
         try:
-            settings = AnalyticsPipelineConfig.objects(
-                id=event_id, bot=bot, status=True
-            ).get()
+            settings = AnalyticsPipelineConfig.objects(id=event_id, bot=bot, status=True).get()
 
             settings.pipeline_name = config["pipeline_name"]
             settings.callback_name = config.get("callback_name")
-            settings.pipeline_params = config.get("pipeline_params") or {}
 
-            scheduler_config = AnalyticsSchedulerConfig(**config["scheduler_config"])
+            scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
 
             if scheduler_config.expression_type == "epoch":
                 try:
@@ -131,17 +129,6 @@ class AnalyticsPipelineProcessor:
         """
         Retrieve pyscript code for an analytics pipeline using the action_name sent in the event.
         """
-
-        # callback_data = CallbackData.objects(
-        #     bot=bot,
-        #     action_name=action_name
-        # ).first()
-        #
-        # if not callback_data:
-        #     raise AppException(f"No callback data found for action: {action_name}")
-        #
-        # callback_name = callback_data.callback_name
-
         callback_config = CallbackConfig.objects(
             bot=bot,
             name=callback_name
@@ -151,3 +138,15 @@ class AnalyticsPipelineProcessor:
             raise AppException(f"No callback config found for callback: {callback_name}")
 
         return callback_config.pyscript_code
+
+    @staticmethod
+    def add_event_log(event_id, status, exception, pipeline_name, callback_name, start_time, end_time):
+        AnalyticsPipelineLogs(
+            event_id=event_id,
+            status=status,
+            pipeline_name=pipeline_name,
+            callback_name=callback_name,
+            exception=exception,
+            start_time=start_time,
+            end_time=end_time,
+        ).save()
