@@ -405,13 +405,15 @@ def test_scheduled_event_request_not_allowed():
         json=request_body,
     )
     response_json = response.json()
-    assert response_json == {
-        "data": None,
-        "success": False,
-        "error_code": 422,
-        "message": "Only {'message_broadcast'} type events are allowed to be scheduled!",
-    }
+    assert response_json["success"] is False
+    assert response_json["data"] is None
+    assert response_json["error_code"] == 422
 
+    msg = response_json["message"]
+    assert "Only" in msg
+    assert "message_broadcast" in msg
+    assert "analytics_pipeline" in msg
+    assert "allowed" in msg
 
 def test_scheduled_event_request_parameters_missing():
     request_body = {"data": {}, "cron_exp": "* * * * *"}
@@ -488,12 +490,15 @@ def test_update_scheduled_event_request_not_allowed():
         json=request_body,
     )
     response_json = response.json()
-    assert response_json == {
-        "data": None,
-        "success": False,
-        "error_code": 422,
-        "message": "Only {'message_broadcast'} type events are allowed to be scheduled!",
-    }
+    assert response_json["success"] is False
+    assert response_json["data"] is None
+    assert response_json["error_code"] == 422
+
+    msg = response_json["message"]
+    assert "Only" in msg
+    assert "message_broadcast" in msg
+    assert "analytics_pipeline" in msg
+    assert "allowed" in msg
 
 
 def test_update_scheduled_event_request_missing_parameters():

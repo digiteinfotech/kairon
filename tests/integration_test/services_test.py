@@ -35,7 +35,7 @@ from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
 from kairon.shared.admin.data_objects import LLMSecret
-from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
+from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType, CallbackConfig
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
@@ -2070,6 +2070,429 @@ def test_get_instagram_user_posts(mock_get_config, monkeypatch):
             }
         ]
 
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_cron(mock_event_server):
+
+    data = {
+        "bot": pytest.bot,
+        "name": "callback_test",
+        "pyscript_code": "print('Hello, World!')",
+    }
+    result = CallbackConfig.create_entry(**data)
+    payload = {
+        "pipeline_name": "daily_analytics_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "32 11 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+    pytest.analytics_event_id = actual["data"]["event_id"]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_epoch(mock_event_server):
+    future_epoch = int(time.time()) + 3600
+
+    payload = {
+        "pipeline_name": "one_time_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": str(future_epoch),
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_without_scheduler(mock_event_server):
+    payload = {
+        "pipeline_name": "instant_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+
+def test_create_pipeline_event_missing_pipeline_name():
+    payload = {
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    assert data["message"][0]["loc"] == ["body", "pipeline_name"]
+    assert data["message"][0]["msg"] == "field required"
+
+
+def test_create_pipeline_event_missing_callback_name():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "timestamp": "2025-11-25T14:30:00Z"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    assert data["message"][0]["loc"] == ["body", "callback_name"]
+    assert data["message"][0]["msg"] == "field required"
+
+
+def test_create_pipeline_event_invalid_expression_type():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "unknown",
+            "schedule": "10 10 * * *",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = response.json()
+    assert response["error_code"] == 422
+    errors = response["message"]
+    assert any("expression_type must be either cron or epoch" in err["msg"] for err in errors)
+
+
+def test_scheduler_config_missing_timezone():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "10 10 * * *",
+            "timezone": ""
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("timezone is required for all schedules" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_missing_schedule():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("schedule time is required for all schedules" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_invalid_cron_expression():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "invalid_cron",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Invalid cron expression" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_cron_interval_too_small():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "* * * * *",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Recurrence interval must be at least" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_invalid_integer():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": "invalid",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("schedule must be a valid integer epoch time" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_unknown_timezone():
+    future_epoch = int(datetime.now().timestamp()) + 5000
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": str(future_epoch),
+            "timezone": "Invalid/XYZ"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Unknown timezone" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_not_in_future():
+    past_epoch = int(datetime.now().timestamp()) - 100
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": str(past_epoch),
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("epoch time (schedule) must be in the future" in err["msg"] for err in data["message"])
+
+
+def test_list_pipeline_events_success():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Events fetched"
+
+
+def test_get_pipeline_event_success():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event retrieved"
+    assert actual["data"]
+
+
+def test_get_pipeline_event_not_found():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/invalid-id-123",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+
+
+@patch("kairon.shared.utils.Utility.execute_http_request", autospec=True)
+def test_delete_pipeline_event_success(mock_http):
+    mock_http.return_value = {"success": True}
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event deleted"
+    mock_http.assert_called_once()
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_delete_pipeline_event_failure(mock_event_server):
+    mock_event_server.side_effect = Exception("Delete failure")
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/fake-id-123",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_pipeline_event_success(mock_event_server):
+    payload = {
+        "pipeline_name": "daily_analytics_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "32 11 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    pytest.analytics_event_id = actual["data"]["event_id"]
+
+    payload = {
+        "pipeline_name": "updated_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "10 12 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event updated"
+    assert actual["data"]["event_id"] == pytest.analytics_event_id
+
+
+def test_update_pipeline_event_validation_error():
+    payload = {
+        "pipeline_name": "",
+        "callback_name": "cb_test",
+        "timestamp": "invalid-ts"
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['error_code'] == 422
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):

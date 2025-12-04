@@ -12,6 +12,7 @@ class ActorFactory:
     __actors = {
         ActorType.pyscript_runner.value: (PyScriptRunner, PyScriptRunner.start().proxy()),
         ActorType.callable_runner.value: (CallableRunner, CallableRunner.start().proxy())
+
     }
 
     @staticmethod

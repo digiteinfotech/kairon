@@ -45,7 +45,8 @@ Usage:
 
 def create_argument_parser():
     from kairon.cli import importer, training, testing, conversations_deletion, translator, delete_logs,\
-        message_broadcast,content_importer, mail_channel_read, agentic_flow, catalog_sync, upload_handler
+        message_broadcast,content_importer, mail_channel_read, agentic_flow, catalog_sync, upload_handler, \
+        analytics_pipeline
 
     parser = ArgumentParser(
         prog="kairon",
@@ -62,6 +63,7 @@ def create_argument_parser():
     translator.add_subparser(subparsers, parents=parent_parsers)
     delete_logs.add_subparser(subparsers, parents=parent_parsers)
     message_broadcast.add_subparser(subparsers, parents=parent_parsers)
+    analytics_pipeline.add_subparser(subparsers, parents=parent_parsers)
     content_importer.add_subparser(subparsers, parents=parent_parsers)
     upload_handler.add_subparser(subparsers, parents=parent_parsers)
     catalog_sync.add_subparser(subparsers, parents=parent_parsers)

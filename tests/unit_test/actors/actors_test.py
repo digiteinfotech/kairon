@@ -1,5 +1,8 @@
+import json
 import os
 import re
+import subprocess
+import sys
 import textwrap
 from datetime import datetime
 from unittest.mock import patch, MagicMock
@@ -17,6 +20,7 @@ from pykka import ActorDeadError
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.actors.pyscript_runner import PyScriptRunner
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
@@ -872,3 +876,240 @@ def test_fetch_media_ids_exception():
             PyscriptUtility.fetch_media_ids("bot123")
 
         assert "Error while fetching media ids for bot 'bot123'" in str(e.value)
+
+
+def test_analytics_runner_success():
+    runner = AnalyticsRunner()
+    source = "x = 5\ny = 10"
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {"x": 5, "y": 10}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute(source, predefined_objects={"slot": {"bot": "bot123"}})
+
+    assert result['data']["x"] == 5
+    assert result['data']["y"] == 10
+
+
+def test_analytics_runner_predefined_objects():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {"z": "bar"}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    predefined = {"foo": "bar", "slot": {"bot": "botX"}}
+
+    with patch("subprocess.Popen", return_value=mock_process) as popen_mock:
+        result = runner.execute("z = foo", predefined_objects=predefined)
+        sent_input = popen_mock.return_value.communicate.call_args[1]["input"]
+        payload = json.loads(sent_input)
+
+    assert payload["predefined_objects"]["foo"] == "bar"
+    assert result['data']["z"] == "bar"
+
+
+def test_analytics_runner_validation_failure():
+    runner = AnalyticsRunner()
+    with pytest.raises(AppException):
+        runner.execute("def broken code", predefined_objects={"slot": {"bot": "bot123"}})
+
+
+def test_analytics_runner_subprocess_error():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "Some error happened")
+    mock_process.returncode = 1
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        with pytest.raises(AppException) as exc:
+            runner.execute("x = 1", predefined_objects={"slot": {"bot": "id"}})
+
+    assert "Subprocess error" in str(exc.value)
+
+
+def test_analytics_runner_cleanup_datetime():
+    runner = AnalyticsRunner()
+
+    from datetime import datetime, date
+    dt = datetime(2021, 5, 17, 8, 9, 10)
+    d = date(2021, 5, 17)
+
+    worker_output = json.dumps({
+        "success": True,
+        "data": {
+            "dt": str(dt),
+            "d": str(d)
+        }
+    })
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (worker_output, "")
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute("pass", predefined_objects={"slot": {"bot": "botid"}})
+
+    assert result['data']["dt"] == str(dt)
+    assert result['data']["d"] == str(d)
+
+
+def test_analytics_runner_execution_error():
+    runner = AnalyticsRunner()
+
+    error_json = json.dumps({
+        "success": False,
+        "error": "Runtime failure",
+        "trace": "stacktrace..."
+    })
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (error_json, "")
+    mock_process.returncode = 1
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        with pytest.raises(AppException) as exc:
+            runner.execute("raise Exception()", predefined_objects={"slot": {"bot": "botid"}})
+
+    assert "Execution error" in str(exc.value)
+
+
+def test_analytics_runner_sends_safe_globals():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process) as popen_mock:
+        runner.execute("x=1", predefined_objects={"slot": {"bot": "abc"}})
+
+        sent_input = popen_mock.return_value.communicate.call_args[1]["input"]
+        payload = json.loads(sent_input)
+
+    assert "safe_globals" in payload
+    assert "add_data" in payload["safe_globals"]
+    assert "__builtins__" in payload["safe_globals"]
+
+
+def test_analytics_runner_parses_worker_output():
+    runner = AnalyticsRunner()
+
+    output = json.dumps({"success": True, "data": {"a": 100}})
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (output, "")
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute("a=100", predefined_objects={"slot": {"bot": "xx"}})
+
+    print(result)
+    assert result['success'] == True
+    assert result['data']['a'] == 100
+
+
+WORKER_CMD = [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"]
+
+
+def run_worker(payload: dict):
+    process = subprocess.Popen(
+        WORKER_CMD,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    out, err = process.communicate(json.dumps(payload), timeout=60)
+    return process.returncode, out.strip(), err.strip()
+
+
+def test_worker_success_with_simple_code():
+    payload = {
+        "source_code": "x = 5\ny = 10\nz = x + y",
+        "predefined_objects": {},
+        "safe_globals": ["len", "print"],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["success"] is True
+    assert data["data"]["z"] == 15
+
+
+def test_worker_error_invalid_code():
+    payload = {
+        "source_code": "invalid!!!@#$ code",
+        "predefined_objects": {},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 1
+    data = json.loads(out)
+    assert data["success"] is False
+    assert "error" in data
+    assert "trace" in data
+
+
+def test_worker_uses_predefined_objects():
+    payload = {
+        "source_code": "result = value * 2",
+        "predefined_objects": {"value": 7},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["data"]["result"] == 14
+
+
+def test_worker_builtin_whitelisting():
+    payload = {
+        "source_code": "numbers = [1, 2, 3]\ntotal = sum(numbers)",
+        "predefined_objects": {},
+        "safe_globals": ["sum"],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["data"]["total"] == 6
+
+
+def test_worker_missing_source_code():
+    payload = {
+        "predefined_objects": {},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["success"] is True
+    assert data["data"] == {}

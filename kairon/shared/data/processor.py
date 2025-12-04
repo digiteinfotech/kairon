@@ -88,7 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
-    ParallelActionConfig,
+    ParallelActionConfig, AnalyticsPipelineConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -138,6 +138,7 @@ from .constant import (
     LogType,
     DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes, STATUSES,
 )
+
 from .data_objects import (
     Responses,
     SessionConfigs,

@@ -1,12 +1,16 @@
+from datetime import datetime
 import json
 from typing import List, Any, Dict, Optional, Text, Union, Literal
 
+import pytz
+from croniter import croniter
 from validators import url
 from validators.utils import ValidationError as ValidationFailure
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
+from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ScheduleActionType, Actions
 from kairon.shared.data.constant import (
@@ -1494,3 +1498,65 @@ class ParallelActionRequest(BaseModel):
             names = [a.name for a in existing]
             raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
         return values
+
+class AnalyticsSchedulerConfig(BaseModel):
+    expression_type: str
+    schedule: Any
+    timezone: Optional[str] = "UTC"
+
+    @root_validator
+    def validate_schedule(cls, values):
+        expression_type = values.get("expression_type")
+        schedule = values.get("schedule")
+        tz = values.get("timezone")
+
+        if not expression_type or expression_type not in ["cron", "epoch"]:
+            raise ValueError("expression_type must be either cron or epoch")
+
+        if not tz or not tz.strip():
+            raise ValueError("timezone is required for all schedules!")
+
+        if not schedule or (isinstance(schedule, str) and not schedule.strip()):
+            raise ValueError("schedule time is required for all schedules!")
+
+        if expression_type == "cron":
+            if not croniter.is_valid(schedule):
+                raise ValueError(f"Invalid cron expression: '{schedule}'")
+
+            first_occurrence = croniter(schedule).get_next(ret_type=datetime)
+            second_occurrence = croniter(schedule).get_next(ret_type=datetime, start_time=first_occurrence)
+
+            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
+                raise ValueError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
+
+        elif expression_type == "epoch":
+            try:
+                epoch_time = int(schedule)
+            except ValueError:
+                raise ValueError("schedule must be a valid integer epoch time for 'epoch' expression_type")
+
+            try:
+                user_tz = pytz.timezone(tz)
+            except pytz.UnknownTimeZoneError:
+                raise ValueError(f"Unknown timezone: {tz}")
+
+            current_epoch_in_tz = int(datetime.now(user_tz).timestamp())
+
+            if epoch_time <= current_epoch_in_tz:
+                raise ValueError("epoch time (schedule) must be in the future relative to the provided timezone")
+
+            values["schedule"] = epoch_time
+
+        return values
+
+
+class AnalyticsPipelineEventRequest(BaseModel):
+    pipeline_name: str
+    callback_name: str
+    scheduler_config: AnalyticsSchedulerConfig = None
+    timestamp: str
+    data_deletion_policy: Optional[List[Any]] = []
+    triggers: Optional[List[Dict[str, Any]]] = []

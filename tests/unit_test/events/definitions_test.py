@@ -13,6 +13,7 @@ from mongoengine import connect
 
 from kairon import Utility
 from kairon.events.definitions.agentic_flow import AgenticFlowEvent
+from kairon.events.definitions.analytic_pipeline_handler import AnalyticsPipelineEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
 from kairon.events.definitions.history_delete import DeleteHistoryEvent
@@ -23,6 +24,8 @@ from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.multilingual.processor import MultilingualTranslator
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
+from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.cognition.data_objects import CollectionData
 from kairon.shared.constants import EventClass, EventRequestType
@@ -1394,3 +1397,415 @@ class TestEventDefinitions:
 
         mock_delete_data.assert_not_called()
         mock_delete_conversation.assert_called_once_with("test_bot", "aniket.kharkia@nimblework.com", past_date)
+
+
+    @responses.activate
+    def test_create_pipeline_event_cron_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        data = {
+            "bot": "test_bot",
+            "name": "test_name_cron",
+            "pyscript_code": "print('Hello, World!')",
+        }
+        result = CallbackConfig.create_entry(**data)
+        config = {
+            "pipeline_name": "daily_pipeline",
+            "callback_name": "test_name_cron",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        assert event_id
+        saved = AnalyticsPipelineProcessor.retrieve_config(event_id, bot)
+        assert saved["pipeline_name"] == "daily_pipeline"
+
+    @responses.activate
+    def test_create_pipeline_event_cron_failure(self):
+        bot = "test_bot"
+        user = "test_user"
+        data = {
+            "bot": "test_bot",
+            "name": "test_name",
+            "pyscript_code": "print('Hello, World!')",
+        }
+        result = CallbackConfig.create_entry(**data)
+        config = {
+            "pipeline_name": "daily_pipeline_fail",
+            "callback_name": "test_name",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": False, "message": "failed"})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            with pytest.raises(AppException, match="Failed to trigger analytics_pipeline event"):
+                event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+
+    def test_create_pipeline_event_connection_error(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        config = {
+            "pipeline_name": "daily_pipeline_connection_error",
+            "callback_name": "test_name",
+            "timestamp": "2025-11-25T14:30:00Z",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.request_event_server", side_effect=Exception("conn")):
+            with pytest.raises(AppException, match="conn"):
+                event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+
+    @responses.activate
+    def test_create_one_time_pipeline_event_success(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        config = {
+            "pipeline_name": "once_pipeline",
+            "callback_name": "test_name",
+            "scheduler_config": {
+                "expression_type": "epoch",
+                "schedule": 1700000000,
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.add_one_time_schedule.value, config=config)
+
+        assert event_id
+        saved = AnalyticsPipelineProcessor.retrieve_config(event_id, bot)
+        assert saved["pipeline_name"] == "once_pipeline"
+
+
+    @responses.activate
+    def test_trigger_async_pipeline_success(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        config = {
+            "pipeline_name": "trigger_pipeline",
+            "callback_name": "test_name",
+            "timestamp": "2025-11-25T14:30:00Z",
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=False"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.trigger_async.value, config=config)
+
+
+    @responses.activate
+    def test_update_pipeline_success(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        config = {
+            "pipeline_name": "daily_pipeline_for_update",
+            "callback_name": "test_name_cron",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        config = {
+            "pipeline_name": "updated_pipeline",
+            "callback_name": "test_name",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "0 18 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("PUT", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=config)
+
+        updated = AnalyticsPipelineProcessor.retrieve_config(event_id, bot)
+        assert updated["scheduler_config"]["schedule"] == "0 18 * * *"
+
+
+    @responses.activate
+    def test_update_pipeline_connection_error(self):
+        bot = "test_bot"
+        user = "test_user"
+        config = {
+            "pipeline_name": "daily_pipeline_update_fail",
+            "callback_name": "test_name_cron",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        config = {
+            "pipeline_name": "updated_pipeline_failure",
+            "callback_name": "test_name",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "0 18 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        event = AnalyticsPipelineEvent(bot, user)
+
+        with patch("kairon.shared.utils.Utility.request_event_server",
+                   side_effect=Exception("Failed to connect to service")):
+            with pytest.raises(Exception, match="Failed to connect to service"):
+                event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=config)
+
+    @responses.activate
+    def test_delete_pipeline_event_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        config = {
+            "pipeline_name": "daily_pipeline_delete",
+            "callback_name": "test_name_cron",
+            "scheduler_config": {
+                "expression_type": "cron",
+                "schedule": "32 11 * * *",
+                "timezone": "Asia/Kolkata",
+            },
+            "data_deletion_policy": [],
+            "triggers": [],
+        }
+
+        url = f"http://localhost:5001/api/events/execute/{EventClass.analytics_pipeline}?is_scheduled=True"
+        responses.add("POST", url, json={"success": True})
+
+        event = AnalyticsPipelineEvent(bot, user)
+        event.callback_name = config["callback_name"]
+        event.validate()
+
+        with patch("kairon.shared.utils.Utility.is_exist"):
+            event_id = event.enqueue(EventRequestType.add_schedule.value, config=config)
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineEvent.delete_schedule") as mock_delete:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.delete_schedule(event_id)
+            mock_delete.assert_called_with(event_id)
+
+
+    def test_execute_pipeline_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "12345"
+
+        config = {
+            "pipeline_name": "pipeline_success",
+            "callback_name": "cb_success",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config) as mock_retrieve, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="print('hello')") as mock_code, \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_runner.return_value.execute.assert_called_once()
+            mock_log.assert_called_once()
+            mock_del.assert_called_once_with(event_id, bot)  # non-cron → delete task
+
+
+    def test_execute_pipeline_fail(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "999"
+
+        config = {
+            "pipeline_name": "pipeline_fail",
+            "callback_name": "cb_fail",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="raise_error()"), \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            mock_runner.return_value.execute.side_effect = Exception("boom")
+
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.call_args_list[0][1]["status"] == EVENT_STATUS.FAIL
+            mock_del.assert_called_once_with(event_id, bot)
+
+
+    def test_execute_pipeline_cron_event_no_delete(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "cron1"
+
+        config = {
+            "pipeline_name": "cron_pipeline",
+            "callback_name": "cron_cb",
+            "scheduler_config": {"expression_type": "cron"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="print('cron run')"), \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_runner.return_value.execute.assert_called_once()
+            mock_del.assert_not_called()
+
+
+    def test_execute_pipeline_code_fetch_fails(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "err2"
+
+        config = {
+            "pipeline_name": "pipeline_code_err",
+            "callback_name": "cb_code_err",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    side_effect=Exception("code missing")), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.call_args_list[0][1]["status"] == EVENT_STATUS.FAIL
+            mock_del.assert_called_once_with(event_id, bot)
+
+
+    def test_execute_no_config(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "nocfg"
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=None), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.assert_called_once()
+            mock_del.assert_not_called()

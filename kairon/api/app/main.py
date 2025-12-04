@@ -24,7 +24,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.app.routers import auth, augment, history, user, account, idp, system, pos
 from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data, \
-    channels, custom_widgets, integrations
+    channels, custom_widgets, integrations, analytics
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
@@ -278,3 +278,4 @@ app.include_router(system.router, prefix="/api/system", tags=["Application"])
 app.include_router(data.router, prefix="/api/bot/{bot}/data", tags=["File Upload/Download"])
 app.include_router(custom_widgets.router, prefix="/api/bot/{bot}/widgets", tags=["Custom analytical widgets"])
 app.include_router(integrations.router, prefix="/api/bot/integration", tags=["Data Integrations"])
+app.include_router(analytics.router, prefix="/api/bot/{bot}/pipeline_analytics", tags=["Analytics"])
