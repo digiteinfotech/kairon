@@ -71,7 +71,8 @@ async def update_pipeline_event(
         current_user.get_bot(),
         current_user.get_user()
     )
-
+    event.callback_name = request.callback_name
+    event.validate()
     event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=request.dict())
     return Response(message="Event updated", data={"event_id": event_id})
 

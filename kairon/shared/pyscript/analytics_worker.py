@@ -2,7 +2,6 @@ import sys
 import json
 import traceback
 from functools import partial
-import threading
 import os
 
 from mongoengine import connect, disconnect
@@ -37,13 +36,23 @@ def main():
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
-                "__builtins__": __builtins__,
+                "__builtins__":  {
+                    "len": len, "range": range, "sorted": sorted,
+                    "min": min, "max": max, "sum": sum,
+                    "str": str, "int": int, "float": float,
+                    "bool": bool, "dict": dict, "list": list, "print": print,
+                },
             }
             converted = {k: allowed[k] for k in safe_globals if k in allowed}
             safe_globals = converted
 
         if "__builtins__" not in safe_globals:
-            safe_globals["__builtins__"] = __builtins__
+            safe_globals["__builtins__"] = {
+                    "len": len, "range": range, "sorted": sorted,
+                    "min": min, "max": max, "sum": sum,
+                    "str": str, "int": int, "float": float,
+                    "bool": bool, "dict": dict, "list": list, "print": print,
+                }
 
         local_vars = predefined.copy()
         exec(source_code, safe_globals, local_vars)

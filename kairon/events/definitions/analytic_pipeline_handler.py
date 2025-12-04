@@ -41,7 +41,8 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         exception = None
         start_time = datetime.utcnow()
         end_time = None
-
+        pipeline_name = None
+        callback_name = None
         try:
             config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
             pipeline_name = config["pipeline_name"]
@@ -148,7 +149,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         try:
             if not Utility.is_exist(AnalyticsPipelineConfig, raise_error=False, bot=self.bot,
                                     id=event_id, status=True):
-                raise AppException("Notification settings not found!")
+                raise AppException("Analytics pipeline event not found!")
 
             Utility.delete_scheduled_event(event_id)
             AnalyticsPipelineProcessor.delete_task(event_id, self.bot)

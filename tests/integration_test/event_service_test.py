@@ -409,7 +409,7 @@ def test_scheduled_event_request_not_allowed():
         "data": None,
         "success": False,
         "error_code": 422,
-        "message": "Only {'message_broadcast'} type events are allowed to be scheduled!",
+        "message": "Only {'message_broadcast', 'analytics_pipeline'} type events are allowed to be scheduled!",
     }
 
 
@@ -492,7 +492,7 @@ def test_update_scheduled_event_request_not_allowed():
         "data": None,
         "success": False,
         "error_code": 422,
-        "message": "Only {'message_broadcast'} type events are allowed to be scheduled!",
+        "message": "Only {'message_broadcast', 'analytics_pipeline'} type events are allowed to be scheduled!"
     }
 
 

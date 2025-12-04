@@ -66,7 +66,6 @@ class AnalyticsRunner(BaseActor):
             "predefined_objects":predefined_objects,
             "bot": bot,
         }, default=str)
-
         try:
             process = subprocess.Popen(
                 [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"],
@@ -76,7 +75,7 @@ class AnalyticsRunner(BaseActor):
                 text=True
             )
 
-            stdout, stderr = process.communicate(input=input_payload, timeout=90)
+            stdout, stderr = process.communicate(input=input_payload, timeout=600)
 
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stderr.strip()}")

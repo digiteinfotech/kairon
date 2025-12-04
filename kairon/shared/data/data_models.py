@@ -1516,7 +1516,7 @@ class AnalyticsSchedulerConfig(BaseModel):
         if not tz or not tz.strip():
             raise ValueError("timezone is required for all schedules!")
 
-        if not schedule or not schedule.strip():
+        if not schedule or (isinstance(schedule, str) and not schedule.strip()):
             raise ValueError("schedule time is required for all schedules!")
 
         if expression_type == "cron":

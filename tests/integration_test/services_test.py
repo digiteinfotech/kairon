@@ -2101,7 +2101,6 @@ def test_create_pipeline_event_cron(mock_event_server):
     )
 
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Event scheduled!"
@@ -2174,7 +2173,6 @@ def test_create_pipeline_event_missing_pipeline_name():
     )
 
     data = response.json()
-    print(data)
     assert data["message"][0]["loc"] == ["body", "pipeline_name"]
     assert data["message"][0]["msg"] == "field required"
 
@@ -2452,7 +2450,7 @@ def test_update_pipeline_event_success(mock_event_server):
 
     payload = {
         "pipeline_name": "updated_pipeline",
-        "callback_name": "updated_cb",
+        "callback_name": "callback_test",
         "timestamp": "2025-11-25T14:30:00Z",
         "scheduler_config": {
             "expression_type": "cron",
@@ -2488,9 +2486,13 @@ def test_update_pipeline_event_validation_error():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     response =response.json()
-    print(response)
     assert response['error_code'] == 422
 
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):

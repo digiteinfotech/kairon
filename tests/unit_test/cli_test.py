@@ -9,6 +9,7 @@ import pytest
 from mongoengine import connect
 
 from kairon import cli
+from kairon.cli.analytics_pipeline import trigger_pipeline
 from kairon.cli.catalog_sync import sync_catalog_content
 from kairon.cli.content_importer import import_doc_content
 from kairon.cli.upload_handler import import_file_content
@@ -591,3 +592,59 @@ class TestUploadHandlerCli:
 
         monkeypatch.setattr(UploadHandler, "execute", mock_file_content_importer)
         cli()
+
+
+class TestAnalyticsPipelineCli:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @mock.patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=argparse.Namespace(func=trigger_pipeline)
+    )
+    def test_pipeline_cli_missing_bot(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert "'Namespace' object has no attribute 'bot'" in str(e.value)
+
+    @mock.patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=argparse.Namespace(func=trigger_pipeline, bot="test_bot")
+    )
+    def test_pipeline_cli_missing_user(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert "'Namespace' object has no attribute 'user'" in str(e.value)
+
+    @mock.patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=argparse.Namespace(func=trigger_pipeline, bot="test_bot", user="test_user")
+    )
+    def test_pipeline_cli_missing_event_id(self, monkeypatch):
+        with pytest.raises(AttributeError) as e:
+            cli()
+        assert "'Namespace' object has no attribute 'event_id'" in str(e.value)
+
+    @mock.patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=argparse.Namespace(
+            func=trigger_pipeline,
+            bot="test_bot",
+            user="test_user",
+            event_id="1234567890"
+        )
+    )
+    def test_pipeline_cli_all_arguments(self, mock_namespace):
+        with mock.patch(
+            "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineEvent.execute",
+            autospec=True
+        ):
+            from kairon.shared.concurrency.actors.factory import ActorFactory
+            cli()
+            print(cli)
+        for proxy in ActorFactory._ActorFactory__actors.values():
+            assert not proxy[1].actor_ref.is_alive()
