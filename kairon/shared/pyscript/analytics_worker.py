@@ -49,23 +49,13 @@ def main():
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
-                "__builtins__":  {
-                    "len": len, "range": range, "sorted": sorted,
-                    "min": min, "max": max, "sum": sum,
-                    "str": str, "int": int, "float": float,
-                    "bool": bool, "dict": dict, "list": list, "print": print,
-                },
+                "__builtins__": __builtins__,
             }
             converted = {k: allowed[k] for k in safe_globals if k in allowed}
             safe_globals = converted
 
         if "__builtins__" not in safe_globals:
-            safe_globals["__builtins__"] = {
-                    "len": len, "range": range, "sorted": sorted,
-                    "min": min, "max": max, "sum": sum,
-                    "str": str, "int": int, "float": float,
-                    "bool": bool, "dict": dict, "list": list, "print": print,
-                }
+            safe_globals["__builtins__"] = __builtins__
 
         local_vars = predefined.copy()
         exec(source_code, safe_globals, local_vars)
