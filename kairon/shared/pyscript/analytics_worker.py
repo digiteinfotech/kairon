@@ -22,7 +22,7 @@ def main():
         source_code = data.get("source_code", "")
         predefined = data.get("predefined_objects", {})
         safe_globals = data.get("safe_globals", {})
-        bot = data.get("bot", {})
+        bot = data.get("bot")
 
         if isinstance(safe_globals, list):
             allowed = {
@@ -70,6 +70,7 @@ def main():
             "error": str(e),
             "trace": traceback.format_exc()
         }), flush=True)
+        disconnect()
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(1)

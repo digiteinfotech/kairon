@@ -150,7 +150,7 @@ class AnalyticsPipelineLogs(DynamicDocument):
     event_id = StringField(required=True)
     status = StringField(required=True)
     pipeline_name = StringField()
-    callback_name = StringField
+    callback_name = StringField()
     exception = StringField()
     start_time = DateTimeField()
     end_time = DateTimeField()

@@ -53,7 +53,7 @@ class AnalyticsPipelineProcessor:
     def get_analytics_pipeline(bot: str, pipeline_name: str):
         pipeline = AnalyticsPipelineConfig.objects(bot=bot, pipeline_name=pipeline_name).first()
         if not pipeline:
-            raise HTTPException(404, "Pipeline config not found for this bot")
+            raise AppException("Pipeline config not found for this bot")
         return pipeline
 
     @staticmethod
@@ -107,7 +107,7 @@ class AnalyticsPipelineProcessor:
 
                 tzinfo = ZoneInfo(scheduler_config.timezone or "UTC")
                 run_at = datetime.fromtimestamp(epoch_time, tzinfo)
-                scheduler_config.schedule = run_at
+                scheduler_config.schedule = run_at.isoformat()
 
             settings.scheduler_config = scheduler_config
 

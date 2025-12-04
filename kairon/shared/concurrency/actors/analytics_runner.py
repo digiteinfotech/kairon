@@ -85,7 +85,7 @@ class AnalyticsRunner(BaseActor):
 
         except Exception as e:
             logger.exception(e)
-            raise AppException(f"Execution error: {e}")
+            raise AppException(f"Execution error: {e}") from e
 
     def __cleanup(self, values: Dict):
         clean = {}

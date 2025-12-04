@@ -2115,7 +2115,7 @@ def test_create_pipeline_event_epoch(mock_event_server):
     payload = {
         "pipeline_name": "one_time_pipeline",
         "callback_name": "callback_test",
-    "timestamp": "2025-11-25T14:30:00Z",
+        "timestamp": "2025-11-25T14:30:00Z",
         "scheduler_config": {
             "expression_type": "epoch",
             "schedule": str(future_epoch),
@@ -2485,7 +2485,7 @@ def test_update_pipeline_event_validation_error():
         json=payload,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    response =response.json()
+    response = response.json()
     assert response['error_code'] == 422
 
     response = client.delete(

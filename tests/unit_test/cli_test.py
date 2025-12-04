@@ -645,6 +645,5 @@ class TestAnalyticsPipelineCli:
         ):
             from kairon.shared.concurrency.actors.factory import ActorFactory
             cli()
-            print(cli)
         for proxy in ActorFactory._ActorFactory__actors.values():
             assert not proxy[1].actor_ref.is_alive()

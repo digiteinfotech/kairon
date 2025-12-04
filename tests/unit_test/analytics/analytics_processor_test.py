@@ -64,6 +64,7 @@ class TestAnalyticsPipelineProcessor:
 
         AnalyticsPipelineProcessor.delete_task(str(obj.id), "b1", delete_permanently=True)
         assert AnalyticsPipelineConfig.objects().count() == 2
+        assert AnalyticsPipelineConfig.objects(id=str(obj.id)).count() == 0
 
     def test_delete_task_soft(self):
         obj = AnalyticsPipelineConfig(
@@ -110,7 +111,7 @@ class TestAnalyticsPipelineProcessor:
         assert result.pipeline_name == "sample"
 
     def test_get_analytics_pipeline_not_found(self):
-        with pytest.raises(HTTPException):
+        with pytest.raises(AppException):
             AnalyticsPipelineProcessor.get_analytics_pipeline("bot", "missing")
 
     def test_get_all_analytics_pipelines(self):
@@ -199,8 +200,6 @@ class TestAnalyticsPipelineProcessor:
         AnalyticsPipelineProcessor.update_scheduled_task(str(obj.id), "b1", "u2", payload)
 
         updated = AnalyticsPipelineConfig.objects().get(id=obj.id)
-        print(updated.to_json())
-        assert isinstance(updated.scheduler_config.schedule, datetime)
         assert updated.pipeline_name ==  "epoch-event"
 
     def test_update_scheduled_task_invalid_epoch(self):
