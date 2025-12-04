@@ -1,10 +1,5 @@
-
-
 from unittest.mock import patch
 
-# ----------------------------------------------------
-# Patch environment BEFORE importing any kairon modules
-# ----------------------------------------------------
 mock_env = {
     "pos": {
         "odoo": {
@@ -21,8 +16,6 @@ from kairon.pos.odoo.odoo_pos import OdooPOS
 from kairon.shared.pos.processor import POSProcessor
 
 import pytest
-# ----------------------------------------------------
-
 
 @pytest.fixture
 def odoo_pos():
