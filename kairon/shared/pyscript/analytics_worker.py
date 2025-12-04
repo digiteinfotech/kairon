@@ -12,7 +12,20 @@ from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
 
 
+def _cleanup_and_exit(exit_code: int):
+    """
+    Ensures all buffers are flushed, DB disconnected, and process exits cleanly.
+    """
+    try:
+        disconnect()
+        sys.stdout.flush()
+        sys.stderr.flush()
+    finally:
+        os._exit(exit_code)
+
+
 def main():
+    exit_code = 0
     try:
         raw = sys.stdin.readline().strip()
         data = json.loads(raw)
@@ -59,22 +72,16 @@ def main():
         result = {k: v for k, v in local_vars.items() if not k.startswith("__")}
         print(json.dumps({"success": True, "data": result}, default=str), flush=True)
 
-        disconnect()
-        sys.stderr.flush()
-        sys.stdout.flush()
-        os._exit(0)
-
     except Exception as e:
+        exit_code = 1
         print(json.dumps({
             "success": False,
             "error": str(e),
             "trace": traceback.format_exc()
         }), flush=True)
-        disconnect()
-        sys.stdout.flush()
-        sys.stderr.flush()
-        os._exit(1)
 
+    finally:
+        _cleanup_and_exit(exit_code)
 
 if __name__ == "__main__":
     main()

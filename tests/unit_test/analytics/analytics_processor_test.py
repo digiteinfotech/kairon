@@ -99,21 +99,6 @@ class TestAnalyticsPipelineProcessor:
         with pytest.raises(AppException):
             AnalyticsPipelineProcessor.retrieve_config("69255e0feddf7785bcc0831b", "bot")
 
-    def test_get_analytics_pipeline_found(self):
-        obj = AnalyticsPipelineConfig(
-            pipeline_name="sample",
-            bot="b1",
-            user="u1",
-            scheduler_config=SchedulerConfiguration(expression_type="cron", schedule="30 20 * * *", timezone ="Asia/Kolkata")
-        ).save()
-
-        result = AnalyticsPipelineProcessor.get_analytics_pipeline("b1", "sample")
-        assert result.pipeline_name == "sample"
-
-    def test_get_analytics_pipeline_not_found(self):
-        with pytest.raises(AppException):
-            AnalyticsPipelineProcessor.get_analytics_pipeline("bot", "missing")
-
     def test_get_all_analytics_pipelines(self):
         AnalyticsPipelineConfig(
             pipeline_name="p3",

@@ -50,13 +50,6 @@ class AnalyticsPipelineProcessor:
 
 
     @staticmethod
-    def get_analytics_pipeline(bot: str, pipeline_name: str):
-        pipeline = AnalyticsPipelineConfig.objects(bot=bot, pipeline_name=pipeline_name).first()
-        if not pipeline:
-            raise AppException("Pipeline config not found for this bot")
-        return pipeline
-
-    @staticmethod
     def get_all_analytics_pipelines(bot: str):
         """
         Fetch all analytics pipeline events for a bot with proper formatting.
