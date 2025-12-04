@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import subprocess
+import sys
 import textwrap
 from datetime import datetime
 from unittest.mock import patch, MagicMock
@@ -1017,3 +1019,97 @@ def test_analytics_runner_parses_worker_output():
     print(result)
     assert result['success'] == True
     assert result['data']['a'] == 100
+
+
+WORKER_CMD = [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"]
+
+
+def run_worker(payload: dict):
+    process = subprocess.Popen(
+        WORKER_CMD,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    out, err = process.communicate(json.dumps(payload), timeout=60)
+    return process.returncode, out.strip(), err.strip()
+
+
+def test_worker_success_with_simple_code():
+    payload = {
+        "source_code": "x = 5\ny = 10\nz = x + y",
+        "predefined_objects": {},
+        "safe_globals": ["len", "print"],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["success"] is True
+    assert data["data"]["z"] == 15
+
+
+def test_worker_error_invalid_code():
+    payload = {
+        "source_code": "invalid!!!@#$ code",
+        "predefined_objects": {},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 1
+    data = json.loads(out)
+    assert data["success"] is False
+    assert "error" in data
+    assert "trace" in data
+
+
+def test_worker_uses_predefined_objects():
+    payload = {
+        "source_code": "result = value * 2",
+        "predefined_objects": {"value": 7},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["data"]["result"] == 14
+
+
+def test_worker_builtin_whitelisting():
+    payload = {
+        "source_code": "numbers = [1, 2, 3]\ntotal = sum(numbers)",
+        "predefined_objects": {},
+        "safe_globals": ["sum"],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["data"]["total"] == 6
+
+
+def test_worker_missing_source_code():
+    payload = {
+        "predefined_objects": {},
+        "safe_globals": [],
+        "bot": "test-bot"
+    }
+
+    code, out, err = run_worker(payload)
+
+    assert code == 0
+    data = json.loads(out)
+    assert data["success"] is True
+    assert data["data"] == {}

@@ -1677,3 +1677,135 @@ class TestEventDefinitions:
             event = AnalyticsPipelineEvent(bot, user)
             event.delete_schedule(event_id)
             mock_delete.assert_called_with(event_id)
+
+
+    def test_execute_pipeline_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "12345"
+
+        config = {
+            "pipeline_name": "pipeline_success",
+            "callback_name": "cb_success",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config) as mock_retrieve, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="print('hello')") as mock_code, \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_runner.return_value.execute.assert_called_once()
+            mock_log.assert_called_once()
+            mock_del.assert_called_once_with(event_id, bot)  # non-cron → delete task
+
+
+    def test_execute_pipeline_fail(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "999"
+
+        config = {
+            "pipeline_name": "pipeline_fail",
+            "callback_name": "cb_fail",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="raise_error()"), \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            mock_runner.return_value.execute.side_effect = Exception("boom")
+
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.call_args_list[0][1]["status"] == EVENT_STATUS.FAIL
+            mock_del.assert_called_once_with(event_id, bot)
+
+
+    def test_execute_pipeline_cron_event_no_delete(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "cron1"
+
+        config = {
+            "pipeline_name": "cron_pipeline",
+            "callback_name": "cron_cb",
+            "scheduler_config": {"expression_type": "cron"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    return_value="print('cron run')"), \
+                patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsRunner") as mock_runner, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_runner.return_value.execute.assert_called_once()
+            mock_del.assert_not_called()
+
+
+    def test_execute_pipeline_code_fetch_fails(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "err2"
+
+        config = {
+            "pipeline_name": "pipeline_code_err",
+            "callback_name": "cb_code_err",
+            "scheduler_config": {"expression_type": "epoch"},
+        }
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=config), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.get_pipeline_code",
+                    side_effect=Exception("code missing")), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.call_args_list[0][1]["status"] == EVENT_STATUS.FAIL
+            mock_del.assert_called_once_with(event_id, bot)
+
+
+    def test_execute_no_config(self):
+        bot = "test_bot"
+        user = "test_user"
+        event_id = "nocfg"
+
+        with patch("kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.retrieve_config",
+                   return_value=None), \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.add_event_log") as mock_log, \
+                patch(
+                    "kairon.events.definitions.analytic_pipeline_handler.AnalyticsPipelineProcessor.delete_task") as mock_del:
+            event = AnalyticsPipelineEvent(bot, user)
+            event.execute(event_id)
+
+            mock_log.assert_called_once()
+            mock_del.assert_not_called()
