@@ -39,13 +39,13 @@ class UploadHandler(EventsBase):
         """
 
         payload=self.upload_handler.create_payload(**kwargs)
-        UploadHandlerLogProcessor.add_log(bot=self.upload_handler.bot, user=self.upload_handler.user, event_status=EVENT_STATUS.ENQUEUED.value)
+        UploadHandlerLogProcessor.add_log(bot=self.upload_handler.bot, user=self.upload_handler.user, event_status=EVENT_STATUS.ENQUEUED.value,collection_name=self.upload_handler.collection_name)
         try:
             Utility.request_event_server(EventClass.upload_file_handler, payload)
         except Exception as e:
             logger.error(str(e))
             UploadHandlerLogProcessor.add_log(bot=self.upload_handler.bot, user=self.upload_handler.user, exception=str(e), status=STATUSES.FAIL.value,
-                                              event_status=EVENT_STATUS.FAIL.value)
+                                              event_status=EVENT_STATUS.FAIL.value,collection_name=self.upload_handler.collection_name)
             content_dir = os.path.join('file_content_upload_records', self.upload_handler.bot)
             Utility.delete_directory(content_dir, True)
             raise
