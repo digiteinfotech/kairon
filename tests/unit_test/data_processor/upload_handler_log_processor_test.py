@@ -142,3 +142,37 @@ class TestUploadHandlerLogProcessor:
 
         UploadHandlerLogProcessor.delete_enqueued_event_log("test_bot")
         mock_instance.delete.assert_not_called()
+
+    def test_logs_not_overridden_when_users_upload_to_different_collections(self):
+        bot = "test_bot"
+        UploadHandlerLogs.objects().delete()
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userA",
+            file_name="fileA.csv",
+            collection_name="collection1",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userB",
+            file_name="fileB.csv",
+            collection_name="collection2",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        logs = list(UploadHandlerLogs.objects(bot=bot))
+        assert len(logs) == 2
+        logA = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection1"
+        ).first()
+        assert logA.file_name == "fileA.csv"
+        assert logA.user == "userA"
+
+        logB = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection2"
+        ).first()
+        assert logB.file_name == "fileB.csv"
+        assert logB.user == "userB"
+        assert logA.id != logB.id

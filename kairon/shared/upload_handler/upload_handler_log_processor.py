@@ -49,10 +49,18 @@ class UploadHandlerLogProcessor:
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
             update_fields["end_timestamp"] = datetime.utcnow()
 
-        UploadHandlerLogs.objects(
-            bot=bot,
-            event_status__nin=[EVENT_STATUS.COMPLETED.value, EVENT_STATUS.FAIL.value],
-        ).update_one(
+        query = {
+            "bot": bot,
+            "event_status__nin": [
+                EVENT_STATUS.COMPLETED.value,
+                EVENT_STATUS.FAIL.value
+            ]
+        }
+
+        if collection_name:
+            query["collection_name"] = collection_name
+
+        UploadHandlerLogs.objects(**query).update_one(
             set__bot=bot,
             set__user=user,
             **{f"set__{k}": v for k, v in update_fields.items()},

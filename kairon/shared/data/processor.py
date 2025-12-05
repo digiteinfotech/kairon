@@ -8966,7 +8966,7 @@ class MongoProcessor:
 
         return error_message
 
-    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File):
+    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File, collection_name):
         """
         Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
 
@@ -8980,6 +8980,7 @@ class MongoProcessor:
             bot=bot,
             user=user,
             file_name=file_content.filename,
+            collection_name=collection_name,
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
