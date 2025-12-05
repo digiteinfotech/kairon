@@ -145,7 +145,7 @@ class TestUploadHandlerLogProcessor:
 
     def test_logs_not_overridden_when_users_upload_to_different_collections(self):
         bot = "test_bot"
-        UploadHandlerLogs.objects().delete()
+        UploadHandlerLogs.objects(bot=bot).delete()
         UploadHandlerLogProcessor.add_log(
             bot=bot,
             user="userA",
