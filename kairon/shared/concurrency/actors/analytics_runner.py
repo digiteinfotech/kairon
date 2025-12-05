@@ -78,14 +78,15 @@ class AnalyticsRunner(BaseActor):
             stdout, stderr = process.communicate(input=input_payload, timeout=600)
 
             if process.returncode != 0:
-                raise AppException(f"Subprocess error: {stderr.strip()}")
+                raise AppException(f"Subprocess error: {stdout.strip()}")
 
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
-            logger.exception(e)
-            raise AppException(f"Execution error: {e}") from e
+            msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
+            logger.exception(msg)
+            raise AppException(f"Execution error: {msg}") from e
 
     def __cleanup(self, values: Dict):
         clean = {}
