@@ -25,6 +25,8 @@ roles:
       customCollections: true
       posOrders: true
       posProducts: true
+      analyticsPipeline: true
+      telemetryAnalytics: true
     pages:
       chatbots:
         renameBot: true
@@ -157,6 +159,8 @@ roles:
       customCollections: true
       posOrders: true
       posProducts: true
+      analyticsPipeline: true
+      telemetryAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -288,6 +292,8 @@ roles:
       customCollections: true
       posOrders: true
       posProducts: true
+      analyticsPipeline: true
+      telemetryAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -419,6 +425,8 @@ roles:
       customCollections: false
       posOrders: false
       posProducts: false
+      analyticsPipeline: true
+      telemetryAnalytics: true
     pages:
       chatbots:
         renameBot: false
@@ -550,6 +558,8 @@ roles:
       customCollections: false
       posOrders: false
       posProducts: false
+      analyticsPipeline: false
+      telemetryAnalytics: false
     pages:
       chatbots:
         renameBot: false
@@ -682,6 +692,8 @@ roles:
       customCollections: false
       posOrders: false
       posProducts: false
+      analyticsPipeline: true
+      telemetryAnalytics: true
     pages:
       chatbots:
         renameBot: false
