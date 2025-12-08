@@ -1695,7 +1695,7 @@ def test_delete_client_without_client():
 
 @pytest.mark.asyncio
 @responses.activate
-def test_delete_client_without_client():
+def test_delete_client():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     jsonrpc = f"{base}/jsonrpc"
 
