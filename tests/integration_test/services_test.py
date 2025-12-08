@@ -2157,13 +2157,6 @@ def test_create_pos_order_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
 
-    # responses.add(
-    #     responses.POST,
-    #     url,
-    #     json={"result": 99},
-    #     status=200
-    # )
-
     responses.add(
         responses.POST,
         url,
