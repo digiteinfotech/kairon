@@ -3876,6 +3876,66 @@ def test_default_values():
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
 
+def test_odoo_registration():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+    with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
+
+        mock_pos = MagicMock()
+        mock_pos.return_value.onboarding.return_value = {"ok": True}
+
+        mock_factory.return_value = mock_pos
+
+        payload = {
+            "client_name": "XYZ_Pvt_Ltd"
+        }
+
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/register",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        actual = response.json()
+        assert actual["success"]
+        assert actual["data"] ==  {'ok': True}
+        mock_factory.assert_called_once_with("odoo")
+        mock_pos.return_value.onboarding.assert_called_once_with(
+            client_name="XYZ_Pvt_Ltd",
+            bot=pytest.bot,
+            user='integration@demo.ai'
+        )
+
+def test_odoo_login():
+    with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
+
+        mock_pos = MagicMock()
+        mock_pos.return_value.authenticate.return_value = {"ok": True}
+
+        mock_factory.return_value = mock_pos
+
+        payload = {
+            "client_name": "XYZ_Pvt_Ltd",
+            "page_type": "pos_products"
+        }
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/login",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        actual = response.json()
+        assert actual ==  {'ok': True}
+        mock_factory.assert_called_once_with("odoo")
+        mock_pos.return_value.authenticate.assert_called_once_with(
+            client_name="XYZ_Pvt_Ltd",
+            page_type="pos_products",
+            bot=pytest.bot
+        )
+
 def test_bulk_save_success():
     request_body = {
         "payload": [
