@@ -1501,6 +1501,1129 @@ def test_list_bots():
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
 
+
+def test_get_client_name_with_no_configuration():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["message"] == 'No POS client configuration found for this bot.'
+    assert actual["error_code"] == 422
+
+
+def test_pos_register_pos_not_enabled():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "point of sale is not enabled"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_register_with_client_name_exists():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+    auth = f"{base}/web/session/authenticate"
+    call_kw = re.compile(f"{base}/web/dataset/call_kw")
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Test Client", "Kairon Client"]}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Client Test Client already exists"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_register():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+    auth = f"{base}/web/session/authenticate"
+    call_kw = re.compile(f"{base}/web/dataset/call_kw")
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client"]}, status=200)
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [10]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [{"state": "to install"}]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [20]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [{"state": "to install"}]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["message"] == "Client 'Test Client' created and POS Activated"
+    assert actual["error_code"] == 0
+
+
+def test_pos_login_pos_not_enabled():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = False
+    bot_settings.save()
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "point of sale is not enabled"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login_with_page_type_pos_orders():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client", "page_type": "pos_orders"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    assert actual["url"] == 'http://localhost:8080/web#action=380&model=pos.order&view_type=list&cids=1&menu_id=231'
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    pytest.session_id = actual["session_id"]
+    assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=1&menu_id=233'
+
+
+def test_get_client_name():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert not actual["message"]
+    assert actual["data"] == {'client_name': 'Test Client'}
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_delete_client_without_client():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client"]}, status=200)
+    responses.add(responses.POST, jsonrpc, json={"result": True}, status=200)
+
+    response = client.request(
+        "DELETE",
+        f"/api/bot/{pytest.bot}/pos/odoo/client/delete",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Client 'Test Client' not found"
+    assert not actual["data"]
+    assert actual["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_delete_client():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client", "Test Client"]}, status=200)
+    responses.add(responses.POST, jsonrpc, json={"result": True}, status=200)
+
+    response = client.request(
+        "DELETE",
+        f"/api/bot/{pytest.bot}/pos/odoo/client/delete",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["message"] == "Client 'Test Client' deleted successfully"
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 1
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": product_id,
+            "name": "Test Product",
+            "available_in_pos": False
+        }]},
+        status=200
+    )
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/1?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["product_id"] == 1
+    assert actual["data"]["name"] == "Test Product"
+    assert actual["data"]["available_in_pos"] is True
+    assert actual["message"] == "Product toggled to ON"
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product_write_failure():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 1
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": product_id,
+            "name": "Faulty Product",
+            "available_in_pos": True
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        body=Exception("Simulated write failure"),
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/{product_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    
+    assert not actual["success"]
+    assert "Error toggling product" in actual["message"]
+    assert "Simulated write failure" in actual["message"]
+    assert not actual["data"]
+    assert actual["error_code"] == 500
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 999
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/{product_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    
+    assert not actual["success"]
+    assert actual["message"] == f"Product {product_id} not found"
+    assert not actual["data"]
+    assert actual["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_invalid_status():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}&status=invalid_state",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["message"] == "Invalid status value"
+    assert not data["success"]
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_empty():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["data"]["data"] == []
+    assert data["data"]["count"] == 0
+    assert data["success"]
+    assert data["message"] == "POS orders fetched"
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [10]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [
+            {
+                "id": 10,
+                "name": "POS/0001",
+                "amount_total": 450,
+                "state": "paid",
+                "partner_id": [1, "Test"],
+                "company_id": [1, "My Company"],
+                "session_id": [1, "Session A"],
+                "date_order": "2025-01-01 10:00:00"
+            }
+        ]},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["data"]["count"] == 1
+    assert data["data"] == {
+        'data': [
+            {
+                'id': 10,
+                'name': 'POS/0001',
+                'amount_total': 450,
+                'state': 'paid',
+                'partner_id': [1, 'Test'],
+                'company_id': [1, 'My Company'],
+                'session_id': [1, 'Session A'],
+                'date_order': '2025-01-01 10:00:00'}
+        ],
+        'count': 1
+    }
+    assert data["success"]
+    assert data["message"] == "POS orders fetched"
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_product_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    payload = {
+        "products": [{"product_id": 111, "qty": 1, "unit_price": 20.0}],
+        "partner_id": None
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Product 111 not found"
+    assert not data["data"]
+    assert data["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_product_not_available():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": 98}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Hidden Item",
+            "display_name": "Hidden",
+            "lst_price": 100,
+            "available_in_pos": False,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 99, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert not data["data"]
+    assert data["message"] == "Product Hidden Item not available in POS"
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_no_pos_config():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Tea",
+            "display_name": "Tea",
+            "lst_price": 20,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "No POS Config found"
+    assert not data["data"]
+    assert data["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_no_payment_method():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Coffee",
+            "display_name": "Coffee Cup",
+            "lst_price": 40,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "No POS payment methods found"
+    assert not data["data"]
+    assert data["error_code"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_without_partner():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": 500}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Burger",
+            "display_name": "Burger Meal",
+            "lst_price": 150,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": [{"id": 1, "company_id": [1, "Comp"]}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [{"id": 10, "sequence_number": 7}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [{"id": 22}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [555]}, status=200)
+
+    payload = {"products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
+
+    res = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = res.json()
+    print(data)
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == 555
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [123]},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
+        "partner_id": 3
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == 123
+    assert data["data"]["status"] == "created"
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_invalid_state():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 12
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 120,
+            "state": "cancel",
+            "partner_id": [1, "Test"],
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "Cannot accept order. order already in 'cancel' state."
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 999
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Order not found"
+    assert not data["data"]
+    assert data["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_no_payment_method():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 13
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 150,
+            "state": "draft",
+            "partner_id": [2, "Sam"],
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "No POS payment method found"
+    assert not data["data"]
+    assert data["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_unexpected_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 14
+
+    responses.add(
+        responses.POST,
+        url,
+        body="Bad Request",
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "JSON-RPC pos.order.read: HTTP 400 - Bad Request"
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_invoice_failure():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 11
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 200,
+            "partner_id": [1, "John"],
+            "state": "draft",
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": [{"id": 30}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 101}, status=200)
+
+    responses.add(responses.POST, url, json={"result": True}, status=200)
+
+    responses.add(responses.POST, url, body="Internal Server Error", status=500)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "Order accepted"
+    assert data["data"] == {
+        "order_id": order_id,
+        "accepted": True,
+        "invoiced": False
+    }
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 10
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 500,
+            "partner_id": [1, "Test"],
+            "state": "draft",
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 20}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": 55},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "Order accepted"
+    assert data["data"] == {"order_id": order_id, "accepted": True}
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_invalid_state():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 15
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "state": "cancel"
+        }]},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Cannot cancel order. order already in 'cancel' state."
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 999
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Order not found"
+    assert data["error_code"] == 404
+    assert not data["data"]
+    
+    
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 10
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "state": "draft"
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "Order rejected"
+    assert data["data"] == {"order_id": order_id, "status": "cancelled"}
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_pos_products_odoo_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        body="Bad Request",
+        status=400
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/product?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert "Odoo error" in data["message"]
+    assert data["message"] == 'Odoo error: 400: JSON-RPC product.template.search_read: HTTP 400 - Bad Request'
+    assert not data["data"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_pos_products_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    products = [
+        {
+            "id": 1,
+            "name": "Product A",
+            "list_price": 100,
+            "barcode": "123456",
+            "available_in_pos": True
+        },
+        {
+            "id": 2,
+            "name": "Product B",
+            "list_price": 200,
+            "barcode": "789012",
+            "available_in_pos": True
+        }
+    ]
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": products},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/product?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"]["count"] == 2
+    assert data["data"]["data"] == products
+    assert data["error_code"] == 0
+    assert not data["message"]
+
+
 def test_secure_collection_crud_lifecycle():
     # Step 1: Add a bot
     add_bot_resp = client.post(
