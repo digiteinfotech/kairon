@@ -6114,12 +6114,10 @@ def test_get_media_ids_within_30_days():
     bot_settings.save()
     if bot_settings:
         bot_settings_dict = bot_settings.to_mongo().to_dict()
-        print(bot_settings_dict)
 
     channel = Channels.objects(bot=pytest.bot).first()
     if channel:
         channel = channel.to_mongo().to_dict()
-        print(channel)
     Channels(
         bot=pytest.bot,
         connector_type="whatsapp",
