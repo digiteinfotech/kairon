@@ -75,6 +75,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             AnalyticsPipelineProcessor.add_event_log(
                 event_id=event_id,
                 bot = self.bot,
+                user = self.user,
                 status=status,
                 exception=exception,
                 pipeline_name = pipeline_name,

@@ -149,6 +149,8 @@ class MessageBroadcastLogs(DynamicDocument):
 class AnalyticsPipelineLogs(DynamicDocument):
     event_id = StringField(required=True)
     status = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField()
     pipeline_name = StringField()
     callback_name = StringField()
     exception = StringField()
