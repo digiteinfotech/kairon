@@ -287,6 +287,7 @@ class LogTypes(str, Enum):
     audit = "audit"
     model_test = "model_test"
     file_upload = "file_upload"
+    analytics_pipeline = "analytics_pipeline"
 
 MIME_TYPE_LIMITS = {
   "audio/aac": 16777216,

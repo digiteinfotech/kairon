@@ -152,15 +152,15 @@ class AnalyticsPipelineLogs(DynamicDocument):
     pipeline_name = StringField()
     callback_name = StringField()
     exception = StringField()
-    start_time = DateTimeField()
-    end_time = DateTimeField()
+    start_timestamp = DateTimeField()
+    end_timestamp = DateTimeField()
 
     meta = {
         "indexes": [
             "event_id",
             "status",
-            "-start_time",
-            "-end_time"
+            "-start_timestamp",
+            "-end_timestamp"
         ]
     }
 

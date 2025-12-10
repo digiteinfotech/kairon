@@ -37,6 +37,7 @@ from kairon.shared.actions.models import ActionParameterType, DbActionOperationT
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType, CallbackConfig
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
+from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
@@ -3616,6 +3617,100 @@ def test_update_pipeline_event_validation_error():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+
+
+def test_search_and_list_analytics_pipeline_logs():
+
+    now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+    entries = [
+        {
+            "status": "Completed",
+            "start_offset": 0,
+            "end_offset": 2,
+        },
+        {
+            "status": "Completed",
+            "start_offset": -30,
+            "end_offset": -27,
+        },
+        {
+            "status": "Fail",
+            "exception": "Execution error: Expecting value: line 1 column 1 (char 0)",
+            "start_offset": -40,
+            "end_offset": -38,
+        },
+        {
+            "status": "Completed",
+            "start_offset": -60,
+            "end_offset": -57,
+        },
+    ]
+
+    for e in entries:
+        AnalyticsPipelineLogs(
+            event_id="6938ff94e22b4ae6c225fa18",
+            status=e["status"],
+            pipeline_name="daily_analytics_pipeline",
+            callback_name="callback_test",
+            exception=e.get("exception"),
+            bot=pytest.bot,
+            start_timestamp=now + timedelta(minutes=e["start_offset"]),
+            end_timestamp=now + timedelta(minutes=e["end_offset"]),
+        ).save()
+
+
+    list_resp = client.get(
+        f"/api/bot/{pytest.bot}/logs/analytics_pipeline",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    list_data = list_resp.json()
+    assert list_data["success"]
+    assert list_data["error_code"] == 0
+    assert list_data["data"]["total"] == 4
+    assert len(list_data["data"]["logs"]) == 4
+
+    for log in list_data["data"]["logs"]:
+        assert log["event_id"]
+        assert log["status"]
+        assert log["pipeline_name"] == "daily_analytics_pipeline"
+        assert log["callback_name"] == "callback_test"
+        assert log.get("start_time") or log.get("start_timestamp")
+        assert log.get("end_time") or log.get("end_timestamp")
+
+
+    from_date = (now - timedelta(days=1)).date()
+    to_date = (now + timedelta(days=1)).date()
+
+    search_url = (
+        f"/api/bot/{pytest.bot}/logs/analytics_pipeline/search"
+        f"?from_date={from_date}&to_date={to_date}"
+        f"&start_idx=0&page_size=10&pipeline_name=daily_analytics_pipeline"
+    )
+
+    search_resp = client.get(
+        search_url,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    search_data = search_resp.json()
+    assert search_data["success"]
+    assert search_data["error_code"] == 0
+    assert search_data["data"]["total"] == 4
+    assert len(search_data["data"]["logs"]) == 4
+
+    for log in search_data["data"]["logs"]:
+        assert log["event_id"]
+        assert log["status"]
+        assert log["pipeline_name"] == "daily_analytics_pipeline"
+        assert log["callback_name"] == "callback_test"
+        assert log["start_timestamp"]
+        assert log["end_timestamp"]
+
+        if log["status"] == "Fail":
+            assert "Execution error" in log["exception"]
+
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):

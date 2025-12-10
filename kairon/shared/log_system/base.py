@@ -7,6 +7,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.callback.data_objects import CallbackLog
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.channels.mail.data_objects import MailResponseLog
+from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.custom_widgets.data_objects import CustomWidgetsRequestLog
 from kairon.shared.data.audit.data_objects import AuditLogData
@@ -47,7 +48,8 @@ class BaseLogHandler(ABC):
         "agent_handoff": Metering,
         "audit": AuditLogData,
         "model_test": ModelTestingLogs,
-        "file_upload": UploadHandlerLogs
+        "file_upload": UploadHandlerLogs,
+        "analytics_pipeline": AnalyticsPipelineLogs
     }
 
     @classmethod
