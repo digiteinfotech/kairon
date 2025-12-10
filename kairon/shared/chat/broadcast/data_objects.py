@@ -157,10 +157,8 @@ class AnalyticsPipelineLogs(DynamicDocument):
 
     meta = {
         "indexes": [
-            "event_id",
-            "status",
-            "-start_timestamp",
-            "-end_timestamp"
+            {
+                "fields": ["bot", "pipeline_name", "-start_timestamp"]
+            }
         ]
     }
-
