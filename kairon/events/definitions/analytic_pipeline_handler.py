@@ -74,6 +74,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             end_time = datetime.utcnow()
             AnalyticsPipelineProcessor.add_event_log(
                 event_id=event_id,
+                bot = self.bot,
                 status=status,
                 exception=exception,
                 pipeline_name = pipeline_name,

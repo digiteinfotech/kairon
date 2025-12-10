@@ -356,3 +356,29 @@ logs:
       header: logsPage.eventStatus
       cellComponent: StatusCell
       filterType: status
+
+  analytics_pipeline:
+    - id: pipeline_name
+      header: analyticsPipeline.pipelineName
+      cellComponent: SimpleCell
+      filterType: text
+    - id: callback_name
+      header: analyticsPipeline.callbackName
+      cellComponent: SimpleCell
+      filterType: text
+    - id: start_timestamp
+      accessorFunction: formatStartTime
+      header: common.startTimeHeader
+      cellComponent: StartTimestampCell
+    - id: end_timestamp
+      accessorFunction: formatEndTimeOrInProgress
+      header: common.endTimeHeader
+      cellComponent: EndTimestampInProgressCell
+    - id: exception
+      accessorFunction: formatExceptionText
+      header: logsPage.exception
+      cellComponent: ExceptionCell
+    - id: status
+      header: logsPage.eventStatus
+      cellComponent: StatusCell
+      filterType: status
