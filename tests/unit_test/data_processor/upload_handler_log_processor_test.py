@@ -168,7 +168,7 @@ class TestUploadHandlerLogProcessor:
         UploadHandlerLogs(
             bot="test_bot",
             user="ganesh.reddy@nimble.com",
-            event_type="file_upload",
+            upload_type="file_upload",
             collection_name="test_collection",
             file_name="Salesstore.csv",
             event_status="IN_PROGRESS"
