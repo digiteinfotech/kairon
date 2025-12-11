@@ -3655,6 +3655,7 @@ def test_search_and_list_analytics_pipeline_logs():
             callback_name="callback_test",
             exception=e.get("exception"),
             bot=pytest.bot,
+            user = "integration@demo.ai",
             start_timestamp=now + timedelta(minutes=e["start_offset"]),
             end_timestamp=now + timedelta(minutes=e["end_offset"]),
         ).save()
@@ -3666,6 +3667,7 @@ def test_search_and_list_analytics_pipeline_logs():
     )
 
     list_data = list_resp.json()
+    print(list_data)
     assert list_data["success"]
     assert list_data["error_code"] == 0
     assert list_data["data"]["total"] == 4
@@ -3678,6 +3680,7 @@ def test_search_and_list_analytics_pipeline_logs():
         assert log["callback_name"] == "callback_test"
         assert log.get("start_time") or log.get("start_timestamp")
         assert log.get("end_time") or log.get("end_timestamp")
+        assert log["user"] == "integration@demo.ai"
 
 
     from_date = (now - timedelta(days=1)).date()
@@ -3707,7 +3710,7 @@ def test_search_and_list_analytics_pipeline_logs():
         assert log["callback_name"] == "callback_test"
         assert log["start_timestamp"]
         assert log["end_timestamp"]
-
+        assert log["user"] == "integration@demo.ai"
         if log["status"] == "Fail":
             assert "Execution error" in log["exception"]
 
