@@ -6202,6 +6202,72 @@ def test_get_media_ids():
     Channels.objects().delete()
     assert body["data"][0]['media_id'] == media_id
 
+@responses.activate
+def test_get_media_ids_within_30_days():
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    if bot_settings:
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
+    channel = Channels.objects(bot=pytest.bot).first()
+    if channel:
+        channel = channel.to_mongo().to_dict()
+        print(channel)
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="new_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()- timedelta(days=40),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    media_id2 = "0196c9efbf547b81a66ba2af7b72d5bb"
+    UserMediaData(
+        media_id=media_id2,
+        filename="old_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_ids",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+    assert body["data"][0]['media_id'] == media_id2
 
 
 @pytest.mark.django_db
