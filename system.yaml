@@ -157,6 +157,8 @@ events:
     agentic_flow: ${AGENTIC_FLOW_TASK_DEFINITION}
     catalog_integration: ${CATALOG_SYNC_TASK_DEFINITION}
     analytics_pipeline: ${ANALYTICS_PIPELINE_TASK_DEFINITION}
+  analytics_pipeline:
+    destroy_task: ${DESTROY_TASK:false}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
