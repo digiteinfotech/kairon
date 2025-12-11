@@ -54,6 +54,8 @@ class AnalyticsRunner(BaseActor):
             "add_data_analytics": partial(CallbackScriptUtility.add_data_analytics, bot=bot),
             "get_data_analytics": partial(CallbackScriptUtility.get_data_analytics, bot=bot),
             "mark_as_processed": partial(CallbackScriptUtility.mark_as_processed, bot=bot),
+            "update_data_analytics": partial(CallbackScriptUtility.update_data_analytics, bot=bot),
+            "delete_data_analytics": partial(CallbackScriptUtility.delete_data_analytics, bot=bot),
             "srtp_time": PyscriptUtility.srtptime,
             "srtf_time": PyscriptUtility.srtftime,
             "url_parse": PyscriptUtility.url_parse_quote_plus,

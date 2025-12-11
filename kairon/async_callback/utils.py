@@ -85,6 +85,8 @@ class CallbackUtility:
         predefined_objects['add_data_analytics'] = partial(CallbackScriptUtility.add_data_analytics, bot=bot)
         predefined_objects['get_data_analytics'] = partial(CallbackScriptUtility.get_data_analytics, bot=bot)
         predefined_objects['mark_as_processed'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
+        predefined_objects['delete_data_analytics'] = partial(CallbackScriptUtility.delete_data_analytics, bot=bot)
+        predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
