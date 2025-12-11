@@ -2,7 +2,7 @@ import asyncio
 import base64
 import mimetypes
 import os
-from datetime import datetime
+from datetime import datetime , timedelta
 from pathlib import Path
 from typing import BinaryIO
 from markdown_pdf import MarkdownPdf, Section
@@ -532,13 +532,14 @@ class UserMedia:
     @staticmethod
     def get_media_ids(bot: str):
         try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot = bot,
                 upload_status = UserMediaUploadStatus.completed.value,
                 media_id__ne = "",
-                upload_type = UserMediaUploadType.broadcast.value
+                upload_type = UserMediaUploadType.broadcast.value,
+                timestamp__gte = thirty_days_ago,
             ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
-
             if not media_data:
                 return []
 
