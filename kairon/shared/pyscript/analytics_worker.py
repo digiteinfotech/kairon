@@ -72,6 +72,9 @@ def main():
             "trace": traceback.format_exc()
         }), flush=True)
 
+    finally:
+        if Utility.environment['events']['analytics_pipeline']['destroy_task']:
+            _cleanup_and_exit(exit_code)
 
 if __name__ == "__main__":
     main()
