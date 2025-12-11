@@ -133,10 +133,11 @@ class AnalyticsPipelineProcessor:
         return callback_config.pyscript_code
 
     @staticmethod
-    def add_event_log(event_id, bot, status, exception, pipeline_name, callback_name, start_time, end_time):
+    def add_event_log(event_id, bot, user, status, exception, pipeline_name, callback_name, start_time, end_time):
         AnalyticsPipelineLogs(
             event_id=event_id,
             bot = bot,
+            user = user,
             status=status,
             pipeline_name=pipeline_name,
             callback_name=callback_name,
