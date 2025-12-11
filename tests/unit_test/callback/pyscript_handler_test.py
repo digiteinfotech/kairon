@@ -16,7 +16,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
 from bson import ObjectId
 from dateutil.parser import isoparse
-from mongoengine import connect
+from mongoengine import connect, DoesNotExist
 from pymongo import MongoClient
 
 from kairon import Utility
@@ -4017,7 +4017,7 @@ def test_fetch_data_returns_correct_format():
         return_value=mock_cursor
     ) as mock_agg:
 
-        result = CallbackScriptUtility.get_data_analytics(collection_name, bot_id)
+        result = CallbackScriptUtility.get_data_analytics(collection_name, {}, bot_id)
 
         assert "data" in result
         assert len(result["data"]) == 1
@@ -4030,6 +4030,54 @@ def test_fetch_data_returns_correct_format():
         assert row["is_data_processed"] is False
 
         mock_agg.assert_called_once()
+
+def test_fetch_data_with_filters():
+    bot_id = "bot123"
+    collection_name = "orders"
+    data_filters = {"is_data_processed": True, "source": "whatsapp"}
+
+    fake_result = [{
+        "_id": str(ObjectId()),
+        "collection_name": collection_name.lower(),
+        "source": "whatsapp",
+        "received_at": datetime.utcnow(),
+        "data": {"y": 2},
+        "is_data_processed": True
+    }]
+
+    mock_cursor = MagicMock()
+    mock_cursor.__iter__.return_value = fake_result
+
+    with patch.object(
+        AnalyticsCollectionData._get_collection(),
+        "aggregate",
+        return_value=mock_cursor
+    ) as mock_agg:
+
+        result = CallbackScriptUtility.get_data_analytics(collection_name, data_filters, bot_id)
+
+        # Check result correctness
+        assert "data" in result
+        assert len(result["data"]) == 1
+
+        row = result["data"][0]
+        assert row["data"] == {"y": 2}
+        assert row["is_data_processed"] is True
+        assert row["source"] == "whatsapp"
+
+        # Verify match filter is passed correctly to aggregate()
+        expected_match = {
+            "bot": bot_id,
+            "collection_name": collection_name.lower(),
+            "is_data_processed": True,
+            "source": "whatsapp"
+        }
+
+        mock_agg.assert_called_once()
+        args, kwargs = mock_agg.call_args
+        pipeline = args[0]
+
+        assert pipeline[0] == {"$match": expected_match}
 
 def test_add_data_analytics_invalid_payload_type():
     bot_id = "bot123"
@@ -4082,3 +4130,93 @@ def test_mark_as_processed_no_records_found():
         assert str(exc.value) == "No records found for given bot and collection_name"
         AnalyticsCollectionData.objects(bot="bot123", collection_name="orders").delete()
 
+def test_update_data_analytics_success():
+    bot_id = "bot123"
+    collection_id = "abcd1234"
+
+    payload = {
+        "collection_name": "orders",
+        "data": {"a": 1, "b": 2},
+        "received_at": datetime.utcnow(),
+        "source": "whatsapp",
+        "is_data_processed": True
+    }
+
+    # Fake object returned by MongoEngine get()
+    mock_obj = MagicMock()
+    mock_obj.data = {"existing": 10}
+
+    mock_qs = MagicMock()
+    mock_qs.get.return_value = mock_obj
+
+    with patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects", return_value=mock_qs):
+        result = CallbackScriptUtility.update_data_analytics(
+            collection_id=collection_id,
+            user="aniket",
+            payload=payload,
+            bot=bot_id
+        )
+
+        mock_qs.get.assert_called_once_with()
+
+        # Ensure data merge happened
+        assert mock_obj.data == {"existing": 10, "a": 1, "b": 2}
+
+        # Ensure other attributes updated
+        assert mock_obj.collection_name == "orders"
+        assert mock_obj.user == "aniket"
+        assert mock_obj.source == "whatsapp"
+        assert mock_obj.is_data_processed is True
+
+        mock_obj.save.assert_called_once()
+        assert result["message"] == "Record updated!"
+        assert result["data"]["_id"] == collection_id
+
+def test_update_data_analytics_not_found():
+    bot_id = "bot123"
+    collection_id = "nope987"
+
+    payload = {"collection_name": "orders", "data": {}}
+
+    mock_qs = MagicMock()
+    mock_qs.get.side_effect = DoesNotExist()
+
+    with patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects", return_value=mock_qs):
+        with pytest.raises(AppException) as exc:
+            CallbackScriptUtility.update_data_analytics(
+                collection_id,
+                user="aniket",
+                payload=payload,
+                bot=bot_id
+            )
+
+        assert "not found" in str(exc.value)
+
+def test_delete_data_analytics_success():
+    bot_id = "bot123"
+    collection_id = "abcd1234"
+
+    mock_qs = MagicMock()
+    mock_qs.delete.return_value = None
+
+    with patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects", return_value=mock_qs):
+        result = CallbackScriptUtility.delete_data_analytics(collection_id, bot_id)
+
+        mock_qs.delete.assert_called_once()
+
+        assert result["message"] == f"Analytics Collection with ID {collection_id} has been successfully deleted."
+        assert result["data"]["_id"] == collection_id
+
+def test_delete_data_analytics_not_found():
+    bot_id = "bot123"
+    collection_id = "unknown123"
+
+    # Simulate DoesNotExist being raised
+    mock_qs = MagicMock()
+    mock_qs.delete.side_effect = DoesNotExist()
+
+    with patch("kairon.shared.cognition.data_objects.AnalyticsCollectionData.objects", return_value=mock_qs):
+        with pytest.raises(AppException) as exc:
+            CallbackScriptUtility.delete_data_analytics(collection_id, bot_id)
+
+        assert "does not exists" in str(exc.value)

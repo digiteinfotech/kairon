@@ -8,6 +8,7 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
+from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
 from uuid6 import uuid7
@@ -339,15 +340,21 @@ class CallbackScriptUtility:
             raise Exception(f"encryption failed-{str(e)}")
 
     @staticmethod
-    def get_data_analytics(collection_name: str, bot: str):
-
+    def get_data_analytics(collection_name: str, data_filters:dict, bot: str):
         if not bot:
             raise Exception("Missing bot id")
 
         normalized_name = collection_name.lower()
+        match_filter = {
+            "bot": bot,
+            "collection_name": normalized_name
+        }
 
+        # Merge dictionary filter
+        if data_filters:
+            match_filter.update(data_filters)
         cursor = AnalyticsCollectionData._get_collection().aggregate([
-            {"$match": {"bot": bot, "collection_name": normalized_name}},
+            {"$match": match_filter},
             {"$project": {
                 "_id": {"$toString": "$_id"},
                 "collection_name": 1,
@@ -413,4 +420,51 @@ class CallbackScriptUtility:
 
         return {
             "message": "Records updated!"
+        }
+
+    @staticmethod
+    def delete_data_analytics(collection_id: str, bot: Text = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        try:
+            AnalyticsCollectionData.objects(bot=bot, id=collection_id).delete()
+        except DoesNotExist:
+            raise AppException("Analytics Collection Data does not exists!")
+
+        return {
+            "message": f"Analytics Collection with ID {collection_id} has been successfully deleted.",
+            "data": {"_id": collection_id}
+        }
+
+    @staticmethod
+    def update_data_analytics(collection_id: str, user: str, payload: dict, bot: str = None):
+        if not bot:
+            raise Exception("Missing bot id")
+
+        collection_name = payload.get("collection_name")
+        data = payload.get("data", {})
+        received_at=payload.get("received_at", datetime.utcnow())
+        source=payload.get("source", "")
+        is_data_processed=payload.get("is_data_processed", False)
+
+        try:
+            collection_obj = AnalyticsCollectionData.objects(bot=bot, id=collection_id, collection_name=collection_name).get()
+            filtered_data = {
+                k: v for k, v in data.items()
+            }
+
+            collection_obj.data.update(filtered_data)
+            collection_obj.collection_name = collection_name
+            collection_obj.user = user
+            collection_obj.received_at = received_at
+            collection_obj.source=source
+            collection_obj.is_data_processed=is_data_processed
+            collection_obj.save()
+        except DoesNotExist:
+            raise AppException("Analytics Collection Data with given id and collection_name not found!")
+
+        return {
+            "message": "Record updated!",
+            "data": {"_id": collection_id}
         }
