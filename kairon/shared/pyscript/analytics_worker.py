@@ -72,8 +72,6 @@ def main():
             "trace": traceback.format_exc()
         }), flush=True)
 
-    finally:
-        _cleanup_and_exit(exit_code)
 
 if __name__ == "__main__":
     main()
