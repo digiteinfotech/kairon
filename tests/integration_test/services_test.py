@@ -3667,7 +3667,6 @@ def test_search_and_list_analytics_pipeline_logs():
     )
 
     list_data = list_resp.json()
-    print(list_data)
     assert list_data["success"]
     assert list_data["error_code"] == 0
     assert list_data["data"]["total"] == 4
