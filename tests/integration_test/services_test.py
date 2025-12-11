@@ -6267,7 +6267,9 @@ def test_get_media_ids_within_30_days():
     body = response.json()
     UserMediaData.objects().delete()
     Channels.objects().delete()
+    assert len(body["data"]) == 1, "Expected only one media record within 30 days"
     assert body["data"][0]['media_id'] == media_id2
+    assert all(item['media_id'] != media_id for item in body["data"]), "Old media should be filtered out"
 
 
 @pytest.mark.django_db
