@@ -122,7 +122,18 @@ def reject_order(
 @router.get("/product", response_model=Response)
 async def get_pos_products(
     session_id: str = Query(..., description="Odoo session_id"),
+    return_all: bool = Query(default=False, description="Flag to return all products or not"),
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
-    products = pos_processor.get_pos_products(session_id)
+    products = pos_processor.get_pos_products(session_id, return_all)
     return Response(data={"count": len(products), "data": products})
+
+
+@router.post("/invalidate/session", response_model=Response)
+def invalidate_session_api(session_id: str = Query(..., description="Odoo session_id")):
+    """
+    Invalidate an Odoo session_id by calling /web/session/destroy.
+    """
+
+    result = pos_processor.invalidate_session(session_id)
+    return Response(message="Session invalidated successfully")

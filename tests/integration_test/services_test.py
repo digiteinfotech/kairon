@@ -1932,6 +1932,8 @@ def test_create_pos_order_product_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
 
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
     responses.add(responses.POST, url, json={"result": []}, status=200)
@@ -1961,6 +1963,8 @@ def test_create_pos_order_product_not_found():
 def test_create_pos_order_product_not_available():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 98}, status=200)
 
@@ -2001,6 +2005,8 @@ def test_create_pos_order_product_not_available():
 def test_create_pos_order_no_pos_config():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
@@ -2043,6 +2049,8 @@ def test_create_pos_order_no_pos_config():
 def test_create_pos_order_no_payment_method():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
@@ -2111,6 +2119,8 @@ def test_create_pos_order_no_payment_method():
 def test_create_pos_order_without_partner():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 500}, status=200)
 
