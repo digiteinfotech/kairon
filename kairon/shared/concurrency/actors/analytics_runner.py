@@ -10,12 +10,9 @@ from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
-from kairon.shared.concurrency.actors.base import BaseActor
-from kairon.shared.concurrency.actors.utils import PyscriptUtility
-from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
 
-class AnalyticsRunner(BaseActor):
+class AnalyticsRunner():
 
     allowed_builtins = {
         "len": len,
@@ -35,6 +32,8 @@ class AnalyticsRunner(BaseActor):
 
     def execute(self, source_code: Text, predefined_objects: Optional[Dict] = None, **kwargs):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        from kairon.shared.concurrency.actors.utils import PyscriptUtility
+        from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 
         predefined_objects = predefined_objects or {}
 

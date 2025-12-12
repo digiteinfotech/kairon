@@ -71,8 +71,7 @@ def main():
         }), flush=True)
 
     finally:
-        if Utility.environment['events']['analytics_pipeline']['destroy_task']:
-            _cleanup_and_exit(exit_code)
+        _cleanup_and_exit(exit_code)
 
 if __name__ == "__main__":
     main()
