@@ -135,5 +135,5 @@ def invalidate_session_api(session_id: str = Query(..., description="Odoo sessio
     Invalidate an Odoo session_id by calling /web/session/destroy.
     """
 
-    result = pos_processor.invalidate_session(session_id)
+    pos_processor.invalidate_session(session_id)
     return Response(message="Session invalidated successfully")
