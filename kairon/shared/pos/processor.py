@@ -357,9 +357,9 @@ class POSProcessor:
 
         return self.jsonrpc_call(session_id, model, "search_read", args=[domain], kwargs=kwargs)
 
-    def get_pos_products(self, session_id: str):
+    def get_pos_products(self, session_id: str, return_all: bool = True):
         try:
-            domain = [["available_in_pos", "=", True]]
+            domain = [] if return_all else [["available_in_pos", "=", True]]
 
             products = self.jsonrpc_call(
                 session_id=session_id,
@@ -377,6 +377,21 @@ class POSProcessor:
 
         except Exception as e:
             raise HTTPException(500, detail=f"Odoo error: {e}")
+
+    def invalidate_session(self, session_id):
+        url = f"{self.__base_url}/web/session/destroy"
+        cookies = {"session_id": session_id}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {}
+        }
+        try:
+            response = requests.post(url, json=payload, cookies=cookies, timeout=30).json()
+            return response
+        except Exception as e:
+            raise HTTPException(400, detail=f"Odoo error: {e}")
+
 
     def toggle_product_in_pos(self, session_id: str, product_id: int) -> Dict[str, Any]:
         """
@@ -501,12 +516,26 @@ class POSProcessor:
         """
 
         if not partner_id:
-            partner_id = self.jsonrpc_call(
+            existing = self.jsonrpc_call(
                 session_id=session_id,
                 model="res.partner",
-                method="create",
-                args=[{"name": "POS Customer", "customer_rank": 1}]
+                method="search_read",
+                args=[[["name", "=", "POS Customer"]]],
+                kwargs={"fields": ["id"], "limit": 1}
             )
+
+            if existing:
+                partner_id = existing[0]["id"]
+            else:
+                partner_id = self.jsonrpc_call(
+                    session_id=session_id,
+                    model="res.partner",
+                    method="create",
+                    args=[{
+                        "name": "POS Customer",
+                        "customer_rank": 1
+                    }]
+                )
 
         order_lines = []
         total = 0.0
@@ -514,6 +543,7 @@ class POSProcessor:
         for p in products:
             product_id = p["product_id"]
             qty = p["qty"]
+            discount = p.get("discount", 0)
 
             product_data = self.jsonrpc_call(
                 session_id=session_id,
@@ -554,7 +584,7 @@ class POSProcessor:
                     if t["amount_type"] == "percent":
                         tax_total += (price_unit * qty) * (t["amount"] / 100)
 
-            subtotal_excl = price_unit * qty
+            subtotal_excl = (price_unit * qty) * (1 - (discount / 100))
             subtotal_incl = subtotal_excl + tax_total
 
             total += subtotal_incl
@@ -571,7 +601,7 @@ class POSProcessor:
 
                 "price_subtotal": subtotal_excl,
                 "price_subtotal_incl": subtotal_incl,
-                "discount": 0,
+                "discount": discount,
             }])
 
         pos_configs = self.jsonrpc_call(
