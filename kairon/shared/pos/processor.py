@@ -386,8 +386,12 @@ class POSProcessor:
             "method": "call",
             "params": {}
         }
-        response = requests.post(url, json=payload, cookies=cookies, timeout=30).json()
-        return response
+        try:
+            response = requests.post(url, json=payload, cookies=cookies, timeout=30).json()
+            return response
+        except Exception as e:
+            raise HTTPException(400, detail=f"Odoo error: {e}")
+
 
     def toggle_product_in_pos(self, session_id: str, product_id: int) -> Dict[str, Any]:
         """
