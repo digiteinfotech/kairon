@@ -518,7 +518,7 @@ async def test_run_pyscript_async_submit_exception(mock_script, mock_predefined_
 async def test_async_callback(mock_update_state, mock_failure_entry, mock_success_entry, mock_dispatch_message):
     obj = {'result': {'bot_response': 'Test result', 'dispatch_bot_response':True}}
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',  'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -531,7 +531,7 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
                                                channel=chnl,
                                                identifier=ent['identifier'],
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result']['bot_response'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['name'], sender_id=sid, log=obj['result']['bot_response'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
     mock_failure_entry.assert_not_called()
 
 @pytest.mark.asyncio
@@ -635,7 +635,7 @@ async def test_process_async_callback_request_sync(
 async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_dispatch_message):
     obj = {'error': 'Test error'}
     ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',   'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -648,7 +648,7 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     mock_success_entry.assert_not_called()
     mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
                                                channel=chnl,
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['name'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
 
 
 @pytest.mark.asyncio
@@ -658,7 +658,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier',
            'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata',
            'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',  'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -668,7 +668,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
-        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        channel=chnl, pyscript_code=cb['name'], sender_id=sid,
         error_log="No response received from callback script",
         request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
     )
@@ -678,7 +678,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
 async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     obj = {}  # Simulating an empty dictionary response
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',   'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -688,7 +688,7 @@ async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
-        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        channel=chnl, pyscript_code=cb['name'], sender_id=sid,
         error_log="No response received from callback script",
         request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
     )
