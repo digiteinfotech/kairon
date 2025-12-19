@@ -793,7 +793,9 @@ def test_get_model_llm_type_map_dynamic():
         'anthropic': ['bedrock/us.anthropic', 'claude'],
         'gemini': ['gemini/'],
         'perplexity': ['perplexity/llama'],
-        'aws-nova': ['bedrock/converse/us.amazon.nova']
+        'aws-nova': ['bedrock/converse/us.amazon.nova'],
+        'aws-llama4-maverick': ['bedrock/us.meta.llama4-maverick-17b-instruct-v1:0'],
+        'aws-llama4-scout': ['bedrock/us.meta.llama4-scout-17b-instruct-v1:0']
     }
 
     for model_name, provider in result.items():
