@@ -99,8 +99,8 @@ gemini:
       description: "The max_tokens hyperparameter limits the length of generated responses in chat completion."
     model:
       type: "string"
-      default: "gemini/gemini-pro"
-      enum: ["gemini/gemini-pro"]
+      default: "gemini/gemini-2.0-flash"
+      enum: ["gemini/gemini-2.0-flash", "gemini/gemini-2.0-flash-exp"]
       description: "The model hyperparameter is the ID of the model to use."
     top_p:
       type: "number"
