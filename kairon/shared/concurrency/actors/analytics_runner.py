@@ -10,6 +10,7 @@ from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import EmailActionConfig
 
 
 class AnalyticsRunner():
@@ -80,13 +81,23 @@ class AnalyticsRunner():
 
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
-
+            action = predefined_objects.get("config", {})
+            if action["triggers"][0]["conditions"]=="failure":
+                action_name = action["triggers"][0]["action_name"]
+                config = EmailActionConfig.objects(bot=bot,action_name=action_name).first()
+                CallbackScriptUtility.send_email(config.action_name,from_email=config.from_email.value,to_email=config.to_email.value[0],subject=config.response,body=config.response,bot=config.bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
+            if action["triggers"][0]["conditions"]=="failure":
+                config = EmailActionConfig.objects(bot=bot,action_name=action_name).first()
+                CallbackScriptUtility.send_email(config.action_name, from_email=config.from_email.value,
+                                                 to_email=config.from_email.value[0], subject=config.response,
+                                                 body=config.response, bot=config.bot)
+
             raise AppException(f"Execution error: {msg}") from e
 
     def __cleanup(self, values: Dict):
