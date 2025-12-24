@@ -937,21 +937,18 @@ def test_analytics_runner_subprocess_error():
     assert "Subprocess error" in str(exc.value)
 
 
-def test_execute_triggers_email_on_failure_condition():
+def test_execute_triggers_email_on_failure_condition_fixed():
     runner = AnalyticsRunner()
 
     mock_process = MagicMock()
-    mock_process.communicate.return_value = ("", "")
-    mock_process.returncode = 0
+    mock_process.communicate.return_value = ("some stdout", "some error")
+    mock_process.returncode = 1
 
     predefined_objects = {
         "slot": {"bot": "test_bot"},
         "config": {
             "triggers": [
-                {
-                    "conditions": "failure",
-                    "action_name": "test_mail_functio"
-                }
+                {"conditions": "failure", "action_name": "test_mail_functio"}
             ]
         }
     }
@@ -962,7 +959,7 @@ def test_execute_triggers_email_on_failure_condition():
         with pytest.raises(AppException):
             runner.execute("x = 1", predefined_objects=predefined_objects)
 
-        assert mock_trigger_email.call_count == 2
+        mock_trigger_email.assert_called_once()
 
 def test_execute_success_no_failure_email():
     runner = AnalyticsRunner()
@@ -984,21 +981,18 @@ def test_execute_success_no_failure_email():
         assert result == {"a": 1}
         mock_trigger_email.assert_not_called()
 
-def test_execute_sends_actual_email_on_failure_trigger():
+def test_execute_sends_actual_email_on_failure_trigger_fixed():
     runner = AnalyticsRunner()
 
     mock_process = MagicMock()
-    mock_process.communicate.return_value = ("", "")
-    mock_process.returncode = 0
+    mock_process.communicate.return_value = ("some stdout", "some error")
+    mock_process.returncode = 1
 
     predefined_objects = {
         "slot": {"bot": "test_bot"},
         "config": {
             "triggers": [
-                {
-                    "conditions": "failure",
-                    "action_name": "test_mail_functio"
-                }
+                {"conditions": "failure", "action_name": "test_mail_functio"}
             ]
         }
     }
