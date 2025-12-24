@@ -116,26 +116,12 @@ class AnalyticsRunner():
     def trigger_email(self, config: dict, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
         triggers = config.get("triggers")
-        if not triggers or not isinstance(triggers, list):
-            return
-
-        if len(triggers) == 0:
-            return
-
         action_name = triggers[0].get("action_name")
         if not action_name:
             logger.warning("No action_name in trigger configuration")
             return
 
         email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
-        if email_action is None:
-            logger.warning(f"EmailActionConfig not found for action_name={action_name}")
-            return
-
-        if not email_action.to_email.value:
-            logger.warning(f"No recipient configured for email action {action_name}")
-            return
-
         CallbackScriptUtility.send_email(
             email_action.action_name,
             from_email=email_action.from_email.value,
