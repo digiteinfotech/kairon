@@ -71,7 +71,7 @@ def test_request_epoch_failure(mock_execute_http_request, mock_get_event_server_
 @patch('kairon.events.utility.KScheduler.__init__', return_value=None)
 @patch('kairon.shared.channels.mail.processor.MailProcessor')
 @patch('pymongo.MongoClient', autospec=True)
-def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kscheduler, mock_update_job, mock_add_job):
+def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kscheduler, mock_update_job, mock_add_job,monkeypatch):
     from kairon.events.utility import EventUtility
 
     bot = "test_bot"
@@ -79,7 +79,12 @@ def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_ksc
     mock_mail_processor_instance.config = {"interval": 1}
     mock_mail_processor_instance.state.event_id = None
     mock_mail_processor_instance.bot_settings.user = "test_user"
-
+    mock_mail_processor_instance.Utility.user = "test_user"
+    monkeypatch.setitem(
+        Utility.environment,
+        "integrations",
+        {"email": {"interval": "1"}},
+    )
 #     # Test case when event_id is None
     EventUtility.schedule_channel_mail_reading(bot)
     mock_add_job.assert_called_once()

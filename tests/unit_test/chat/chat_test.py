@@ -1051,6 +1051,52 @@ class TestChat:
 
         Channels.objects(connector_type='mail').delete()
 
+    @patch('kairon.shared.channels.mail.scheduler.MailScheduler.request_epoch')
+    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
+    def test_mail_channel_save_min_interval_error(
+        self,
+        mock_get_all_channels,
+        mock_request_epoch,
+        monkeypatch
+    ):
+        def __get_bot(*args, **kwargs):
+            return {"account": 1000}
+
+        monkeypatch.setattr(AccountProcessor, "get_bot", __get_bot)
+
+        # ---- No duplicate email config ----
+        mock_get_all_channels.return_value = []
+
+        # ---- system.yaml mock ----
+        monkeypatch.setitem(
+            Utility.environment,
+            "integrations",
+            {"email": {"interval": "5"}},
+        )
+
+        # ---- Error case: input interval < system interval ----
+        with pytest.raises(
+            AppException,
+            match="Minimum Interval should be greater than equal to 5 minutes"
+        ):
+            ChatDataProcessor.save_channel_config({
+                'connector_type': 'mail',
+                'config': {
+                    'email_account': 'test@example.com',
+                    'subjects': '',
+                    'email_password': 'test',
+                    'imap_server': 'imap.gmail.com',
+                    'smtp_server': 'smtp.gmail.com',
+                    'smtp_port': '587',
+                    'interval': '2'  # < system interval
+                }
+            }, 'test', 'test')
+
+        # ---- Ensure scheduler not triggered on failure ----
+        mock_request_epoch.assert_not_called()
+
+        Channels.objects(connector_type='mail').delete()
+
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")
 @patch("kairon.chat.utils.ChatUtils.get_metadata")
