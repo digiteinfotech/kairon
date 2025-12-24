@@ -937,6 +937,91 @@ def test_analytics_runner_subprocess_error():
     assert "Subprocess error" in str(exc.value)
 
 
+def test_execute_triggers_email_on_failure_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch.object(runner, "trigger_email") as mock_trigger_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        assert mock_trigger_email.call_count == 2
+
+def test_execute_success_no_failure_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {"triggers": []}
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch.object(runner, "trigger_email") as mock_trigger_email:
+
+        result = runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+        mock_trigger_email.assert_not_called()
+
+def test_execute_sends_actual_email_on_failure_trigger():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    fake_email_action = MagicMock()
+    fake_email_action.action_name = "test_mail_functio"
+    fake_email_action.from_email.value = "from@test.com"
+    fake_email_action.to_email.value = ["to@test.com"]
+    fake_email_action.subject = "Test subject"
+    fake_email_action.response = "Test body"
+    fake_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email") as mock_send_email, \
+         patch("kairon.shared.concurrency.actors.analytics_runner.EmailActionConfig.objects") as mock_objects:
+
+        mock_objects.return_value.first.return_value = fake_email_action
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_called()
+
 def test_analytics_runner_cleanup_datetime():
     runner = AnalyticsRunner()
 
