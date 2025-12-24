@@ -97,7 +97,7 @@ class AnalyticsRunner():
                 except Exception:
                     logger.exception("Failure email failed")
 
-        raise AppException(f"Execution error: {msg}") from e
+            raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
         clean = {}
         for k, v in values.items():
