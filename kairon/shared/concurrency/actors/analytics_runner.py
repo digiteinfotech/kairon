@@ -116,6 +116,7 @@ class AnalyticsRunner():
     def trigger_email(self, config: dict, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
         triggers = config.get("triggers")
+
         action_name = triggers[0].get("action_name")
         if not action_name:
             logger.warning("No action_name in trigger configuration")
