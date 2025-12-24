@@ -68,6 +68,7 @@ class AnalyticsRunner():
             "predefined_objects":predefined_objects,
             "bot": bot,
         }, default=str)
+        action = predefined_objects.get("config", {})
         try:
             process = subprocess.Popen(
                 [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"],
@@ -82,16 +83,18 @@ class AnalyticsRunner():
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
-            action = predefined_objects.get("config", {})
-            if "triggers" in action.keys() and action["triggers"][0]["conditions"]=="failure":
-                self.trigger_email(action,bot)
+            triggers = action.get("triggers")
+            if triggers and triggers[0].get("conditions") == "failure":
+                self.trigger_email(action, bot)
+
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            if action.get("triggers", [{}])[0].get("conditions") == "failure":
+            triggers = action.get("triggers")
+            if triggers and triggers[0].get("conditions") == "failure":
                 try:
                     self.trigger_email(action, bot)
                 except Exception:
