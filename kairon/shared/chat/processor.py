@@ -36,6 +36,10 @@ class ChatDataProcessor:
             from kairon.shared.channels.mail.processor import MailProcessor
             if MailProcessor.check_email_config_exists(bot, configuration['config']):
                 raise AppException("Email configuration already exists for same email address and subject")
+            input_interval = int(configuration["config"]["interval"])
+            system_interval = int(Utility.environment['integrations']["email"]['interval'])
+            if input_interval < system_interval:
+                raise AppException(f"Minimum Interval should be greater than equal to {system_interval} minutes")
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()

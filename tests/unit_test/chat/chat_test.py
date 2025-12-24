@@ -1002,6 +1002,11 @@ class TestChat:
 
         #non error case
         #different email and subject
+        monkeypatch.setitem(
+            Utility.environment,
+            "integrations",
+            {"email": {"interval": "1"}},
+        )
         ChatDataProcessor.save_channel_config({
             'connector_type': 'mail',
             'config': {
@@ -1010,7 +1015,8 @@ class TestChat:
                 'email_password': 'test',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '2'
             }
         }, 'test', 'test')
 
@@ -1023,7 +1029,8 @@ class TestChat:
                 'email_password': 'subject1,subject2',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '2'
             }
         }, 'test', 'test')
 
@@ -1036,7 +1043,8 @@ class TestChat:
                     'email_password': 'test',
                     'imap_server': 'imap.gmail.com',
                     'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': '587'
+                    'smtp_port': '587',
+                    'interval': '2'
                 }
         }, 'test', 'test')
         assert mock_request_epock.call_count == 3

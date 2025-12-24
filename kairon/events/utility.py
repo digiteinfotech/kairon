@@ -8,7 +8,7 @@ from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 from loguru import logger
-
+from kairon.shared.utils import Utility
 
 class EventUtility:
 
@@ -68,20 +68,21 @@ class EventUtility:
 
         try:
             mail_processor = MailProcessor(bot)
-            interval = max(1, int(mail_processor.config.get("interval", 2)) % 24)
+            system_interval = int(Utility.environment['integrations']["email"]['interval'])
+            interval = max(system_interval, int(mail_processor.config.get("interval", system_interval)))
 
             event_id = mail_processor.state.event_id
             if event_id:
                 KScheduler().update_job(event_id,
                                         TASK_TYPE.EVENT,
-                                        f"0 */{interval} * * *",
+                                        f"*/{interval} * * * *",
                                         EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
             else:
                 event_id = uuid7().hex
                 mail_processor.update_event_id(event_id)
                 KScheduler().add_job(event_id,
                                      TASK_TYPE.EVENT,
-                                     f"0 */{interval} * * *",
+                                     f"*/{interval} * * * *",
                                      EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
