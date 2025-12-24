@@ -118,9 +118,29 @@ class AnalyticsRunner():
         triggers = config.get("triggers")
         if not triggers or not isinstance(triggers, list):
             return
-        action_name = config["triggers"][0]["action_name"]
+
+        if len(triggers) == 0:
+            return
+
+        action_name = triggers[0].get("action_name")
+        if not action_name:
+            logger.warning("No action_name in trigger configuration")
+            return
+
         email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
-        if email_action is not None:
-            CallbackScriptUtility.send_email(email_action.action_name, from_email=email_action.from_email.value,
-                                             to_email=email_action.to_email.value[0], subject=email_action.subject,
-                                             body=email_action.response, bot=email_action.bot)
+        if email_action is None:
+            logger.warning(f"EmailActionConfig not found for action_name={action_name}")
+            return
+
+        if not email_action.to_email.value:
+            logger.warning(f"No recipient configured for email action {action_name}")
+            return
+
+        CallbackScriptUtility.send_email(
+            email_action.action_name,
+            from_email=email_action.from_email.value,
+            to_email=email_action.to_email.value[0],
+            subject=email_action.subject,
+            body=email_action.response,
+            bot=email_action.bot
+        )
