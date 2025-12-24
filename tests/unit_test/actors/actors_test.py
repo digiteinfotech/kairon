@@ -1016,6 +1016,41 @@ def test_execute_sends_actual_email_on_failure_trigger_fixed():
 
         mock_send_email.assert_called()
 
+
+def test_execute_failure_email_exception_handling():
+    runner = AnalyticsRunner()
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [{"conditions": "failure", "action_name": "test_mail_functio"}]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch.object(runner, "trigger_email", side_effect=Exception("email send error")), \
+         patch("kairon.shared.concurrency.actors.analytics_runner.logger") as mock_logger:
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+        assert mock_logger.exception.call_args_list[-1][0][0] == "Failure email failed"
+
+
+
+def test_trigger_email_missing_action_name():
+    runner = AnalyticsRunner()
+
+    config = {"triggers": [{}]}
+    bot = "test_bot"
+
+    with patch("kairon.shared.concurrency.actors.analytics_runner.logger") as mock_logger:
+        runner.trigger_email(config, bot)
+
+        mock_logger.warning.assert_called_once_with("No action_name in trigger configuration")
+
+
 def test_analytics_runner_cleanup_datetime():
     runner = AnalyticsRunner()
 
