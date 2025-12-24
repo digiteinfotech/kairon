@@ -115,6 +115,6 @@ class AnalyticsRunner():
         action_name = config["triggers"][0]["action_name"]
         email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
         CallbackScriptUtility.send_email(email_action.action_name, from_email=email_action.from_email.value,
-                                         to_email=email_action.from_email.value, subject=email_action.subject,
+                                         to_email=email_action.to_email.value[0], subject=email_action.subject,
                                          body=email_action.response, bot=email_action.bot)
         return "success"
