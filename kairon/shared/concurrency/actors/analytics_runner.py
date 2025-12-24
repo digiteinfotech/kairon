@@ -81,25 +81,23 @@ class AnalyticsRunner():
 
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
+
             action = predefined_objects.get("config", {})
-            if action["triggers"][0]["conditions"]=="failure":
-                action_name = action["triggers"][0]["action_name"]
-                config = EmailActionConfig.objects(bot=bot,action_name=action_name).first()
-                CallbackScriptUtility.send_email(config.action_name,from_email=config.from_email.value,to_email=config.to_email.value[0],subject=config.response,body=config.response,bot=config.bot)
+            if "triggers" in action.keys() and action["triggers"][0]["conditions"]=="failure":
+                self.trigger_email(action,bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            if action["triggers"][0]["conditions"]=="failure":
-                config = EmailActionConfig.objects(bot=bot,action_name=action_name).first()
-                CallbackScriptUtility.send_email(config.action_name, from_email=config.from_email.value,
-                                                 to_email=config.from_email.value[0], subject=config.response,
-                                                 body=config.response, bot=config.bot)
+            if action.get("triggers", [{}])[0].get("conditions") == "failure":
+                try:
+                    self.trigger_email(action, bot)
+                except Exception:
+                    logger.exception("Failure email failed")
 
-            raise AppException(f"Execution error: {msg}") from e
-
+        raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
         clean = {}
         for k, v in values.items():
@@ -111,3 +109,12 @@ class AnalyticsRunner():
                 v = v.isoformat()
             clean[k] = v
         return clean
+
+    def trigger_email(self, config: dict, bot: str):
+        from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        action_name = config["triggers"][0]["action_name"]
+        email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+        CallbackScriptUtility.send_email(email_action.action_name, from_email=email_action.from_email.value,
+                                         to_email=email_action.from_email.value, subject=email_action.subject,
+                                         body=email_action.response, bot=email_action.bot)
+        return "success"
