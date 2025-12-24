@@ -112,10 +112,13 @@ class AnalyticsRunner():
 
     def trigger_email(self, config: dict, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        triggers = config.get("triggers")
+        if not triggers or not isinstance(triggers, list):
+            return
         action_name = config["triggers"][0]["action_name"]
         email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
-        if email_action:
+        if email_action is not None:
             CallbackScriptUtility.send_email(email_action.action_name, from_email=email_action.from_email.value,
                                              to_email=email_action.to_email.value[0], subject=email_action.subject,
                                              body=email_action.response, bot=email_action.bot)
-        return "success"
+        return "successfully sent email"
