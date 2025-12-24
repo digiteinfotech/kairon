@@ -121,4 +121,3 @@ class AnalyticsRunner():
             CallbackScriptUtility.send_email(email_action.action_name, from_email=email_action.from_email.value,
                                              to_email=email_action.to_email.value[0], subject=email_action.subject,
                                              body=email_action.response, bot=email_action.bot)
-        return "successfully sent email"
