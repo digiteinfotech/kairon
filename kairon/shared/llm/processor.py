@@ -151,7 +151,7 @@ class LLMProcessor(LLMBase):
 
         return truncated_texts
 
-    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+    async def get_embedding1(self, texts: Union[Text, List[Text]], user, **kwargs):
         """
         Get embeddings for a batch of texts.
         Truncates text in Kairon before sending to LiteLLM.
@@ -160,14 +160,12 @@ class LLMProcessor(LLMBase):
         if is_single_text:
             texts = [texts]
 
-        # Truncate in Kairon
         truncated_texts = self.truncate_text(texts)
         kwargs["truncated_texts"] = truncated_texts
         kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
 
-        # Prepare body for LiteLLM
         body = {
-            "text": texts[0] if is_single_text else texts,
+            "text": texts,
             "user": user,
             "kwargs": kwargs,
         }
@@ -183,11 +181,35 @@ class LLMProcessor(LLMBase):
         if status_code not in [200, 201, 202, 203, 204]:
             raise Exception(HTTPStatus(status_code).phrase)
 
-        # Maintain original contract: single input → single embedding
         if is_single_text and isinstance(http_response, list):
             return http_response[0]
 
         return http_response
+
+    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
+        """
+        Get embeddings for a batch of texts.
+        """
+        is_single_text = isinstance(texts, str)
+        if is_single_text:
+            texts = [texts]
+
+        truncated_texts = self.truncate_text(texts)
+
+        result = await litellm.aembedding(
+            model="text-embedding-3-large",
+            input=truncated_texts,
+            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
+            api_key=self.llm_secret_embedding.get('api_key'),
+            num_retries=3
+        )
+
+        embeddings = [embedding["embedding"] for embedding in result["data"]]
+
+        if is_single_text:
+            return embeddings[0]
+
+        return embeddings
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
