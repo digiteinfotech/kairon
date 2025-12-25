@@ -151,7 +151,7 @@ class LLMProcessor(LLMBase):
 
         return truncated_texts
 
-    async def get_embedding1(self, texts: Union[Text, List[Text]], user, **kwargs):
+    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
         """
         Get embeddings for a batch of texts.
         Truncates text in Kairon before sending to LiteLLM.
@@ -185,31 +185,6 @@ class LLMProcessor(LLMBase):
             return http_response[0]
 
         return http_response
-
-    async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
-        """
-        Get embeddings for a batch of texts.
-        """
-        is_single_text = isinstance(texts, str)
-        if is_single_text:
-            texts = [texts]
-
-        truncated_texts = self.truncate_text(texts)
-
-        result = await litellm.aembedding(
-            model="text-embedding-3-large",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
-        )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        if is_single_text:
-            return embeddings[0]
-
-        return embeddings
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
