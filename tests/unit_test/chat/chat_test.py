@@ -1051,52 +1051,6 @@ class TestChat:
 
         Channels.objects(connector_type='mail').delete()
 
-    @patch('kairon.shared.channels.mail.scheduler.MailScheduler.request_epoch')
-    @patch('kairon.shared.chat.processor.ChatDataProcessor.get_all_channel_configs')
-    def test_mail_channel_save_min_interval_error(
-        self,
-        mock_get_all_channels,
-        mock_request_epoch,
-        monkeypatch
-    ):
-        def __get_bot(*args, **kwargs):
-            return {"account": 1000}
-
-        monkeypatch.setattr(AccountProcessor, "get_bot", __get_bot)
-
-        # ---- No duplicate email config ----
-        mock_get_all_channels.return_value = []
-
-        # ---- system.yaml mock ----
-        monkeypatch.setitem(
-            Utility.environment,
-            "integrations",
-            {"email": {"interval": "5"}},
-        )
-
-        # ---- Error case: input interval < system interval ----
-        with pytest.raises(
-            AppException,
-            match="Minimum Interval should be greater than equal to 5 minutes"
-        ):
-            ChatDataProcessor.save_channel_config({
-                'connector_type': 'mail',
-                'config': {
-                    'email_account': 'test@example.com',
-                    'subjects': '',
-                    'email_password': 'test',
-                    'imap_server': 'imap.gmail.com',
-                    'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': '587',
-                    'interval': '2'  # < system interval
-                }
-            }, 'test', 'test')
-
-        # ---- Ensure scheduler not triggered on failure ----
-        mock_request_epoch.assert_not_called()
-
-        Channels.objects(connector_type='mail').delete()
-
 @pytest.mark.asyncio
 @patch("kairon.chat.utils.AgentProcessor.get_agent_without_cache")
 @patch("kairon.chat.utils.ChatUtils.get_metadata")
@@ -2133,3 +2087,42 @@ def test_delete_media_from_bsp_channel_does_not_exist():
             )
 
     assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
+
+from datetime import datetime, timedelta
+from croniter import croniter
+
+# Import your function
+from kairon.events.utility import EventUtility
+
+def test_valid_cron():
+    # Every hour, min interval 30 min -> valid
+    valid, msg = EventUtility.validate_cron("0 * * * *", 30)
+    assert valid is True
+    assert "Cron is valid" in msg
+
+def test_cron_too_frequent():
+    # Every 10 minutes, min interval 15 min -> invalid
+    valid, msg = EventUtility.validate_cron("*/10 * * * *", 15)
+    assert valid is False
+    assert "Interval" in msg
+
+def test_invalid_cron_expression():
+    # Invalid cron string
+    valid, msg = EventUtility.validate_cron("invalid_cron", 10)
+    assert valid is False
+    assert msg == "Invalid cron expression"
+
+def test_min_interval_edge_case():
+    # Cron every 15 minutes, min interval 15 -> valid
+    valid, msg = EventUtility.validate_cron("*/15 * * * *", 15)
+    assert valid is True
+
+def test_check_more_occurrences():
+    # Cron every 5 min, min 5 min, check only 5 occurrences
+    valid, msg = EventUtility.validate_cron("*/5 * * * *", 5, check_occurrences=5)
+    assert valid is True
+
+def test_small_min_interval():
+    # Cron every minute, min interval 0.5 min -> valid
+    valid, msg = EventUtility.validate_cron("* * * * *", 0.5)
+    assert valid is True
