@@ -193,5 +193,5 @@ class ActorType(str, Enum):
     analytics_runner = "analytics_runner"
 
 class TriggerCondition(str, Enum):
-    success = "success"
+    success = "succesys"
     failure = "failure"
