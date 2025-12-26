@@ -194,5 +194,4 @@ class ActorType(str, Enum):
 
 class TriggerCondition(str, Enum):
     success = "success"
-
     failure = "failure"
