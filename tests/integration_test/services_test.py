@@ -4714,110 +4714,90 @@ from aioresponses import aioresponses as aioresponses_mock
 
 
 @pytest.mark.asyncio
-@responses.activate
-@mock.patch.object(ActionUtility, "execute_request_async", autospec=True)
-@mock.patch.object(CognitionDataProcessor, "sync_data", autospec=True)
-@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
-@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
-@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-def test_knowledge_vault_sync_push_menu(
-    mock_collection_upsert,
-    mock_create_collection,
-    mock_collection_exists,
-    mock_sync_data,
-    mock_execute_request_async,
-):
-    # ---------------- CLEANUP ----------------
-    CognitionData.objects.delete()
-    CognitionSchema.objects.delete()
-    LLMSecret.objects.delete()
+def test_knowledge_vault_sync_push_menu(mock_endpoint_with_token):
 
-    # ---------------- BOT SETTINGS ----------------
-    bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.llm_settings["enable_faq"] = True
-    bot_settings.save()
+    token = pytest.token_type + " " + pytest.access_token
 
-    # ---------------- MOCK COLLECTION ----------------
-    mock_collection_exists.return_value = False
-    mock_create_collection.return_value = None
-    mock_collection_upsert.return_value = None
+    POSIntegrations.objects(bot=pytest.bot).delete()
+    CatalogSyncLogs.objects(bot=pytest.bot).delete()
+    CollectionData.objects(bot=pytest.bot).delete()
 
-    # ---------------- MOCK EMBEDDINGS ----------------
-    mock_execute_request_async.return_value = (
-        [[0.01] * LLMProcessor.__embedding__,
-         [0.02] * LLMProcessor.__embedding__],
-        200,
-        0.01,
-        None,
-    )
-
-    # ---------------- FORCE SYNC EXECUTION ----------------
-    def sync_side_effect(*args, **kwargs):
-        sync_data = kwargs["data"]
-        bot = kwargs["bot"]
-        collection = kwargs["collection"]
-
-        for row in sync_data:
-            CognitionData(
-                data=row,
-                content_type="json",
-                collection=collection,
-                user="integration@demo.ai",
-                bot=bot,
-                timestamp=datetime.utcnow(),
-            ).save()
-
-    mock_sync_data.side_effect = sync_side_effect
-
-    # ---------------- LLM SECRET ----------------
-    LLMSecret(
-        llm_type="openai",
-        api_key="common_openai_key",
-        models=["common_openai_model1"],
-        user="123",
-        timestamp=datetime.utcnow(),
+    # -------------------- POS INTEGRATION (REQUIRED) --------------------
+    POSIntegrations(
+        bot=pytest.bot,
+        provider="petpooja",
+        sync_type="push_menu",
+        user="integration@demo.ai",
+        smart_catalog_enabled=True,
+        meta_enabled=False,
+        config={
+            "restaurant_name": "Demo Restaurant",
+            "branch_name": "Main Branch"
+        },
+        sync_options=[
+            CatalogProviderMapping(
+                sync_type="push_menu",
+                enabled=True
+            )
+        ]
     ).save()
 
-    # ---------------- CREATE SCHEMA ----------------
+    # -------------------- API CALL --------------------
     response = client.post(
-        f"/api/bot/{pytest.bot}/data/cognition/schema",
+        f"/api/events/{EventClass.knowledge_vault}/sync",
+        headers={"Authorization": token},
         json={
-            "collection_name": "groceries",
-            "metadata": [
-                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
-                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
-                {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
-                {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
-            ],
-        },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            "provider": "petpooja",
+            "sync_type": "push_menu"
+        }
     )
 
-    assert response.json()["success"]
+    assert response.status_code == 200
+    assert response.json()["message"] == "Sync initiated"
 
-    # ---------------- SYNC REQUEST ----------------
-    sync_data = [
-        {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
-        {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20},
+    # -------------------- EXECUTE EVENT --------------------
+    latest_log = CatalogSyncLogs.objects(bot=pytest.bot).order_by("-start_timestamp").first()
+    assert latest_log is not None
+
+    complete_end_to_end_event_execution(
+        pytest.bot,
+        "integration@demo.ai",
+        EventClass.knowledge_vault,
+        sync_type="push_menu",
+        token=token,
+        provider="petpooja",
+        sync_ref_id=str(latest_log.id)
+    )
+
+    # -------------------- FINAL ASSERTS --------------------
+    latest_log.reload()
+
+    assert latest_log.sync_status == SYNC_STATUS.PREPROCESSING_COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert latest_log.exception == ""
+
+    # -------------------- DATA ASSERT --------------------
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    collection_name = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    docs = CollectionData.objects(
+        bot=pytest.bot,
+        collection_name=collection_name
+    )
+
+    assert len(docs) == 2
+
+    summaries = [
+        {"id": d.data["kv"]["id"], "availability": d.data["kv"]["availability"]}
+        for d in docs
     ]
 
-    response = client.post(
-        f"/api/bot/{pytest.bot}/data/cognition/sync"
-        f"?primary_key_col=id&collection_name=groceries&sync_type=push_menu",
-        json=sync_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+    expected = [
+        {"id": "10539699", "availability": "in stock"},
+        {"id": "10539580", "availability": "out of stock"},
+    ]
 
-    actual = response.json()
-    assert actual["success"]
-    assert actual["message"] == "Processing completed successfully"
-
-    # ---------------- ASSERT DB ----------------
-    cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
-    assert cognition_data.count() == 2
-
-    for doc, expected in zip(cognition_data, sync_data):
-        assert doc.data == expected
+    assert all(item in summaries for item in expected)
 
 
 @pytest.mark.asyncio
@@ -4850,11 +4830,9 @@ async def test_knowledge_vault_sync_item_toggle(
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        # --- 2. MOCK EMBEDDING SERVICE ---
         embedding_val = [0.1] * 1536
         m.post(re.compile(r'.*/aembedding/openai'), status=200, payload=[embedding_val, embedding_val])
 
-        # --- 3. SEEDING SECRETS & SCHEMA ---
         [LLMSecret(llm_type="openai", api_key="common_openai_key", models=["text-embedding-3-large"],
                    user="123", timestamp=datetime.utcnow()).save()]
 
@@ -4872,9 +4850,6 @@ async def test_knowledge_vault_sync_item_toggle(
             headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
         )
 
-        # --- 4. SEED DUMMY DATA (VALIDATION FIX) ---
-        # We set content_type to None and ensure data is a dict.
-        # If this still fails, Kairon expects content_type="data" for dicts.
         dummy_payloads = [
             {"id": 1, "item": "Juice", "price": 2.80, "quantity": 56},
             {"id": 2, "item": "Milk", "price": 2.80, "quantity": 12}
@@ -4911,7 +4886,6 @@ async def test_knowledge_vault_sync_item_toggle(
         assert results.count() == 2
         assert all(doc.to_mongo().to_dict()["data"] == exp for doc, exp in zip(list(results), expected_final))
 
-        # --- 7. FINAL CLEANUP ---
         CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
         LLMSecret.objects.delete()
 
