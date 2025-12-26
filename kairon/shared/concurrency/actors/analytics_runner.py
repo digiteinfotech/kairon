@@ -11,7 +11,7 @@ from loguru import logger
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import EmailActionConfig
-
+from kairon.shared.constants import TriggerCondition
 
 class AnalyticsRunner():
 
@@ -84,7 +84,7 @@ class AnalyticsRunner():
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
             triggers = action.get("triggers")
-            if triggers and triggers[0].get("conditions") == "failure":
+            if triggers and triggers[0].get("conditions") == TriggerCondition.success.value:
                 self.trigger_email(action, bot)
 
             result = json.loads(stdout)
@@ -94,7 +94,7 @@ class AnalyticsRunner():
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
             triggers = action.get("triggers")
-            if triggers and triggers[0].get("conditions") == "failure":
+            if triggers and triggers[0].get("conditions") == TriggerCondition.failure.value:
                 try:
                     self.trigger_email(action, bot)
                 except Exception:
