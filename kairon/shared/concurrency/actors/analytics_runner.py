@@ -10,7 +10,8 @@ from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
-
+from kairon.shared.actions.data_objects import EmailActionConfig
+from kairon.shared.constants import TriggerCondition
 
 class AnalyticsRunner():
 
@@ -67,6 +68,7 @@ class AnalyticsRunner():
             "predefined_objects":predefined_objects,
             "bot": bot,
         }, default=str)
+        action = predefined_objects.get("config", {})
         try:
             process = subprocess.Popen(
                 [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"],
@@ -81,14 +83,24 @@ class AnalyticsRunner():
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
+            triggers = action.get("triggers")
+            if triggers and triggers[0].get("conditions") == TriggerCondition.success.value:
+                self.trigger_email(action, bot)
+
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            raise AppException(f"Execution error: {msg}") from e
+            triggers = action.get("triggers")
+            if triggers and triggers[0].get("conditions") == TriggerCondition.failure.value:
+                try:
+                    self.trigger_email(action, bot)
+                except Exception:
+                    logger.exception("Failure email failed")
 
+            raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
         clean = {}
         for k, v in values.items():
@@ -100,3 +112,22 @@ class AnalyticsRunner():
                 v = v.isoformat()
             clean[k] = v
         return clean
+
+    def trigger_email(self, config: dict, bot: str):
+        from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        triggers = config.get("triggers")
+
+        action_name = triggers[0].get("action_name")
+        if not action_name:
+            logger.warning("No action_name in trigger configuration")
+            return
+
+        email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+        CallbackScriptUtility.send_email(
+            email_action.action_name,
+            from_email=email_action.from_email.value,
+            to_email=email_action.to_email.value[0],
+            subject=email_action.subject,
+            body=email_action.response,
+            bot=email_action.bot
+        )
