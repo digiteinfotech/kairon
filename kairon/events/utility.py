@@ -9,7 +9,6 @@ from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 from loguru import logger
-from kairon.shared.utils import Utility
 
 class EventUtility:
 
