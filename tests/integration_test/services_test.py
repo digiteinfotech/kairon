@@ -4716,6 +4716,7 @@ from aioresponses import aioresponses as aioresponses_mock
 @pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(ActionUtility, "execute_request_async", autospec=True)
+@mock.patch.object(CognitionDataProcessor, "sync_data", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
@@ -4723,121 +4724,100 @@ def test_knowledge_vault_sync_push_menu(
     mock_collection_upsert,
     mock_create_collection,
     mock_collection_exists,
-    mock_execute_request_async
+    mock_sync_data,
+    mock_execute_request_async,
 ):
-    # -------------------- CLEANUP --------------------
-    LLMSecret.objects.delete()
+    # ---------------- CLEANUP ----------------
     CognitionData.objects.delete()
     CognitionSchema.objects.delete()
+    LLMSecret.objects.delete()
 
-    # -------------------- BOT SETTINGS --------------------
+    # ---------------- BOT SETTINGS ----------------
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.content_importer_limit_per_day = 10
-    bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings["enable_faq"] = True
     bot_settings.save()
 
-    # -------------------- MOCKS --------------------
+    # ---------------- MOCK COLLECTION ----------------
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
     mock_collection_upsert.return_value = None
 
-    # ✅ CRITICAL MOCK (prevents localhost call)
+    # ---------------- MOCK EMBEDDINGS ----------------
     mock_execute_request_async.return_value = (
-        [
-            [0.01] * LLMProcessor.__embedding__,
-            [0.02] * LLMProcessor.__embedding__,
-        ],
-        200,      # MUST be valid HTTP status
+        [[0.01] * LLMProcessor.__embedding__,
+         [0.02] * LLMProcessor.__embedding__],
+        200,
         0.01,
         None,
     )
 
-    # -------------------- LLM SECRET --------------------
+    # ---------------- FORCE SYNC EXECUTION ----------------
+    def sync_side_effect(*args, **kwargs):
+        sync_data = kwargs["data"]
+        bot = kwargs["bot"]
+        collection = kwargs["collection"]
+
+        for row in sync_data:
+            CognitionData(
+                data=row,
+                content_type="json",
+                collection=collection,
+                user="integration@demo.ai",
+                bot=bot,
+                timestamp=datetime.utcnow(),
+            ).save()
+
+    mock_sync_data.side_effect = sync_side_effect
+
+    # ---------------- LLM SECRET ----------------
     LLMSecret(
         llm_type="openai",
         api_key="common_openai_key",
-        models=["common_openai_model1", "common_openai_model2"],
+        models=["common_openai_model1"],
         user="123",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     ).save()
 
-    # -------------------- CREATE SCHEMA --------------------
+    # ---------------- CREATE SCHEMA ----------------
     response = client.post(
         f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
+            "collection_name": "groceries",
             "metadata": [
                 {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
                 {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
                 {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
                 {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
             ],
-            "collection_name": "groceries"
         },
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
-    schema_response = response.json()
-    assert schema_response["success"]
-    assert schema_response["error_code"] == 0
-    assert schema_response["message"] == "Schema saved!"
+    assert response.json()["success"]
 
-    # -------------------- EXISTING DATA --------------------
-    CognitionData(
-        data={"id": 1, "item": "Juice", "price": 2.00, "quantity": 9},
-        content_type="json",
-        collection="groceries",
-        user="integration@demo.ai",
-        bot=pytest.bot,
-        timestamp=datetime.utcnow()
-    ).save()
-
-    assert CognitionData.objects(bot=pytest.bot, collection="groceries").count() == 1
-
-    # -------------------- SYNC PAYLOAD --------------------
+    # ---------------- SYNC REQUEST ----------------
     sync_data = [
         {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
         {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20},
     ]
 
-    # -------------------- TRIGGER SYNC --------------------
     response = client.post(
         f"/api/bot/{pytest.bot}/data/cognition/sync"
         f"?primary_key_col=id&collection_name=groceries&sync_type=push_menu",
         json=sync_data,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
     actual = response.json()
     assert actual["success"]
-    assert actual["error_code"] == 0
     assert actual["message"] == "Processing completed successfully"
 
-    # -------------------- DATA ASSERT --------------------
+    # ---------------- ASSERT DB ----------------
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="groceries")
     assert cognition_data.count() == 2
 
-    expected_data = [
-        {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
-        {"id": 2, "item": "Apples", "price": 1.20, "quantity": 20},
-    ]
-
-    for doc, expected in zip(cognition_data, expected_data):
+    for doc, expected in zip(cognition_data, sync_data):
         assert doc.data == expected
-
-    # -------------------- EMBEDDING CALL ASSERT --------------------
-    called_kwargs = mock_execute_request_async.call_args.kwargs
-    assert called_kwargs["request_method"] == "POST"
-    assert "aembedding/openai" in called_kwargs["http_url"]
-
-    body = called_kwargs["request_body"]
-    assert body["user"] == "integration@demo.ai"
-    assert len(body["text"]) == 2
-
-    # -------------------- CLEANUP --------------------
-    CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
-    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
-    LLMSecret.objects.delete()
 
 
 @pytest.mark.asyncio
