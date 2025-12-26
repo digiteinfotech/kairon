@@ -6,7 +6,6 @@ import aiofiles
 from fastapi import File
 from loguru import logger
 from mongoengine import DoesNotExist
-
 from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
@@ -34,8 +33,12 @@ class ChatDataProcessor:
             configuration['config']['private_key'] = private_key.replace("\\n", "\n")
         if configuration['connector_type'] == ChannelTypes.MAIL.value:
             from kairon.shared.channels.mail.processor import MailProcessor
+            from kairon.events.utility import EventUtility
             if MailProcessor.check_email_config_exists(bot, configuration['config']):
                 raise AppException("Email configuration already exists for same email address and subject")
+            input_interval = configuration["config"]["interval"]
+            system_interval = int(Utility.environment['integrations']["email"]['interval'])
+            EventUtility.validate_cron(input_interval,system_interval)
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()

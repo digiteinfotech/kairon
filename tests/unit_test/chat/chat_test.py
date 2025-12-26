@@ -1002,6 +1002,11 @@ class TestChat:
 
         #non error case
         #different email and subject
+        monkeypatch.setitem(
+            Utility.environment,
+            "integrations",
+            {"email": {"interval": "1"}},
+        )
         ChatDataProcessor.save_channel_config({
             'connector_type': 'mail',
             'config': {
@@ -1010,7 +1015,8 @@ class TestChat:
                 'email_password': 'test',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '2'
             }
         }, 'test', 'test')
 
@@ -1023,7 +1029,8 @@ class TestChat:
                 'email_password': 'subject1,subject2',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '2'
             }
         }, 'test', 'test')
 
@@ -1036,7 +1043,8 @@ class TestChat:
                     'email_password': 'test',
                     'imap_server': 'imap.gmail.com',
                     'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': '587'
+                    'smtp_port': '587',
+                    'interval': '2'
                 }
         }, 'test', 'test')
         assert mock_request_epock.call_count == 3
@@ -2079,3 +2087,42 @@ def test_delete_media_from_bsp_channel_does_not_exist():
             )
 
     assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
+
+from datetime import datetime, timedelta
+from croniter import croniter
+
+# Import your function
+from kairon.events.utility import EventUtility
+
+def test_valid_cron():
+    # Every hour, min interval 30 min -> valid
+    valid, msg = EventUtility.validate_cron("0 * * * *", 30)
+    assert valid is True
+    assert "Cron is valid" in msg
+
+def test_cron_too_frequent():
+    # Every 10 minutes, min interval 15 min -> invalid
+    valid, msg = EventUtility.validate_cron("*/10 * * * *", 15)
+    assert valid is False
+    assert "Interval" in msg
+
+def test_invalid_cron_expression():
+    # Invalid cron string
+    valid, msg = EventUtility.validate_cron("invalid_cron", 10)
+    assert valid is False
+    assert msg == "Invalid cron expression"
+
+def test_min_interval_edge_case():
+    # Cron every 15 minutes, min interval 15 -> valid
+    valid, msg = EventUtility.validate_cron("*/15 * * * *", 15)
+    assert valid is True
+
+def test_check_more_occurrences():
+    # Cron every 5 min, min 5 min, check only 5 occurrences
+    valid, msg = EventUtility.validate_cron("*/5 * * * *", 5, check_occurrences=5)
+    assert valid is True
+
+def test_small_min_interval():
+    # Cron every minute, min interval 0.5 min -> valid
+    valid, msg = EventUtility.validate_cron("* * * * *", 0.5)
+    assert valid is True

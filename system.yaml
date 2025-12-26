@@ -238,6 +238,9 @@ verify:
     type: ${VERIFY_EMAIl_TYPE:quickemail}
     key: ${VERIFY_EMAIL_KEY}
 
+integrations:
+  email:
+    interval: ${MINIMUM_EMAIL_TRIGGER_TIME:1}
 
 actors:
   default_timeout: ${ACTORS_DEFAULT_TIMEOUT:10}
