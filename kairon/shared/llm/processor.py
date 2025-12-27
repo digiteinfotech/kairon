@@ -155,26 +155,31 @@ class LLMProcessor(LLMBase):
         """
         Get embeddings for a batch of texts.
         """
+        body = {
+            "text": texts,
+            "user": user,
+            "kwargs": kwargs
+        }
         is_single_text = isinstance(texts, str)
         if is_single_text:
             texts = [texts]
 
         truncated_texts = self.truncate_text(texts)
-
-        result = await litellm.aembedding(
-            model="text-embedding-3-large",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
+        kwargs["truncated_texts"] = truncated_texts
+        kwargs["api_key"] = self.llm_secret_embedding.get('api_key')
+        timeout = Utility.environment['llm'].get('request_timeout', 30)
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/aembedding/{self.llm_type}",
+            request_method="POST",
+            request_body=body,
+            timeout=timeout
         )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        if is_single_text:
-            return embeddings[0]
-
-        return embeddings
+        logging.info(
+            f"Embedding request completed in {elapsed_time} for bot: {self.bot}"
+        )
+        if status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(status_code).phrase)
+        return http_response
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
