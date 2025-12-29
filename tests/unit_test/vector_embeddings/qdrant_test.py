@@ -30,13 +30,21 @@ class TestQdrant:
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
     @pytest.mark.asyncio
-    @mock.patch.dict(Utility.environment, {'vector': {"key": "TEST", 'db': 'http://localhost:6333'}})
-    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch.dict(
+        Utility.environment,
+        {'vector': {"key": "TEST", 'db': 'http://localhost:6333'}}
+    )
+    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    async def test_embedding_search_valid_request_body(self, mock_http_request, mock_embedding):
+    async def test_embedding_search_valid_request_body(
+            self, mock_http_request, mock_get_embedding
+    ):
+        # -------------------- SETUP --------------------
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
+
         Utility.load_environment()
+
         llm_secret = LLMSecret(
             llm_type="openai",
             api_key="key_value",
@@ -46,12 +54,27 @@ class TestQdrant:
             user="user"
         )
         llm_secret.save()
-        qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
-                        LLMSettings(provider="openai").to_mongo().to_dict())
+
+        qdrant = Qdrant(
+            '5f50fd0a56v098ca10d75d2g',
+            '5f50fd0a56v098ca10d75d2g',
+            LLMSettings(provider="openai").to_mongo().to_dict()
+        )
+
+        # -------------------- MOCKS --------------------
+        mock_get_embedding.return_value = [embedding]
         mock_http_request.return_value = 'expected_result'
-        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-        result = await qdrant.perform_operation({'embedding_search': 'Hi'}, user=user)
+
+        # -------------------- EXECUTE --------------------
+        result = await qdrant.perform_operation(
+            {'embedding_search': 'Hi'},
+            user=user
+        )
+
+        # -------------------- ASSERT --------------------
         assert result == 'expected_result'
+        mock_get_embedding.assert_called_once()
+        mock_http_request.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)

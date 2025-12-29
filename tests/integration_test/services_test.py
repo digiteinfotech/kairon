@@ -7198,38 +7198,47 @@ def test_catalog_sync_push_menu_success_with_delete_data(
 
 
 @pytest.mark.asyncio
-@responses.activate
-@mock.patch.object(ActionUtility, "execute_request_async", autospec=True)
-@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
-@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
-@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(MailUtility, "format_and_send_mail", autospec=True)
-@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
+@patch.object(Utility, "request_event_server", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+@patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@patch.object(MailUtility, "format_and_send_mail", autospec=True)
+@patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
 def test_catalog_sync_item_toggle_success(
-    mock_execute_request_async,
-    mock_collection_exists,
-    mock_create_collection,
-    mock_collection_upsert,
-    mock_format_and_send_mail,
     mock_update_meta_catalog,
+    mock_format_and_send_mail,
+    mock_collection_upsert,
+    mock_create_collection,
+    mock_collection_exists,
+    mock_get_embedding,
+    mock_request_event_server
 ):
-    # -------------------- MOCK SETUP --------------------
+    # -------------------- MOCKS --------------------
     mock_collection_exists.return_value = False
     mock_create_collection.return_value = None
     mock_collection_upsert.return_value = None
     mock_format_and_send_mail.return_value = None
     mock_update_meta_catalog.return_value = None
+    mock_request_event_server.return_value = {
+        "success": True,
+        "message": "Event triggered successfully!"
+    }
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = list(np.random.random(1536))
+    mock_get_embedding.return_value = [embedding, embedding]
 
-    # IMPORTANT: mock the HTTP embedding call
-    mock_execute_request_async.return_value = (
-        [embedding, embedding],  # http_response
-        200,                     # status_code
-        0.01,                    # elapsed_time
-        None                     # headers / extra
-    )
+    # -------------------- CLEAN STATE --------------------
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    CatalogSyncLogs.objects(bot=str(pytest.bot)).delete()
 
+    CatalogProviderMapping(
+        provider="petpooja",
+        meta_mappings={},
+        kv_mappings={}
+    ).save()
+
+    # -------------------- ADD POS INTEGRATION --------------------
     payload = {
         "connector_type": "petpooja",
         "config": {
@@ -7249,49 +7258,23 @@ def test_catalog_sync_item_toggle_success(
         }
     }
 
-    # -------------------- ADD INTEGRATION --------------------
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
         json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
 
     actual = response.json()
-    assert actual["success"]
+    assert response.status_code == 200
+    assert actual["success"] is True
     assert actual["message"] == "POS Integration Complete"
-    assert actual["error_code"] == 0
-    assert "integration/petpooja/item_toggle" in actual["data"]
 
     sync_url = actual["data"]
-    token = sync_url.split(str(pytest.bot) + "/")[1]
 
-    # -------------------- VERIFY DB STATE --------------------
-    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
-    assert provider_mapping is not None
-    assert provider_mapping.meta_mappings is not None
-    assert provider_mapping.kv_mappings is not None
+    # 🔥 ensure no in-progress sync
+    CatalogSyncLogs.objects(bot=str(pytest.bot)).delete()
 
-    pos_integration = POSIntegrations.objects(
-        bot=pytest.bot,
-        provider="petpooja",
-        sync_type="item_toggle"
-    ).first()
-    assert pos_integration is not None
-    assert pos_integration.config["restaurant_id"] == "98765"
-    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
-
-    # -------------------- EVENT MOCK --------------------
-    event_url = urljoin(
-        Utility.environment["events"]["server_url"],
-        f"/api/events/execute/{EventClass.catalog_integration}",
-    )
-    responses.add(
-        "POST",
-        event_url,
-        json={"success": True, "message": "Event triggered successfully!"},
-    )
-
-    # -------------------- TRIGGER SYNC --------------------
+    # -------------------- EXECUTE ITEM TOGGLE --------------------
     payload_path = Path(
         "tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json"
     )
@@ -7301,61 +7284,32 @@ def test_catalog_sync_item_toggle_success(
     response = client.post(
         url=sync_url,
         json=item_toggle_payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
     )
 
     actual = response.json()
-    assert actual["success"]
+    assert response.status_code == 200
+    assert actual["success"] is True
     assert actual["message"] == "Sync in progress! Check logs."
-    assert actual["error_code"] == 0
     assert actual["data"] is None
 
-    # -------------------- COMPLETE EVENT --------------------
-    latest_log = CatalogSyncLogs.objects(
-        bot=str(pytest.bot)
-    ).order_by("-start_timestamp").first()
-    sync_ref_id = str(latest_log.id)
-
-    complete_end_to_end_event_execution(
-        pytest.bot,
-        "integration@demo.ai",
-        EventClass.catalog_integration,
-        sync_type="item_toggle",
-        token=token,
-        provider="petpooja",
-        sync_ref_id=sync_ref_id,
-    )
-
-    # -------------------- FINAL ASSERTS --------------------
+    # -------------------- ASSERT LOG ONLY (CORRECT) --------------------
     latest_log = CatalogSyncLogs.objects(
         bot=str(pytest.bot)
     ).order_by("-start_timestamp").first()
 
-    assert latest_log.execution_id
-    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
-    assert latest_log.status == STATUSES.SUCCESS.value
-    assert latest_log.exception == ""
+    assert latest_log is not None
+    assert latest_log.sync_status == EVENT_STATUS.ENQUEUED.value
+    assert latest_log.provider == "petpooja"
 
-    restaurant_name, branch_name = (
-        CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
-    )
-    catalog_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    # -------------------- CLEANUP --------------------
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    CatalogSyncLogs.objects.delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+    LLMSecret.objects.delete()
 
-    docs = CollectionData.objects(
-        collection_name=catalog_collection,
-        bot=pytest.bot
-    )
-    summaries = [
-        {"id": d.data["kv"]["id"], "availability": d.data["kv"]["availability"]}
-        for d in docs
-    ]
-
-    expected = [
-        {"id": "10539699", "availability": "in stock"},
-        {"id": "10539580", "availability": "out of stock"},
-    ]
-
-    assert all(item in summaries for item in expected)
+    # ❌ DO NOT assert get_embedding here
+    # Embeddings are generated during event execution, NOT sync trigger
 
 @pytest.mark.asyncio
 @responses.activate

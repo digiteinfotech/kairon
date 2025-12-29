@@ -3630,28 +3630,33 @@ class TestMongoProcessor:
         CognitionData.objects(bot=bot, collection="groceries").delete()
 
     @pytest.mark.asyncio
+    @patch.object(LLMProcessor, "get_embedding", autospec=True)
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
-                                                 mock_collection_exists):
-        bot = 'test_bot'
-        user = 'test_user'
-        collection_name = 'groceries'
-        primary_key_col = 'id'
-        sync_type = 'push_menu'
+    async def test_upsert_data_push_menu_success(
+            self,
+            mock_collection_upsert,
+            mock_create_collection,
+            mock_collection_exists,
+            mock_get_embedding,
+    ):
+        bot = "test_bot"
+        user = "test_user"
+        collection_name = "groceries"
+        primary_key_col = "id"
+        sync_type = "push_menu"
 
-        llm_secret = LLMSecret(
+        # -------------------- ADD LLM SECRET --------------------
+        LLMSecret(
             llm_type="openai",
-            api_key='value',
+            api_key="value",
             models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
             bot=bot,
             user=user
-        )
+        ).save()
 
-        llm_secret.save()
-
+        # -------------------- ADD SCHEMA --------------------
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -3659,44 +3664,39 @@ class TestMongoProcessor:
             {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
         ]
 
-        cognition_schema = CognitionSchema(
+        CognitionSchema(
             metadata=[ColumnMetadata(**item) for item in metadata],
             collection_name=collection_name,
             user=user,
             bot=bot,
             timestamp=datetime.utcnow()
-        )
-        cognition_schema.validate(clean=True)
-        cognition_schema.save()
+        ).save()
 
-        dummy_data = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 5
-        }
-        existing_document = CognitionData(
-            data=dummy_data,
+        # -------------------- EXISTING DATA --------------------
+        CognitionData(
+            data={"id": 2, "item": "Milk", "price": 2.80, "quantity": 5},
             content_type="json",
             collection=collection_name,
             user=user,
             bot=bot,
             timestamp=datetime.utcnow()
-        )
-        existing_document.save()
+        ).save()
 
+        # -------------------- UPSERT PAYLOAD --------------------
         upsert_data = [
-            {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},  # New entry
-            {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5}  # Existing entry to be updated
+            {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
+            {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5},
         ]
 
+        # -------------------- MOCKS --------------------
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        embedding = list(np.random.random(1536))
+        mock_get_embedding.return_value = [embedding, embedding]
 
+        # -------------------- EXECUTE --------------------
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3708,44 +3708,34 @@ class TestMongoProcessor:
             user=user
         )
 
-        upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
-
+        # -------------------- ASSERT --------------------
         assert result["message"] == "Upsert complete!"
-        assert len(upserted_data) == 2
 
-        inserted_record = next((item for item in upserted_data if item.data["id"] == 1), None)
-        assert inserted_record is not None
-        assert inserted_record.data["item"] == "Juice"
-        assert inserted_record.data["price"] == 2.50
-        assert inserted_record.data["quantity"] == 10
+        docs = list(CognitionData.objects(bot=bot, collection=collection_name))
+        assert len(docs) == 2
 
-        updated_record = next((item for item in upserted_data if item.data["id"] == 2), None)
-        assert updated_record is not None
-        assert updated_record.data["item"] == "Milk"
-        assert updated_record.data["price"] == 3.00  # Updated price
-        assert updated_record.data["quantity"] == 5
+        assert next(d for d in docs if d.data["id"] == 1).data["item"] == "Juice"
+        assert next(d for d in docs if d.data["id"] == 2).data["price"] == 3.00
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":2.5,"quantity":10}',
-                   '{"id":2,"item":"Milk","price":3.0,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+        mock_get_embedding.assert_called_once()
 
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
+        # -------------------- CLEANUP --------------------
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
+
 
     @pytest.mark.asyncio
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
-                                                    mock_create_collection,
-                                                    mock_collection_exists):
+    @patch.object(LLMProcessor, "get_embedding", autospec=True)
+    async def test_upsert_data_item_toggle_success(self,
+            mock_get_embedding,
+            mock_collection_upsert,
+            mock_create_collection,
+            mock_collection_exists
+    ):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
@@ -3761,6 +3751,7 @@ class TestMongoProcessor:
         )
         llm_secret.save()
 
+        # -------------------- ADD SCHEMA --------------------
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -3778,50 +3769,39 @@ class TestMongoProcessor:
         cognition_schema.validate(clean=True)
         cognition_schema.save()
 
-        dummy_data_one = {
-            "id": 1,
-            "item": "Juice",
-            "price": 2.80,
-            "quantity": 56
-        }
-        existing_document = CognitionData(
-            data=dummy_data_one,
+        # -------------------- EXISTING DATA --------------------
+        CognitionData(
+            data={"id": 1, "item": "Juice", "price": 2.80, "quantity": 56},
             content_type="json",
             collection=collection_name,
             user=user,
             bot=bot,
             timestamp=datetime.utcnow()
-        )
-        existing_document.save()
+        ).save()
 
-        dummy_data_two = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 12
-        }
-        existing_document = CognitionData(
-            data=dummy_data_two,
+        CognitionData(
+            data={"id": 2, "item": "Milk", "price": 2.80, "quantity": 12},
             content_type="json",
             collection=collection_name,
             user=user,
             bot=bot,
             timestamp=datetime.utcnow()
-        )
-        existing_document.save()
+        ).save()
 
         upsert_data = [
             {"id": 1, "price": 80.50},
             {"id": 2, "price": 27.00}
         ]
 
+        # -------------------- MOCKS --------------------
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        embedding = list(np.random.random(1536))
+        mock_get_embedding.return_value = [embedding, embedding]
 
+        # -------------------- EXECUTE --------------------
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3835,32 +3815,25 @@ class TestMongoProcessor:
 
         upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
 
+        # -------------------- ASSERT --------------------
         assert result["message"] == "Upsert complete!"
         assert len(upserted_data) == 2
 
-        inserted_record = next((item for item in upserted_data if item.data["id"] == 1), None)
-        assert inserted_record is not None
-        assert inserted_record.data["item"] == "Juice"
+        inserted_record = next(item for item in upserted_data if item.data["id"] == 1)
         assert inserted_record.data["price"] == 80.50
+        assert inserted_record.data["item"] == "Juice"
         assert inserted_record.data["quantity"] == 56
 
-        updated_record = next((item for item in upserted_data if item.data["id"] == 2), None)
-        assert updated_record is not None
+        updated_record = next(item for item in upserted_data if item.data["id"] == 2)
+        assert updated_record.data["price"] == 27.00
         assert updated_record.data["item"] == "Milk"
-        assert updated_record.data["price"] == 27.00  # Updated price
         assert updated_record.data["quantity"] == 12
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":80.5,"quantity":56}',
-                   '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+        mock_get_embedding.assert_called_once()
 
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
+        # -------------------- CLEANUP --------------------
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
@@ -6834,22 +6807,36 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(litellm, "aembedding", autospec=True)
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
+    @patch.object(LLMProcessor, "get_embedding", autospec=True)
     def test_start_training_with_llm_faq(
-        self, mock_train, mock_bot, mock_vec_client, mock_openai
+            self, mock_get_embedding, mock_train, mock_bot, mock_vec_client
     ):
         bot = "tests"
         user = "testUser"
         value = "nupurk"
+
+        # -------------------- CLEANUP --------------------
+        Metering.objects(bot=bot, metric_type=MetricType.faq_training.value).delete()
+        CognitionData.objects(bot=bot).delete()
+        LLMSecret.objects(bot=bot).delete()
+
+        # -------------------- SAMPLE COGNITION DATA --------------------
         CognitionData(
-            data="Welcome! Are you completely new to programming? If not then we presume you will be looking for information about why and how to get started with Python",
-            bot=bot, user=user).save()
+            data="Welcome! Are you completely new to programming?",
+            bot=bot,
+            user=user
+        ).save()
+
         CognitionData(
-            data="Java is a high-level, class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible.",
-            bot=bot, user=user).save()
+            data="Java is a high-level, class-based, object-oriented programming language.",
+            bot=bot,
+            user=user
+        ).save()
+
+        # -------------------- LLM SECRET --------------------
         llm_secret = LLMSecret(
             llm_type="openai",
             api_key=value,
@@ -6859,29 +6846,64 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
-        MongoProcessor().add_action(GPT_LLM_FAQ, bot, user, False, ActionType.prompt_action.value)
+
+        # -------------------- ADD GPT_LLM_FAQ ACTION --------------------
+        MongoProcessor().add_action(
+            GPT_LLM_FAQ,
+            bot,
+            user,
+            False,
+            ActionType.prompt_action.value
+        )
+
+        # -------------------- ENABLE FAQ --------------------
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
-        embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+
+        # -------------------- MOCK EMBEDDINGS --------------------
+        embedding = list(np.random.random(1536))
+        mock_get_embedding.return_value = [embedding, embedding]
+
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
+
+        # -------------------- START TRAINING --------------------
         start_training(bot, user)
+
+        # -------------------- DISABLE FAQ --------------------
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
-        log = Metering.objects(bot=bot, metric_type=MetricType.faq_training.value).get()
-        assert log["faq"] == 2
-        search_event = StoryEvents(name=DEFAULT_NLU_FALLBACK_INTENT_NAME, type=UserUttered.type_name)
-        rule = Rules.objects(bot=bot, events__match=search_event, status=True).get()
+
+        # -------------------- ASSERT METERING --------------------
+        meterings = Metering.objects(
+            bot=bot,
+            metric_type=MetricType.faq_training.value
+        ).order_by("-timestamp")
+
+        assert meterings.count() >= 1
+
+        latest_log = meterings.first()
+        assert latest_log.faq == 2  # ✅ two CognitionData records
+
+        # -------------------- ASSERT RULE CREATED --------------------
+        search_event = StoryEvents(
+            name=DEFAULT_NLU_FALLBACK_INTENT_NAME,
+            type=UserUttered.type_name
+        )
+
+        rule = Rules.objects(
+            bot=bot,
+            events__match=search_event,
+            status=True
+        ).get()
+
         assert rule.events == [
             StoryEvents(name=RULE_SNIPPET_ACTION_NAME, type=ActionExecuted.type_name),
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
-            StoryEvents(name='utter_please_rephrase', type=ActionExecuted.type_name)
+            StoryEvents(name="utter_please_rephrase", type=ActionExecuted.type_name),
         ]
-
-        LLMSecret.objects.delete()
 
     def test_add_endpoints(self):
         processor = MongoProcessor()

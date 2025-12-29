@@ -13194,9 +13194,6 @@ from aioresponses import aioresponses
 from uuid6 import uuid7
 import urllib.parse
 import numpy as np
-from kairon.actions.definitions.llm import litellm, LLMProcessor
-from kairon.shared.actions.data_objects import Actions, BotSettings, PromptAction, LLMSecret, ActionServerLogs
-from kairon.shared.actions.models import ActionType, LLMSettings
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_with_static_user_prompt(mock_embedding):
@@ -14392,8 +14389,8 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     assert slot_events['llm_call_id'] == litellm_call_id
 
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_payload_search(mock_get_embedding):
     # 1. Setup Constants
     embedding = [0.1] * 1536  # Example vector
     bot = '5f50fx0a56b698ca10d35d2f'
@@ -14401,11 +14398,11 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
     llm_type = "openai"  # Or whatever your self.llm_type evaluates to
 
     # 2. Mock the ACTUAL litellm response (for the internal service to use)
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_get_embedding.return_value = [embedding, embedding]
+
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
 
-    # 3. FIX: Mock the INTERNAL HTTP API Call (The new network hop)
-    # This URL must match your http_url construction exactly
     llm_base_url = Utility.environment['llm'].get('url', 'http://localhost:5005')
     quoted_bot = urllib.parse.quote(bot)
     internal_api_url = f"{llm_base_url}/{quoted_bot}/aembedding/{llm_type}"
