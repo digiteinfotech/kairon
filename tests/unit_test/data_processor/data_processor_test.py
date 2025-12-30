@@ -6818,12 +6818,10 @@ class TestMongoProcessor:
         user = "testUser"
         value = "nupurk"
 
-        # -------------------- CLEANUP --------------------
         Metering.objects(bot=bot, metric_type=MetricType.faq_training.value).delete()
         CognitionData.objects(bot=bot).delete()
         LLMSecret.objects(bot=bot).delete()
 
-        # -------------------- SAMPLE COGNITION DATA --------------------
         CognitionData(
             data="Welcome! Are you completely new to programming?",
             bot=bot,
@@ -6836,7 +6834,6 @@ class TestMongoProcessor:
             user=user
         ).save()
 
-        # -------------------- LLM SECRET --------------------
         llm_secret = LLMSecret(
             llm_type="openai",
             api_key=value,
@@ -6847,7 +6844,6 @@ class TestMongoProcessor:
         )
         llm_secret.save()
 
-        # -------------------- ADD GPT_LLM_FAQ ACTION --------------------
         MongoProcessor().add_action(
             GPT_LLM_FAQ,
             bot,
@@ -6856,27 +6852,22 @@ class TestMongoProcessor:
             ActionType.prompt_action.value
         )
 
-        # -------------------- ENABLE FAQ --------------------
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
 
-        # -------------------- MOCK EMBEDDINGS --------------------
         embedding = list(np.random.random(1536))
         mock_get_embedding.return_value = [embedding, embedding]
 
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
 
-        # -------------------- START TRAINING --------------------
         start_training(bot, user)
 
-        # -------------------- DISABLE FAQ --------------------
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
 
-        # -------------------- ASSERT METERING --------------------
         meterings = Metering.objects(
             bot=bot,
             metric_type=MetricType.faq_training.value
@@ -6885,9 +6876,8 @@ class TestMongoProcessor:
         assert meterings.count() >= 1
 
         latest_log = meterings.first()
-        assert latest_log.faq == 2  # ✅ two CognitionData records
+        assert latest_log.faq == 2
 
-        # -------------------- ASSERT RULE CREATED --------------------
         search_event = StoryEvents(
             name=DEFAULT_NLU_FALLBACK_INTENT_NAME,
             type=UserUttered.type_name

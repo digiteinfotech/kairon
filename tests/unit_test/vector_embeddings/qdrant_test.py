@@ -39,7 +39,6 @@ class TestQdrant:
     async def test_embedding_search_valid_request_body(
             self, mock_http_request, mock_get_embedding
     ):
-        # -------------------- SETUP --------------------
         embedding = list(np.random.random(LLMProcessor.__embedding__))
         user = "test"
 
@@ -61,17 +60,14 @@ class TestQdrant:
             LLMSettings(provider="openai").to_mongo().to_dict()
         )
 
-        # -------------------- MOCKS --------------------
         mock_get_embedding.return_value = [embedding]
         mock_http_request.return_value = 'expected_result'
 
-        # -------------------- EXECUTE --------------------
         result = await qdrant.perform_operation(
             {'embedding_search': 'Hi'},
             user=user
         )
 
-        # -------------------- ASSERT --------------------
         assert result == 'expected_result'
         mock_get_embedding.assert_called_once()
         mock_http_request.assert_called_once()
