@@ -180,10 +180,8 @@ class LLMProcessor(LLMBase):
 
         if status_code not in [200, 201, 202, 203, 204]:
             raise Exception(HTTPStatus(status_code).phrase)
-
         if is_single_text and isinstance(http_response, list):
             return http_response[0]
-
         return http_response
 
     async def __parse_completion_response(self, response, **kwargs):
