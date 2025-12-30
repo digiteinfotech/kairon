@@ -240,7 +240,7 @@ verify:
 
 integrations:
   email:
-    interval: ${MINIMUM_EMAIL_TRIGGER_TIME:1}
+    interval: ${MINIMUM_EMAIL_TRIGGER_TIME:10}
 
 actors:
   default_timeout: ${ACTORS_DEFAULT_TIMEOUT:10}

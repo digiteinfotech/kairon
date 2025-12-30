@@ -87,7 +87,7 @@ class EventUtility:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
 
     @staticmethod
-    def validate_cron(cron_expr, min_interval_minutes, check_occurrences=20):
+    def validate_cron(cron_expr, min_interval_minutes, check_occurrences=2):
         """
         Validate that a cron expression respects a minimum interval between runs.
 
@@ -104,20 +104,17 @@ class EventUtility:
         try:
             itr = croniter(cron_expr, base)
         except CroniterBadCronError:
-            return False, "Invalid cron expression"
+            raise AppException("Invalid cron expression")
 
         prev = itr.get_next(datetime)
 
         for _ in range(check_occurrences):
             nxt = itr.get_next(datetime)
             diff = (nxt - prev).total_seconds() / 60
-
             if diff < min_interval_minutes:
-                return False, f"Minimum Interval should be greater than equal to {min_interval_minutes} minutes"
+                raise AppException(f"Minimum time interval should be greater than equal to {min_interval_minutes} minutes")
 
             prev = nxt
-
-        return True, f"Cron is valid for the next {check_occurrences} runs"
 
     @staticmethod
     def stop_channel_mail_reading(bot: str):
