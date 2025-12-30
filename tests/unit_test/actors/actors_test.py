@@ -1069,11 +1069,103 @@ def test_execute_failure_email_exception_handling():
 
 
 
+
+def test_execute_triggers_email_on_failure():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1  # failure
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_trigger_email.assert_called_once_with("test_mail", "test_bot")
+
+
+def test_execute_skips_email_on_success_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_trigger_email.assert_not_called()
+
+def test_execute_skips_email_when_action_type_not_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "prompt_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_trigger_email.assert_not_called()
+
 def test_execute_skips_email_trigger_without_action_name():
     runner = AnalyticsRunner()
 
     mock_process = MagicMock()
-    mock_process.communicate.return_value = ("", "")
+    mock_process.communicate.return_value = ("", "error")
     mock_process.returncode = 1
 
     predefined_objects = {
@@ -1083,7 +1175,6 @@ def test_execute_skips_email_trigger_without_action_name():
                 {
                     "conditions": "failure",
                     "action_type": "email_action"
-                    # action_name missing
                 }
             ]
         }
@@ -1092,13 +1183,36 @@ def test_execute_skips_email_trigger_without_action_name():
     with patch("subprocess.Popen", return_value=mock_process), \
          patch(
              "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
-         ) as mock_trigger:
+         ) as mock_trigger_email:
 
         with pytest.raises(AppException):
-            runner.execute("x = 1", predefined_objects)
+            runner.execute("x=1", predefined_objects=predefined_objects)
 
-        mock_trigger.assert_not_called()
+        mock_trigger_email.assert_not_called()
 
+def test_execute_skips_when_triggers_none():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": None
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_trigger_email.assert_not_called()
 
 def test_analytics_runner_cleanup_datetime():
     runner = AnalyticsRunner()
