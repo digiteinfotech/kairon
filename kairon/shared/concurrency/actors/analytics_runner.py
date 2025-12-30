@@ -82,13 +82,12 @@ class AnalyticsRunner():
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
-            triggers = action.get("triggers")
-            if triggers is not None:
-                for trigger in triggers:
-                    if trigger.get("conditions") == TriggerCondition.success.value and trigger.get(
-                            "action_type") == "email_action" and trigger.get("action_name"):
-                        action_name = trigger.get("action_name")
-                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
+            triggers = action.get("triggers", [])
+            for trigger in triggers:
+                if trigger.get("conditions") == TriggerCondition.success.value and trigger.get(
+                        "action_type") == "email_action" and trigger.get("action_name"):
+                    action_name = trigger.get("action_name")
+                    AnalyticsPipelineProcessor.trigger_email(action_name, bot)
 
             result = json.loads(stdout)
             return self.__cleanup(result)
@@ -96,16 +95,15 @@ class AnalyticsRunner():
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            triggers = action.get("triggers")
-            if triggers is not None:
-                for trigger in triggers:
-                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
-                            "action_type") == "email_action" and trigger.get("action_name"):
-                        try:
-                            action_name = trigger.get("action_name")
-                            AnalyticsPipelineProcessor.trigger_email(action_name, bot)
-                        except Exception:
-                            logger.exception("Failure email failed")
+            triggers = action.get("triggers", [])
+            for trigger in triggers:
+                if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
+                        "action_type") == "email_action" and trigger.get("action_name"):
+                    try:
+                        action_name = trigger.get("action_name")
+                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
+                    except Exception:
+                        logger.exception("Failure email failed")
 
             raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
