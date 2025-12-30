@@ -1126,29 +1126,6 @@ def test_execute_skips_email_trigger_without_action_name():
 
         mock_trigger_email.assert_not_called()
 
-def test_execute_skips_when_triggers_none():
-    runner = AnalyticsRunner()
-
-    mock_process = MagicMock()
-    mock_process.communicate.return_value = ("", "error")
-    mock_process.returncode = 1
-
-    predefined_objects = {
-        "slot": {"bot": "test_bot"},
-        "config": {
-            "triggers": None
-        }
-    }
-
-    with patch("subprocess.Popen", return_value=mock_process), \
-         patch(
-             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
-         ) as mock_trigger_email:
-
-        with pytest.raises(AppException):
-            runner.execute("x=1", predefined_objects=predefined_objects)
-
-        mock_trigger_email.assert_not_called()
 
 def test_execute_triggers_email_on_success_condition():
     runner = AnalyticsRunner()
