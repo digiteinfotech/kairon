@@ -96,7 +96,7 @@ class AnalyticsRunner():
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            triggers = action.get("triggers", [])
+            triggers = action.get("triggers")
             if triggers is not None:
                 for trigger in triggers:
                     if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
