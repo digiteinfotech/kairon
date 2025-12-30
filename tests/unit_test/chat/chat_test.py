@@ -2097,7 +2097,7 @@ def test_valid_cron():
 
 def test_cron_too_frequent():
     # Every 10 minutes, min interval 15 min -> invalid
-    with pytest.raises(AppException, match="Minimum Interval should be greater than equal to 15 minutes"):
+    with pytest.raises(AppException, match="Minimum time interval should be greater than equal to 15 minutes"):
         EventUtility.validate_cron("*/10 * * * *", 15)
 
 
@@ -2125,7 +2125,7 @@ def test_interval_below_minimum_raises_exception():
     with pytest.raises(AppException) as exc_info:
         EventUtility.validate_cron("*/5 * * * *", 10)
 
-    assert "Minimum Interval should be greater than equal to 10 minutes" in str(exc_info.value)
+    assert "Minimum time interval should be greater than equal to 10 minutes" in str(exc_info.value)
 
 def test_exact_minimum_interval_allowed():
     """
