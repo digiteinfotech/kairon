@@ -85,7 +85,7 @@ class AnalyticsRunner():
             triggers = action.get("triggers")
             if triggers is not None:
                 for trigger in triggers:
-                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
+                    if trigger.get("conditions") == TriggerCondition.success.value and trigger.get(
                             "action_type") == "email_action" and trigger.get("action_name"):
                         action_name = trigger.get("action_name")
                         AnalyticsPipelineProcessor.trigger_email(action_name, bot)
