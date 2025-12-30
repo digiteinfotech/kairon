@@ -10,7 +10,6 @@ from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.constants import TriggerCondition
 
 class AnalyticsRunner():
@@ -35,7 +34,7 @@ class AnalyticsRunner():
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
         from kairon.shared.concurrency.actors.utils import PyscriptUtility
         from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
-
+        from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
         predefined_objects = predefined_objects or {}
 
         try:
@@ -84,8 +83,9 @@ class AnalyticsRunner():
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
             triggers = action.get("triggers")
-            if triggers and triggers[0].get("conditions") == TriggerCondition.success.value:
-                self.trigger_email(action, bot)
+            for trigger in triggers:
+                if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get("action_type") == "email_action":
+                    AnalyticsPipelineProcessor.trigger_email(action, bot)
 
             result = json.loads(stdout)
             return self.__cleanup(result)
@@ -93,12 +93,13 @@ class AnalyticsRunner():
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
-            triggers = action.get("triggers")
-            if triggers and triggers[0].get("conditions") == TriggerCondition.failure.value:
-                try:
-                    self.trigger_email(action, bot)
-                except Exception:
-                    logger.exception("Failure email failed")
+            triggers = action.get("triggers", [])
+            for trigger in triggers:
+                if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get("action_type") == "email_action":
+                    try:
+                        AnalyticsPipelineProcessor.trigger_email(action, bot)
+                    except Exception:
+                        logger.exception("Failure email failed")
 
             raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
@@ -112,22 +113,3 @@ class AnalyticsRunner():
                 v = v.isoformat()
             clean[k] = v
         return clean
-
-    def trigger_email(self, config: dict, bot: str):
-        from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
-        triggers = config.get("triggers")
-
-        action_name = triggers[0].get("action_name")
-        if not action_name:
-            logger.warning("No action_name in trigger configuration")
-            return
-
-        email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
-        CallbackScriptUtility.send_email(
-            email_action.action_name,
-            from_email=email_action.from_email.value,
-            to_email=email_action.to_email.value[0],
-            subject=email_action.subject,
-            body=email_action.response,
-            bot=email_action.bot
-        )
