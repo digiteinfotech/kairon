@@ -966,7 +966,7 @@ def test_execute_triggers_email_on_failure_condition_fixed():
             runner.execute("x = 1", predefined_objects=predefined_objects)
 
         mock_trigger_email.assert_called_once_with(
-            predefined_objects["config"], "test_bot"
+            "test_mail_functio", "test_bot"
         )
 
 def test_execute_success_no_failure_email():
@@ -1069,17 +1069,35 @@ def test_execute_failure_email_exception_handling():
 
 
 
-def test_trigger_email_missing_action_name():
-    config = {"triggers": [{}]}
-    bot = "test_bot"
+def test_execute_skips_email_trigger_without_action_name():
+    runner = AnalyticsRunner()
 
-    with patch(
-        "kairon.shared.analytics.analytics_pipeline_processor.logger"
-    ) as mock_logger:
-        AnalyticsPipelineProcessor.trigger_email(config, bot)
-        mock_logger.warning.assert_called_once_with(
-            "No action_name in trigger configuration"
-        )
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action"
+                    # action_name missing
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger:
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects)
+
+        mock_trigger.assert_not_called()
 
 
 def test_analytics_runner_cleanup_datetime():
