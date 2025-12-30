@@ -3647,7 +3647,6 @@ class TestMongoProcessor:
         primary_key_col = "id"
         sync_type = "push_menu"
 
-        # -------------------- ADD LLM SECRET --------------------
         LLMSecret(
             llm_type="openai",
             api_key="value",
@@ -3656,7 +3655,6 @@ class TestMongoProcessor:
             user=user
         ).save()
 
-        # -------------------- ADD SCHEMA --------------------
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -3672,7 +3670,6 @@ class TestMongoProcessor:
             timestamp=datetime.utcnow()
         ).save()
 
-        # -------------------- EXISTING DATA --------------------
         CognitionData(
             data={"id": 2, "item": "Milk", "price": 2.80, "quantity": 5},
             content_type="json",
@@ -3682,21 +3679,17 @@ class TestMongoProcessor:
             timestamp=datetime.utcnow()
         ).save()
 
-        # -------------------- UPSERT PAYLOAD --------------------
         upsert_data = [
             {"id": 1, "item": "Juice", "price": 2.50, "quantity": 10},
             {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5},
         ]
 
-        # -------------------- MOCKS --------------------
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
         embedding = list(np.random.random(1536))
         mock_get_embedding.return_value = [embedding, embedding]
-
-        # -------------------- EXECUTE --------------------
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3708,7 +3701,6 @@ class TestMongoProcessor:
             user=user
         )
 
-        # -------------------- ASSERT --------------------
         assert result["message"] == "Upsert complete!"
 
         docs = list(CognitionData.objects(bot=bot, collection=collection_name))
@@ -3718,8 +3710,6 @@ class TestMongoProcessor:
         assert next(d for d in docs if d.data["id"] == 2).data["price"] == 3.00
 
         mock_get_embedding.assert_called_once()
-
-        # -------------------- CLEANUP --------------------
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
@@ -3751,7 +3741,6 @@ class TestMongoProcessor:
         )
         llm_secret.save()
 
-        # -------------------- ADD SCHEMA --------------------
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
             {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
@@ -3768,8 +3757,6 @@ class TestMongoProcessor:
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
-
-        # -------------------- EXISTING DATA --------------------
         CognitionData(
             data={"id": 1, "item": "Juice", "price": 2.80, "quantity": 56},
             content_type="json",
@@ -3793,7 +3780,6 @@ class TestMongoProcessor:
             {"id": 2, "price": 27.00}
         ]
 
-        # -------------------- MOCKS --------------------
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
@@ -3801,7 +3787,6 @@ class TestMongoProcessor:
         embedding = list(np.random.random(1536))
         mock_get_embedding.return_value = [embedding, embedding]
 
-        # -------------------- EXECUTE --------------------
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3814,8 +3799,6 @@ class TestMongoProcessor:
         )
 
         upserted_data = list(CognitionData.objects(bot=bot, collection=collection_name))
-
-        # -------------------- ASSERT --------------------
         assert result["message"] == "Upsert complete!"
         assert len(upserted_data) == 2
 
@@ -3831,7 +3814,6 @@ class TestMongoProcessor:
 
         mock_get_embedding.assert_called_once()
 
-        # -------------------- CLEANUP --------------------
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
@@ -4016,7 +3998,7 @@ class TestMongoProcessor:
             bot=bot,
             timestamp=datetime.utcnow()
         )
-        cognition_schema.validate(clean=True)  # Validate before saving
+        cognition_schema.validate(clean=True)
         cognition_schema.save()
 
         file_content = b"order_id,order_priority,sales,profit\n1,High,100.0,50.0\n"
