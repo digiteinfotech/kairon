@@ -224,7 +224,7 @@ channels:
 llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
   key: ${TEMPLATE_LLM_KEY}
-  url: ${LLM_SERVER_URL:http://localhost:}
+  url: ${LLM_SERVER_URL:http://localhost}
   request_timeout: ${LLM_REQUEST_TIMEOUT:30}
 
 vector:
@@ -287,5 +287,5 @@ broadcast:
 pos:
   odoo:
     odoo_url: ${ODOO_URL:"http://localhost:8080"}
-    odoo_master_password: ${ODOO_MASTER_PASSWORD:}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD}
     odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}
