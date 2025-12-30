@@ -1181,11 +1181,13 @@ def test_execute_success_trigger_email_exception_handling():
          patch(
              "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email",
              side_effect=Exception("Email failed")
-         ):
+         ), \
+         patch("kairon.shared.concurrency.actors.analytics_runner.logger") as mock_logger:
 
-        with pytest.raises(AppException) as exc:
-            runner.execute("x=1", predefined_objects=predefined_objects)
-        assert str(exc.value) == 'Execution error: {"a": 1}'
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+        mock_logger.exception.assert_called_once()
 
 
 

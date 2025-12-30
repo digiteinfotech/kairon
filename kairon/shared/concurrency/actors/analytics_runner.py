@@ -87,7 +87,10 @@ class AnalyticsRunner():
                 if trigger.get("conditions") == TriggerCondition.success.value and trigger.get(
                         "action_type") == "email_action" and trigger.get("action_name"):
                     action_name = trigger.get("action_name")
-                    AnalyticsPipelineProcessor.trigger_email(action_name, bot)
+                    try:
+                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
+                    except Exception:
+                        logger.exception("Success email failed")
 
             result = json.loads(stdout)
             return self.__cleanup(result)
