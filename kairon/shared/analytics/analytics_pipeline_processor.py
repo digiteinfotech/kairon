@@ -8,10 +8,9 @@ from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration
+from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration, EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
-
 
 class AnalyticsPipelineProcessor:
 
@@ -145,3 +144,23 @@ class AnalyticsPipelineProcessor:
             start_timestamp=start_time,
             end_timestamp=end_time,
         ).save()
+
+    @staticmethod
+    def trigger_email(config: dict, bot: str):
+        from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        triggers = config.get("triggers")
+
+        action_name = triggers[0].get("action_name")
+        if not action_name:
+            logger.warning("No action_name in trigger configuration")
+            return
+
+        email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+        CallbackScriptUtility.send_email(
+            email_action.action_name,
+            from_email=email_action.from_email.value,
+            to_email=email_action.to_email.value[0],
+            subject=email_action.subject,
+            body=email_action.response,
+            bot=email_action.bot
+        )
