@@ -146,15 +146,8 @@ class AnalyticsPipelineProcessor:
         ).save()
 
     @staticmethod
-    def trigger_email(config: dict, bot: str):
+    def trigger_email(action_name: str, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
-        triggers = config.get("triggers")
-
-        action_name = triggers[0].get("action_name")
-        if not action_name:
-            logger.warning("No action_name in trigger configuration")
-            return
-
         email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
         CallbackScriptUtility.send_email(
             email_action.action_name,

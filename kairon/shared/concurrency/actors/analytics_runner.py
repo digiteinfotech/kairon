@@ -85,8 +85,10 @@ class AnalyticsRunner():
             triggers = action.get("triggers")
             if triggers is not None:
                 for trigger in triggers:
-                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get("action_type") == "email_action":
-                        AnalyticsPipelineProcessor.trigger_email(action, bot)
+                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
+                            "action_type") == "email_action" and trigger.get("action_name"):
+                        action_name = trigger.get("action_name")
+                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
 
             result = json.loads(stdout)
             return self.__cleanup(result)
@@ -97,9 +99,11 @@ class AnalyticsRunner():
             triggers = action.get("triggers", [])
             if triggers is not None:
                 for trigger in triggers:
-                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get("action_type") == "email_action":
+                    if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
+                            "action_type") == "email_action" and trigger.get("action_name"):
                         try:
-                            AnalyticsPipelineProcessor.trigger_email(action, bot)
+                            action_name = trigger.get("action_name")
+                            AnalyticsPipelineProcessor.trigger_email(action_name, bot)
                         except Exception:
                             logger.exception("Failure email failed")
 
