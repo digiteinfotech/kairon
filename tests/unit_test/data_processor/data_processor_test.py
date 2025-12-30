@@ -18768,7 +18768,6 @@ class TestMongoProcessor:
                                                " Or else please rephrase your question."}]
 
     def test_add_custom_2_stage_fallback_action_exists(self):
-        print("hi")
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
