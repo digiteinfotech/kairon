@@ -177,6 +177,7 @@ class LLMProcessor(LLMBase):
             request_body=body,
             timeout=timeout,
         )
+        logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:
             raise Exception(HTTPStatus(status_code).phrase)
         if is_single_text and isinstance(http_response, list):
