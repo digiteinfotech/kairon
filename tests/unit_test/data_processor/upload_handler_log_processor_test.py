@@ -52,13 +52,14 @@ class TestUploadHandlerLogProcessor:
     def test_is_event_in_progress_true_raises(self):
         bot="test_bot"
         collection_name="test_collection"
-        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, False)
+        user="test_user"
+        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user,False)
 
         with pytest.raises(AppException):
-            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name)
+            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user)
 
     def test_is_event_in_progress_true_no_exception(self):
-        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2")
+        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2", "test_user")
         assert not result
 
     def test_add_log_success(self):
@@ -105,6 +106,40 @@ class TestUploadHandlerLogProcessor:
         assert log[0]['end_timestamp'] is not None
         assert log[0]['start_timestamp'] is not None
 
+    def test_logs_not_overridden_when_users_upload_to_different_collections(self):
+        bot = "test_bot"
+        UploadHandlerLogs.objects(bot=bot).delete()
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userA",
+            file_name="fileA.csv",
+            collection_name="collection1",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userB",
+            file_name="fileB.csv",
+            collection_name="collection2",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        logs = list(UploadHandlerLogs.objects(bot=bot))
+        assert len(logs) == 2
+        logA = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection1"
+        ).first()
+        assert logA.file_name == "fileA.csv"
+        assert logA.user == "userA"
+
+        logB = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection2"
+        ).first()
+        assert logB.file_name == "fileB.csv"
+        assert logB.user == "userB"
+        assert logA.id != logB.id
+
     def test_is_limit_exceeded_exception(self, monkeypatch):
         bot = 'test_bot'
         try:
@@ -131,7 +166,15 @@ class TestUploadHandlerLogProcessor:
         assert not UploadHandlerLogProcessor.is_limit_exceeded(bot)
 
     def test_get_latest_event_file_name(self):
-        result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot")
+        UploadHandlerLogs(
+            bot="test_bot",
+            user="ganesh.reddy@nimble.com",
+            upload_type="file_upload",
+            collection_name="test_collection",
+            file_name="Salesstore.csv",
+            event_status="IN_PROGRESS"
+        ).save()
+        result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot", "ganesh.reddy@nimble.com","test_collection")
         assert result == "Salesstore.csv"
 
     @patch("kairon.shared.upload_handler.data_objects.UploadHandlerLogs")

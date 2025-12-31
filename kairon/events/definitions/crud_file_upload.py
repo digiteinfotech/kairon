@@ -35,9 +35,9 @@ class CrudFileUploader(UploadHandlerBase):
 
         file_content = kwargs.get("file_content")
         UploadHandlerLogProcessor.is_limit_exceeded(self.bot)
-        UploadHandlerLogProcessor.is_event_in_progress(self.bot, self.collection_name)
+        UploadHandlerLogProcessor.is_event_in_progress(self.bot, self.collection_name, self.user)
         UploadHandlerLogProcessor.add_log(bot=self.bot, user=self.user, file_name=file_content.filename, upload_type=self.upload_type, collection_name=self.collection_name, is_uploaded=True, event_status=EVENT_STATUS.INITIATED.value)
-        is_event_data = MongoProcessor().file_upload_validate_schema_and_log(bot=self.bot, user=self.user, file_content=file_content)
+        is_event_data = MongoProcessor().file_upload_validate_schema_and_log(bot=self.bot, user=self.user, file_content=file_content, collection_name=self.collection_name)
         return is_event_data
 
     def create_payload(self, **kwargs):
@@ -56,21 +56,21 @@ class CrudFileUploader(UploadHandlerBase):
         """
         path = None
         try:
-            file_received = UploadHandlerLogProcessor.get_latest_event_file_name(self.bot)
+            file_received = UploadHandlerLogProcessor.get_latest_event_file_name(self.bot, self.user, self.collection_name)
             path = Utility.get_latest_file('file_content_upload_records', self.bot)
-            UploadHandlerLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.SAVE.value)
+            UploadHandlerLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.SAVE.value, collection_name=self.collection_name)
             file_importer = FileImporter(path, self.bot, self.user, file_received, self.collection_name, self.overwrite)
             collection_data=file_importer.preprocess()
             if self.overwrite:
                 DataProcessor.delete_collection(self.bot, self.collection_name)
             file_importer.import_data(collection_data)
-            UploadHandlerLogProcessor.add_log(self.bot, self.user, status=STATUSES.SUCCESS.value, event_status=EVENT_STATUS.COMPLETED.value)
+            UploadHandlerLogProcessor.add_log(self.bot, self.user, status=STATUSES.SUCCESS.value, event_status=EVENT_STATUS.COMPLETED.value, collection_name=self.collection_name)
         except Exception as e:
             logger.error(str(e))
             UploadHandlerLogProcessor.add_log(self.bot, self.user,
                                                 exception=str(e),
                                                 status=STATUSES.FAIL.value,
-                                                event_status=EVENT_STATUS.FAIL.value)
+                                                event_status=EVENT_STATUS.FAIL.value, collection_name=self.collection_name)
         finally:
             if path:
                 Utility.delete_directory(path)
