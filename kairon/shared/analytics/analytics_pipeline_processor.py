@@ -148,6 +148,7 @@ class AnalyticsPipelineProcessor:
     @staticmethod
     def trigger_email(triggers: list, condition: str, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        print("hello")
         for trigger in triggers:
             if trigger.get("conditions") == condition and trigger.get(
                     "action_type") == "email_action" and trigger.get("action_name"):
