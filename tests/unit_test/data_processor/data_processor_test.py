@@ -72,7 +72,7 @@ from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema,
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ENDPOINT_TYPE, STATUSES
+from kairon.shared.data.constant import ENDPOINT_TYPE, STATUSES, SyncType, SYNC_STATUS
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
@@ -553,7 +553,7 @@ class TestMongoProcessor:
         bot = "test_bot"
         collection_name = "crop_details"
         filters = [
-            {"column": "name", "value": "Mahesh"}  # no condition key
+            {"column": "name", "value": "Mahesh"}
         ]
 
         result = DataProcessor.get_collection_filter(bot, collection_name, filters)
@@ -20220,6 +20220,28 @@ class TestMongoProcessor:
         bot = 'testing'
         assert list(processor.list_cognition_data(bot)) == []
 
+    def test_list_cognition_data_with_search_text(self):
+        processor = CognitionDataProcessor()
+        bot = "test_bot"
+        with mock.patch("kairon.shared.cognition.processor.CognitionData.objects") as mock_objects:
+            mock_queryset = mock.MagicMock()
+            mock_objects.return_value = mock_queryset
+            mock_queryset.search_text.return_value = mock_queryset
+            mock_queryset.skip.return_value = mock_queryset
+            mock_queryset.limit.return_value = mock_queryset
+            mock_queryset.order_by.return_value = []
+
+            result = list(
+                processor.list_cognition_data(
+                    bot=bot,
+                    data="bot",
+                    start_idx=0,
+                    page_size=10
+                )
+            )
+
+            mock_queryset.search_text.assert_called_once_with("bot")
+
     def test_delete_multiple_payload_content(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -20252,6 +20274,91 @@ class TestMongoProcessor:
         processor.delete_multiple_cognition_data(content_ids, bot, user)
         remaining_docs = CognitionData.objects(id__in=content_ids)
         assert remaining_docs.count() == 0
+
+    def test_delete_multiple_cognition_data_empty_row_ids(self):
+        processor = CognitionDataProcessor()
+        bot = "test"
+        user = "testUser"
+
+        with pytest.raises(AppException) as exc:
+            processor.delete_multiple_cognition_data([], bot, user)
+
+        assert "row_ids list cannot be empty" in str(exc.value)
+
+    def test_save_ai_data_deletes_stale_items_push_menu(self):
+        processor = CognitionDataProcessor()
+        bot = "test_bot"
+        user = "test_user"
+        sync_type = SyncType.push_menu
+        with mock.patch.object(
+                CognitionDataProcessor,
+                "get_restaurant_and_branch_name",
+                return_value=("rest", "branch")
+        ):
+            collection_name = "rest_branch_catalog_data"
+            CollectionData(
+                collection_name=collection_name,
+                data={"kv": {"id": "item_1", "name": "Burger"}, "meta": {}},
+                bot=bot,
+                user=user,
+                status=True,
+                timestamp=datetime.utcnow()
+            ).save()
+
+            CollectionData(
+                collection_name=collection_name,
+                data={"kv": {"id": "item_2", "name": "Pizza"}, "meta": {}},
+                bot=bot,
+                user=user,
+                status=True,
+                timestamp=datetime.utcnow()
+            ).save()
+
+            processed_data = {
+                "kv": [
+                    {"id": "item_1", "name": "Burger Updated"}
+                ],
+                "meta": []
+            }
+
+            stale_ids = processor.save_ai_data(
+                processed_data=processed_data,
+                bot=bot,
+                user=user,
+                sync_type=sync_type
+            )
+
+            assert stale_ids == ["item_2"]
+            remaining_ids = [
+                doc.data["kv"]["id"]
+                for doc in CollectionData.objects(collection_name=collection_name)
+            ]
+            assert "item_2" not in remaining_ids
+
+    def test_load_catalog_provider_mappings_file_not_found(self):
+        with mock.patch.object(Path, "exists", return_value=False):
+            with pytest.raises(AppException) as exc:
+                CognitionDataProcessor.load_catalog_provider_mappings()
+
+            assert "Mappings file not found" in str(exc.value)
+
+
+    def test_load_catalog_provider_mappings_missing_meta_or_kv(self):
+        from io import StringIO
+        invalid_mapping = {
+            "provider_1": {
+                "meta": {},
+                "kv": None
+            }
+        }
+        with mock.patch("pathlib.Path.exists", return_value=True), \
+                mock.patch("builtins.open", return_value=StringIO(json.dumps(invalid_mapping))):
+            with pytest.raises(AppException) as exc:
+                CognitionDataProcessor.load_catalog_provider_mappings()
+
+            assert "missing required 'meta' or 'kv'" in str(exc.value)
+
+
 
 class TestAgentProcessor:
 

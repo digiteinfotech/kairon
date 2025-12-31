@@ -417,6 +417,204 @@ class TestLLM:
         with pytest.raises(AppException, match=f"LLM secret for '{DEFAULT_LLM}' is not configured!"):
             LLMProcessor('test_gpt3_faq_embedding_train_failure', DEFAULT_LLM)
 
+    @pytest.fixture
+    def llm_processor(self):
+        with mock.patch(
+                "kairon.shared.llm.processor.Utility.environment",
+                {
+                    "vector": {"db": "test", "key": "key"},
+                    "llm": {
+                        "request_timeout": 30,
+                        "url": "http://fake-llm-service"
+                    }
+                }
+        ), \
+                mock.patch(
+                    "kairon.shared.llm.processor.Sysadmin.get_llm_secret",
+                    return_value={"key": "secret"}
+                ), \
+                mock.patch(
+                    "kairon.shared.llm.processor.get_encoding"
+                ):
+            yield LLMProcessor(bot="test_bot", llm_type="openai")
+
+    @pytest.mark.asyncio
+    async def test_parse_completion_response_stream_success(self,llm_processor):
+        response = {
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"content": "hello"}
+                }
+            ]
+        }
+
+        with mock.patch(
+                "kairon.shared.llm.processor.randbelow", return_value=0
+        ):
+            result = await llm_processor._LLMProcessor__parse_completion_response(
+                response,
+                stream=True,
+                n=1
+            )
+
+        assert result == "hello"
+
+    @pytest.mark.asyncio
+    async def test_parse_completion_response_stream_no_match(self,llm_processor):
+        response = {
+            "choices": [
+                {
+                    "index": 1,  # mismatch
+                    "delta": {"content": "hello"}
+                }
+            ]
+        }
+
+        with mock.patch(
+                "kairon.shared.llm.processor.randbelow", return_value=0
+        ):
+            result = await llm_processor._LLMProcessor__parse_completion_response(
+                response,
+                stream=True,
+                n=1
+            )
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_parse_completion_response_non_stream(self,llm_processor):
+        response = {
+            "choices": [
+                {
+                    "message": {"content": "final answer"}
+                }
+            ]
+        }
+
+        with mock.patch(
+                "kairon.shared.llm.processor.choice",
+                return_value=response["choices"][0]
+        ):
+            result = await llm_processor._LLMProcessor__parse_completion_response(
+                response,
+                stream=False
+            )
+
+        assert result == "final answer"
+
+    @pytest.mark.asyncio
+    async def test_get_completion_returns_non_dict_response(self, llm_processor):
+        messages = [{"role": "user", "content": "hello"}]
+        hyperparameters = {}
+        user = "test_user"
+
+        http_response = "RAW_RESPONSE"
+        status_code = 200
+
+        with mock.patch(
+            "kairon.shared.llm.processor.ActionUtility.execute_request_async",
+            return_value=(http_response, status_code, 0.1, None)
+        ):
+            result = await llm_processor._LLMProcessor__get_completion(
+                messages=messages,
+                hyperparameters=hyperparameters,
+                user=user,
+                media_ids=None
+            )
+
+        assert result == ("RAW_RESPONSE", "RAW_RESPONSE")
+
+    @pytest.mark.asyncio
+    async def test_delete_collections_deletes_bot_collections(self, llm_processor):
+        mock_client = mock.AsyncMock()
+
+        # GET response with matching collection name
+        mock_client.request.side_effect = [
+            {
+                "result": {
+                    "collections": [
+                        {"name": f"{llm_processor.bot}_faq_embd"},
+                        {"name": "other_bot_faq_embd"}
+                    ]
+                }
+            },
+            None  # DELETE call returns nothing
+        ]
+
+        with mock.patch(
+                "kairon.shared.llm.processor.AioRestClient",
+                return_value=mock_client
+        ):
+            await llm_processor._LLMProcessor__delete_collections()
+
+        assert mock_client.request.call_count == 2
+
+        delete_call = mock_client.request.call_args_list[1]
+        assert delete_call.kwargs["request_method"] == "DELETE"
+        assert llm_processor.bot in delete_call.kwargs["http_url"]
+        mock_client.cleanup.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_delete_collection_points_raises_exception(self, llm_processor):
+        error_response = {
+            "result": False,
+            "status": {
+                "error": "delete failed"
+            }
+        }
+
+        with mock.patch("kairon.shared.llm.processor.AioRestClient") as mock_client:
+            mock_instance = mock_client.return_value
+            mock_instance.request = mock.AsyncMock(return_value=error_response)
+
+            with pytest.raises(AppException):
+                await llm_processor.__delete_collection_points__(
+                    collection_name="test_collection",
+                    point_ids=["p1", "p2"],
+                    err_msg="delete error",
+                    raise_err=True
+                )
+
+    @pytest.mark.asyncio
+    async def test_delete_collection_points_no_raise(self, llm_processor):
+        error_response = {
+            "result": False,
+            "status": {
+                "error": "delete failed"
+            }
+        }
+
+        with mock.patch("kairon.shared.llm.processor.AioRestClient") as mock_client:
+            mock_instance = mock_client.return_value
+            mock_instance.request = mock.AsyncMock(return_value=error_response)
+
+            await llm_processor.__delete_collection_points__(
+                collection_name="test_collection",
+                point_ids=["p1"],
+                err_msg="delete error",
+                raise_err=False
+            )
+
+    def test_get_llm_metadata_default_with_secret(self):
+        mock_secret = mock.Mock()
+        mock_secret.models = ["gpt-4", "gpt-3.5"]
+
+        with mock.patch(
+                "kairon.shared.llm.processor.LLMSecret.objects"
+        ) as mock_objects:
+            mock_objects.return_value.first.return_value = mock_secret
+            result = LLMProcessor.get_llm_metadata_default("openai")
+            assert result == ["gpt-4", "gpt-3.5"]
+
+    def test_get_llm_metadata_default_without_secret(self):
+        with mock.patch(
+                "kairon.shared.llm.processor.LLMSecret.objects"
+        ) as mock_objects:
+            mock_objects.return_value.first.return_value = None
+            result = LLMProcessor.get_llm_metadata_default("openai")
+            assert result == []
+
     @pytest.mark.asyncio
     @mock.patch("kairon.shared.utils.Utility.decrypt_message", autospec=True)
     @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
@@ -747,6 +945,9 @@ class TestLLM:
                 assert args[2] == user
 
                 assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+
+
 
     @pytest.mark.asyncio
     @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)

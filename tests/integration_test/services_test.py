@@ -349,6 +349,8 @@ def test_book_a_demo_with_valid_data(trigger_smtp_mock, validate_recaptcha_mock,
     assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
 
+
+
 def test_account_registration_without_privacy_policy_and_terms_consent_and_accepted_ai_guidelines(monkeypatch):
     response = client.post(
         "/api/account/registration",
@@ -2452,6 +2454,226 @@ def test_accept_pos_order_success():
     assert data["message"] == "Order accepted"
     assert data["data"] == {"order_id": order_id, "accepted": True}
     assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@mock.patch.object(CognitionDataProcessor, "preprocess_push_menu_data", side_effect=Exception("Simulated preprocess error"))
+@mock.patch.object(litellm, "aembedding", autospec=True)
+def test_catalog_sync_preprocess_exception1(mock_embedding, mock_preprocess, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    mock_embedding.return_value = litellm.EmbeddingResponse(
+        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
+
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_validation_errors_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
+
+    with push_menu_validation_errors_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_validation_errors_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_validation_errors_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert "Simulated preprocess error" in latest_log.exception
+
+    assert not latest_log.processed_payload
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+
+
+
+from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
+
+# -------------------------------
+# @pytest.mark.io
+# @mock.patch.object(
+#     CognitionDataProcessor,
+#     "preprocess_push_menu_data",
+#     side_effect=Exception("Simulated preprocess error")
+# )
+# def test_catalog_sync_preprocess_exception_service(
+#     mock_preprocess
+# ):
+#     # -------------------------------
+#     # Setup POS integration with required fields
+#     # -------------------------------
+#     bot=pytest.bot
+#     POSIntegrations.objects.delete()
+#     POSIntegrations(
+#         bot=bot,
+#         user="integration@demo.ai",
+#         provider="petpooja",
+#         sync_type="push_menu",
+#         config={"restaurant_id": "98765"},
+#         sync_options=PetpoojaSyncConfig(
+#             process_push_menu=True,
+#             process_item_toggle=True
+#         )
+#     ).save()
+#
+#     sync_url = f"/api/bot/{bot}/data/integrations/add?sync_type=push_menu"
+#     payload = {
+#         "connector_type": "petpooja",
+#         "config": {
+#             "restaurant_name": "restaurant1",
+#             "branch_name": "branch1",
+#             "restaurant_id": "98765"
+#         },
+#         "meta_config": {"access_token": "dummy_access_token", "catalog_id": "12345"},
+#         "smart_catalog_enabled": True,
+#         "meta_enabled": True,
+#         "sync_options": {"process_push_menu": True, "process_item_toggle": True}
+#     }
+#
+#     response = client.post(
+#         url=sync_url,
+#         json=payload,
+#         headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+#     )
+#
+#     actual = response.json()
+#
+#
+#     assert actual["message"] == "Sync in progress! Check logs."
+#     assert actual["success"]
+#     assert actual["data"] is None
+#
+#     latest_log = CatalogSyncLogs.objects(bot=str(bot)).order_by("-start_timestamp").first()
+#     assert latest_log.sync_status == "Failed"
+#     assert latest_log.status == STATUSES.FAIL.value
+#     assert "Simulated preprocess error" in latest_log.exception
+#
+#     POSIntegrations.objects(bot=bot).delete()
+#     CatalogSyncLogs.objects(bot=str(bot)).delete()
 
 
 @pytest.mark.asyncio
@@ -13824,6 +14046,52 @@ def test_get_payload_content_metadata_not_exists():
     assert actual["message"] is None
     assert actual["error_code"] == 0
     assert actual["data"] == []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def test_delete_schema_attached_to_prompt_action(monkeypatch):
