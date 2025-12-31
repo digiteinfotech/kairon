@@ -51,6 +51,7 @@ class UploadHandlerLogProcessor:
 
         query = {
             "bot": bot,
+            "user": user,
             "event_status__nin": [
                 EVENT_STATUS.COMPLETED.value,
                 EVENT_STATUS.FAIL.value
@@ -68,11 +69,12 @@ class UploadHandlerLogProcessor:
         )
 
     @staticmethod
-    def is_event_in_progress(bot: str, collection_name: Text, raise_exception=True):
+    def is_event_in_progress(bot: str, collection_name: Text, user:str, raise_exception=True):
         in_progress = False
         try:
             UploadHandlerLogs.objects(
                 bot=bot,
+                user=user,
                 collection_name=collection_name
             ).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
@@ -105,8 +107,8 @@ class UploadHandlerLogProcessor:
         return False
 
     @staticmethod
-    def get_latest_event_file_name(bot: str, collection_name: str):
-        logs, _ = BaseLogHandler.get_logs_search_result(bot, "file_upload", collection_name=collection_name)
+    def get_latest_event_file_name(bot: str, user: str, collection_name: str):
+        logs, _ = BaseLogHandler.get_logs_search_result(bot, "file_upload", user=user, collection_name=collection_name)
         if not logs:
             return ""
         return logs[0].get("file_name", "")

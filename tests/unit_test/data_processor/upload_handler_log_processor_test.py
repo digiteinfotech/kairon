@@ -52,13 +52,14 @@ class TestUploadHandlerLogProcessor:
     def test_is_event_in_progress_true_raises(self):
         bot="test_bot"
         collection_name="test_collection"
-        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, False)
+        user="test_user"
+        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user,False)
 
         with pytest.raises(AppException):
-            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name)
+            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user)
 
     def test_is_event_in_progress_true_no_exception(self):
-        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2")
+        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2", "test_user")
         assert not result
 
     def test_add_log_success(self):
@@ -173,7 +174,7 @@ class TestUploadHandlerLogProcessor:
             file_name="Salesstore.csv",
             event_status="IN_PROGRESS"
         ).save()
-        result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot", "test_collection")
+        result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot", "ganesh.reddy@nimble.com","test_collection")
         assert result == "Salesstore.csv"
 
     @patch("kairon.shared.upload_handler.data_objects.UploadHandlerLogs")
