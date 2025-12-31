@@ -11,8 +11,6 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration, EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
-from kairon.shared.constants import TriggerCondition
-
 
 class AnalyticsPipelineProcessor:
 
