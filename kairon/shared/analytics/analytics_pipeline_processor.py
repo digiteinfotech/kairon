@@ -11,6 +11,8 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration, EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
+from kairon.shared.constants import TriggerCondition
+
 
 class AnalyticsPipelineProcessor:
 
@@ -146,14 +148,21 @@ class AnalyticsPipelineProcessor:
         ).save()
 
     @staticmethod
-    def trigger_email(action_name: str, bot: str):
+    def trigger_email(triggers: list, condition: str, bot: str):
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
-        email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
-        CallbackScriptUtility.send_email(
-            email_action.action_name,
-            from_email=email_action.from_email.value,
-            to_email=email_action.to_email.value[0],
-            subject=email_action.subject,
-            body=email_action.response,
-            bot=email_action.bot
-        )
+        for trigger in triggers:
+            if trigger.get("conditions") == condition and trigger.get(
+                    "action_type") == "email_action" and trigger.get("action_name"):
+                action_name = trigger.get("action_name")
+                email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+                try:
+                    CallbackScriptUtility.send_email(
+                        email_action.action_name,
+                        from_email=email_action.from_email.value,
+                        to_email=email_action.to_email.value[0],
+                        subject=email_action.subject,
+                        body=email_action.response,
+                        bot=email_action.bot
+                    )
+                except Exception:
+                    logger.exception("Success email failed")
