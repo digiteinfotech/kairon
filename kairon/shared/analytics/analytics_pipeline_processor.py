@@ -163,4 +163,4 @@ class AnalyticsPipelineProcessor:
                         bot=email_action.bot
                     )
                 except Exception:
-                    logger.exception("Success email failed")
+                    logger.exception(f"triggering email failed on {condition} case")

@@ -1034,7 +1034,7 @@ def test_execute_failure_email_exception_handling():
         with pytest.raises(AppException):
             runner.execute("x = 1", predefined_objects=predefined_objects)
 
-        mock_logger.exception.assert_any_call("Success email failed")
+        mock_logger.exception.assert_any_call("triggering email failed on failure case")
 
 
 
@@ -1194,7 +1194,7 @@ def test_execute_success_trigger_email_exception_handling():
 
         result = runner.execute("x=1", predefined_objects=predefined_objects)
         assert result == {"a": 1}
-        mock_logger.exception.assert_called_once_with("Success email failed")
+        mock_logger.exception.assert_called_once_with("triggering email failed on success case")
 
 
 
