@@ -1411,6 +1411,7 @@ def test_file_handler_save_and_validate_success(tmp_path):
 def test_file_upload_validate_schema_and_log_success(monkeypatch):
     bot = "test_bot"
     user = "test_user"
+    collection_name = "test_collection"
 
     file_content = SimpleNamespace(
         filename="test.csv",
@@ -1431,7 +1432,8 @@ def test_file_upload_validate_schema_and_log_success(monkeypatch):
     result = instance.file_upload_validate_schema_and_log(
         bot=bot,
         user=user,
-        file_content=file_content
+        file_content=file_content,
+        collection_name=collection_name
     )
 
     assert result is True
