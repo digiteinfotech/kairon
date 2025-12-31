@@ -83,15 +83,8 @@ class AnalyticsRunner():
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
             triggers = action.get("triggers", [])
-            for trigger in triggers:
-                if trigger.get("conditions") == TriggerCondition.success.value and trigger.get(
-                        "action_type") == "email_action" and trigger.get("action_name"):
-                    action_name = trigger.get("action_name")
-                    try:
-                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
-                    except Exception:
-                        logger.exception("Success email failed")
-
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.success.value, bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
 
@@ -99,15 +92,8 @@ class AnalyticsRunner():
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
             triggers = action.get("triggers", [])
-            for trigger in triggers:
-                if trigger.get("conditions") == TriggerCondition.failure.value and trigger.get(
-                        "action_type") == "email_action" and trigger.get("action_name"):
-                    try:
-                        action_name = trigger.get("action_name")
-                        AnalyticsPipelineProcessor.trigger_email(action_name, bot)
-                    except Exception:
-                        logger.exception("Failure email failed")
-
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.failure.value, bot)
             raise AppException(f"Execution error: {msg}") from e
     def __cleanup(self, values: Dict):
         clean = {}
