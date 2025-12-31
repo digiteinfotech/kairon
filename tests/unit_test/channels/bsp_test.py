@@ -20,7 +20,7 @@ from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.data_objects import BotSettings, UserMediaData
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import UserMediaUploadStatus
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 from kairon.shared.utils import Utility
 from mongomock import MongoClient
 
@@ -1122,6 +1122,79 @@ class TestBusinessServiceProvider:
         assert result[0]["sender_id"] == "tester@example.com"
         assert abs(result[0]["timestamp"] - datetime.utcnow()) < timedelta(seconds=1)
 
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    def test_get_media_ids_filters_last_30_days(self):
+        bot = "682323a603ec3be7dcaa75bc"
+
+        Channels.objects(bot=bot).delete()
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+
+        BotSettings(
+            bot=bot,
+            user="test@example.com",
+            whatsapp="360dialog",
+            timestamp=datetime.utcnow(),
+        ).save()
+
+        Channels(
+            bot=bot,
+            connector_type="whatsapp",
+            config={
+                "bsp_type": "360dialog",
+                "client_name": "dummy",
+                "client_id": "dummy",
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow(),
+        ).save()
+        recent_timestamp = datetime.utcnow() - timedelta(days=5)
+        recent_media_id = "valid123"
+        UserMediaData(
+            media_id=recent_media_id,
+            filename="recent.pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="broadcast",
+            filesize=1000,
+            sender_id="tester@example.com",
+            bot=bot,
+            extension="image/png",
+            timestamp=recent_timestamp,
+            media_url="",
+            output_filename="",
+            external_upload_info={"bsp": "360dialog"},
+        ).save()
+
+        old_media_id = "old123"
+        UserMediaData(
+            media_id=old_media_id,
+            filename="oldfile.pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="broadcast",
+            filesize=999,
+            sender_id="tester@example.com",
+            bot=bot,
+            extension="image/png",
+            timestamp=datetime.utcnow() - timedelta(days=40),
+            media_url="",
+            output_filename="",
+            external_upload_info={"bsp": "360dialog"},
+        ).save()
+
+        result = UserMedia.get_media_ids(bot)
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+        assert result[0]["media_id"] == recent_media_id
+        assert result[0]["filename"] == "recent.pdf"
+        assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
+        assert result[0]["sender_id"] == "tester@example.com"
+
+        assert result[0]["timestamp"] >= datetime.utcnow() - timedelta(days=30)
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
 
