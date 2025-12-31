@@ -10,7 +10,7 @@ from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
-
+from kairon.shared.constants import TriggerCondition
 
 class AnalyticsRunner():
 
@@ -34,7 +34,7 @@ class AnalyticsRunner():
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
         from kairon.shared.concurrency.actors.utils import PyscriptUtility
         from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
-
+        from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
         predefined_objects = predefined_objects or {}
 
         try:
@@ -67,6 +67,7 @@ class AnalyticsRunner():
             "predefined_objects":predefined_objects,
             "bot": bot,
         }, default=str)
+        action = predefined_objects.get("config", {})
         try:
             process = subprocess.Popen(
                 [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"],
@@ -81,14 +82,19 @@ class AnalyticsRunner():
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
+            triggers = action.get("triggers", [])
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.success.value, bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
+            triggers = action.get("triggers", [])
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.failure.value, bot)
             raise AppException(f"Execution error: {msg}") from e
-
     def __cleanup(self, values: Dict):
         clean = {}
         for k, v in values.items():
