@@ -405,7 +405,12 @@ class Utility:
         logger.info(f"Model path: {folder}")
         if not os.path.exists(folder):
             raise AppException("Folder does not exists!")
-        return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
+
+        files = list(iglob(os.path.join(folder, extension_pattern)))
+        logger.info(f"Files found: {files}")
+        if not files:
+            raise AppException(f"No files found in folder {folder}. Another upload may still be in progress.")
+        return max(files, key=os.path.getctime)
 
     @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
