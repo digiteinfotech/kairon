@@ -10682,7 +10682,6 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]["event_class"] == "pyscript_evaluator"
     assert actual["data"]["logs"][0]["status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["data"] == {
-        # 'source_code': 'bot_response = "test - this is from callback test"',
         'predefined_objects': {
             'req': {'type': 'GET', 'body': None, 'params': {}},
             'req_host': '127.0.0.1', 'action_name': 'clbk1',
