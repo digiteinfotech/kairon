@@ -24,8 +24,9 @@ class FileImporter:
         pass
 
     def preprocess(self):
+        file_path = os.path.join(self.path, self.file_received)
         try:
-            df = pd.read_csv(self.path)
+            df = pd.read_csv(file_path)
             df.columns = df.columns.str.strip()
             df = df.astype(object).where(pd.notna(df), None)
 
