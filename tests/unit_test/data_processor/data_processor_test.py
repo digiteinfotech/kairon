@@ -9940,13 +9940,13 @@ class TestMongoProcessor:
         assert not non_event_validation_summary
 
 
-    def test_get_latest_file_folder_not_exists(tmp_path):
+    def test_get_latest_file_folder_not_exists(self,tmp_path):
         folder = tmp_path / "non_existent"
 
         with pytest.raises(AppException, match="Folder does not exists"):
             Utility.get_latest_file(str(folder))
 
-    def test_get_latest_file_empty_folder(tmp_path):
+    def test_get_latest_file_empty_folder(self,tmp_path):
         folder = tmp_path / "empty_folder"
         folder.mkdir()
 
@@ -9954,7 +9954,7 @@ class TestMongoProcessor:
             Utility.get_latest_file(str(folder))
 
 
-    def test_get_latest_file_returns_latest(tmp_path):
+    def test_get_latest_file_returns_latest(self,tmp_path):
         folder = tmp_path / "files"
         import time
         import os
