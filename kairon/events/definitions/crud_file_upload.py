@@ -1,3 +1,4 @@
+import os
 from typing import Text
 from kairon import Utility
 from kairon.importer.file_importer import FileImporter
@@ -72,5 +73,6 @@ class CrudFileUploader(UploadHandlerBase):
                                                 status=STATUSES.FAIL.value,
                                                 event_status=EVENT_STATUS.FAIL.value, collection_name=self.collection_name)
         finally:
-            if path:
-                Utility.delete_directory(path)
+            if path and os.path.exists(path):
+                os.remove(path)
+
