@@ -1233,6 +1233,34 @@ def test_trigger_email_does_not_send_mail_when_action_is_none():
 
         mock_send_email.assert_not_called()
 
+def test_trigger_email_logs_error_when_config_missing():
+    triggers = [
+        {
+            "conditions": "success",
+            "action_type": "email_action",
+            "action_name": "nonexistent_mail"
+        }
+    ]
+
+    with patch(
+        "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+    ) as mock_objects, \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = None
+
+        AnalyticsPipelineProcessor.trigger_email(
+            triggers,
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+        mock_logger.error.assert_any_call(
+            "EmailActionConfig not found for bot=test_bot, action_name=nonexistent_mail"
+        )
+
 
 def test_execute_success_trigger_email_exception_handling():
     runner = AnalyticsRunner()
