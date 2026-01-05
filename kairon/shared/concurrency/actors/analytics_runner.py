@@ -87,7 +87,7 @@ class AnalyticsRunner():
                 AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.success.value, bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
-
+            print("hello")
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
