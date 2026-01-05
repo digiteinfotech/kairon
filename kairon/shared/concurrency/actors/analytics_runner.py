@@ -83,7 +83,6 @@ class AnalyticsRunner():
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
             triggers = action.get("triggers", [])
-
             if triggers:
                 AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.success.value, bot)
             result = json.loads(stdout)
