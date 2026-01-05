@@ -153,6 +153,9 @@ class AnalyticsPipelineProcessor:
                     "action_type") == "email_action" and trigger.get("action_name"):
                 action_name = trigger.get("action_name")
                 email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+                if not email_action:
+                    logger.error(f"EmailActionConfig not found for bot={bot}, action_name={action_name}")
+                    continue
                 try:
                     CallbackScriptUtility.send_email(
                         email_action.action_name,
