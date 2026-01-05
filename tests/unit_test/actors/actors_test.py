@@ -24,11 +24,11 @@ from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.actors.pyscript_runner import PyScriptRunner
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
-from kairon.shared.constants import ActorType
+from kairon.shared.constants import ActorType, TriggerCondition
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.utils import Utility
-
+from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
 
 class TestActors:
 
@@ -935,6 +935,414 @@ def test_analytics_runner_subprocess_error():
             runner.execute("x = 1", predefined_objects={"slot": {"bot": "id"}})
 
     assert "Subprocess error" in str(exc.value)
+
+
+def test_execute_success_no_failure_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {"triggers": []}
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+        mock_trigger_email.assert_not_called()
+
+def test_execute_sends_actual_email_on_failure_trigger_fixed():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("some stdout", "some error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    fake_email_action = MagicMock()
+    fake_email_action.action_name = "test_mail_functio"
+    fake_email_action.from_email.value = "from@test.com"
+    fake_email_action.to_email.value = ["to@test.com"]
+    fake_email_action.subject = "Test subject"
+    fake_email_action.response = "Test body"
+    fake_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email, \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects:
+
+        mock_objects.return_value.first.return_value = fake_email_action
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_called_once()
+
+def test_execute_failure_email_exception_handling():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "")
+    mock_process.returncode = 1  # force execution failure
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    mock_email_action = MagicMock()
+    mock_email_action.action_name = "test_mail_functio"
+    mock_email_action.from_email.value = "from@test.com"
+    mock_email_action.to_email.value = ["to@test.com"]
+    mock_email_action.subject = "Test subject"
+    mock_email_action.response = "Test body"
+    mock_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects, \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email",
+             side_effect=Exception("SMTP error")
+         ), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = mock_email_action
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        mock_logger.exception.assert_any_call(
+            "triggering email failed on failure case"
+        )
+
+
+
+def test_execute_skips_email_on_success_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1  # failure path
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "success",  # does NOT match failure
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_not_called()
+
+def test_execute_skips_email_when_action_type_not_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "prompt_action",  # not email
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+        mock_send_email.assert_not_called()
+
+def test_execute_skips_email_trigger_without_action_name():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action"
+                    # action_name missing
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_not_called()
+
+
+def test_execute_triggers_email_on_success_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+def test_execute_calls_trigger_email_even_when_action_is_none():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "success",
+                    "action_type": None,
+                    "action_name": None
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+def test_trigger_email_does_not_send_mail_when_action_is_none():
+    triggers = [
+        {
+            "conditions": "success",
+            "action_type": None,
+            "action_name": None
+        }
+    ]
+
+    with patch(
+        "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+    ) as mock_send_email:
+
+        AnalyticsPipelineProcessor.trigger_email(
+            triggers,
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+        mock_send_email.assert_not_called()
+
+def test_trigger_email_logs_error_when_config_missing():
+    triggers = [
+        {
+            "conditions": "success",
+            "action_type": "email_action",
+            "action_name": "nonexistent_mail"
+        }
+    ]
+
+    with patch(
+        "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+    ) as mock_objects, \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = None
+
+        AnalyticsPipelineProcessor.trigger_email(
+            triggers,
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+        mock_logger.error.assert_any_call(
+            "EmailActionConfig not found for bot=test_bot, action_name=nonexistent_mail"
+        )
+
+
+def test_execute_success_trigger_email_exception_handling():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    mock_email_action = MagicMock()
+    mock_email_action.action_name = "test_mail"
+    mock_email_action.from_email.value = "from@test.com"
+    mock_email_action.to_email.value = ["to@test.com"]
+    mock_email_action.subject = "Test subject"
+    mock_email_action.response = "Test body"
+    mock_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects, \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email",
+             side_effect=Exception("Email failed")
+         ), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = mock_email_action
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+        assert result == {"a": 1}
+        mock_logger.exception.assert_any_call(
+            "triggering email failed on success case"
+        )
+
+
+
+@pytest.mark.parametrize("action_name", ["test_mail", "test_mail_fixed"])
+def test_execute_triggers_email_on_failure_condition(action_name):
+    runner = AnalyticsRunner()
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a":1}', "")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "conditions": "failure",
+                    "action_type": "email_action",
+                    "action_name": action_name
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+        with pytest.raises(AppException) as exc:
+            runner.execute("x=1", predefined_objects=predefined_objects)
+        assert "Execution error" in str(exc.value)
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.failure.value,
+            "test_bot"
+        )
 
 
 def test_analytics_runner_cleanup_datetime():

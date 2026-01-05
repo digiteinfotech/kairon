@@ -103,7 +103,6 @@ class EventRequestType(str, Enum):
     add_one_time_schedule = "add_one_time_schedule"
     resend_broadcast = "resend_broadcast"
 
-
 class EventExecutor(str, Enum):
     aws_lambda = "aws_lambda"
     dramatiq = "dramatiq"
@@ -192,3 +191,7 @@ class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
     callable_runner = "callable_runner"
     analytics_runner = "analytics_runner"
+
+class TriggerCondition(str, Enum):
+    success = "success"
+    failure = "failure"
