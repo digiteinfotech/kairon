@@ -413,6 +413,23 @@ class Utility:
         return max(files, key=os.path.getctime)
 
     @staticmethod
+    def get_latest_file1(folder, extension_pattern="*"):
+        """
+        Fetches latest file.
+        If extension is provided, latest file with that extension is retrieved.
+        By default, latest file in the folder is retrieved and can be of any type.
+        Example extension patterns: "*.tar.gz", "*.zip", etc.
+
+        :param folder: folder path
+        :param extension_pattern: file extension as a regular expression
+        :return: latest file
+        """
+        logger.info(f"Model path: {folder}")
+        if not os.path.exists(folder):
+            raise AppException("Folder does not exists!")
+        return max(iglob(os.path.join(folder, extension_pattern)), key=os.path.getctime)
+
+    @staticmethod
     def deploy_model(endpoint: Dict, bot: Text):
         """
         deploys the model to the specified endpoint
