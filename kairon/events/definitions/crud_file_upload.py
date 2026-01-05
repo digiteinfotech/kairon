@@ -56,6 +56,7 @@ class CrudFileUploader(UploadHandlerBase):
         Execute the file content import event.
         """
         path = None
+        folder_path = None
         try:
             file_received = UploadHandlerLogProcessor.get_latest_event_file_name(self.bot, self.user, self.collection_name)
             folder_path = Utility.get_latest_file('file_content_upload_records', self.bot)
@@ -76,3 +77,5 @@ class CrudFileUploader(UploadHandlerBase):
         finally:
             if path and os.path.isfile(path):
                 os.remove(path)
+            if folder_path and os.path.isdir(folder_path):
+                Utility.delete_directory(folder_path, True)
