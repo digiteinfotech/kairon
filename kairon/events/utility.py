@@ -74,8 +74,8 @@ class EventUtility:
             if event_id:
                 KScheduler().update_job(event_id,
                                         TASK_TYPE.EVENT,
-                                        interval,
-                                        EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
+                                        cron_exp=interval,
+                                        event_class=EventClass.mail_channel_read_mails, data={"bot": bot, "user": mail_processor.bot_settings.user})
             else:
                 event_id = uuid7().hex
                 mail_processor.update_event_id(event_id)
