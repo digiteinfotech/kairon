@@ -35,6 +35,10 @@ class KScheduler(EventSchedulerBase):
             func = ExecutorFactory.get_executor().execute_task
             args = (event_class, data,)
             kwargs = {'task_type': task_type}
+            changes = {
+                "func": func, "args": args, "kwargs": kwargs, "name": func.__name__
+            }
+            trigger=None
             if cron_exp:
                 trigger = CronTrigger.from_crontab(cron_exp, timezone=timezone)
             elif run_at:
@@ -42,9 +46,9 @@ class KScheduler(EventSchedulerBase):
             else:
                 raise AppException("Either cron_exp or run_at must be provided to update job!")
 
-            changes = {
-                "func": func, "trigger": trigger, "args": args, "kwargs": kwargs, "name": func.__name__
-            }
+            if trigger:
+                changes["trigger"] = trigger
+
             KScheduler.__scheduler.modify_job(event_id, KScheduler.__job_store_name, **changes)
             KScheduler.__scheduler.reschedule_job(event_id, KScheduler.__job_store_name, trigger)
         except JobLookupError as e:
