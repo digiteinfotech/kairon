@@ -25,6 +25,7 @@ class FileImporter:
 
     def preprocess(self):
         file_path = os.path.join(self.path, self.file_received)
+
         try:
             df = pd.read_csv(file_path)
             df.columns = df.columns.str.strip()
