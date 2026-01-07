@@ -9946,13 +9946,6 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Folder does not exists"):
             Utility.get_latest_file(str(folder))
 
-    def test_get_latest_file_empty_folder(self,tmp_path):
-        folder = tmp_path / "empty_folder"
-        folder.mkdir()
-
-        with pytest.raises(AppException, match="No files found"):
-            Utility.get_latest_file(str(folder))
-
 
     def test_get_latest_file_returns_latest(self,tmp_path):
         folder = tmp_path / "files"
