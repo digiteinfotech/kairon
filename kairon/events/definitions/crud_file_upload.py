@@ -1,5 +1,4 @@
 import os
-import time
 from typing import Text
 from kairon import Utility
 from kairon.importer.file_importer import FileImporter
