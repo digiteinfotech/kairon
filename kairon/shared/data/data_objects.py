@@ -920,7 +920,7 @@ class BotSettings(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     system_limits = DictField(default=lambda:{
-        "file_upload_limit" : 25
+        "file_upload_limit" : 5
     })
     training_limit_per_day = IntField(default=5)
     test_limit_per_day = IntField(default=5)
