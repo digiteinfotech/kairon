@@ -8984,11 +8984,11 @@ class MongoProcessor:
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
-        self.file_handler_save_and_validate(bot, user, file_content)
+        self.file_handler_save_and_validate(bot, user, collection_name, file_content)
 
         return True
 
-    def file_handler_save_and_validate(self, bot: Text, user: Text, file_content: File):
+    def file_handler_save_and_validate(self, bot: Text, user: Text, collection_name: str, file_content: File):
         """
         Saves the training file and performs validation.
 
@@ -8996,7 +8996,7 @@ class MongoProcessor:
         :param file_content: The file to be saved and validated
         :return: A dictionary of error messages if validation fails
         """
-        content_dir = os.path.join('file_content_upload_records', bot)
+        content_dir = os.path.join('file_content_upload_records', bot, user, collection_name)
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, file_content.filename)
 
