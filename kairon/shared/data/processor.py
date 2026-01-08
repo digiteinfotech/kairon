@@ -8996,7 +8996,7 @@ class MongoProcessor:
         :param file_content: The file to be saved and validated
         :return: A dictionary of error messages if validation fails
         """
-        content_dir = os.path.join('file_content_upload_records', bot)
+        content_dir = os.path.join('file_content_upload_records', bot, user)
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, file_content.filename)
 
