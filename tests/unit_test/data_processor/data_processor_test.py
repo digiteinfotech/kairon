@@ -9939,6 +9939,31 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
+
+    def test_get_latest_file_folder_not_exists(self,tmp_path):
+        folder = tmp_path / "non_existent"
+
+        with pytest.raises(AppException, match="Folder does not exists"):
+            Utility.get_latest_file(str(folder))
+
+
+    def test_get_latest_file_returns_latest(self,tmp_path):
+        folder = tmp_path / "files"
+        import time
+        import os
+        folder.mkdir()
+
+        file1 = folder / "a.txt"
+        file2 = folder / "b.txt"
+
+        file1.write_text("first")
+        time.sleep(1)
+        file2.write_text("second")
+
+        latest = Utility.get_latest_file(str(folder))
+
+        assert latest == str(file2)
+
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self,
                                                                                resource_save_and_validate_training_files):

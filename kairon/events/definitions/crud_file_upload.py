@@ -1,3 +1,4 @@
+import os
 from typing import Text
 from kairon import Utility
 from kairon.importer.file_importer import FileImporter
@@ -57,9 +58,10 @@ class CrudFileUploader(UploadHandlerBase):
         path = None
         try:
             file_received = UploadHandlerLogProcessor.get_latest_event_file_name(self.bot, self.user, self.collection_name)
-            path = Utility.get_latest_file('file_content_upload_records', self.bot)
+            folder_path = Utility.get_latest_file('file_content_upload_records', self.bot)
+            path = Utility.get_latest_file(folder_path)
             UploadHandlerLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.SAVE.value, collection_name=self.collection_name)
-            file_importer = FileImporter(path, self.bot, self.user, file_received, self.collection_name, self.overwrite)
+            file_importer = FileImporter(folder_path, self.bot, self.user, file_received, self.collection_name, self.overwrite)
             collection_data=file_importer.preprocess()
             if self.overwrite:
                 DataProcessor.delete_collection(self.bot, self.collection_name)
@@ -72,5 +74,5 @@ class CrudFileUploader(UploadHandlerBase):
                                                 status=STATUSES.FAIL.value,
                                                 event_status=EVENT_STATUS.FAIL.value, collection_name=self.collection_name)
         finally:
-            if path:
-                Utility.delete_directory(path)
+            if path and os.path.isfile(path):
+                os.remove(path)
