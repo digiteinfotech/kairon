@@ -64,13 +64,10 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
     def _ensure_indices(self) -> None:
         indexes = [
             IndexModel([("sender_id", ASCENDING), ("event.event", ASCENDING)]),
-            IndexModel([("type", ASCENDING), ("timestamp", ASCENDING)]),
             IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING)]),
-            IndexModel([("event.event", ASCENDING), ("event.timestamp", DESCENDING)]),
-            IndexModel([("event.name", ASCENDING), ("event.timestamp", DESCENDING)]),
-            IndexModel([("event.timestamp", DESCENDING)]),
+            IndexModel([("event.timestamp", ASCENDING), ("event.event", ASCENDING)]),
             IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.event", ASCENDING)]),
-            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.event", ASCENDING), ("event.timestamp", ASCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.timestamp", ASCENDING), ("event.event", ASCENDING)]),
         ]
         self.conversations.create_indexes(indexes)
 
