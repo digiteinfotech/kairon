@@ -58,7 +58,7 @@ class CrudFileUploader(UploadHandlerBase):
         path = None
         try:
             file_received = UploadHandlerLogProcessor.get_latest_event_file_name(self.bot, self.user, self.collection_name)
-            extension = f"{self.bot}/{self.user}"
+            extension = f"{self.bot}/{self.user}/{self.collection_name}"
             folder_path = Utility.get_latest_file('file_content_upload_records', extension)
             path = Utility.get_latest_file(folder_path)
             UploadHandlerLogProcessor.add_log(self.bot, self.user, event_status=EVENT_STATUS.SAVE.value, collection_name=self.collection_name)
