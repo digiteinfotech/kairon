@@ -1658,6 +1658,72 @@ def test_pos_login():
     pytest.session_id = actual["session_id"]
     assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=1&menu_id=233'
 
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login_with_cid():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client", "company_id": 2},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    pytest.session_id = actual["session_id"]
+    assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=2&menu_id=233'
+
+
+def test_create_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.return_value = {
+            "name": "Test branch"
+        }
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        # Act
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        # Assert
+        assert response.status_code == 200
+        assert actual["message"] == "Branch created"
+        assert actual["data"] == {
+            "name": "Test branch"
+        }
+
+        mock_create_branch.assert_called_once_with(
+            session_id=session_id,
+            branch_name="Test branch",
+            street="Andheri East",
+            city="Mumbai",
+            state="Maharashtra"
+        )
 
 def test_get_client_name():
     response = client.get(
@@ -2168,6 +2234,75 @@ def test_create_pos_order_success():
             "available_in_pos": True,
             "uom_id": [1, "Units"],
             "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [123]},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
+        "partner_id": 3
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == 123
+    assert data["data"]["status"] == "created"
+    assert data["error_code"] == 0
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_success_with_cid():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": [],
+            "company_id": 2
         }]},
         status=200
     )
@@ -4030,7 +4165,8 @@ def test_odoo_login():
         mock_pos.return_value.authenticate.assert_called_once_with(
             client_name="XYZ_Pvt_Ltd",
             page_type="pos_products",
-            bot=pytest.bot
+            bot=pytest.bot,
+            company_id=1
         )
 
 def test_bulk_save_success():
