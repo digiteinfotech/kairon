@@ -11,7 +11,13 @@ class ClientRequest(BaseModel):
 class LoginRequest(BaseModel):
     client_name: str
     page_type: PageType = PageType.pos_products.value
+    company_id: int = 1
 
+class BranchRequest(BaseModel):
+    branch_name: str
+    street: str
+    city: str
+    state: str
 
 class ProductItem(BaseModel):
     product_id: int
@@ -22,6 +28,7 @@ class ProductItem(BaseModel):
 class POSOrderRequest(BaseModel):
     products: List[ProductItem]
     partner_id: Optional[int] = None
+    company_id: int = 1
 
 
 class ResponseMessage(BaseModel):
