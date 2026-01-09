@@ -494,7 +494,7 @@ class POSProcessor:
             kwargs={"limit": 1}
         )[0]
 
-    def create_pos_order(self, session_id: str, products: list, partner_id: int = None):
+    def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
         """
         Create POS order using JSON-RPC (create_from_ui)
         with check for available_in_pos for every product.
@@ -579,15 +579,20 @@ class POSProcessor:
             model="pos.config",
             method="search_read",
             args=[[["active", "=", True]]],
-            kwargs={"limit": 1}
+            kwargs={
+                "fields": ["id", "company_id"]
+            }
         )
 
         if not pos_configs:
             raise AppException("No POS Config found")
 
-        config = pos_configs[0]
-        config_id = config["id"]
-        company_id = config["company_id"][0] if config.get("company_id") else False
+        config_id = None
+        for config in pos_configs:
+            comp_id = config["company_id"][0] if config.get("company_id") else False
+            if company_id == comp_id:
+                config_id = config["id"]
+                break
 
         open_session = self.jsonrpc_call(
             session_id=session_id,
@@ -602,9 +607,11 @@ class POSProcessor:
             kwargs={"limit": 1}
         )
 
+        payment_method_ids=[]
         if open_session:
             session_id_odoo = open_session[0]["id"]
             sequence_number = open_session[0].get("sequence_number", 1)
+            payment_method_ids = open_session[0].get("payment_method_ids", [])
         else:
             session_id_odoo = self.jsonrpc_call(
                 session_id=session_id,
@@ -622,16 +629,8 @@ class POSProcessor:
 
             sequence_number = 1
 
-        pay_method = self.jsonrpc_call(
-            session_id=session_id,
-            model="pos.payment.method",
-            method="search_read",
-            args=[[["is_cash_count", "=", True]]],
-            kwargs={"limit": 1}
-        )
-
-        if not pay_method:
-            pay_method = self.jsonrpc_call(
+        if not payment_method_ids:
+            payment_method_ids = self.jsonrpc_call(
                 session_id=session_id,
                 model="pos.payment.method",
                 method="search_read",
@@ -639,10 +638,10 @@ class POSProcessor:
                 kwargs={"limit": 1}
             )
 
-        if not pay_method:
+        if not payment_method_ids:
             raise HTTPException(status_code=400, detail="No POS payment methods found")
 
-        payment_method_id = pay_method[0]["id"]
+        payment_method_id = payment_method_ids[0]
 
         order_data = {
             "name": f"POS/{int(time.time())}",
@@ -679,6 +678,67 @@ class POSProcessor:
         order_id = order_ids[0] if isinstance(order_ids, list) else order_ids
 
         return {"order_id": order_id, "status": "created"}
+
+    def create_branch(self, session_id: str, branch_name: str, street: str, city: str, state: str):
+        INDIA_STATE_MAP = {
+            "Andaman and Nicobar": 577,
+            "Andhra Pradesh": 578,
+            "Arunachal Pradesh": 579,
+            "Assam": 580,
+            "Bihar": 581,
+            "Chattisgarh": 583,
+            "Chandigarh": 582,
+            "Daman and Diu": 585,
+            "Delhi": 586,
+            "Dadra and Nagar Haveli": 584,
+            "Goa": 587,
+            "Gujarat": 588,
+            "Himachal Pradesh": 590,
+            "Haryana": 589,
+            "Jharkhand": 592,
+            "Jammu and Kashmir": 591,
+            "Karnataka": 593,
+            "Kerala": 594,
+            "Lakshadweep": 595,
+            "Maharashtra": 597,
+            "Meghalaya": 599,
+            "Manipur": 598,
+            "Madhya Pradesh": 596,
+            "Mizoram": 600,
+            "Nagaland": 601,
+            "Odisha": 602,
+            "Punjab": 604,
+            "Puducherry": 603,
+            "Rajasthan": 605,
+            "Sikkim": 606,
+            "Tamil Nadu": 607,
+            "Tripura": 609,
+            "Telangana": 608,
+            "Uttarakhand": 611,
+            "Uttar Pradesh": 610,
+            "West Bengal": 612
+        }
+        state_id=INDIA_STATE_MAP[state]
+        branch_data = self.jsonrpc_call(
+            session_id=session_id,
+            model="res.company",
+            method="create",
+            args= [
+                {
+                    "name": branch_name,
+                    "parent_id": 1,
+                    "currency_id": 1,
+                    "country_id": 104,
+                    "state_id": state_id,
+                    "street": street,
+                    "city": city,
+                    "active": True
+                }
+            ],
+            kwargs= {}
+        )
+
+        return {"status": "created"}
 
     def accept_pos_order(self, session_id: str, order_id: int) -> Dict[str, Any]:
         """
