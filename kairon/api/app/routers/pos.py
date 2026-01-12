@@ -55,7 +55,9 @@ def create_branch(
         branch_name=req.branch_name,
         street=req.street,
         city=req.city,
-        state=req.state
+        state=req.state,
+        bot = current_user.get_bot(),
+        user = current_user.get_user()
     )
     return Response(data=result, message="Branch created")
 

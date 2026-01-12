@@ -99,6 +99,7 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
+from fastapi import HTTPException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -1722,8 +1723,37 @@ def test_create_branch():
             branch_name="Test branch",
             street="Andheri East",
             city="Mumbai",
-            state="Maharashtra"
+            state="Maharashtra",
+            bot=pytest.bot,
+            user='integration@demo.ai'
         )
+
+def test_create_branch_failure():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.side_effect = HTTPException(
+            status_code=404,
+            detail="Error in creating branch"
+        )
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+        assert actual["message"] == "Error in creating branch"
 
 def test_get_client_name():
     response = client.get(
