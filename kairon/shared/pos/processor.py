@@ -137,6 +137,27 @@ class POSProcessor:
         return record
 
     @staticmethod
+    def save_branch_details(bot: str, branch_name: str, company_id: int, user: str, pos_type: POSType = POSType.odoo.value):
+        record = POSClientDetails.objects(bot=bot, pos_type=POSType.odoo.value).first()
+        if not record:
+            raise AppException("No POS client configuration found for this bot.")
+        data = record.to_mongo().to_dict()
+        client_name = data["client_name"]
+        branch_details = {
+            "branch_name": branch_name.strip(),
+            "company_id": company_id
+        }
+
+        record = POSClientDetails.objects(
+            bot=bot,
+            client_name=client_name
+        ).update_one(
+            push__branches=branch_details
+        )
+
+        return record
+
+    @staticmethod
     def get_client_details(bot: str):
         """
         Get Odoo client details for the current bot.
@@ -679,7 +700,7 @@ class POSProcessor:
 
         return {"order_id": order_id, "status": "created"}
 
-    def create_branch(self, session_id: str, branch_name: str, street: str, city: str, state: str):
+    def create_branch(self, session_id: str, branch_name: str, street: str, city: str, state: str, bot: str, user: str):
         INDIA_STATE_MAP = {
             "Andaman and Nicobar": 577,
             "Andhra Pradesh": 578,
@@ -718,7 +739,11 @@ class POSProcessor:
             "Uttar Pradesh": 610,
             "West Bengal": 612
         }
-        state_id=INDIA_STATE_MAP[state]
+        try:
+            state_id = INDIA_STATE_MAP[state]
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Invalid state: {state}")
+
         branch_data = self.jsonrpc_call(
             session_id=session_id,
             model="res.company",
@@ -737,8 +762,11 @@ class POSProcessor:
             ],
             kwargs= {}
         )
+        if not branch_data:
+            raise HTTPException(status_code=404, detail="Error in creating branch")
 
-        return {"status": "created"}
+        POSProcessor.save_branch_details(bot, branch_name, branch_data, user)
+        return {"branch_id": branch_data, "status": "created"}
 
     def accept_pos_order(self, session_id: str, order_id: int) -> Dict[str, Any]:
         """
