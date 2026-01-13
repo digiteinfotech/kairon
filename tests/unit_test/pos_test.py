@@ -2,6 +2,8 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
+from kairon.exceptions import AppException
+
 mock_env = {
     "pos": {
         "odoo": {
@@ -141,3 +143,41 @@ def test_create_branch_invalid_state():
             bot="test_bot",
             user="test_user"
         )
+
+def test_save_branch_details_no_pos_client_config():
+    with patch("kairon.shared.pos.processor.POSClientDetails.objects") as mock_objects:
+
+        mock_objects.return_value.first.return_value = None
+
+        with pytest.raises(AppException) as exc:
+            POSProcessor.save_branch_details(
+                bot="test_bot",
+                branch_name="Test Branch",
+                company_id=123,
+                user="test_user"
+            )
+
+        assert str(exc.value) == "No POS client configuration found for this bot."
+
+def test_create_branch_invalid_state_raises_400():
+    service = POSProcessor()
+
+    with patch.object(service, "jsonrpc_call") as mock_jsonrpc, \
+         patch("kairon.shared.pos.processor.POSProcessor.save_branch_details") as mock_save:
+
+        with pytest.raises(HTTPException) as exc:
+            service.create_branch(
+                session_id="dummy_session",
+                branch_name="Test Branch",
+                street="Some Street",
+                city="Mumbai",
+                state="InvalidState",
+                bot="test_bot",
+                user="test_user"
+            )
+
+        assert exc.value.status_code == 400
+        assert exc.value.detail == "Invalid state: InvalidState"
+
+        mock_jsonrpc.assert_not_called()
+        mock_save.assert_not_called()
