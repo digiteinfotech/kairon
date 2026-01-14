@@ -69,12 +69,11 @@ class UploadHandlerLogProcessor:
         )
 
     @staticmethod
-    def is_event_in_progress(bot: str, collection_name: Text, user:str, raise_exception=True):
+    def is_event_in_progress(bot: str, collection_name: Text, raise_exception=True):
         in_progress = False
         try:
             UploadHandlerLogs.objects(
                 bot=bot,
-                user=user,
                 collection_name=collection_name
             ).filter(
                 Q(event_status__ne=EVENT_STATUS.COMPLETED.value) &
