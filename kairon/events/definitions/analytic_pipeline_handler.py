@@ -25,7 +25,6 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         self.bot = bot
         self.user = user
 
-
     def validate(self):
         """Check if pipeline exists and is active."""
         callback_config = CallbackConfig.objects(
