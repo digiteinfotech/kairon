@@ -971,7 +971,7 @@ def test_execute_sends_actual_email_on_failure_trigger_fixed():
         "config": {
             "triggers": [
                 {
-                    "conditions": "failure",
+                    "condition": "failure",
                     "action_type": "email_action",
                     "action_name": "test_mail_functio"
                 }
@@ -1007,14 +1007,14 @@ def test_execute_failure_email_exception_handling():
 
     mock_process = MagicMock()
     mock_process.communicate.return_value = ("", "")
-    mock_process.returncode = 1  # force execution failure
+    mock_process.returncode = 1
 
     predefined_objects = {
         "slot": {"bot": "test_bot"},
         "config": {
             "triggers": [
                 {
-                    "conditions": "failure",
+                    "condition": "failure",
                     "action_type": "email_action",
                     "action_name": "test_mail_functio"
                 }
@@ -1058,14 +1058,14 @@ def test_execute_skips_email_on_success_condition():
 
     mock_process = MagicMock()
     mock_process.communicate.return_value = ("", "error")
-    mock_process.returncode = 1  # failure path
+    mock_process.returncode = 1
 
     predefined_objects = {
         "slot": {"bot": "test_bot"},
         "config": {
             "triggers": [
                 {
-                    "conditions": "success",  # does NOT match failure
+                    "condition": "success",
                     "action_type": "email_action",
                     "action_name": "test_mail"
                 }
@@ -1095,7 +1095,7 @@ def test_execute_skips_email_when_action_type_not_email():
         "config": {
             "triggers": [
                 {
-                    "conditions": "failure",
+                    "condition": "failure",
                     "action_type": "prompt_action",  # not email
                     "action_name": "test_mail"
                 }
@@ -1124,9 +1124,9 @@ def test_execute_skips_email_trigger_without_action_name():
         "config": {
             "triggers": [
                 {
-                    "conditions": "failure",
+                    "condition": "failure",
                     "action_type": "email_action"
-                    # action_name missing
+
                 }
             ]
         }
@@ -1155,7 +1155,7 @@ def test_execute_triggers_email_on_success_condition():
         "config": {
             "triggers": [
                 {
-                    "conditions": "success",
+                    "condition": "success",
                     "action_type": "email_action",
                     "action_name": "test_mail"
                 }
@@ -1190,7 +1190,7 @@ def test_execute_calls_trigger_email_even_when_action_is_none():
         "config": {
             "triggers": [
                 {
-                    "conditions": "success",
+                    "condition": "success",
                     "action_type": None,
                     "action_name": None
                 }
@@ -1215,7 +1215,7 @@ def test_execute_calls_trigger_email_even_when_action_is_none():
 def test_trigger_email_does_not_send_mail_when_action_is_none():
     triggers = [
         {
-            "conditions": "success",
+            "condition": "success",
             "action_type": None,
             "action_name": None
         }
@@ -1236,7 +1236,7 @@ def test_trigger_email_does_not_send_mail_when_action_is_none():
 def test_trigger_email_logs_error_when_config_missing():
     triggers = [
         {
-            "conditions": "success",
+            "condition": "success",
             "action_type": "email_action",
             "action_name": "nonexistent_mail"
         }
@@ -1274,7 +1274,7 @@ def test_execute_success_trigger_email_exception_handling():
         "config": {
             "triggers": [
                 {
-                    "conditions": "success",
+                    "condition": "success",
                     "action_type": "email_action",
                     "action_name": "test_mail"
                 }
@@ -1323,7 +1323,7 @@ def test_execute_triggers_email_on_failure_condition(action_name):
         "config": {
             "triggers": [
                 {
-                    "conditions": "failure",
+                    "condition": "failure",
                     "action_type": "email_action",
                     "action_name": action_name
                 }

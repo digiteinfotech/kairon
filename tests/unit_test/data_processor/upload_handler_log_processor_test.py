@@ -55,7 +55,7 @@ class TestUploadHandlerLogProcessor:
         bot="test_bot"
         collection_name="test_collection"
         user="test_user"
-        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user,False)
+        assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, False)
 
         with pytest.raises(AppException):
             UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user)
