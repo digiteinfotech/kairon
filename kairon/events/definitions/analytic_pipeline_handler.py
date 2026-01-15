@@ -60,7 +60,6 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 "callback_name": callback_name,
                 "event_id": event_id,
                 "slot": {"bot": self.bot},
-
             }
 
             runner = AnalyticsRunner()
