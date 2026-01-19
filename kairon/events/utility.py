@@ -65,6 +65,8 @@ class EventUtility:
     @staticmethod
     def schedule_channel_mail_reading(bot: str):
         from kairon.shared.channels.mail.processor import MailProcessor
+        import pytz
+        IST = pytz.timezone("Asia/Kolkata")
 
         try:
             mail_processor = MailProcessor(bot)
@@ -75,14 +77,14 @@ class EventUtility:
                 KScheduler().update_job(event_id,
                                         TASK_TYPE.EVENT,
                                         cron_exp=interval,
-                                        event_class=EventClass.mail_channel_read_mails, data={"bot": bot, "user": mail_processor.bot_settings.user})
+                                        event_class=EventClass.mail_channel_read_mails, data={"bot": bot, "user": mail_processor.bot_settings.user}, timezone=IST)
             else:
                 event_id = uuid7().hex
                 mail_processor.update_event_id(event_id)
                 KScheduler().add_job(event_id,
                                      TASK_TYPE.EVENT,
                                      interval,
-                                     EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user})
+                                     EventClass.mail_channel_read_mails, {"bot": bot, "user": mail_processor.bot_settings.user}, timezone=IST)
         except Exception as e:
             raise AppException(f"Failed to schedule mail reading for bot {bot}. Error: {str(e)}")
 
