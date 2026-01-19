@@ -1934,6 +1934,8 @@ def test_create_pos_order_product_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
 
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
     responses.add(responses.POST, url, json={"result": []}, status=200)
@@ -1963,6 +1965,8 @@ def test_create_pos_order_product_not_found():
 def test_create_pos_order_product_not_available():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 98}, status=200)
 
@@ -2003,6 +2007,8 @@ def test_create_pos_order_product_not_available():
 def test_create_pos_order_no_pos_config():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
@@ -2045,6 +2051,8 @@ def test_create_pos_order_no_pos_config():
 def test_create_pos_order_no_payment_method():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 99}, status=200)
 
@@ -2113,6 +2121,8 @@ def test_create_pos_order_no_payment_method():
 def test_create_pos_order_without_partner():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
     url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
 
     responses.add(responses.POST, url, json={"result": 500}, status=200)
 
@@ -2625,6 +2635,93 @@ def test_get_pos_products_success():
     assert data["data"]["data"] == products
     assert data["error_code"] == 0
     assert not data["message"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"] is True
+    assert data["message"] == "Session invalidated successfully"
+    assert not data["data"]
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_odoo_error_response():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={
+            "error": {
+                "code": 200,
+                "message": "Session expired"
+            }
+        },
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id=invalid-session",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"] is True
+    assert data["error_code"] == 0
+    assert not data["data"]
+    assert data["message"] == "Session invalidated successfully"
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_request_failure():
+    import requests
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        body=requests.exceptions.ConnectionError("Connection refused"),
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert "Connection refused" in data["message"]
+    assert not data["data"]
+    assert data["error_code"] == 400
 
 
 def test_secure_collection_crud_lifecycle():
