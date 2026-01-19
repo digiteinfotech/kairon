@@ -12,6 +12,8 @@ from unittest import mock
 from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
+from zoneinfo import ZoneInfo
+
 import litellm
 
 import pytest
@@ -54,7 +56,7 @@ from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, Actions, ParallelActionConfig, \
-    PyscriptActionConfig, PromptAction, HttpActionConfig
+    PyscriptActionConfig, PromptAction, HttpActionConfig, AnalyticsPipelineConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -3232,9 +3234,11 @@ def test_create_pipeline_event_cron(mock_event_server):
     pytest.analytics_event_id = actual["data"]["event_id"]
 
 
+
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_create_pipeline_event_epoch(mock_event_server):
     future_epoch = int(time.time()) + 3600
+    timezone = "Asia/Kolkata"
 
     payload = {
         "pipeline_name": "one_time_pipeline",
@@ -3242,8 +3246,8 @@ def test_create_pipeline_event_epoch(mock_event_server):
         "timestamp": "2025-11-25T14:30:00Z",
         "scheduler_config": {
             "expression_type": "epoch",
-            "schedule": str(future_epoch),
-            "timezone": "Asia/Kolkata"
+            "schedule": future_epoch,
+            "timezone": timezone
         },
         "data_deletion_policy": [],
         "triggers": []
@@ -3260,6 +3264,22 @@ def test_create_pipeline_event_epoch(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Event scheduled!"
     assert "event_id" in actual["data"]
+
+    event_id = actual["data"]["event_id"]
+    saved_event = AnalyticsPipelineConfig.objects(id=event_id).get()
+    saved_schedule = saved_event.scheduler_config["schedule"]
+
+    expected_dt = datetime.fromtimestamp(
+        future_epoch,
+        ZoneInfo(timezone)
+    ).isoformat()
+
+    assert saved_schedule == expected_dt
+
+    mock_event_server.assert_called_once()
+    _, kwargs = mock_event_server.call_args
+    assert kwargs["run_at"] == expected_dt
+    assert kwargs["timezone"] == timezone
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
