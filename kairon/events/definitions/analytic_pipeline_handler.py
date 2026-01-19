@@ -124,7 +124,9 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             if isinstance(run_at, (int, float)):
                 tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
                 run_at = datetime.fromtimestamp(run_at, tzinfo)
+                run_at = run_at.isoformat()
 
+            config['scheduler_config']['schedule'] = run_at
             event_id = AnalyticsPipelineProcessor.add_scheduled_task(self.bot, self.user, config)
 
             payload = {"bot": self.bot, "user": self.user, "event_id": event_id}
@@ -133,7 +135,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 EventClass.analytics_pipeline,
                 payload,
                 is_scheduled=True,
-                run_at=run_at.isoformat(),
+                run_at=run_at,
                 timezone=timezone,
             )
 
