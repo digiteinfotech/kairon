@@ -2977,11 +2977,15 @@ class TestAccountProcessor:
             return None
 
         monkeypatch.setattr(IDPProcessor, 'delete_idp', _delete_idp)
-
+        org_data = {"name": "test_del_org"}
+        mail = "test@demo.in"
         account = 1234
-        name = "new_test"
-        OrgProcessor.delete_org(account=account, org_id=name, user="test")
-        org = OrgProcessor.get_organization(org_name=name)
+        user = User(account=account, email=mail)
+        OrgProcessor.upsert_organization(user=user, org_data=org_data)
+        result = Organization.objects().get(account__contains=user.account)
+        org_id = str(result.id)
+        OrgProcessor.delete_org(account=account, org_id=org_id, user="test@demo.in")
+        org = OrgProcessor.get_organization(org_name=org_id)
         assert org == {}
 
     @pytest.mark.asyncio
