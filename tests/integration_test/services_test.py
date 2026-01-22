@@ -34148,6 +34148,97 @@ def test_add_one_time_schedule_integration_failure(mock_request_event_server):
     assert "Event server failed" in body["message"]
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_message_broadcast_one_time_scheduled_broadcast(mock_event_server):
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": 1769059740,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(response.json())
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_list_broadcast_config_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    for sched in actual["data"]["schedules"]:
+        sched.pop("_id", None)
+        sched.pop("timestamp", None)
+        sched.pop("bot", None)
+        sched.pop("user", None)
+
+    assert actual["data"] == {
+        "schedules": [
+            {
+                "name": "first_scheduler_dynamic",
+                "connector_type": "whatsapp",
+                "broadcast_type": "dynamic",
+                "collection_config": {},
+                "scheduler_config": {
+                    "expression_type": "cron",
+                    "schedule": "21 11 * * *",
+                    "timezone": "Asia/Kolkata",
+                },
+                "retry_count": 0,
+                "pyscript": "send_msg('template_name', '9876543210')",
+                "status": True,
+                "template_config": [],
+            },
+            {
+                "name": "one_time_schedule",
+                "connector_type": "whatsapp",
+                "broadcast_type": "static",
+                "collection_config": {},
+                "recipients_config": {"recipients": "918958030541,"},
+                "retry_count": 0,
+                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
+                "status": True,
+            },
+            {
+                "name": "one_time_schedule_broadcast",
+                "connector_type": "whatsapp",
+                "broadcast_type": "static",
+                "collection_config": {},
+                "recipients_config": {"recipients": "916200035185,"},
+                "retry_count": 0,
+                "status": True,
+                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
+                "scheduler_config": {"expression_type": "epoch",
+                                     "schedule": 1769059740,
+                                     "timezone": "Asia/Calcutta"},
+            },
+        ]
+    }
+
+
 def test_broadcast_config_error():
     config = {
         "name": "one_time_schedule",
