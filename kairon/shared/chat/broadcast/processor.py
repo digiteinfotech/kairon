@@ -67,9 +67,7 @@ class MessageBroadcastProcessor:
                 except ValueError:
                     raise AppException("schedule must be a valid integer epoch time for 'epoch' type")
 
-                tzinfo = ZoneInfo(scheduler_config.timezone) if scheduler_config.timezone else ZoneInfo("UTC")
-                run_at = datetime.fromtimestamp(epoch_time, tzinfo)
-                scheduler_config.schedule = run_at
+                scheduler_config.schedule = epoch_time
 
             settings.scheduler_config = scheduler_config
 
