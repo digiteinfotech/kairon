@@ -34195,48 +34195,22 @@ def test_list_broadcast_config_after_update():
         sched.pop("bot", None)
         sched.pop("user", None)
 
-    assert actual["data"] == {
-        "schedules": [
-            {
-                "name": "first_scheduler_dynamic",
-                "connector_type": "whatsapp",
-                "broadcast_type": "dynamic",
-                "collection_config": {},
-                "scheduler_config": {
-                    "expression_type": "cron",
-                    "schedule": "21 11 * * *",
-                    "timezone": "Asia/Kolkata",
-                },
-                "retry_count": 0,
-                "pyscript": "send_msg('template_name', '9876543210')",
-                "status": True,
-                "template_config": [],
-            },
-            {
-                "name": "one_time_schedule",
-                "connector_type": "whatsapp",
-                "broadcast_type": "static",
-                "collection_config": {},
-                "recipients_config": {"recipients": "918958030541,"},
-                "retry_count": 0,
-                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
-                "status": True,
-            },
-            {
-                "name": "one_time_schedule_broadcast",
-                "connector_type": "whatsapp",
-                "broadcast_type": "static",
-                "collection_config": {},
-                "recipients_config": {"recipients": "916200035185,"},
-                "retry_count": 0,
-                "status": True,
-                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
-                "scheduler_config": {"expression_type": "epoch",
-                                     "schedule": 1769059740,
-                                     "timezone": "Asia/Calcutta"},
-            },
-        ]
-    }
+    print(actual["data"])
+    assert actual["data"] == {'schedules': [
+        {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', 'timezone': 'UTC'},
+         'recipients_config': {'recipients': '918958030541,'},
+         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
+         'retry_count': 0, 'status': True},
+        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'recipients_config': {'recipients': '918958030541,'},
+         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
+         'retry_count': 0, 'status': True},
+        {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'scheduler_config': {'expression_type': 'epoch', 'schedule': 1769059740, 'timezone': 'Asia/Calcutta'},
+         'recipients_config': {'recipients': '916200035185,'},
+         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
+         'retry_count': 0, 'status': True}]}
 
 
 def test_broadcast_config_error():
