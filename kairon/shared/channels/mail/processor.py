@@ -18,6 +18,8 @@ from kairon.shared.data.data_objects import BotSettings
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
+from croniter import croniter
+import pytz
 
 
 
@@ -308,10 +310,21 @@ class MailProcessor:
 
         last_processed_uid = self.state.last_email_uid
         base_read_criteria = None
+        IST = pytz.timezone("Asia/Kolkata")
+
         if last_processed_uid == 0:
-            time_shift = int(self.config.get('interval', 20 * 60))
-            last_read_timestamp = datetime.now() - timedelta(seconds=time_shift)
-            base_read_criteria = AND(date_gte=last_read_timestamp.date())
+            cron_expr = self.config.get("interval", "*/30 * * * *")
+
+            now_ist = datetime.now(IST)
+
+            try:
+                itr = croniter(cron_expr, now_ist)
+                last_read_timestamp = itr.get_prev(datetime)
+            except Exception:
+                # fallback: 20 minutes ago (IST)
+                last_read_timestamp = now_ist - timedelta(minutes=60)
+            last_read_date = last_read_timestamp.date()
+            base_read_criteria = AND(date_gte=last_read_date)
         else:
             query = f'{int(last_processed_uid) + 1}:*'
             base_read_criteria = AND(uid=query)
