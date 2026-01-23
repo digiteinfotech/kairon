@@ -1,6 +1,8 @@
 import asyncio
 import time
 
+from croniter.croniter import CroniterError
+import logging
 from loguru import logger
 from pydantic.schema import timedelta
 from pydantic.validators import datetime
@@ -314,14 +316,13 @@ class MailProcessor:
 
         if last_processed_uid == 0:
             cron_expr = self.config.get("interval", "*/30 * * * *")
-
             now_ist = datetime.now(IST)
 
             try:
                 itr = croniter(cron_expr, now_ist)
                 last_read_timestamp = itr.get_prev(datetime)
-            except Exception:
-                # fallback: 20 minutes ago (IST)
+            except (CroniterError, ValueError) as e:
+                logging.error(f"Croniter calculation failed for '{cron_expr}': {e}")
                 last_read_timestamp = now_ist - timedelta(minutes=60)
             last_read_date = last_read_timestamp.date()
             base_read_criteria = AND(date_gte=last_read_date)
@@ -331,7 +332,6 @@ class MailProcessor:
 
         criteria.append(base_read_criteria)
 
-        # Combine all criteria with AND
         return AND(*criteria)
 
 
