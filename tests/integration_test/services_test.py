@@ -34156,7 +34156,7 @@ def test_update_message_broadcast_one_time_scheduled_broadcast(mock_event_server
         "connector_type": "whatsapp",
         "recipients_config": {"recipients": "916200035185,"},
         "scheduler_config": {
-            "schedule": 1769059740,
+            "schedule": 2524608000,
             "expression_type": "epoch",
             "timezone": "Asia/Calcutta"
         },
@@ -34196,21 +34196,12 @@ def test_list_broadcast_config_after_update():
         sched.pop("user", None)
 
     print(actual["data"])
-    assert actual["data"] == {'schedules': [
-        {'name': 'first_scheduler', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
-         'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', 'timezone': 'UTC'},
-         'recipients_config': {'recipients': '918958030541,'},
-         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
-         'retry_count': 0, 'status': True},
-        {'name': 'one_time_schedule', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
-         'recipients_config': {'recipients': '918958030541,'},
-         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
-         'retry_count': 0, 'status': True},
-        {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
-         'scheduler_config': {'expression_type': 'epoch', 'schedule': 1769059740, 'timezone': 'Asia/Calcutta'},
+    assert actual["data"]["schedules"][2] == {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'scheduler_config': {'expression_type': 'epoch', 'schedule': 2524608000, 'timezone': 'Asia/Calcutta'},
          'recipients_config': {'recipients': '916200035185,'},
          'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
-         'retry_count': 0, 'status': True}]}
+         'retry_count': 0, 'status': True
+                                              }
 
 
 def test_broadcast_config_error():

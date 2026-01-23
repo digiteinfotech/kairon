@@ -317,7 +317,41 @@ class TestMailChannel:
 
         assert criteria == '((UNSEEN) (OR OR SUBJECT "Test Subject" SUBJECT "another test subject" SUBJECT "happy") NOT ((SUBJECT "cat")) (OR FROM "@digite.com" FROM "@nimblework.com") NOT ((FROM "info")) NOT ((FROM "nomreply")) (UID 124:*))'
 
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    def test_generate_criteria_with_last_email_uid_zero(self, mock_get_channel_config):
+        import pytz
+        from datetime import datetime
+        bot_id = pytest.mail_test_bot
 
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+                'interval': "*/30 * * * *"
+            }
+        }
+        IST = pytz.timezone("Asia/Kolkata")
+
+        fixed_now = IST.localize(datetime(2026, 1, 20, 12, 0, 0))
+        fixed_prev = IST.localize(datetime(2026, 1, 20, 11, 30, 0))
+
+        with patch("kairon.shared.channels.mail.processor.croniter") as mock_croniter:
+            mock_iter = MagicMock()
+            mock_iter.get_prev.return_value = fixed_prev
+            mock_croniter.return_value = mock_iter
+            mp = MailProcessor(bot=bot_id)
+            mp.state.last_email_uid = 0
+
+            criteria = mp.generate_criteria()
+            assert criteria == '((SINCE 20-Jan-2026))'
+
+            criteria = mp.generate_criteria(read_status="unseen")
+            assert criteria == '((UNSEEN) (SINCE 20-Jan-2026))'
+
+            criteria = mp.generate_criteria(read_status="seen")
+            assert criteria == '((SEEN) (SINCE 20-Jan-2026))'
 
     @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
     @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
