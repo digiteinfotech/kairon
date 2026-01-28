@@ -3,7 +3,7 @@ from fastapi import APIRouter, Query, Security, Path
 from kairon.pos.definitions.factory import POSFactory
 from kairon.shared.pos.constants import POSType
 from kairon.shared.pos.models import (
-    LoginRequest, ClientRequest, POSOrderRequest
+    LoginRequest, ClientRequest, POSOrderRequest, BranchRequest
 )
 from kairon.api.models import Response
 from kairon.shared.pos.processor import POSProcessor
@@ -24,7 +24,7 @@ def pos_login(req: LoginRequest,
     Returns session_id + cookies using /web/session/authenticate
     """
     pos_instance = POSFactory.get_instance(pos_type)
-    response = pos_instance().authenticate(client_name=req.client_name, page_type=req.page_type, bot=current_user.get_bot())
+    response = pos_instance().authenticate(client_name=req.client_name, page_type=req.page_type, bot=current_user.get_bot(), company_id=req.company_id)
 
     return response
 
@@ -44,6 +44,22 @@ def register(
 
     return Response(data=data)
 
+@router.post("/create/branch", response_model=Response)
+def create_branch(
+        req: BranchRequest,
+        session_id: str = Query(..., description="Odoo session_id"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
+    result = pos_processor.create_branch(
+        session_id=session_id,
+        branch_name=req.branch_name,
+        street=req.street,
+        city=req.city,
+        state=req.state,
+        bot = current_user.get_bot(),
+        user = current_user.get_user()
+    )
+    return Response(data=result, message="Branch created")
 
 @router.delete("/client/delete", response_model=Response)
 def delete_client(
@@ -94,7 +110,8 @@ def create_order(req: POSOrderRequest, session_id: str = Query(...),
     result = pos_processor.create_pos_order(
         session_id=session_id,
         products=[p.dict() for p in req.products],
-        partner_id=req.partner_id
+        partner_id=req.partner_id,
+        company_id=req.company_id
     )
     return Response(data=result, message="POS order created")
 
