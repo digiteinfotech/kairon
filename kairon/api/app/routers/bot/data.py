@@ -148,7 +148,6 @@ async def update_cognition_data(
     """
     Updates cognition content into the bot
     """
-
     return {
         "message": "Record updated!",
         "data": {
