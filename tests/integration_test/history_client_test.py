@@ -1032,14 +1032,14 @@ def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
     to_date = datetime.utcnow().date()
     responses.add(
         responses.GET,
-        f"https://localhost:8083/api/history/{pytest.bot}/conversations/?from_date={from_date}&to_date={to_date}",
+        f"https://localhost:8083/api/history/{pytest.bot}_flattened/conversations/?from_date={from_date}&to_date={to_date}",
         status=200,
         match=[responses.matchers.json_params_matcher({})],
         json={"data": {'conversation_data': history_conversations()[0]}}
     )
 
     response = client.get(
-        f"/api/history/{pytest.bot}/conversations/",
+        f"/api/history/{pytest.bot}_flattened/conversations/",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
