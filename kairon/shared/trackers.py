@@ -61,6 +61,10 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         """Returns the current conversation."""
         return self.db[self.collection]
 
+    @property
+    def flattened_conversations(self) -> Collection:
+        return self.db[f"{self.collection}_flattened"]
+
     def _ensure_indices(self) -> None:
         indexes = [
             IndexModel([("sender_id", ASCENDING), ("event.event", ASCENDING)]),
@@ -73,6 +77,13 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("event.event", ASCENDING), ("event.timestamp", ASCENDING)]),
         ]
         self.conversations.create_indexes(indexes)
+        self.flattened_conversations.create_indexes([
+            IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING), ("timestamp", DESCENDING)]),
+            IndexModel([("conversation_id", ASCENDING), ("sender_id", ASCENDING)]),
+            IndexModel([("timestamp", DESCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("timestamp", DESCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING), ("type", ASCENDING), ("timestamp", DESCENDING)]),
+        ])
 
     @staticmethod
     def _current_tracker_state_without_events(tracker: DialogueStateTracker) -> Dict:
@@ -85,65 +96,91 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
     async def save(self, tracker: DialogueStateTracker):
         """Saves the current conversation state."""
-        if len(tracker.events):
-            await self.stream_events(tracker)
+        if not tracker.events:
+            return
 
-            additional_events = self._additional_events(tracker)
-            if additional_events:
-                sender_id = tracker.sender_id
-                conversation_id = uuid7().hex
-                flattened_conversation = {
-                    "type": "flattened",
+        await self.stream_events(tracker)
+
+        additional_events = self._additional_events(tracker)
+        if not additional_events:
+            return
+
+        sender_id = tracker.sender_id
+        conversation_id = uuid7().hex
+
+        rasa_events = []
+
+        flattened_conversation = {
+            "type": "flattened",
+            "sender_id": sender_id,
+            "conversation_id": conversation_id,
+            "data": {},
+            "tag": "tracker_store",
+        }
+
+        actions_predicted = []
+        bot_responses = []
+        metadata = {}
+
+        for event in additional_events:
+            event = event.as_dict()
+
+            if not event.get("metadata"):
+                event["metadata"] = {}
+            event["metadata"].update(metadata)
+
+            rasa_events.append(
+                {
                     "sender_id": sender_id,
                     "conversation_id": conversation_id,
-                    "data": {},
+                    "event": event,
+                    "tag": "tracker_store",
+                    "type": "bot",
                 }
-                actions_predicted = []
-                bot_responses = []
-                data = []
-                metadata = {}
-                for event in additional_events:
-                    event = event.as_dict()
-                    if not event.get("metadata"):
-                        event["metadata"] = {}
-                    event["metadata"].update(metadata)
-                    data.append(
-                        {
-                            "sender_id": sender_id,
-                            "conversation_id": conversation_id,
-                            "event": event,
-                            "tag": "tracker_store",
-                            "type": "bot",
-                        }
-                    )
-                    if event["event"] == "user":
-                        flattened_conversation["timestamp"] = event.get("timestamp")
-                        flattened_conversation["data"]["user_input"] = event.get("text")
-                        flattened_conversation["data"]["intent"] = event["parse_data"][
-                            "intent"
-                        ]["name"]
-                        flattened_conversation["data"]["confidence"] = event["parse_data"][
-                            "intent"
-                        ]["confidence"]
-                        metadata = event.get("metadata")
-                    elif event["event"] == "action":
-                        actions_predicted.append(event.get("name"))
-                    elif event["event"] == "bot":
-                        bot_responses.append(
-                            {
-                                "text": event.get("text"),
-                                "data": event.get("data"),
-                                "utter_action": event.get("metadata", {}).get('utter_action')
-                            }
-                        )
-                flattened_conversation["data"]["action"] = actions_predicted
-                flattened_conversation["data"]["bot_response"] = bot_responses
-                flattened_conversation["metadata"] = metadata
-                flattened_conversation["tag"] = "tracker_store"
-                data.append(flattened_conversation)
-                if data:
-                    records = self.conversations.insert_many(data)
-                    logger.info(f"db: {self.db.name}, collection: {self.collection}, env: {Utility.environment['env']}, records: {len(records.inserted_ids)}")
+            )
+
+            if event["event"] == "user":
+                flattened_conversation["timestamp"] = event.get("timestamp")
+                flattened_conversation["data"]["user_input"] = event.get("text")
+                flattened_conversation["data"]["intent"] = (
+                    event.get("parse_data", {})
+                    .get("intent", {})
+                    .get("name")
+                )
+                flattened_conversation["data"]["confidence"] = (
+                    event.get("parse_data", {})
+                    .get("intent", {})
+                    .get("confidence")
+                )
+                metadata = event.get("metadata", {})
+
+            elif event["event"] == "action":
+                actions_predicted.append(event.get("name"))
+
+            elif event["event"] == "bot":
+                bot_responses.append(
+                    {
+                        "text": event.get("text"),
+                        "data": event.get("data"),
+                        "utter_action": event.get("metadata", {}).get("utter_action"),
+                    }
+                )
+
+        flattened_conversation["data"]["action"] = actions_predicted
+        flattened_conversation["data"]["bot_response"] = bot_responses
+        flattened_conversation["metadata"] = metadata
+
+        if rasa_events:
+            self.conversations.insert_many(rasa_events)
+
+        self.flattened_conversations.insert_one(flattened_conversation)
+
+        logger.info(
+            f"db={self.db.name}, "
+            f"events_collection={self.collection}, "
+            f"flattened_collection={self.collection}_flattened, "
+            f"events={len(rasa_events)}"
+        )
 
     async def _retrieve(
         self, sender_id: Text, fetch_events_from_all_sessions: bool

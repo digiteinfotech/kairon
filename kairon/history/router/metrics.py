@@ -19,7 +19,7 @@ async def user_with_metrics(
 ):
     """Fetches the list of user who has conversation with the agent with steps and time."""
     users, message = HistoryProcessor.user_with_metrics(
-        collection, from_date, to_date
+        f"{collection}_flattened", from_date, to_date
     )
     return {"data": {"users": users}, "message": message}
 
@@ -33,7 +33,7 @@ async def visitor_hit_fallback_count(
 ):
     """Fetches the number of times the agent hit a fallback (ie. not able to answer) to user queries."""
     visitor_hit_fallback, message = HistoryProcessor.visitor_hit_fallback(
-        collection, from_date, to_date, fallback_intent
+        f"{collection}_flattened", from_date, to_date, fallback_intent
     )
     return {"data": visitor_hit_fallback, "message": message}
 
@@ -85,7 +85,7 @@ async def complete_conversations(
 ):
     """Fetches the number of successful conversations of the bot, which had no fallback."""
     conversation_count, message = HistoryProcessor.successful_conversations(
-        collection, from_date, to_date, fallback_intent
+        f"{collection}_flattened", from_date, to_date, fallback_intent
     )
     return {"data": conversation_count, "message": message}
 
