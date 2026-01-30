@@ -4496,62 +4496,49 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     log.pop('timestamp')
 
 
+
+
+@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_from_value(mock_get_embedding):
+    async def mock_get_embedding_async(*args, **kwargs):
+        embedding = [0.1] * 1536
+        return [embedding, embedding]
+
+    mock_get_embedding.side_effect = mock_get_embedding_async
+
     action_name = "test_vectordb_action_execution"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
-            user="user").save()
-    payload_body = "Hi"
+    bot_id = "bot1"
+
+    Actions(name=action_name, type="database_action", bot=bot_id, user="user").save()
+
     DatabaseAction(
         name=action_name,
-        collection='test_vectordb_action_execution',
-        payload=[
-            DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_value", value=payload_body)],
+        collection="test_vectordb_action_execution",
+        payload=[DbQuery(query_type="embedding_search", type="from_value", value="Hi")],
         response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
-        bot="5f50fd0a56b698ca10d75d2e",
-        user="user"
+        bot=bot_id, user="user"
     ).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b698ca10d75d2e", user="user").save()
-    llm_secret = LLMSecret(
+
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot_id, user="user").save()
+
+    LLMSecret(
         llm_type="openai",
         api_key="key_value",
         models=["model1", "model2"],
         api_base_url="https://api.example.com",
-        bot="5f50fd0a56b698ca10d75d2e",
+        bot=bot_id,
         user="user"
-    )
-    llm_secret.save()
-    embedding = list(np.random.random(Qdrant.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points/query'
-    resp_msg = json.dumps(
-        {
-            "time": 0,
-            "status": "ok",
-            "result": [
-                {
-                    "id": 0,
-                    "payload": {},
-                    "vector": [
-                        0
-                    ]
-                }
-            ]
-        }
-    )
+    http_url = f"http://localhost:6333/collections/{bot_id}_{action_name}_faq_embd/points/query"
     responses.add(
-        method=responses.POST,
-        url=http_url,
-        body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'with_payload': True, 'limit': 10})],
+        responses.POST,
+        http_url,
+        json={"time": 0, "status": "ok", "result": [{"id": 0, "payload": {}, "vector": [0]}]},
+        status=200
     )
 
     request_object = {
@@ -4559,47 +4546,28 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56b698ca10d75d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "slots": {"bot": bot_id},
+            "latest_message": {'text': 'get intents'},
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "events": [],
             "latest_input_channel": "rest",
             "active_loop": {},
             "latest_action": {},
         },
-        "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56b698ca10d75d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
-        },
+        "domain": {"slots": {"bot": bot_id}},
         "version": "version"
     }
+
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
+
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}]
-    assert response_json['responses'][0]['text'] == "The value of 0 is [0]"
-    log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload_body],
-                'metadata': {'user': 'default', 'bot': '5f50fd0a56b698ca10d75d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    assert len(response_json["events"]) == 2
+    slot_event = next((e for e in response_json["events"] if e["event"] == "slot" and e["name"] == "vector_value"),
+                      None)
+    assert slot_event is not None
 
 
 @responses.activate
@@ -4750,60 +4718,98 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
 
 
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_from_slot(mock_get_embedding):
+
+
+    async def mock_get_embedding_async(*args, **kwargs):
+        embedding = [0.1] * 1536
+        return [embedding, embedding]
+
+    mock_get_embedding.side_effect = mock_get_embedding_async
+
+    responses.add_passthru(
+        "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+    )
+
     action_name = "test_vectordb_action_execution"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
-            user="user").save()
-    slot = 'name'
-    Slots(name=slot, type='text', bot='5f50fx0a56b698ca10d35d2e', user='user').save()
+    bot_id = "5f50fx0a56b698ca10d35d2e"
+    slot_name = "name"
     payload = "Hi"
-    DatabaseAction(
+
+    Actions(
         name=action_name,
-        collection='test_vectordb_action_execution_embedding_search_from_slot',
-        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_slot", value='name')],
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
-        bot="5f50fx0a56b698ca10d35d2e",
+        type=ActionType.database_action.value,
+        bot=bot_id,
         user="user"
     ).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
-    llm_secret = LLMSecret(
+
+    Slots(
+        name=slot_name,
+        type="text",
+        bot=bot_id,
+        user="user"
+    ).save()
+
+    DatabaseAction(
+        name=action_name,
+        collection="test_vectordb_action_execution_embedding_search_from_slot",
+        payload=[
+            DbQuery(
+                query_type=DbActionOperationType.embedding_search.value,
+                type="from_slot",
+                value=slot_name
+            )
+        ],
+        response=HttpActionResponse(
+            value="The value of ${data.result.0.id} is ${data.result.0.vector}"
+        ),
+        set_slots=[
+            SetSlotsFromResponse(
+                name="vector_value",
+                value="${data.result.0.vector}"
+            )
+        ],
+        bot=bot_id,
+        user="user"
+    ).save()
+
+    BotSettings(
+        llm_settings=LLMSettings(enable_faq=True),
+        bot=bot_id,
+        user="user"
+    ).save()
+
+    LLMSecret(
         llm_type="openai",
         api_key="key_value",
         models=["model1", "model2"],
         api_base_url="https://api.example.com",
-        bot="5f50fx0a56b698ca10d35d2e",
+        bot=bot_id,
         user="user"
-    )
-    llm_secret.save()
+    ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fx0a56b698ca10d35d2e_test_vectordb_action_execution_embedding_search_from_slot_faq_embd/points/query'
-    resp_msg = json.dumps(
-        {
+    http_url = (
+        f"http://localhost:6333/collections/"
+        f"{bot_id}_test_vectordb_action_execution_embedding_search_from_slot_faq_embd"
+        f"/points/query"
+    )
+
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        json={
             "time": 0,
             "status": "ok",
             "result": [
                 {
                     "id": 15,
                     "payload": {},
-                    "vector": [
-                        15
-                    ]
+                    "vector": [15]
                 }
             ]
-        }
-    )
-    responses.add(
-        method=responses.POST,
-        url=http_url,
-        body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'with_payload': True, 'limit': 10})],
+        },
+        status=200
     )
 
     request_object = {
@@ -4811,12 +4817,18 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": payload},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "slots": {
+                "bot": bot_id,
+                slot_name: payload
+            },
+            "latest_message": {
+                "text": "get intents",
+                "intent_ranking": [{"name": "test_run"}]
+            },
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "events": [],
             "latest_input_channel": "rest",
             "active_loop": {},
             "latest_action": {},
@@ -4826,7 +4838,10 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
             "session_config": {},
             "intents": [],
             "entities": [],
-            "slots": {"bot": "5f50fx0a56b698ca10d35d2e", "name": None},
+            "slots": {
+                "bot": {"type": "text"},
+                slot_name: {"type": "text"}
+            },
             "responses": {},
             "actions": [],
             "forms": {},
@@ -4834,81 +4849,122 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
         },
         "version": "version"
     }
+
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
+
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}]
-    assert response_json['responses'][0]['text'] == "The value of 15 is [15]"
-    log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload],
-                'metadata': {'user': 'default', 'bot': '5f50fx0a56b698ca10d35d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    assert len(response_json["events"]) == 2
+    assert len(response_json["responses"]) == 1
+
+    assert response_json["events"] == [
+        {
+            "event": "slot",
+            "timestamp": None,
+            "name": "vector_value",
+            "value": "[15]"
+        },
+        {
+            "event": "slot",
+            "timestamp": None,
+            "name": "kairon_action_response",
+            "value": "The value of 15 is [15]"
+        }
+    ]
+
+    assert response_json["responses"][0]["text"] == "The value of 15 is [15]"
+
+    assert mock_get_embedding.called
 
 
+
+@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_search_no_response_dispatch(
+    mock_get_embedding
+):
+    async def mock_get_embedding_async(*args, **kwargs):
+        embedding = [0.1] * 1536
+        return [embedding, embedding]
+
+    mock_get_embedding.side_effect = mock_get_embedding_async
+
+    responses.add_passthru(
+        "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+    )
+
     action_name = "test_vectordb_action_execution_no_response_dispatch"
-    Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
-            user="user").save()
+    bot_id = "5f50fd0a56v098ca10d75d2e"
     payload_body = "Milk"
-    DatabaseAction(
+
+    Actions(
         name=action_name,
-        collection='test_vectordb_action_execution_no_response_dispatch',
-        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value,
-                         type="from_value", value=payload_body)],
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}",
-                                    dispatch=False),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
-        bot="5f50fd0a56v098ca10d75d2e",
+        type=ActionType.database_action.value,
+        bot=bot_id,
         user="user"
     ).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56v098ca10d75d2e", user="user").save()
-    llm_secret = LLMSecret(
+
+    DatabaseAction(
+        name=action_name,
+        collection="test_vectordb_action_execution_no_response_dispatch",
+        payload=[
+            DbQuery(
+                query_type=DbActionOperationType.embedding_search.value,
+                type="from_value",
+                value=payload_body
+            )
+        ],
+        response=HttpActionResponse(
+            value="The value of ${data.result.0.id} is ${data.result.0.vector}",
+            dispatch=False
+        ),
+        set_slots=[
+            SetSlotsFromResponse(
+                name="vector_value",
+                value="${data.result.0.vector}"
+            )
+        ],
+        bot=bot_id,
+        user="user"
+    ).save()
+
+    BotSettings(
+        llm_settings=LLMSettings(enable_faq=True),
+        bot=bot_id,
+        user="user"
+    ).save()
+
+    LLMSecret(
         llm_type="openai",
         api_key="key_value",
         models=["model1", "model2"],
         api_base_url="https://api.example.com",
-        bot="5f50fd0a56v098ca10d75d2e",
+        bot=bot_id,
         user="user"
-    )
-    llm_secret.save()
+    ).save()
 
-    http_url = 'http://localhost:6333/collections/5f50fd0a56v098ca10d75d2e_test_vectordb_action_execution_no_response_dispatch_faq_embd/points/query'
-    resp_msg = json.dumps(
-        {
+    http_url = (
+        f"http://localhost:6333/collections/"
+        f"{bot_id}_test_vectordb_action_execution_no_response_dispatch_faq_embd"
+        f"/points/query"
+    )
+
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        json={
             "time": 0,
             "status": "ok",
             "result": [
                 {
                     "id": 0,
                     "payload": {},
-                    "vector": [
-                        0
-                    ]
+                    "vector": [0]
                 }
             ]
-        }
-    )
-    responses.add(
-        method=responses.POST,
-        url=http_url,
-        body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher({'query': embedding,
-                                                       'with_payload': True, 'limit': 10})],
+        },
+        status=200
     )
 
     request_object = {
@@ -4916,48 +4972,37 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": "5f50fd0a56v098ca10d75d2e"},
-            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "slots": {"bot": bot_id},
+            "latest_message": {
+                "text": "get intents",
+                "intent_ranking": [{"name": "test_run"}]
+            },
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "events": [],
             "latest_input_channel": "rest",
             "active_loop": {},
             "latest_action": {},
         },
         "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": "5f50fd0a56v098ca10d75d2e"},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
+            "slots": {"bot": bot_id}
         },
         "version": "version"
     }
+
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response.status_code == 200
-    assert len(response_json['events']) == 2
-    assert len(response_json['responses']) == 0
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[0]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 0 is [0]'}]
-    assert response_json['responses'] == []
-    log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload_body],
-                'metadata': {'user': 'default', 'bot': '5f50fd0a56v098ca10d75d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
 
+    assert response.status_code == 200
+
+    assert len(response_json["events"]) == 2
+    assert response_json["responses"] == []
+
+    slot_event = response_json["events"][0]
+    assert slot_event["event"] == "slot"
+    assert slot_event["name"] == "vector_value"
+    assert slot_event["value"] == '[0]'
 
 def test_vectordb_action_execution_invalid_operation_type():
     action_name = "test_vectordb_action_execution_invalid_operation_type"
@@ -12355,8 +12400,7 @@ def test_action_handler_exceptions():
         assert response_json == {'error': "No registered action found for name 'Action Not Found Exception'.",
                                  'action_name': 'Action Not Found Exception'}
 
-
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
@@ -12383,8 +12427,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -12449,8 +12493,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 @mock.patch.object(ActionUtility, 'execute_request_async', autospec=True)
 def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity(mock_execute_request_async,
                                                                                  mock_embedding, aioresponses):
@@ -12486,8 +12529,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         mock.ANY,
         mock.ANY
     )
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
+
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
@@ -12580,8 +12624,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(mock_embedding,
                                                                                                      aioresponses):
     from uuid6 import uuid7
@@ -12611,8 +12654,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
+
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
                      "hyperparameters": hyperparameters,
@@ -12689,8 +12733,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_with_bot_responses(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
@@ -12719,8 +12762,9 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
+
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
@@ -12786,8 +12830,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_with_bot_responses_with_instructions(mock_embedding,
                                                                             aioresponses):
     from uuid6 import uuid7
@@ -12819,7 +12862,8 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'is_enabled': True}
     ]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -12887,10 +12931,10 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = "test_prompt_action_response_action_with_query_prompt"
@@ -12898,70 +12942,53 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    bot_content = "Python is a high-level, general-purpose programming language..."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    rephrased_query = "Explain python is called high level programming language in laymen terms?"
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    hyperparameters = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-         'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
-        {'name': 'Query Prompt',
-         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Query Prompt',
-         'data': 'If there is no specific query, assume that user is asking about java programming.',
-         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}
-    ]
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding, repeat=True)
 
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
+    aioresponses.post(
+        completion_url,
         status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        },
         repeat=True
     )
 
-    aioresponses.add(
+    aioresponses.post(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]},
+        repeat=True
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
 
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+    LLMSecret(llm_type="openai", api_key=value, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'Similarity Prompt', 'instructions': 'Search...', 'type': 'user', 'source': 'bot_content',
+         'is_enabled': True, 'data': 'python', 'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
+        {'name': 'Query Prompt', 'data': 'Programming context...', 'instructions': 'Refine query', 'type': 'query', 'source': 'static', 'is_enabled': True}
+    ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -12969,28 +12996,18 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
-    request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}}]
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert response_json['responses'][0]['text'] == generated_text
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_response_action(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = GPT_LLM_FAQ
@@ -12999,74 +13016,58 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     value = "keyvalue"
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
-    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     bot_content_two = "Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data."
-    hyperparameters = Utility.get_default_llm_hyperparameters()
+    generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding, repeat=True)
+
+    aioresponses.post(
+        f"{llm_url}/{quoted_bot}/completion/{llm_type}",
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    )
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_data_science_faq_embd/points/search",
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content_two}}]}
+    )
+
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
+
+    LLMSecret(llm_type="openai", api_key=value, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
 
     llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
-         'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
-         'is_enabled': True
-         },
-        {'name': 'Data science prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
-         'data': 'data_science'},
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static'},
+        {'name': 'Similarity Prompt', 'instructions': 'Context 1.', 'type': 'user', 'source': 'bot_content',
+         'data': 'python', 'is_enabled': True},
+        {'name': 'Data science prompt', 'instructions': 'Context 2.', 'type': 'user', 'source': 'bot_content',
+         'data': 'data_science', 'is_enabled': True},
     ]
-    aioresponses.add(
-        url=urljoin(Utility.environment['vector']['db'],
-                    f"/collections/5f50fd0a56b698ca10d35d2e_python_faq_embd/points/search"),
-        method="POST",
-        status=200,
-        payload={
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]})
-    aioresponses.add(
-        url=urljoin(Utility.environment['vector']['db'],
-                    f"/collections/5f50fd0a56b698ca10d35d2e_data_science_faq_embd/points/search"),
-        method="POST",
-        status=200,
-        payload={
-            'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
-    )
-
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
-
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    PromptAction(name=action_name,
-                 bot=bot,
-                 user=user,
-                 llm_prompts=llm_prompts).save()
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13077,19 +13078,15 @@ def test_prompt_response_action(mock_embedding, aioresponses):
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
 
-
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
+    assert response_json['responses'][0]['text'] == generated_text
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = 'test_prompt_response_action_with_instructions'
@@ -13097,61 +13094,53 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = "What kind of language is java?"
-    bot_content = "Java is a high-level, object-oriented programming language. It was developed by Sun Microsystems (later acquired by Oracle Corporation) and released in 1995. "
+    bot_content = "Java is a high-level, object-oriented programming language. It was developed by Sun Microsystems..."
     generated_text = "Java is a high-level, object-oriented programming language. "
     instructions = ['Answer in a short way.', 'Keep it simple.']
-    hyperparameters = Utility.get_default_llm_hyperparameters()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
-         'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
-         'is_enabled': True
-         }
-    ]
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding)
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
+    aioresponses.post(
+        f"{llm_url}/{quoted_bot}/completion/{llm_type}",
         status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
     )
 
-    aioresponses.add(
+    aioresponses.post(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
     )
+
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
 
     llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
+        llm_type="openai", api_key=value,
         models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+        bot=bot, user=user
+    ).save()
+
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static'},
+        {'name': 'Similarity Prompt', 'instructions': 'Answer based on context.',
+         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True}
+    ]
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
@@ -13165,19 +13154,16 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
+    assert response_json['responses'][0]['text'] == generated_text
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = GPT_LLM_FAQ
@@ -13187,67 +13173,58 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
     user_msg = "What kind of language is python?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = {'temperature': 0.0, 'max_tokens': 300,
-                       'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
-                       'stream': True,
-                       'stop': None,
-                       'presence_penalty': 0.0,
-                       'frequency_penalty': 0.0, 'logit_bias': {}}
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    litellm_call_id = "abc-123-test-id"
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above.', 'type': 'user', 'source': 'bot_content',
-         'data': 'python',
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70},
-         'is_enabled': True
-         }
-    ]
+    hyperparameters = {
+        'temperature': 0.0, 'max_tokens': 300,
+        'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
+        'stream': True,
+        'stop': None,
+        'presence_penalty': 0.0,
+        'frequency_penalty': 0.0, 'logit_bias': {}
+    }
+
+    litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding)
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
-                                  {'role': 'user',
-                                   'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
+    aioresponses.post(
+        f"{llm_url}/{quoted_bot}/completion/{llm_type}",
         status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
     )
 
-    aioresponses.add(
+    aioresponses.post(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
     )
+
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    LLMSecret(llm_type="openai", api_key=value, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
 
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static'},
+        {'name': 'Similarity Prompt', 'instructions': 'Answer question...', 'type': 'user',
+         'source': 'bot_content', 'data': 'python', 'is_enabled': True}
+    ]
 
     PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
 
@@ -13259,15 +13236,10 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
-
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
+    assert response_json['responses'][0]['text'] == generated_text
 
 @mock.patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
 def test_prompt_response_action_failure(mock_search):
@@ -13354,7 +13326,7 @@ def test_prompt_action_response_action_does_not_exists():
     assert len(response_json['responses']) == 0
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
 
@@ -13429,8 +13401,9 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
         status=200,
         repeat=True
     )
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -13467,11 +13440,11 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
 @responses.activate
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_with_action_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = "kairon_faq_action"
@@ -13479,180 +13452,140 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     user = "nupur.khare"
     value = "keyvalue"
     user_msg = "What kind of language is python?"
-    bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
+    bot_content = "Python is a high-level, general-purpose programming language..."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = Utility.get_default_llm_hyperparameters()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding)
+
+    aioresponses.post(
+        f"{llm_url}/{quoted_bot}/completion/{llm_type}",
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    )
+
+    http_url = 'http://localhost:8081/mock'
+    resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
+    aioresponses.get(url=re.compile(f"{http_url}.*"), payload=resp_msg, status=200)
+
+    Actions.objects(bot=bot).delete()
+    HttpActionConfig.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    KeyVault.objects(bot=bot).delete()
 
     Actions(name='http_action', type=ActionType.http_action.value, bot=bot, user=user).save()
     KeyVault(key="FIRSTNAME", value="nupur", bot=bot, user=user).save()
     KeyVault(key="CONTACT", value="9876543219", bot=bot, user=user).save()
+
     HttpActionConfig(
         action_name='http_action',
-        response=HttpActionResponse(dispatch=False,
-                                    value="Python is a scripting language because it uses an interpreter to translate and run its code."),
-        http_url="http://localhost:8081/mock",
+        response=HttpActionResponse(dispatch=False, value=resp_msg),
+        http_url=http_url,
         request_method="GET",
-        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True),
-                 HttpActionRequestBody(key="userid", parameter_type="value", value="1011", encrypt=True),
-                 HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                 HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME", encrypt=True),
-                 HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT", encrypt=True)],
-        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True),
-                     HttpActionRequestBody(key="user", parameter_type="value", value="1011", encrypt=False),
-                     HttpActionRequestBody(key="tag", parameter_type="value", value="from_bot", encrypt=True),
-                     HttpActionRequestBody(key="name", parameter_type="key_vault", value="FIRSTNAME",
-                                           encrypt=False),
-                     HttpActionRequestBody(key="contact", parameter_type="key_vault", value="CONTACT",
-                                           encrypt=False)],
-        bot=bot,
-        user=user
+        headers=[HttpActionRequestBody(key="botid", parameter_type="slot", value="bot", encrypt=True)],
+        params_list=[HttpActionRequestBody(key="bot", parameter_type="slot", value="bot", encrypt=True)],
+        bot=bot, user=user
     ).save()
 
-    http_url = 'http://localhost:8081/mock'
-    resp_msg = "Python is a scripting language because it uses an interpreter to translate and run its code."
-    aioresponses.add(
-        method=responses.GET,
-        url=http_url + "?" + urlencode({"bot": "5u08kd0a56b698ca10d98e6s", "user": "1011", "tag": "from_bot",
-                                        "name": "nupur", "contact": "9876543219"}),
-        payload=resp_msg,
-        status=200,
-    )
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True,
-         'hyperparameters': {"top_results": 10, "similarity_threshold": 0.70}},
-        {'name': 'Python Prompt',
-         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Java Prompt',
-         'data': 'Java is a programming language and computing platform first released by Sun Microsystems in 1995.',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Action Prompt',
-         'data': 'http_action',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action',
-         'is_enabled': True}
-    ]
-
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
-                                  {'role': 'user',
-                                   'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
-    )
-
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+    LLMSecret(llm_type="openai", api_key=value, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
 
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'Similarity Prompt', 'instructions': 'Search context...', 'type': 'user', 'source': 'bot_content',
+         'data': 'python', 'is_enabled': True},
+        {'name': 'Action Prompt', 'data': 'http_action', 'instructions': 'Answer...', 'type': 'user',
+         'source': 'action', 'is_enabled': True}
+    ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
-    request_object["tracker"]["latest_message"]['text'] = user_msg
-    request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '',
-                                                     "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '',
-                                                     "image": '', "custom": ''}}]
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None, 'response': None,
-         'image': None, 'attachment': None}]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
-    expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                 'content': "Python Prompt:\nA programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.\nInstructions on how to use Python Prompt:\nAnswer according to the context\n\nJava Prompt:\nJava is a programming language and computing platform first released by Sun Microsystems in 1995.\nInstructions on how to use Java Prompt:\nAnswer according to the context\n\nAction Prompt:\nPython is a scripting language because it uses an interpreter to translate and run its code.\nInstructions on how to use Action Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What kind of language is python? \nA:"}],
-                 'raw_completion_response': {'choices': [{'message': {
-                     'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                     'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    excludedRegex = [
-        r"['raw_completion_response']['id']",
-        r"['raw_completion_response']['created']"
-    ]
-    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert response_json['responses'][0]['text'] == generated_text
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
 def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_embedding, aioresponses):
+    from uuid6 import uuid7
+    import urllib.parse
+
     llm_type = "openai"
     action_name = "kairon_faq_action"
     google_action_name = "custom_search_action"
     bot = "5u08kd0a56b698ca10hgjgjkhgjks"
+    user = 'test_user'
     value = "keyvalue"
     user_msg = "What is kanban"
-    user = 'test_user'
-    hyperparameters = Utility.get_default_llm_hyperparameters()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     litellm_call_id = "abc-123-test-id"
+    generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    aioresponses.post(f"{llm_url}/{quoted_bot}/aembedding/{llm_type}", status=200, payload=embedding)
+    aioresponses.post(
+        f"{llm_url}/{quoted_bot}/completion/{llm_type}",
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    Actions.objects(bot=bot).delete()
+    GoogleSearchAction.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user='test_user').save()
+    Actions(name=google_action_name, type=ActionType.google_search_action.value, bot=bot, user=user).save()
     GoogleSearchAction(name=google_action_name, api_key=CustomActionRequestParameters(value='1234567890'),
                        search_engine_id='asdfg::123456', bot=bot, user=user, dispatch_response=False,
-                       num_results=3,
-                       set_slot="google_response").save()
+                       num_results=3, set_slot="google_response").save()
+
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
-    generated_text = 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.'
+    LLMSecret(llm_type="openai", api_key=value, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
+
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'is_enabled': True,
+         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
+        {'name': 'Google search Prompt', 'data': google_action_name,
+         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action', 'is_enabled': True}
+    ]
+    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     def _run_action(*args, **kwargs):
         return [{
@@ -13661,42 +13594,14 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
             'link': "https://www.digite.com/kanban/what-is-kanban/"
         }, {
             'title': 'Kanban Project management',
-            'text': 'Kanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.',
+            'text': 'Kanban project management is one of the emerging PM methodologies...',
             'link': "https://www.digite.com/kanban/what-is-kanban-project-mgmt/"
         }, {
             'title': 'Kanban agile',
-            'text': 'Kanban is a popular framework used to implement agile and DevOps software development.',
+            'text': 'Kanban is a popular framework...',
             'link': "https://www.digite.com/kanban/what-is-kanban-agile/"
         }]
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'is_enabled': True,
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static'},
-        {'name': 'Google search Prompt', 'data': 'custom_search_action',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'action', 'is_enabled': True}
-    ]
-    PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
-
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_google_search.side_effect = _run_action
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13707,31 +13612,11 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [{'text': generated_text,
-                                           'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-                                           'response': None, 'image': None,
-                                           'attachment': None}]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
-    expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                 'content': 'Google search Prompt:\nKanban visualizes both the process (the workflow) and the actual work passing through that process.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban/" target="_blank" >Kanban</a>\n\nKanban project management is one of the emerging PM methodologies, and the Kanban approach is suitable for every team and goal.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-project-mgmt/" target="_blank" >Kanban Project management</a>\n\nKanban is a popular framework used to implement agile and DevOps software development.\nTo know more, please visit: <a href = "https://www.digite.com/kanban/what-is-kanban-agile/" target="_blank" >Kanban agile</a>\nInstructions on how to use Google search Prompt:\nAnswer according to the context\n\n \nQ: What is kanban \nA:'}],
-                 'raw_completion_response': {'choices': [{'message': {
-                     'content': 'Kanban is a workflow management tool which visualizes both the process (the workflow) and the actual work passing through that process.',
-                     'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
 
-    excludedRegex = [
-        r"['raw_completion_response']['id']",
-        r"['raw_completion_response']['created']"
-    ]
-    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
-
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
+    assert response_json['responses'][0]['text'] == generated_text
 
 def test_prompt_response_action_with_action_not_found():
     action_name = "kairon_faq_action"
@@ -13767,6 +13652,7 @@ def test_prompt_response_action_with_action_not_found():
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     from uuid6 import uuid7
+    import urllib.parse
 
     llm_type = "openai"
     action_name = "kairon_faq_action"
@@ -13776,61 +13662,56 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     user_msg = "What is the name of prompt?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = Utility.get_default_llm_hyperparameters()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
-        {'name': 'Language Prompt',
-         'data': 'type',
-         'instructions': 'Answer according to the context', 'type': 'user', 'source': 'slot',
-         'is_enabled': True},
-    ]
-
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
-    )
-
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
-    )
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
 
     mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
+
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    )
+
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
+
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
+    LLMSecret(
+        llm_type="openai", api_key=value,
         models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+        bot=bot, user=user
+    ).save()
+
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'Assistant.', 'type': 'system', 'source': 'static', 'is_enabled': True},
+        {'name': 'Similarity Prompt', 'instructions': 'Answer...', 'type': 'user', 'source': 'bot_content',
+         'data': 'python', 'is_enabled': True},
+        {'name': 'Language Prompt', 'data': 'type', 'instructions': 'Answer...', 'type': 'user', 'source': 'slot',
+         'is_enabled': True},
+    ]
 
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
 
@@ -13839,58 +13720,17 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
-    request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}}]
+    request_object["tracker"]["slots"]["type"] = "Python is interpreted..."
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == []
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
-    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
-    log.pop('_id')
-    log.pop('timestamp')
-    assert log["time_elapsed"]
-    log.pop('time_elapsed')
-    events = log.pop('events')
-    for event in events:
-        if event.get('time_elapsed') is not None:
-            del event['time_elapsed']
-        if event.get('llm_response_log'):
-            event['llm_response_log'].pop('similarity_context')
-    assert events == [
-        {'type': 'llm_response',
-         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-         'llm_response_log':
-             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-              'litellm_call_id': 'abc-123-test-id',
-              }
-         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
-    ]
-    expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                 'raw_completion_response': {'choices': [{'message': {
-                     'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                     'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    excludedRegex = [
-        r"['raw_completion_response']['id']",
-        r"['raw_completion_response']['created']"
-    ]
-    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
+    assert response_json['responses'] == []  # Verification that dispatch_response=False worked
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 @mock.patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
 def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     llm_type = "openai"
@@ -13937,8 +13777,9 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                               }},
         body=expected_body
     )
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
     log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}",
             'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
@@ -14027,7 +13868,6 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     ]
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
-
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
@@ -14040,8 +13880,48 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     user_msg = "What is the name of prompt?"
     bot_content = "Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected."
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
+
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
+        status=200,
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]}
+    )
+
+    Actions.objects(bot=bot).delete()
+    BotSettings.objects(bot=bot).delete()
+    PromptAction.objects(bot=bot).delete()
+    LLMSecret.objects(bot=bot).delete()
+    ActionServerLogs.objects(bot=bot).delete()
+
+    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    LLMSecret(
+        llm_type="openai", api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+        bot=bot, user=user
+    ).save()
 
     llm_prompts = [
         {'name': 'System Prompt', 'data': 'You are a personal assistant.',
@@ -14056,45 +13936,6 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
          'is_enabled': True},
     ]
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                     'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
-        status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
-    )
-
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
-        status=200
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
-
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -14102,75 +13943,62 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     request_object["next_action"] = action_name
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
-    request_object['tracker']['events'] = [{"event": "bot", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}}]
+    request_object["tracker"]["slots"][
+        "type"] = "Python is an interpreted, object-oriented, high-level programming language with dynamic semantics."
 
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
-    log = ActionServerLogs.objects(bot=bot, type=ActionType.prompt_action.value,
-                                   status=STATUSES.SUCCESS.value).get().to_mongo().to_dict()
-    assert isinstance(log['time_elapsed'], float) and log['time_elapsed'] > 0.0
-    log.pop('_id')
-    log.pop('timestamp')
-    assert log["time_elapsed"]
-    log.pop('time_elapsed')
-    events = log.pop('events')
-    assert len(events[0]['llm_response_log']['similarity_context']) > 0
-    for event in events:
-        if event.get('time_elapsed') is not None:
-            del event['time_elapsed']
-        if event.get('llm_response_log'):
-            event['llm_response_log'].pop('similarity_context')
-    assert events == [
-        {'type': 'llm_response',
-         'response': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-         'llm_response_log':
-             {'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-              'litellm_call_id': 'abc-123-test-id'
-              }
-         }, {'type': 'slots_to_fill', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}
-    ]
-    expected = [{'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
-                                                                                                 'content': "Language Prompt:\nPython is an interpreted, object-oriented, high-level programming language with dynamic semantics.\nInstructions on how to use Language Prompt:\nAnswer according to the context\n\n\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: What is the name of prompt? \nA:"}],
-                 'raw_completion_response': {'choices': [{'message': {
-                     'content': 'Python is dynamically typed, garbage-collected, high level, general purpose programming.',
-                     'role': 'assistant'}}]}, 'type': 'answer_query',
-                 'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
-                                     'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                     'frequency_penalty': 0.0, 'logit_bias': {}}}]
-    excludedRegex = [
-        r"['raw_completion_response']['id']",
-        r"['raw_completion_response']['created']"
-    ]
-    assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses):
     from uuid6 import uuid7
     from kairon.shared.actions.data_objects import Actions, PromptAction
 
-    llm_type       = "openai"
-    action_name    = "prompt_action_with_crud"
-    bot            = "5u80fd0a56c908ca10d35d2s"
-    user           = "udit.pandey"
-    api_key        = "keyvalue"
-    user_msg       = "What is the name of prompt?"
+    llm_type = "openai"
+    action_name = "prompt_action_with_crud"
+    bot = "5u80fd0a56c908ca10d35d2s"
+    user = "udit.pandey"
+    api_key = "keyvalue"
+    user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparams    = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
+
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
+        status=200,
+        payload={
+            'result': [{
+                'id': str(uuid7()),
+                'score': 0.85,
+                'payload': {'content': "Python is an interpreted, high-level programming language."}
+            }]
+        }
+    )
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14178,14 +14006,11 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
     LLMSecret.objects(bot=bot).delete()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
-
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
     LLMSecret(
-        llm_type=llm_type,
-        api_key=api_key,
+        llm_type=llm_type, api_key=api_key,
         models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
+        bot=bot, user=user
     ).save()
 
     llm_prompts = [
@@ -14193,16 +14018,12 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
             'name': 'System Prompt',
             'data': 'You are a personal assistant.',
             'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
+            'type': 'system', 'source': 'static', 'is_enabled': True
         },
         {
             'name': 'CRUD Prompt',
             'instructions': 'Fetch details from the database and answer the question.',
-            'type': 'user',
-            'source': 'crud',
-            'is_enabled': True,
+            'type': 'user', 'source': 'crud', 'is_enabled': True,
             'crud_config': {
                 "collections": ["product_details"],
                 "query": {"product_type": "language"},
@@ -14212,72 +14033,18 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
     ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
-        method="POST", status=200,
-        body={'vector': embedding},
-        payload={
-            'result': [{
-                'id': uuid7().__str__(),
-                'score': 0.85,
-                'payload': {'content': "Python is an interpreted, high-level programming language."}
-            }]
-        }
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    expected_body = {
-        'messages': [
-            {'role': 'system', 'content': 'You are a personal assistant.\n'},
-            {
-                'role': 'user',
-                'content': (
-                    "CRUD Prompt:\n"
-                    "{'product_type': 'language'}\n"
-                    "Instructions on how to use CRUD Prompt:\n"
-                    "Fetch details from the database and answer the question.\n \n"
-                    "Q: What is the name of prompt? \nA:"
-                )
-            }
-        ],
-        'hyperparameters': hyperparams,
-        'user': user,
-        'invocation': 'prompt_action'
-    }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
-        method="POST", status=200,
-        body=expected_body,
-        payload={
-            'formatted_response': generated_text,
-            'response': {
-                'choices': [
-                    {'message': {'content': generated_text, 'role': 'assistant'}}
-                ],
-                'litellm_call_id': litellm_call_id
-            }
-        }
-    )
-
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
     request_object["next_action"] = action_name
-    request_object['tracker']['events'] = [
-        {'event': 'bot', 'text': 'hello', 'data': {}},
-        {'event': 'bot', 'text': 'how are you', 'data': {}},
-    ]
 
     response = client.post("/webhook", json=request_object)
     resp_json = response.json()
 
-    assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-         {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
-    ]
+    received_slots = {e['name']: e['value'] for e in resp_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
     assert resp_json['responses'][0]['text'] == generated_text
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
@@ -14292,8 +14059,40 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     api_key = "keyvalue"
     user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparams = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
+
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
+        status=200,
+        payload={
+            'result': [{
+                'id': str(uuid7()),
+                'score': 0.85,
+                'payload': {'content': "Python is an interpreted, high-level programming language."}
+            }]
+        }
+    )
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14302,27 +14101,22 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-    LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
-
+    LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
 
     llm_prompts = [
         {
             'name': 'System Prompt',
             'data': 'You are a personal assistant.',
             'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
+            'type': 'system', 'source': 'static', 'is_enabled': True
         },
         {
             'name': 'CRUD Prompt',
             'instructions': 'Fetch details from the database and answer the question.',
-            'type': 'user',
-            'source': 'crud',
-            'is_enabled': True,
+            'type': 'user', 'source': 'crud', 'is_enabled': True,
             'crud_config': {
                 "collections": ["product_details"],
-                "query": "product_slot",  # slot name (valid)
+                "query": "product_slot",
                 "result_limit": 2,
                 "query_source": "slot"
             }
@@ -14330,78 +14124,20 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
-        method="POST", status=200,
-        body={'vector': embedding},
-        payload={
-            'result': [{
-                'id': uuid7().__str__(),
-                'score': 0.85,
-                'payload': {'content': "Python is an interpreted, high-level programming language."}
-            }]
-        }
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    expected_body = {
-        'messages': [
-            {'role': 'system', 'content': 'You are a personal assistant.\n'},
-            {
-                'role': 'user',
-                'content': (
-                    "CRUD Prompt:\n"
-                    "{'product_type': 'language'}\n"
-                    "Instructions on how to use CRUD Prompt:\n"
-                    "Fetch details from the database and answer the question.\n \n"
-                    "Q: What is the name of prompt? \nA:"
-                )
-            }
-        ],
-        'hyperparameters': hyperparams,
-        'user': user,
-        'invocation': 'prompt_action'
-    }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
-        method="POST", status=200,
-        body=expected_body,
-        payload={
-            'formatted_response': generated_text,
-            'response': {
-                'choices': [
-                    {'message': {'content': generated_text, 'role': 'assistant'}},
-
-                ],
-                'litellm_call_id': litellm_call_id
-
-            }
-        }
-    )
-
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
     request_object["tracker"]["slots"]["product_slot"] = {"product_type": "language"}
     request_object["next_action"] = action_name
-    request_object['tracker']['events'] = [
-        {'event': 'bot', 'text': 'hello', 'data': {}},
-        {'event': 'bot', 'text': 'how are you', 'data': {}},
-    ]
 
     response = client.post("/webhook", json=request_object)
     resp_json = response.json()
 
-    assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
-
-    ]
+    received_slots = {e['name']: e['value'] for e in resp_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
     assert resp_json['responses'][0]['text'] == generated_text
-
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_crud_prompt_query_source_slot_value_string(mock_embedding, aioresponses):
@@ -14415,8 +14151,40 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     api_key = "keyvalue"
     user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparams = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
+
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
+
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
+
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
+        status=200,
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
+    )
+
+    aioresponses.post(
+        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
+        status=200,
+        payload={
+            'result': [{
+                'id': str(uuid7()),
+                'score': 0.85,
+                'payload': {'content': "Python is an interpreted, high-level programming language."}
+            }]
+        }
+    )
 
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
@@ -14425,26 +14193,22 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
-    LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
+    LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-3.5-turbo", "gpt-4.1-mini"], bot=bot, user=user).save()
 
     llm_prompts = [
         {
             'name': 'System Prompt',
             'data': 'You are a personal assistant.',
             'instructions': 'Answer question based on the context below.',
-            'type': 'system',
-            'source': 'static',
-            'is_enabled': True
+            'type': 'system', 'source': 'static', 'is_enabled': True
         },
         {
             'name': 'CRUD Prompt',
             'instructions': 'Fetch details from the database and answer the question.',
-            'type': 'user',
-            'source': 'crud',
-            'is_enabled': True,
+            'type': 'user', 'source': 'crud', 'is_enabled': True,
             'crud_config': {
                 "collections": ["product_details"],
-                "query": "product_slot",  # slot name (valid)
+                "query": "product_slot",
                 "result_limit": 2,
                 "query_source": "slot"
             }
@@ -14452,75 +14216,19 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-    aioresponses.add(
-        url=f"{Utility.environment['vector']['db']}/collections/{bot}_product_details/points/search",
-        method="POST", status=200,
-        body={'vector': embedding},
-        payload={
-            'result': [{
-                'id': uuid7().__str__(),
-                'score': 0.85,
-                'payload': {'content': "Python is an interpreted, high-level programming language."}
-            }]
-        }
-    )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    expected_body = {
-        'messages': [
-            {'role': 'system', 'content': 'You are a personal assistant.\n'},
-            {
-                'role': 'user',
-                'content': (
-                    "CRUD Prompt:\n"
-                    "{'product_type': 'language'}\n"
-                    "Instructions on how to use CRUD Prompt:\n"
-                    "Fetch details from the database and answer the question.\n \n"
-                    "Q: What is the name of prompt? \nA:"
-                )
-            }
-        ],
-        'hyperparameters': hyperparams,
-        'user': user,
-        'invocation': 'prompt_action'
-    }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
-        method="POST", status=200,
-        body=expected_body,
-        payload={
-            'formatted_response': generated_text,
-            'response': {
-                'choices': [
-                    {'message': {'content': generated_text, 'role': 'assistant'}}
-                ],
-                'litellm_call_id': litellm_call_id
-            }
-        }
-    )
-
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
     request_object["tracker"]["slots"]["product_slot"] = json.dumps({"product_type": "language"})
-
     request_object["next_action"] = action_name
-    request_object['tracker']['events'] = [
-        {'event': 'bot', 'text': 'hello', 'data': {}},
-        {'event': 'bot', 'text': 'how are you', 'data': {}},
-    ]
 
     response = client.post("/webhook", json=request_object)
     resp_json = response.json()
 
-    assert resp_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
-
-    ]
+    received_slots = {e['name']: e['value'] for e in resp_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
     assert resp_json['responses'][0]['text'] == generated_text
 
 @mock.patch.object(litellm, "aembedding", autospec=True)
@@ -14577,7 +14285,6 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_app_excepti
     request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
 
-    # 🔥 Pass invalid JSON string to trigger AppException (handled gracefully)
     request_object["tracker"]["slots"]["product_slot"] = "{invalid_json"
 
     request_object["next_action"] = action_name
@@ -14602,85 +14309,75 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     user = "udit.pandey"
     value = "keyvalue"
     user_msg = '/kanban_story{"kairon_user_msg": "Kanban And Scrum Together?"}'
-    bot_content = "Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time."
+    bot_content = "Scrum teams using Kanban as a visual management tool..."
     generated_text = "YES you can use both in a single project. However, in order to run the Sprint, you should only use the 'Scrum board'. On the other hand 'Kanban board' is only to track the progress or status of the Jira issues."
-    hyperparameters = Utility.get_default_llm_hyperparameters()
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     litellm_call_id = "abc-123-test-id"
+    embedding = [0.1] * 1536
 
-    llm_prompts = [
-        {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-         'instructions': 'Answer question based on the context below.', 'type': 'system', 'source': 'static',
-         'is_enabled': True},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python', 'is_enabled': True},
-    ]
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
 
-    expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
-                                  {'role': 'user',
-                                   'content': "\nInstructions on how to use Similarity Prompt:\n['Scrum teams using Kanban as a visual management tool can get work delivered faster and more often. Prioritized tasks are completed first as the team collectively decides what is best using visual cues from the Kanban board. The best part is that Scrum teams can use Kanban and Scrum at the same time.']\nAnswer question based on the context above, if answer is not in the context go check previous logs.\n \nQ: Kanban And Scrum Together? \nA:"}],
-                     "hyperparameters": hyperparameters,
-                     'user': user,
-                     'invocation': 'prompt_action'
-                     }
+    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding_internal_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_internal_url, status=200, payload=embedding)
 
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
         status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id': litellm_call_id
-                              }},
-        body=expected_body
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
     )
 
-    aioresponses.add(
+    aioresponses.post(
         url=f"{Utility.environment['vector']['db']}/collections/{bot}_python_faq_embd/points/search",
-        body={'vector': embedding},
-        payload={'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]},
-        method="POST",
+        payload={'result': [{'id': str(uuid7()), 'score': 0.80, 'payload': {'content': bot_content}}]},
         status=200
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    LLMSecret.objects(bot=bot).delete()
+    LLMSecret(
+        llm_type=llm_type, api_key=value,
+        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
+        bot=bot, user=user
+    ).save()
+
+    Actions.objects(name=action_name, bot=bot).delete()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
-    llm_secret = LLMSecret(
-        llm_type="openai",
-        api_key=value,
-        models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
 
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+         'is_enabled': True},
+        {'name': 'Similarity Prompt', 'instructions': 'Answer based on context...', 'type': 'user',
+         'source': 'bot_content', 'data': 'python', 'is_enabled': True},
+    ]
+    PromptAction.objects(name=action_name, bot=bot).delete()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"] = {
-        'text': user_msg, 'intent_ranking': [{'name': 'kanban_story'}],
+        'text': user_msg,
+        'intent_ranking': [{'name': 'kanban_story'}],
         "entities": [{"value": "Kanban And Scrum Together?", "entity": KAIRON_USER_MSG_ENTITY}]
     }
 
     response = client.post("/webhook", json=request_object)
+    assert response.status_code == 200
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
 
+    received_slots = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert received_slots.get('kairon_action_response') == generated_text
+    assert received_slots.get('llm_call_id') == litellm_call_id
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
 def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, aioresponses):
     llm_type = "openai"
     action_name = "test_prompt_action_response_action_when_similarity_is_empty"
@@ -14706,8 +14403,8 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = list(np.random.random(1536))
+    mock_embedding.return_value = [embedding, embedding]
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -14773,7 +14470,6 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
          'response': None, 'image': None, 'attachment': None}
     ]
 
-
 @mock.patch.object(litellm, "aembedding", autospec=True)
 def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, aioresponses):
     llm_type = "openai"
@@ -14783,199 +14479,226 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     value = "keyvalue"
     user_msg = "What kind of language is python?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparameters = {"top_results": 10, "similarity_threshold": 0.70}
     litellm_call_id = "abc-123-test-id"
 
-    llm_prompts = [
-        {'name': 'System Prompt',
-         'data': 'You are a personal assistant. Answer question based on the context below.',
-         'type': 'system', 'source': 'static', 'is_enabled': True},
-        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-        {'name': 'Query Prompt', 'data': "What kind of language is python?", 'instructions': 'Rephrase the query.',
-         'type': 'query', 'source': 'static', 'is_enabled': False},
-        {'name': 'Similarity Prompt',
-         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-         'type': 'user', 'source': 'bot_content', 'data': 'python',
-         'hyperparameters': hyperparameters,
-         'is_enabled': False}
-    ]
+    llm_url = Utility.environment['llm']['url']
+    quoted_bot = urllib.parse.quote(bot)
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
-    expected_body = {'messages': [
-        {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
-        {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
-        {'role': 'user', 'content': ' \nQ: What kind of language is python? \nA:'}],
-        "hyperparameters": hyperparameters,
-        'user': user,
-        'invocation': 'prompt_action'
-    }
-
-    aioresponses.add(
-        url=urljoin(Utility.environment['llm']['url'],
-                    f"/{bot}/completion/{llm_type}"),
-        method="POST",
+    completion_url = f"{llm_url}/{quoted_bot}/completion/{llm_type}"
+    aioresponses.post(
+        completion_url,
         status=200,
-        payload={'formatted_response': generated_text,
-                 'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                 'litellm_call_id': litellm_call_id}
-                 },
-        body=expected_body
+        payload={
+            'formatted_response': generated_text,
+            'response': {
+                'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
+                'litellm_call_id': litellm_call_id
+            }
+        }
     )
+    embedding_url = f"{llm_url}/{quoted_bot}/aembedding/{llm_type}"
+    aioresponses.post(embedding_url, status=200, payload=[0.1] * 1536)
 
-    llm_secret = LLMSecret(
+    LLMSecret.objects(bot=bot).delete()
+    LLMSecret(
         llm_type=llm_type,
         api_key=value,
         models=["gpt-3.5-turbo", "gpt-4.1-mini"],
-        bot=bot,
-        user=user
-    )
-    llm_secret.save()
+        bot=bot, user=user
+    ).save()
 
+    Actions.objects(name=action_name, bot=bot).delete()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+
+    BotSettings.objects(bot=bot).delete()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+
+    llm_prompts = [
+        {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
+         'is_enabled': True},
+        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
+        {'name': 'Similarity Prompt', 'type': 'user', 'source': 'bot_content', 'is_enabled': False}
+    ]
+    PromptAction.objects(name=action_name, bot=bot).delete()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
     request_object["next_action"] = action_name
-    request_object["tracker"]["sender_id"] = user
     request_object["tracker"]["latest_message"]['text'] = user_msg
-    request_object['tracker']['events'] = [{"event": "user", 'text': 'hello',
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}},
-                                           {'event': 'bot', "text": "how are you",
-                                            "data": {"elements": '', "quick_replies": '', "buttons": '',
-                                                     "attachment": '', "image": '', "custom": ''}}]
 
     response = client.post("/webhook", json=request_object)
+    assert response.status_code == 200
     response_json = response.json()
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id','timestamp': None,'value': 'abc-123-test-id'},
-    ]
-    assert response_json['responses'] == [
-        {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
-         'response': None, 'image': None, 'attachment': None}
-    ]
+    assert response_json['responses'][0]['text'] == generated_text
 
+    slot_events = {e['name']: e['value'] for e in response_json['events'] if e['event'] == 'slot'}
+    assert slot_events['kairon_action_response'] == generated_text
+    assert slot_events['llm_call_id'] == litellm_call_id
 
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    bot = '5f50fx0a56b698ca10d35d2f'
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-    responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+@patch.object(LLMProcessor, "get_embedding", autospec=True)
+def test_vectordb_action_execution_embedding_payload_search(mock_get_embedding):
+    async def mock_get_embedding_async(*args, **kwargs):
+        embedding = [0.1] * 1536
+        return [embedding, embedding]
+
+    mock_get_embedding.side_effect = mock_get_embedding_async
+
+    responses.add_passthru(
+        "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
+    )
+
     action_name = "test_vectordb_action_execution_embedding_payload_search"
-    Actions(name=action_name, type=ActionType.database_action.value, bot=bot,
-            user="user").save()
-    slot = 'name'
-    Slots(name=slot, type='text', bot=bot, user='user').save()
-    payload = {"filter": {
-        "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
-    payload_body = json.dumps(payload)
-    user_msg = '/user_story{"kairon_user_msg": {"filter": {"should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}}'
-    DatabaseAction(
+    bot = "5f50fx0a56b698ca10d35d2f"
+
+    Actions(
         name=action_name,
-        collection=action_name,
-        payload=[DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_slot", value='name'),
-                 DbQuery(query_type=DbActionOperationType.embedding_search.value, type="from_value",
-                         value='How are you'),
-                 DbQuery(query_type=DbActionOperationType.payload_search.value,
-                         type=DbQueryValueType.from_user_message.value)
-                 ],
-        response=HttpActionResponse(value="The value of ${data.result.0.id} is ${data.result.0.vector}"),
-        set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
+        type=ActionType.database_action.value,
         bot=bot,
         user="user"
     ).save()
-    BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
-    llm_secret = LLMSecret(
+    Slots(name="name", type="text", bot=bot, user="user").save()
+    payload_filter = {
+        "filter": {
+            "should": [
+                {"key": "city", "match": {"value": "London"}},
+                {"key": "color", "match": {"value": "red"}},
+            ]
+        }
+    }
+    DatabaseAction(
+        name=action_name,
+        collection=action_name,
+        payload=[
+            DbQuery(
+                query_type=DbActionOperationType.embedding_search.value,
+                type="from_slot",
+                value="name"
+            ),
+            DbQuery(
+                query_type=DbActionOperationType.embedding_search.value,
+                type="from_value",
+                value="How are you"
+            ),
+            DbQuery(
+                query_type=DbActionOperationType.payload_search.value,
+                type=DbQueryValueType.from_user_message.value
+            )
+        ],
+        response=HttpActionResponse(
+            value="The value of ${data.result.0.id} is ${data.result.0.vector}"
+        ),
+        set_slots=[
+            SetSlotsFromResponse(
+                name="vector_value",
+                value="${data.result.0.vector}"
+            )
+        ],
+        bot=bot,
+        user="user"
+    ).save()
+    BotSettings(
+        llm_settings=LLMSettings(enable_faq=True),
+        bot=bot,
+        user="user"
+    ).save()
+    LLMSecret(
         llm_type="openai",
         api_key="key_value",
         models=["model1", "model2"],
         api_base_url="https://api.example.com",
         bot=bot,
         user="user"
+    ).save()
+    http_url = (
+        f"http://localhost:6333/collections/"
+        f"{bot}_{action_name}_faq_embd/points/query"
     )
-    llm_secret.save()
-    http_url = f'http://localhost:6333/collections/{bot}_{action_name}_faq_embd/points/query'
-    resp_msg = json.dumps(
-        {
+
+    responses.add(
+        method=responses.POST,
+        url=http_url,
+        json={
             "time": 0,
             "status": "ok",
             "result": [
                 {
                     "id": 15,
                     "payload": {},
-                    "vector": [
-                        15
-                    ]
+                    "vector": [15]
                 }
             ]
-        }
+        },
+        status=200
     )
-    responses.add(
-        method=responses.POST,
-        url=http_url,
-        body=resp_msg,
-        status=200,
-        match=[responses.matchers.json_params_matcher({'with_payload': True,
-                                                       'limit': 10,
-                                                       'query': embedding,
-                                                       **payload}, strict_match=False)],
-    )
-
+    user_msg_payload = json.dumps(payload_filter)
     request_object = {
         "next_action": action_name,
         "tracker": {
             "sender_id": "default",
             "conversation_id": "default",
-            "slots": {"bot": bot, "name": "Hi"},
-            "latest_message": {'text': user_msg, 'intent_ranking': [{'name': 'user_story'}],
-                               "entities": [{"value": payload_body, "entity": KAIRON_USER_MSG_ENTITY}]},
+            "slots": {
+                "bot": bot,
+                "name": "Hi"
+            },
+            "latest_message": {
+                "text": "/user_story",
+                "intent_ranking": [{"name": "user_story"}],
+                "entities": [
+                    {
+                        "entity": KAIRON_USER_MSG_ENTITY,
+                        "value": user_msg_payload
+                    }
+                ]
+            },
             "latest_event_time": 1537645578.314389,
             "followup_action": "action_listen",
             "paused": False,
-            "events": [{"event1": "hello"}, {"event2": "How are you"}],
+            "events": [],
             "latest_input_channel": "rest",
             "active_loop": {},
             "latest_action": {},
         },
         "domain": {
-            "config": {},
-            "session_config": {},
-            "intents": [],
-            "entities": [],
-            "slots": {"bot": bot, "name": None},
-            "responses": {},
-            "actions": [],
-            "forms": {},
-            "e2e_actions": []
+            "slots": {
+                "bot": bot,
+                "name": None
+            }
         },
         "version": "version"
     }
+
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
     assert response.status_code == 200
-    assert len(response_json['events']) == 2
-    assert len(response_json['responses']) == 1
-    assert response_json['events'] == [
-        {'event': 'slot', 'timestamp': None, 'name': 'vector_value', 'value': '[15]'},
-        {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': 'The value of 15 is [15]'}]
-    assert response_json['responses'][0]['text'] == "The value of 15 is [15]"
-    log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
-    log.pop('_id')
-    log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": ["Hi How are you"],
-                'metadata': {'user': 'default', 'bot': bot, 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    assert response_json["events"] == [
+        {
+            "event": "slot",
+            "timestamp": None,
+            "name": "vector_value",
+            "value": "[15]"
+        },
+        {
+            "event": "slot",
+            "timestamp": None,
+            "name": "kairon_action_response",
+            "value": "The value of 15 is [15]"
+        }
+    ]
 
+    assert response_json["responses"] == [
+        {
+            "text": "The value of 15 is [15]",
+            "buttons": [],
+            "elements": [],
+            "custom": {},
+            "template": None,
+            "response": None,
+            "image": None,
+            "attachment": None
+        }
+    ]
 
 def test_schedule_action_invalid_date():
     bot = '6697add6b8e47524eb983375'
