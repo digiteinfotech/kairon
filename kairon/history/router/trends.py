@@ -47,7 +47,7 @@ async def complete_conversation(
 ):
     """Fetches the counts of successful conversations of the bot for previous months."""
     range_value, message = HistoryProcessor.successful_conversation_range(
-        f"{collection}_flattened", from_date, to_date, fallback_intent
+        collection, from_date, to_date, fallback_intent
     )
     return {"data": range_value, "message": message}
 
@@ -74,7 +74,7 @@ async def fallback(
 ):
     """Fetches the fallback count of the bot for previous months."""
     range_value, message = HistoryProcessor.fallback_count_range(
-        f"{collection}_flattened", from_date, to_date, fallback_intent
+        collection, from_date, to_date, fallback_intent
     )
     return {"data": range_value, "message": message}
 

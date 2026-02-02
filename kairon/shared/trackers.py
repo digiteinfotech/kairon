@@ -51,6 +51,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
         self.db = self.client.get_database(db)
         self.collection = collection
+        self.flattened_collection = "flattened_conversations"
         super().__init__(domain, event_broker, **kwargs)
 
         self._ensure_indices()
@@ -63,7 +64,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
     @property
     def flattened_conversations(self) -> Collection:
-        return self.db[f"{self.collection}_flattened"]
+        return self.db[self.flattened_collection]
 
     def _ensure_indices(self) -> None:
         indexes = [
@@ -79,10 +80,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         self.conversations.create_indexes(indexes)
         self.flattened_conversations.create_indexes([
             IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING), ("timestamp", DESCENDING)]),
-            IndexModel([("conversation_id", ASCENDING), ("sender_id", ASCENDING)]),
+            IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING)]),
             IndexModel([("timestamp", DESCENDING)]),
-            IndexModel([("sender_id", ASCENDING), ("type", ASCENDING), ("timestamp", DESCENDING)]),
-            IndexModel([("sender_id", ASCENDING), ("conversation_id", ASCENDING), ("type", ASCENDING), ("timestamp", DESCENDING)]),
         ])
 
     @staticmethod
@@ -111,7 +110,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         rasa_events = []
 
         flattened_conversation = {
-            "type": "flattened",
+            "bot": self.collection,
             "sender_id": sender_id,
             "conversation_id": conversation_id,
             "data": {},
@@ -178,7 +177,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
         logger.info(
             f"db={self.db.name}, "
             f"events_collection={self.collection}, "
-            f"flattened_collection={self.collection}_flattened, "
+            f"flattened_collection=flattened_conversations, "
             f"events={len(rasa_events)}"
         )
 
