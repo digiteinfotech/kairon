@@ -25,12 +25,13 @@ class OdooPOS(POSBase):
         client_name = kwargs.get("client_name")
         bot = kwargs.get('bot')
         page_type = kwargs.get('page_type', PageType.pos_products.value)
+        company_id = kwargs.get("company_id", 1)
         data = pos_processor.pos_login(client_name, bot)
         page_url_json = None
         if page_type == PageType.pos_products.value:
-            page_url_json = self.products_list()
+            page_url_json = self.products_list(company_id=company_id)
         elif page_type == PageType.pos_orders.value:
-            page_url_json = self.orders_list()
+            page_url_json = self.orders_list(company_id=company_id)
         data.update(page_url_json)
 
         response = pos_processor.set_odoo_session_cookie(data)
@@ -40,16 +41,18 @@ class OdooPOS(POSBase):
     def products_list(self, **kwargs):
         action = OdooPOSActions.ACTION_POS_PRODUCT_LIST.value
         menu = OdooPOSMenus.MENU_POS_PRODUCTS.value
+        company_id = kwargs.get("company_id", 1)
         product_list_json = {
-            "url": f"{self.__base_url}/web#action={action}&model=product.template&view_type=kanban&cids=1&menu_id={menu}"
+            "url": f"{self.__base_url}/web#action={action}&model=product.template&view_type=kanban&cids={company_id}&menu_id={menu}"
         }
         return product_list_json
 
     def orders_list(self, **kwargs):
         action = OdooPOSActions.ACTION_POS_ORDER_LIST.value
         menu = OdooPOSMenus.MENU_POS_ORDERS.value
+        company_id = kwargs.get("company_id",1)
         order_list_json = {
-            "url": f"{self.__base_url}/web#action={action}&model=pos.order&view_type=list&cids=1&menu_id={menu}"
+            "url": f"{self.__base_url}/web#action={action}&model=pos.order&view_type=list&cids={company_id}&menu_id={menu}"
         }
         return order_list_json
 
