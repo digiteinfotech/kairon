@@ -3983,6 +3983,7 @@ class TestMongoProcessor:
         assert result["message"] == "Upsert complete!"
         assert len(data) == 0
 
+
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
