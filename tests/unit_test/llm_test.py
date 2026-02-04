@@ -1,4 +1,5 @@
 import os
+from http import HTTPStatus
 from urllib.parse import urljoin
 import ujson as json
 from kairon.shared.utils import Utility
@@ -1402,6 +1403,98 @@ class TestLLM:
         assert req_json['score_threshold'] == 0.70
 
         assert isinstance(time_elapsed, float) and time_elapsed > 0.0
+
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
+    async def test_get_embedding_raises_on_error(self,mock_request):
+        mock_request.return_value = ({"error": "Internal Server Error"}, 500, 0.05, {})
+        bot = "test_bot"
+        llm_type = "openai"
+        user = "test_user"
+        key = "test"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+
+        gpt3 = LLMProcessor(bot, llm_type)
+
+        with pytest.raises(Exception) as exc_info:
+            await gpt3.get_embedding("Hello world", user)
+
+        assert str(exc_info.value) == HTTPStatus(500).phrase
+
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
+    async def test_get_completion_raises_on_error(self, mock_request):
+
+        mock_request.return_value = ({"error": "Internal Server Error"}, 500, 0.05, {})
+
+        bot = "test_bot"
+        llm_type = "openai"
+        user = "test_user"
+
+        gpt3 = LLMProcessor(bot, llm_type)
+
+        messages = [{"role": "user", "content": "Hello"}]
+        hyperparameters = {}
+
+        with pytest.raises(Exception) as exc_info:
+            await gpt3._LLMProcessor__get_completion(
+                messages,
+                hyperparameters,
+                user,
+                media_ids=None,
+                should_process_media=False,
+                invocation="test_invocation"
+            )
+
+        assert str(exc_info.value) == HTTPStatus(500).phrase
+
+
+    @pytest.mark.asyncio
+    async def test_parse_completion_response_stream_and_nonstream(self):
+        bot = "test_bot"
+        llm_type = "openai"
+        gpt3 = LLMProcessor(bot, llm_type)
+
+        response_stream = {
+            "choices": [
+                {"index": 0, "delta": {"content": "Hello Stream"}}
+            ]
+        }
+
+        with patch("kairon.shared.llm.processor.randbelow", return_value=0):
+            formatted = await gpt3._LLMProcessor__parse_completion_response(
+                response_stream, stream=True, n=1
+            )
+            assert formatted == "Hello Stream"
+
+        response_nonstream = {
+            "choices": [
+                {"message": {"content": "Hello Non-Stream"}}
+            ]
+        }
+
+        with patch("kairon.shared.llm.processor.choice", return_value=response_nonstream['choices'][0]):
+            formatted = await gpt3._LLMProcessor__parse_completion_response(
+                response_nonstream, stream=False
+            )
+            assert formatted == "Hello Non-Stream"
 
 
     @pytest.mark.asyncio
