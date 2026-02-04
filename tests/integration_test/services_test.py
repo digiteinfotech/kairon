@@ -22257,7 +22257,6 @@ def test_deploy_connection_error(mock_endpoint):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
 
-
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
