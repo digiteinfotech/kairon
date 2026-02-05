@@ -169,11 +169,11 @@ from .data_validation import DataValidation
 from .model_data_imporer import KRasaFileImporter, CustomRuleStep
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
-from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..chat.broadcast.data_objects import MessageBroadcastLogs, AnalyticsPipelineLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, UploadHandlerClass
 from ..content_importer.content_processor import ContentImporterLogProcessor
-from ..custom_widgets.data_objects import CustomWidgets
+from ..custom_widgets.data_objects import CustomWidgets, CustomWidgetsRequestLog
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
 from ..log_system.base import BaseLogHandler
@@ -181,7 +181,7 @@ from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 from ..upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
-
+from ..upload_handler.data_objects import UploadHandlerLogs
 
 class MongoProcessor:
     """
@@ -8108,6 +8108,9 @@ class MongoProcessor:
             LogType.data_importer.value: ValidationLogs,
             LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
             LogType.multilingual.value: BotReplicationLogs,
+            LogType.file_upload.value: UploadHandlerLogs,
+            LogType.analytics_pipeline: AnalyticsPipelineLogs,
+            LogType.custom_widgets: CustomWidgetsRequestLog
         }
         if logtype == LogType.action_logs.value:
             filter_query = {
