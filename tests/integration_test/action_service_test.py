@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import os
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from urllib.parse import urlencode, urljoin
 
 from aioresponses import aioresponses
@@ -847,7 +847,7 @@ def test_parallel_action_execution(aioresponses):
         "bot_response": "Parallel Action Executed",
         "bot": "5f50fd0a56b698ca10d35d2z",
         "status": STATUSES.SUCCESS.value,
-        "trigger_info": {"trigger_name": '',"trigger_type": 'implicit',"trigger_id":""},
+        "trigger_info": {"trigger_name": '', "trigger_type": 'implicit', "trigger_id": ""},
         "user_msg": "get intents"
     }
     Actions.objects(name="test_pyscript_action_execution").delete()
@@ -2973,9 +2973,9 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
         user="user"
     ).save()
     resp_msg = {
-            "sender_id": "default",
-            "user_message": "get intents",
-            "intent": "test_run"
+        "sender_id": "default",
+        "user_message": "get intents",
+        "intent": "test_run"
     }
     http_url = 'http://localhost:8081/mock'
     responses.add(
@@ -3163,7 +3163,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
     aioresponses.add(
         method=responses.POST,
         url=Utility.environment['async_callback_action']['pyscript']['url'],
-        body=json.dumps({"success": True, "body": {'bot_response': data_obj},"statusCode":200, 'error_code': 0}),
+        body=json.dumps({"success": True, "body": {'bot_response': data_obj}, "statusCode": 200, 'error_code': 0}),
         status=200,
     )
 
@@ -3647,7 +3647,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
     responses.add(
         method=responses.POST,
         url=Utility.environment['async_callback_action']['pyscript']['url'],
-        json={"success": True, "body": resp_msg, "statusCode":200,'error_code': 0},
+        json={"success": True, "body": resp_msg, "statusCode": 200, 'error_code': 0},
         status=200,
         match=[
             responses.matchers.json_params_matcher(
@@ -4496,11 +4496,29 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
     log.pop('timestamp')
 
 
-@responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_http_request"
+)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_vectordb_action_execution_embedding_search_from_value(
+        mock_embedding, mock_execute_http_request,
+):
+    embedding = [0.1] * LLMProcessor.__embedding__
+
+    mock_embedding.return_value = (
+        [embedding],
+        200,
+        0.05,
+        {}
+    )
+    mock_execute_http_request.return_value = {
+        "result": [
+            {"id": 0, "vector": [0], "payload": {}}
+        ]
+    }
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56b698ca10d75d2e",
@@ -4526,9 +4544,14 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
         user="user"
     )
     llm_secret.save()
-    embedding = list(np.random.random(Qdrant.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = [0.1] * Qdrant.__embedding__
 
+    mock_embedding.return_value = (
+        [embedding],
+        200,
+        0.05,
+        {}
+    )
     http_url = 'http://localhost:6333/collections/5f50fd0a56b698ca10d75d2e_test_vectordb_action_execution_faq_embd/points/query'
     resp_msg = json.dumps(
         {
@@ -4594,12 +4617,24 @@ def test_vectordb_action_execution_embedding_search_from_value(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56b698ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload_body],
-                'metadata': {'user': 'default', 'bot': '5f50fd0a56b698ca10d75d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    call_kwargs = mock_embedding.call_args[1]
+
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        "http://localhost/"
+        "5f50fd0a56b698ca10d75d2e/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["text"] == ["Hi"]
+    assert request_body["user"] == "default"
+
+    assert request_body["kwargs"]["api_key"] == "key_value"
+    assert request_body["kwargs"]["invocation"] == "db_action_qdrant"
+    assert request_body["kwargs"]["truncated_texts"] == ["Hi"]
 
 
 @responses.activate
@@ -4749,11 +4784,27 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
     log.pop('timestamp')
 
 
-@responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_http_request"
+)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding, mock_execute_http_request):
+    embedding = [0.1] * LLMProcessor.__embedding__
+
+    mock_embedding.return_value = (
+        [embedding],
+        200,
+        0.05,
+        {}
+    )
+    mock_execute_http_request.return_value = {
+        "result": [
+            {"id": 15, "vector": [15], "payload": {}}
+        ]
+    }
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fx0a56b698ca10d35d2e",
@@ -4846,19 +4897,47 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot='5f50fx0a56b698ca10d35d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload],
-                'metadata': {'user': 'default', 'bot': '5f50fx0a56b698ca10d35d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    call_kwargs = mock_embedding.call_args[1]
+
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        "http://localhost/"
+        "5f50fx0a56b698ca10d35d2e/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["text"] == ["Hi"]
+    assert request_body["user"] == "default"
+
+    assert request_body["kwargs"]["api_key"] == "key_value"
+    assert request_body["kwargs"]["invocation"] == "db_action_qdrant"
+    assert request_body["kwargs"]["truncated_texts"] == ["Hi"]
 
 
-@responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_embedding):
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_http_request"
+)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_embedding, mock_execute_http_request):
+    embedding = [0.1] * LLMProcessor.__embedding__
+
+    mock_embedding.return_value = (
+        [embedding],
+        200,
+        0.05,
+        {}
+    )
+    mock_execute_http_request.return_value = {
+        "result": [
+            {"id": 0, "vector": [0], "payload": {}}
+        ]
+    }
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution_no_response_dispatch"
     Actions(name=action_name, type=ActionType.database_action.value, bot="5f50fd0a56v098ca10d75d2e",
@@ -4951,12 +5030,24 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
     log = ActionServerLogs.objects(action=action_name, bot='5f50fd0a56v098ca10d75d2e').get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": [payload_body],
-                'metadata': {'user': 'default', 'bot': '5f50fd0a56v098ca10d75d2e', 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    call_kwargs = mock_embedding.call_args[1]
+
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        "http://localhost/"
+        "5f50fd0a56v098ca10d75d2e/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["text"] == ["Milk"]
+    assert request_body["user"] == "default"
+
+    assert request_body["kwargs"]["api_key"] == "key_value"
+    assert request_body["kwargs"]["invocation"] == "db_action_qdrant"
+    assert request_body["kwargs"]["truncated_texts"] == ["Milk"]
 
 
 def test_vectordb_action_execution_invalid_operation_type():
@@ -12356,8 +12447,7 @@ def test_action_handler_exceptions():
                                  'action_name': 'Action Not Found Exception'}
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embedding, aioresponses):
+def test_prompt_action_response_action_with_prompt_question_from_slot(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -12383,8 +12473,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
          'is_enabled': True}
     ]
 
-    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = [0.1] * OPENAI_EMBEDDING_OUTPUT
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -12394,6 +12483,19 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
         'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -12450,10 +12552,9 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(mock_embed
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch.object(ActionUtility, 'execute_request_async', autospec=True)
 def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity(mock_execute_request_async,
-                                                                                 mock_embedding, aioresponses):
+                                                                                  aioresponses):
     from uuid6 import uuid7
     llm_type = "perplexity"
     action_name = "test_prompt_action_response_action_with_prompt_question_from_slot"
@@ -12487,7 +12588,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         mock.ANY
     )
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
@@ -12496,6 +12598,19 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         'api_key': 'keyvalue',
         'num_retries': 3, 'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0, 'n': 1,
         'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}}
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
@@ -12550,7 +12665,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
                                                      "attachment": '', "image": '', "custom": ''}}]
     response = client.post("/webhook", json=request_object)
     response_json = response.json()
-    mock_execute_request_async.assert_called_once_with(
+    mock_execute_request_async.assert_any_call(
         http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/completion/{llm_type}",
         request_method="POST",
         request_body={
@@ -12581,9 +12696,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(mock_embedding,
-                                                                                                     aioresponses):
+def test_prompt_action_response_action_with_prompt_question_from_slot_different_embedding_completion(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "anthropic"
@@ -12612,13 +12725,26 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
                      "hyperparameters": hyperparameters,
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -12690,8 +12816,7 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_bot_responses(mock_embedding, aioresponses):
+def test_prompt_action_response_action_with_bot_responses(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -12720,7 +12845,6 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'}, {'role': 'user',
@@ -12729,6 +12853,19 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
         'user': user,
         'invocation': 'prompt_action'
     }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -12787,9 +12924,7 @@ def test_prompt_action_response_action_with_bot_responses(mock_embedding, aiores
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_bot_responses_with_instructions(mock_embedding,
-                                                                            aioresponses):
+def test_prompt_action_response_action_with_bot_responses_with_instructions(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -12819,7 +12954,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
          'is_enabled': True}
     ]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -12829,6 +12964,20 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
         'user': user,
         'invocation': 'prompt_action'
     }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -12888,8 +13037,7 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(mock
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresponses):
+def test_prompt_action_response_action_with_query_prompt(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -12930,6 +13078,19 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
                      }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -12949,8 +13110,6 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
         method="POST",
         status=200
     )
-
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     llm_secret = LLMSecret(
         llm_type="openai",
@@ -12988,8 +13147,7 @@ def test_prompt_action_response_action_with_query_prompt(mock_embedding, aioresp
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_response_action(mock_embedding, aioresponses):
+def test_prompt_response_action(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13032,7 +13190,6 @@ def test_prompt_response_action(mock_embedding, aioresponses):
         payload={
             'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content_two}}]})
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
@@ -13040,6 +13197,19 @@ def test_prompt_response_action(mock_embedding, aioresponses):
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -13087,8 +13257,7 @@ def test_prompt_response_action(mock_embedding, aioresponses):
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
+def test_prompt_response_action_with_instructions(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13115,7 +13284,6 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
          }
     ]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
@@ -13123,6 +13291,19 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -13175,8 +13356,7 @@ def test_prompt_response_action_with_instructions(mock_embedding, aioresponses):
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
+def test_prompt_response_action_streaming_enabled(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13207,7 +13387,6 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
          }
     ]
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'},
                                   {'role': 'user',
@@ -13216,6 +13395,18 @@ def test_prompt_response_action_streaming_enabled(mock_embedding, aioresponses):
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -13354,8 +13545,7 @@ def test_prompt_action_response_action_does_not_exists():
     assert len(response_json['responses']) == 0
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, aioresponses):
+def test_prompt_action_response_action_with_static_user_prompt(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13410,6 +13600,19 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
     }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -13430,7 +13633,6 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
         repeat=True
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -13469,8 +13671,7 @@ def test_prompt_action_response_action_with_static_user_prompt(mock_embedding, a
 
 
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_with_action_prompt(mock_embedding, aioresponses):
+def test_prompt_action_response_action_with_action_prompt(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13548,6 +13749,18 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -13569,7 +13782,6 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
         status=200
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -13623,9 +13835,8 @@ def test_prompt_action_response_action_with_action_prompt(mock_embedding, aiores
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch.object(ActionUtility, "perform_google_search", autospec=True)
-def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_embedding, aioresponses):
+def test_kairon_faq_response_with_google_search_prompt(mock_google_search, aioresponses):
     llm_type = "openai"
     action_name = "kairon_faq_action"
     google_action_name = "custom_search_action"
@@ -13685,6 +13896,19 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
                      }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -13696,7 +13920,6 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, mock_
         body=expected_body
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_google_search.side_effect = _run_action
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13764,8 +13987,7 @@ def test_prompt_response_action_with_action_not_found():
     log['exception'] = 'No action found for given bot and name'
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
+def test_prompt_action_dispatch_response_disabled(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -13801,6 +14023,20 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
                      }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload={
+            "data": [
+                {
+                    "embedding": embedding,
+                    "index": 0
+                }
+            ]
+        }
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -13820,7 +14056,6 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
         status=200
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -13890,9 +14125,8 @@ def test_prompt_action_dispatch_response_disabled(mock_embedding, aioresponses):
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
 @mock.patch("kairon.shared.actions.utils.ActionUtility.compose_response", autospec=True)
-def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
+def test_prompt_action_set_slots(mock_slot_set, aioresponses):
     llm_type = "openai"
     action_name = "kairon_faq_action"
     bot = "5u80fd0a56c908ca10d35d2sjhjhjhj"
@@ -13927,6 +14161,20 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
                      }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload={
+            "data": [
+                {
+                    "embedding": embedding,
+                    "index": 0
+                }
+            ]
+        }
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -13938,7 +14186,6 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
         body=expected_body
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     log1 = ['Slot: api_type', 'evaluation_type: expression', f"data: {generated_text}", 'response: filter']
     log2 = ['Slot: query', 'evaluation_type: expression', f"data: {generated_text}",
             'response: {\"must\": [{\"key\": \"Date Added\", \"match\": {\"value\": 1673721000.0}}]}']
@@ -14028,8 +14275,7 @@ def test_prompt_action_set_slots(mock_slot_set, mock_embedding, aioresponses):
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses):
+def test_prompt_action_response_action_slot_prompt(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -14062,6 +14308,19 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
                      'user': user,
                      'invocation': 'prompt_action'
                      }
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
@@ -14083,7 +14342,6 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
         status=200
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -14157,21 +14415,20 @@ def test_prompt_action_response_action_slot_prompt(mock_embedding, aioresponses)
     assert not DeepDiff(log['llm_logs'][0], expected[0], ignore_order=True, exclude_regex_paths=excludedRegex)
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses):
+def test_prompt_action_response_action_crud_prompt(aioresponses):
     from uuid6 import uuid7
     from kairon.shared.actions.data_objects import Actions, PromptAction
 
-    llm_type       = "openai"
-    action_name    = "prompt_action_with_crud"
-    bot            = "5u80fd0a56c908ca10d35d2s"
-    user           = "udit.pandey"
-    api_key        = "keyvalue"
-    user_msg       = "What is the name of prompt?"
+    llm_type = "openai"
+    action_name = "prompt_action_with_crud"
+    bot = "5u80fd0a56c908ca10d35d2s"
+    user = "udit.pandey"
+    api_key = "keyvalue"
+    user_msg = "What is the name of prompt?"
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
-    hyperparams    = Utility.get_default_llm_hyperparameters()
+    hyperparams = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
-
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
     PromptAction.objects(bot=bot).delete()
@@ -14225,7 +14482,6 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
         }
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {
         'messages': [
@@ -14245,6 +14501,19 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
         'user': user,
         'invocation': 'prompt_action'
     }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
@@ -14276,12 +14545,12 @@ def test_prompt_action_response_action_crud_prompt(mock_embedding, aioresponses)
 
     assert resp_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-         {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'}
     ]
     assert resp_json['responses'][0]['text'] == generated_text
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mock_embedding, aioresponses):
+
+def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(aioresponses):
     from uuid6 import uuid7
     from kairon.shared.actions.data_objects import Actions, PromptAction
 
@@ -14294,7 +14563,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparams = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
-
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
     PromptAction.objects(bot=bot).delete()
@@ -14303,7 +14572,6 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
     LLMSecret(llm_type=llm_type, api_key=api_key, models=["gpt-4.1-mini"], bot=bot, user=user).save()
-
 
     llm_prompts = [
         {
@@ -14343,7 +14611,6 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
         }
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {
         'messages': [
@@ -14363,6 +14630,19 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
         'user': user,
         'invocation': 'prompt_action'
     }
+
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
@@ -14403,8 +14683,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_positive(mo
     assert resp_json['responses'][0]['text'] == generated_text
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_crud_prompt_query_source_slot_value_string(mock_embedding, aioresponses):
+def test_prompt_action_response_action_crud_prompt_query_source_slot_value_string(aioresponses):
     from uuid6 import uuid7
     from kairon.shared.actions.data_objects import Actions, PromptAction
 
@@ -14417,7 +14696,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     generated_text = "Python is dynamically typed, garbage-collected, high level, general purpose programming."
     hyperparams = Utility.get_default_llm_hyperparameters()
     litellm_call_id = "abc-123-test-id"
-
+    embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
     Actions.objects(bot=bot).delete()
     BotSettings.objects(bot=bot).delete()
     PromptAction.objects(bot=bot).delete()
@@ -14465,7 +14744,6 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
         }
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {
         'messages': [
@@ -14485,6 +14763,18 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
         'user': user,
         'invocation': 'prompt_action'
     }
+    aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
 
     aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'], f"/{bot}/completion/{llm_type}"),
@@ -14523,8 +14813,8 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_value_strin
     ]
     assert resp_json['responses'][0]['text'] == generated_text
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_crud_prompt_query_source_slot_app_exception(mock_embedding, aioresponses):
+
+def test_prompt_action_response_action_crud_prompt_query_source_slot_app_exception(aioresponses):
     from uuid6 import uuid7
     from kairon.shared.actions.data_objects import Actions, PromptAction
 
@@ -14570,7 +14860,6 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_app_excepti
     ]
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
     request_object["tracker"]["slots"]["bot"] = bot
@@ -14592,8 +14881,7 @@ def test_prompt_action_response_action_crud_prompt_query_source_slot_app_excepti
     assert resp_json["responses"][0]["text"] == "I'm sorry, I didn't quite understand that. Could you rephrase?"
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
+def test_prompt_action_user_message_in_slot(aioresponses):
     from uuid6 import uuid7
 
     llm_type = "openai"
@@ -14626,6 +14914,19 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
                      }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
@@ -14645,7 +14946,6 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
         status=200
     )
 
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
     llm_secret = LLMSecret(
@@ -14680,8 +14980,7 @@ def test_prompt_action_user_message_in_slot(mock_embedding, aioresponses):
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, aioresponses):
+def test_prompt_action_response_action_when_similarity_is_empty(aioresponses):
     llm_type = "openai"
     action_name = "test_prompt_action_response_action_when_similarity_is_empty"
     bot = "5f50fd0a56b698ca10d35d2C"
@@ -14707,7 +15006,6 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -14719,13 +15017,27 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
                  'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                              'litellm_call_id':litellm_call_id}},
+                              'litellm_call_id': litellm_call_id}},
         body=expected_body
     )
 
@@ -14774,8 +15086,7 @@ def test_prompt_action_response_action_when_similarity_is_empty(mock_embedding, 
     ]
 
 
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, aioresponses):
+def test_prompt_action_response_action_when_similarity_disabled(aioresponses):
     llm_type = "openai"
     action_name = "test_prompt_action_response_action_when_similarity_disabled"
     bot = "5f50fd0a56b698ca10d35d2Z"
@@ -14801,7 +15112,6 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -14813,13 +15123,26 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     }
 
     aioresponses.add(
+        url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{llm_type}",
+        method="POST",
+        status=200,
+        payload=(
+            [embedding],
+            200,
+            0.05,
+            {}
+        ),
+        body=json.dumps(expected_body)
+    )
+
+    aioresponses.add(
         url=urljoin(Utility.environment['llm']['url'],
                     f"/{bot}/completion/{llm_type}"),
         method="POST",
         status=200,
         payload={'formatted_response': generated_text,
                  'response': {'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}],
-                 'litellm_call_id': litellm_call_id}
+                              'litellm_call_id': litellm_call_id}
                  },
         body=expected_body
     )
@@ -14853,7 +15176,7 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     response_json = response.json()
     assert response_json['events'] == [
         {'event': 'slot', 'timestamp': None, 'name': 'kairon_action_response', 'value': generated_text},
-        {'event': 'slot', 'name': 'llm_call_id','timestamp': None,'value': 'abc-123-test-id'},
+        {'event': 'slot', 'name': 'llm_call_id', 'timestamp': None, 'value': 'abc-123-test-id'},
     ]
     assert response_json['responses'] == [
         {'text': generated_text, 'buttons': [], 'elements': [], 'custom': {}, 'template': None,
@@ -14861,18 +15184,35 @@ def test_prompt_action_response_action_when_similarity_disabled(mock_embedding, 
     ]
 
 
-@responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_http_request"
+)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_vectordb_action_execution_embedding_payload_search(mock_embedding,mock_execute_http_request):
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     bot = '5f50fx0a56b698ca10d35d2f'
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    mock_embedding.return_value = (
+        [embedding],
+        200,
+        0.05,
+        {}
+    )
+    mock_execute_http_request.return_value = {
+        "result": [
+            {"id": 15, "vector": [15], "payload": {}}
+        ]
+    }
     responses.add_passthru("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
     action_name = "test_vectordb_action_execution_embedding_payload_search"
     Actions(name=action_name, type=ActionType.database_action.value, bot=bot,
             user="user").save()
     slot = 'name'
     Slots(name=slot, type='text', bot=bot, user='user').save()
+
     payload = {"filter": {
         "should": [{"key": "city", "match": {"value": "London"}}, {"key": "color", "match": {"value": "red"}}]}}
     payload_body = json.dumps(payload)
@@ -14969,12 +15309,24 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding):
     log = ActionServerLogs.objects(action=action_name, bot=bot).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
-    expected = {"model": "text-embedding-3-large",
-                "input": ["Hi How are you"],
-                'metadata': {'user': 'default', 'bot': bot, 'invocation': 'db_action_qdrant'},
-                "api_key": 'key_value',
-                "num_retries": 3}
-    assert not DeepDiff(mock_embedding.call_args[1], expected, ignore_order=True)
+    call_kwargs = mock_embedding.call_args[1]
+
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        "http://localhost/"
+        "5f50fx0a56b698ca10d35d2f/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["text"] == ["Hi How are you"]
+    assert request_body["user"] == "default"
+
+    assert request_body["kwargs"]["api_key"] == "key_value"
+    assert request_body["kwargs"]["invocation"] == "db_action_qdrant"
+    assert request_body["kwargs"]["truncated_texts"] == ["Hi How are you"]
 
 
 def test_schedule_action_invalid_date():
@@ -15050,7 +15402,7 @@ def test_schedule_action_invalid_date():
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
-                   'bot': bot,'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                   'bot': bot, 'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                    'status': STATUSES.FAIL.value,
                    'user_msg': 'get intents', 'schedule_action': callback_script,
                    'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
@@ -15130,7 +15482,7 @@ def test_schedule_action_invalid_callback():
                    'user_msg': 'get intents', 'schedule_action': 'invalid_callback',
                    'timezone': 'Asia/Kolkata',
                    'execution_info': None,
-                   'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                   'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                    'exception': 'Callback Configuration with name \'invalid_callback\' does not exist!'}
 
 
@@ -15217,7 +15569,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
                        'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'user': '1011'}}
 
@@ -15320,7 +15672,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
                        'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {}}
 
@@ -15427,7 +15779,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
                        'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'test_schedule_action_script',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                        'execution_info': {'pyscript_code': "bot_response='hello world'", 'type': 'pyscript'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
@@ -15444,7 +15796,6 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
         assert job_state['args'][2]['predefined_objects']['bot'] == bot
         assert job_state['args'][2]['predefined_objects']['user'] == '1011'
         assert 'event' in job_state['args'][2]['predefined_objects']
-
 
 
 @mock.patch("pymongo.collection.Collection.insert_one", autospec=True)
@@ -15465,7 +15816,6 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
     with mock.patch.dict(Utility.environment, mock_env):
         Actions(name=action_name, type=ActionType.schedule_action.value,
                 bot=bot, user=user).save()
-
 
         ScheduleAction(
             name=action_name,
@@ -15527,7 +15877,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
                        'status': STATUSES.SUCCESS.value,
                        'user_msg': 'get intents', 'schedule_action': 'greet',
                        'schedule_time': date_str, 'timezone': 'Asia/Kolkata',
-                       'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
+                       'trigger_info': {'trigger_id': '', 'trigger_name': '', 'trigger_type': 'implicit'},
                        'execution_info': {'flow': "greet", 'type': 'flow'},
                        'data': {'bot': '**********************74', 'user': '1011'}}
 
@@ -15543,6 +15893,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
         assert job_state['args'][2]['bot'] == bot
         assert job_state['args'][2]['user'] == 'default'
         assert job_state['args'][2]['flow_name'] == 'greet'
+
 
 @patch('kairon.actions.definitions.schedule.ScheduleAction')
 def test_retrieve_config_does_not_exist(mock_schedule_action):

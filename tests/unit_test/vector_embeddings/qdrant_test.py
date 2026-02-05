@@ -5,6 +5,7 @@ from mongoengine import connect
 
 import pytest
 
+from unittest.mock import AsyncMock
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.exception import ActionFailure
@@ -31,7 +32,10 @@ class TestQdrant:
 
     @pytest.mark.asyncio
     @mock.patch.dict(Utility.environment, {'vector': {"key": "TEST", 'db': 'http://localhost:6333'}})
-    @mock.patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
     async def test_embedding_search_valid_request_body(self, mock_http_request, mock_embedding):
         embedding = list(np.random.random(LLMProcessor.__embedding__))
@@ -49,7 +53,13 @@ class TestQdrant:
         qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
                         LLMSettings(provider="openai").to_mongo().to_dict())
         mock_http_request.return_value = 'expected_result'
-        mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+        embedding = [[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         result = await qdrant.perform_operation({'embedding_search': 'Hi'}, user=user)
         assert result == 'expected_result'
 
@@ -109,11 +119,16 @@ class TestQdrant:
             DatabaseFactory.get_instance("mongo")
 
     @pytest.mark.asyncio
-    @mock.patch.object(LLMProcessor, "get_embedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     @mock.patch.object(ActionUtility, "execute_http_request", autospec=True)
-    async def test_embedding_search_valid_request_body_payload(self, mock_http_request, mock_get_embedding):
-        text_embedding_3_small_embeddings = [np.random.random(1536).tolist()]
-        colbertv2_0_embeddings = [[np.random.random(128).tolist()]]
+    async def test_embedding_search_valid_request_body_payload(self, mock_http_request, mock_execute_request_async):
+        text_embedding_3_small_embeddings = [[0.1] * 1536]
+
+        colbertv2_0_embeddings = [[[0.1] * 128]]
+
         bm25_embeddings = [{
             "indices": [1850593538, 11711171],
             "values": [1.66, 1.66]
@@ -125,7 +140,13 @@ class TestQdrant:
             "sparse": bm25_embeddings,
         }
 
-        mock_get_embedding.return_value = embeddings
+        mock_execute_request_async.return_value = (
+            embeddings,
+            200,
+            0.01,
+            {}
+        )
+
         Utility.load_environment()
         qdrant = Qdrant('5f50fd0a56v098ca10d75d2g', '5f50fd0a56v098ca10d75d2g',
                         LLMSettings(provider="openai").to_mongo().to_dict())

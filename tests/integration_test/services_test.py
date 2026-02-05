@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
@@ -1503,6 +1503,7 @@ def test_list_bots():
     assert response["data"]["account_owned"][1]["name"] == "covid-bot"
     assert response["data"]["account_owned"][1]["_id"]
     assert response["data"]["shared"] == []
+
 
 
 def test_get_client_name_with_no_configuration():
@@ -4732,7 +4733,10 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -4746,8 +4750,14 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+    embedding = [[0.1] * 3072, [0.1] * 3072]
 
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -4826,19 +4836,22 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}', '{"id":2,"item":"Apples","price":1.2,"quantity":20}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
 
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
@@ -4850,7 +4863,10 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -4864,7 +4880,15 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -4958,19 +4982,22 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}', '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     LLMSecret.objects.delete()
@@ -7010,7 +7037,10 @@ def test_add_pos_integration_config_invalid_sync_type():
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7021,9 +7051,13 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7211,7 +7245,10 @@ def test_get_catalog_sync_logs():
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_collection_points,
                                                          mock_delete_meta_catalog, mock_push_meta_catalog):
@@ -7224,9 +7261,13 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     mock_delete_collection_points.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     payload = {
         "connector_type": "petpooja",
         "config": {
@@ -7343,7 +7384,10 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7353,9 +7397,13 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     payload = {
         "connector_type": "petpooja",
         "config": {
@@ -7484,7 +7532,10 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7495,9 +7546,13 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7613,7 +7668,10 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7623,9 +7681,13 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7742,7 +7804,10 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7753,9 +7818,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7908,7 +7977,10 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7918,9 +7990,13 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8129,7 +8205,10 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8140,9 +8219,13 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8299,7 +8382,10 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8309,9 +8395,13 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8455,7 +8545,10 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8466,9 +8559,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8620,7 +8717,10 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8631,9 +8731,13 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8752,7 +8856,10 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8763,9 +8870,13 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8949,7 +9060,10 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8960,9 +9074,13 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9156,7 +9274,10 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9167,9 +9288,13 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9300,7 +9425,10 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9311,9 +9439,13 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9460,7 +9592,10 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(CognitionDataProcessor, "preprocess_push_menu_data", side_effect=Exception("Simulated preprocess error"))
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9471,9 +9606,13 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9623,9 +9762,13 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9759,7 +9902,10 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -9774,9 +9920,13 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9900,7 +10050,10 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9911,9 +10064,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {

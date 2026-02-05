@@ -26,7 +26,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch, ANY
+from unittest.mock import patch, ANY, AsyncMock
 import numpy as np
 import pandas as pd
 import pytest
@@ -3633,7 +3633,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
                                                  mock_collection_exists):
         bot = 'test_bot'
@@ -3695,8 +3698,13 @@ class TestMongoProcessor:
         mock_collection_upsert.return_value = None
 
         embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3725,14 +3733,21 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 3.00  # Updated price
         assert updated_record.data["quantity"] == 5
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":2.5,"quantity":10}',
-                   '{"id":2,"item":"Milk","price":3.0,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":2.5,"quantity":10}',
+            '{"id":2,"item":"Milk","price":3.0,"quantity":5}'
+        ]
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -3742,7 +3757,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
                                                     mock_create_collection,
                                                     mock_collection_exists):
@@ -3819,9 +3837,13 @@ class TestMongoProcessor:
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3850,14 +3872,22 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 27.00  # Updated price
         assert updated_record.data["quantity"] == 12
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":80.5,"quantity":56}',
-                   '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":80.5,"quantity":56}',
+            '{"id":2,"item":"Milk","price":27.0,"quantity":12}'
+        ]
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -3868,7 +3898,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_empty_data_list(self, mock_embedding, mock_delete_collection_points,
                                                mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
@@ -3928,9 +3961,13 @@ class TestMongoProcessor:
         mock_collection_upsert.return_value = None
         mock_delete_collection_points.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
@@ -3946,10 +3983,37 @@ class TestMongoProcessor:
         assert result["message"] == "Upsert complete!"
         assert len(data) == 0
 
+
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
 
+
+    def test_get_llm_metadata_coverage(self):
+        bot = "test_bot"
+        llm_type = "openai"
+
+        LLMSecret.objects(bot=bot, llm_type=llm_type).delete()
+        LLMSecret.objects(bot__exists=False, llm_type=llm_type).delete()
+
+        secret1 = LLMSecret(bot=bot, llm_type=llm_type, api_key="value", models=["model1", "model2"], user="user")
+        secret1.save()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["model1", "model2"]
+
+        secret1.delete()
+
+        secret2 = LLMSecret(bot=None, llm_type=llm_type, api_key="value", models=["fallback_model"], user="user")
+        secret2.save()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["fallback_model"]
+
+        secret2.delete()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == []
     def test_get_pydantic_type_int(self):
         result = CognitionDataProcessor().get_pydantic_type('int')
         expected = (int, ...)
@@ -6834,7 +6898,10 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
@@ -6864,7 +6931,13 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
         embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        embedding = [[0.1] * 1532, [0.1] * 1532]
+        mock_openai.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
