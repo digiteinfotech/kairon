@@ -3989,7 +3989,6 @@ class TestMongoProcessor:
         LLMSecret.objects.delete()
 
 
-    @pytest.mark.asyncio
     def test_get_llm_metadata_coverage(self):
         bot = "test_bot"
         llm_type = "openai"
