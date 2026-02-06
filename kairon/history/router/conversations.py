@@ -26,6 +26,7 @@ async def flat_conversations(
     )
     return {"data": flat_data, "message": message}
 
+
 @router.get("/agentic_flow", response_model=Response)
 async def agentic_flow_conversations(
         from_date: date = Depends(Utility.get_back_date_1month),
@@ -38,6 +39,7 @@ async def agentic_flow_conversations(
     )
     return {"data": flat_data, "message": message}
 
+
 @router.get("/agentic_flow/user/{sender:path}", response_model=Response)
 async def agentic_flow_user_history(
         sender: Text,
@@ -48,7 +50,6 @@ async def agentic_flow_user_history(
     """Fetches the list of conversation with the agent by particular user."""
     history, message = HistoryProcessor.fetch_chat_history(f"{collection}_agent", sender, from_date, to_date)
     return {"data": {"history": list(history)}, "message": message}
-
 
 
 @router.get("/download")
