@@ -3260,7 +3260,7 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
 
-        coll = MessageBroadcastProcessor.get_db_client(bot)
+        coll = MessageBroadcastProcessor.get_db_client("flattened_conversations")
         history = list(coll.find({}))
         print(history)
         history[0].pop("timestamp")
@@ -6634,7 +6634,7 @@ class TestEventExecution:
                 'campaign_id': reference_id
             }
         ]
-        coll = MessageBroadcastProcessor.get_db_client(bot)
+        coll = MessageBroadcastProcessor.get_db_client("flattened_conversations")
         history = list(coll.find({"sender_id": "919876543211"}))
         assert len(history) == 1
         history[0].pop("timestamp")
