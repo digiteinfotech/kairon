@@ -30,6 +30,19 @@ def load_history_data():
     return db_url, client
 
 
+def load_conversations_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = MongoClient(db_url)
+    collection = client.get_database().get_collection("flattened_conversations")
+    items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+    for item in items:
+        item['event']['timestamp'] = time.time()
+        if item.get('timestamp'):
+            item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
 def load_jumbled_events_data():
     db_url = "mongodb://test_kairon:27016/conversation"
     client = MongoClient(db_url)
@@ -52,8 +65,21 @@ def load_flattened_history_data():
     return db_url, client
 
 
+def load_flattened_conversations_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = MongoClient(db_url)
+    collection = client.get_database().get_collection("flattened_conversations")
+    items = json.load(open("./tests/testing_data/history/flattened_conversations.json", "r"))
+    for item in items:
+        item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
 db_url, mongoclient = load_history_data()
+conversations_history_db_url, conversations_history_mongoclient = load_conversations_history_data()
 db_url_flattened, mongoclient_flattened = load_flattened_history_data()
+db_url_flattened_conversations, mongoclient_flattened_conversations = load_flattened_conversations_history_data()
 db_url_jumbled_events, mongoclient_jumbled_events = load_jumbled_events_data()
 
 
@@ -196,7 +222,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_fetch_chat_history(self, mock_client):
-        mock_client.return_value = mongoclient_flattened
+        mock_client.return_value = mongoclient_flattened_conversations
 
         history, message = HistoryProcessor.fetch_chat_history(
             sender='mathew.anil@digite.com', collection="tests_flattened"
@@ -227,24 +253,24 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations")
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_action_not_configured(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations")
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_custom_action(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations",
                                                                        fallback_intent="utter_location_query")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 273
@@ -252,8 +278,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations",
                                                                        fallback_intent="utter_please_rephrase")
 
         assert hit_fall_back["fallback_count"] == 100
@@ -283,8 +309,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_user_with_metrics(self, mock_client):
-        mock_client.return_value = mongoclient
-        users, message = HistoryProcessor.user_with_metrics("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        users, message = HistoryProcessor.user_with_metrics("flattened_conversations")
         assert users
         assert users[0]['latest_event_time']
         assert users[0]['steps']
@@ -328,8 +354,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_successful_conversation(self, mock_client):
-        mock_client.return_value = mongoclient
-        conversation_steps, message = HistoryProcessor.successful_conversations("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        conversation_steps, message = HistoryProcessor.successful_conversations("flattened_conversations")
         assert conversation_steps['successful_conversations'] == 271
         assert message is None
 
@@ -440,9 +466,9 @@ class TestHistory:
                 conversation['timestamp'] = timestamp
                 timestamp += 200
             mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
-            collection = mock_client().get_database().get_collection("tests_flattened")
+            collection = mock_client().get_database().get_collection("flattened_conversations")
             collection.insert_many(conversations)
-            r_dict, message = HistoryProcessor.flatten_conversations("tests_flattened")
+            r_dict, message = HistoryProcessor.flatten_conversations("flattened_conversations")
 
             for conversation in r_dict["conversation_data"]:
                 assert not conversation.get("id")

@@ -93,7 +93,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
@@ -138,7 +138,7 @@ class HistoryProcessor:
             client = HistoryProcessor.get_mongo_connection()
             with client as clt:
                 db = clt.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
                     {"$match": {"type": "flattened",
                                 "data.intent": fallback_intent,
@@ -243,7 +243,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 users = list(
                     conversations.aggregate([
                         {
@@ -407,12 +407,13 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 total = list(conversations.aggregate([
                     {"$match": {
                         "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                       "$lte": Utility.get_timestamp_from_date(to_date)},
-                        "type": "flattened"}
+                        "type": "flattened",
+                    }
                     },
                     {"$group": {"_id": None, "count": {"$sum": 1}}},
                     {"$project": {"_id": 0, "count": 1}}
@@ -638,14 +639,14 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 total = list(
                     conversations.aggregate([
                         {"$match":
                             {
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "type": "flattened"
+                                "type": "flattened",
                             }
                         },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
@@ -756,7 +757,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
                     {"$match": {"type": "flattened",
                                 "timestamp": {
@@ -769,7 +770,9 @@ class HistoryProcessor:
                     {"$project": {"_id": 1, "count": 1}}
                 ]))
                 total_counts = list(conversations.aggregate([{"$match": {"$and": [
-                    {"type": "flattened"},
+                    {
+                        "type": "flattened",
+                    },
                     {"timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)
@@ -808,7 +811,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 search_query = {
                     "type": {"$in": ["flattened", "broadcast"]},
                     "timestamp": {

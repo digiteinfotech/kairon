@@ -214,7 +214,7 @@ class MessageBroadcastProcessor:
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
-            client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
+            client = MessageBroadcastProcessor.get_db_client("flattened_conversations")
             if log['errors']:
                 status = STATUSES.FAIL.value
                 errors = log['errors']
