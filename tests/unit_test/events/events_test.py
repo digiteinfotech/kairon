@@ -6643,6 +6643,7 @@ class TestEventExecution:
         history[0].pop("conversation_id")
         assert history[0] == {
             'type': 'broadcast', 'sender_id': '919876543211',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
             'data': {
                 'name': 'brochure_pdf',
                 'template': template,
