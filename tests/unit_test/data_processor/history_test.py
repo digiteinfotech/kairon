@@ -468,7 +468,7 @@ class TestHistory:
             mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
             collection = mock_client().get_database().get_collection("flattened_conversations")
             collection.insert_many(conversations)
-            r_dict, message = HistoryProcessor.flatten_conversations("flattened_conversations")
+            r_dict, message = HistoryProcessor.flatten_conversations("tests_flattened")
 
             for conversation in r_dict["conversation_data"]:
                 assert not conversation.get("id")
@@ -479,7 +479,7 @@ class TestHistory:
             assert message is None
             r_dict["conversation_data"][0].pop('timestamp')
             assert r_dict["conversation_data"][0] == {
-                'type': 'flattened', 'sender_id': 'mathew.anil@digite.com',
+                'type': 'flattened', 'sender_id': 'mathew.anil@digite.com', 'bot': 'tests_flattened',
                 'data': {
                     'user_input': 'Hi',
                     'intent': 'nlu_fallback',

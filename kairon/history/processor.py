@@ -96,6 +96,7 @@ class HistoryProcessor:
                 conversations = db.get_collection("flattened_conversations")
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
+                                                      "bot": collection,
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
                                                       "tag": {"$ne": "callback_message"}
@@ -140,7 +141,7 @@ class HistoryProcessor:
                 db = clt.get_database()
                 conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "data.intent": fallback_intent,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
@@ -153,7 +154,7 @@ class HistoryProcessor:
 
                 total_counts = list(conversations.aggregate(
                     [
-                        {"$match": {"type": "flattened",
+                        {"$match": {"type": "flattened", "bot": collection,
                                     "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                   "$lte": Utility.get_timestamp_from_date(to_date)}
                                     }
@@ -248,6 +249,7 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {
                             "$match": {
+                                "bot": collection,
                                 "$and": [
                                     {"timestamp": time_filter},
                                     {
@@ -412,7 +414,7 @@ class HistoryProcessor:
                     {"$match": {
                         "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                       "$lte": Utility.get_timestamp_from_date(to_date)},
-                        "type": "flattened",
+                        "type": "flattened", "bot": collection,
                     }
                     },
                     {"$group": {"_id": None, "count": {"$sum": 1}}},
@@ -422,7 +424,7 @@ class HistoryProcessor:
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "type": "flattened",
+                            "type": "flattened", "bot": collection,
                             "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                           "$lte": Utility.get_timestamp_from_date(to_date)},
                             "data.intent": fallback_intent
@@ -646,7 +648,7 @@ class HistoryProcessor:
                             {
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "type": "flattened",
+                                "type": "flattened", "bot": collection,
                             }
                         },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
@@ -657,7 +659,7 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                                "type": "flattened",
+                                "type": "flattened", "bot": collection,
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
                                 "data.intent": fallback_intent
@@ -759,7 +761,7 @@ class HistoryProcessor:
                 db = client.get_database()
                 conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
                                     "$lte": Utility.get_timestamp_from_date(to_date)
@@ -772,6 +774,7 @@ class HistoryProcessor:
                 total_counts = list(conversations.aggregate([{"$match": {"$and": [
                     {
                         "type": "flattened",
+                        "bot": collection,
                     },
                     {"timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
@@ -814,6 +817,7 @@ class HistoryProcessor:
                 conversations = db.get_collection("flattened_conversations")
                 search_query = {
                     "type": {"$in": ["flattened", "broadcast"]},
+                    "bot": collection,
                     "timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)

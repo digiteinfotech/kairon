@@ -196,13 +196,14 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def log_broadcast_in_conversation_history(template_id, contact: Text, template_params, template,
-                                              status, mongo_client):
+                                              status, mongo_client, bot):
         import time
         from uuid6 import uuid7
 
         mongo_client.insert_one({
             "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name": template_id, "template": template, "template_params": template_params}, "status": status
+            "data": {"name": template_id, "template": template, "template_params": template_params},
+            "bot": bot, "status": status
         })
 
     @staticmethod
@@ -227,7 +228,7 @@ class MessageBroadcastProcessor:
                 MessageBroadcastProcessor.log_broadcast_in_conversation_history(
                     template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
                     template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                    status=status, mongo_client=client
+                    status=status, mongo_client=client, bot=broadcast_log['bot']
                 )
                 logged_msg_ids.append(msg_id)
 
