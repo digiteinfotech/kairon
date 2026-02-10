@@ -27,7 +27,15 @@ class LiteLLMLogger(CustomLogger):
     def __logs_litellm(self, **kwargs):
         logger.info("logging llms call")
         litellm_params = kwargs.get('litellm_params')
-        self.__save_logs(**{'response': json.loads(kwargs.get('original_response')) if kwargs.get('original_response') else None,
+        raw = kwargs.get("original_response")
+        original_response = json.loads(raw) if raw else {}
+
+        if isinstance(original_response, dict):
+            original_response.pop("model", None)
+            original_response.pop("data", None)
+            original_response.pop("object", None)
+
+        self.__save_logs(**{'response': original_response,
                             'start_time': kwargs.get('start_time'),
                             'end_time': kwargs.get('end_time'),
                             'cost': kwargs.get("response_cost"),
