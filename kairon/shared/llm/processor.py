@@ -18,7 +18,7 @@ from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.constant import DEFAULT_LLM
+from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.data_objects import LLMLogs
@@ -47,7 +47,7 @@ class LLMProcessor(LLMBase):
         # self.vectors_config = {}
         # self.sparse_vectors_config = {}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
-        if llm_type != DEFAULT_LLM:
+        if (llm_type != DEFAULT_LLM and llm_type not in {e.value for e in ExcludedLLMTypes}):
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
             self.llm_secret_embedding = self.llm_secret
@@ -259,7 +259,7 @@ class LLMProcessor(LLMBase):
                                                                should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
-        litellm_call_id = raw_response.get("litellm_call_id") if isinstance(raw_response, dict) else None
+        litellm_call_id = raw_response.get("litellm_call_id") or raw_response.get("openrouter_call_id") if isinstance(raw_response, dict) else None
         return {"content": completion, "litellm_call_id": litellm_call_id}
 
     async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):

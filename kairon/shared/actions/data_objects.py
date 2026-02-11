@@ -37,7 +37,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FALLBACK_MESSAGE,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM, STATUSES
+    DEFAULT_LLM, STATUSES, ExcludedLLMTypes
 )
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -886,9 +886,10 @@ class PromptAction(Auditlog):
         Utility.validate_kairon_faq_llm_prompts(
             dict_data["llm_prompts"], ValidationError
         )
-        Utility.validate_llm_hyperparameters(
-            dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError
-        )
+        if self.llm_type not in {e.value for e in ExcludedLLMTypes}:
+            Utility.validate_llm_hyperparameters(
+                dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError
+            )
 
 
 @auditlogger.log
