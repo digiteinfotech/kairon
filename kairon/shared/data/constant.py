@@ -259,6 +259,9 @@ DEFAULT_LLM = "openai"
 
 QDRANT_SUFFIX = "_faq_embd"
 
+class ExcludedLLMTypes(str, Enum):
+    openrouter = "openrouter"
+
 
 class AuditlogActions(str, Enum):
     SAVE = "save"
