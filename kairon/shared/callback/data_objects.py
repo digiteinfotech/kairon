@@ -302,7 +302,7 @@ class CallbackData(Document):
                     key = int(key)
                 value = value[key]
         except (KeyError, IndexError, ValueError, TypeError):
-            raise AppException(f"Cannot find identifier at path '{path}' in request data!")
+            raise AppException(f"Cannot find identifier at path '{path}' in request data!", 422)
 
         return value
 
