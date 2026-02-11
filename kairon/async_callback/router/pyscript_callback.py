@@ -65,7 +65,7 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
     except AppException as ae:
         logger.error(f"AppException: {ae}")
         return BSResponse(
-            status=200,
+            status=400,
             content=JSONContent({
                 "message": str(ae),
                 "error_code": 400,
