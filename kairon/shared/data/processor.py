@@ -9331,6 +9331,14 @@ class MongoProcessor:
         return {col["id"] for col in logs_metadata.get(log_type, []) if "id" in col}
 
     @staticmethod
+    def get_isoformat_date(date_type, date_value):
+        try:
+            formatted_date = date.fromisoformat(date_value)
+        except ValueError:
+            raise AppException(f"Invalid date format for '{date_type}': '{date_value}'. Use YYYY-MM-DD.")
+        return formatted_date
+
+    @staticmethod
     def sanitize_query_filter(log_type: str, request) -> dict:
         """
         Sanitize and validate query parameters for the given log type.
@@ -9345,16 +9353,10 @@ class MongoProcessor:
         if raw_params:
             if raw_params.get("from_date"):
                 from_date = raw_params.pop("from_date")
-                try:
-                    sanitized["from_date"] = date.fromisoformat(from_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'from_date': '{from_date}'. Use YYYY-MM-DD.")
+                sanitized["from_date"] = MongoProcessor.get_isoformat_date("from_date", from_date)
             if raw_params.get("to_date"):
                 to_date = raw_params.pop("to_date")
-                try:
-                    sanitized["to_date"] = date.fromisoformat(to_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'to_date': '{to_date}'. Use YYYY-MM-DD.")
+                sanitized["to_date"] = MongoProcessor.get_isoformat_date("to_date", to_date)
             if "from_date" in sanitized and "to_date" in sanitized and sanitized["from_date"] > sanitized["to_date"]:
                 raise AppException("'from date' should be less than or equal to 'to date'")
 

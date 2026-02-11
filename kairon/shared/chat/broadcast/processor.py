@@ -15,6 +15,7 @@ from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, 
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
+from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.log_system.base import BaseLogHandler
 
 
@@ -128,16 +129,10 @@ class MessageBroadcastProcessor:
         if raw_params:
             if raw_params.get("from_date"):
                 from_date = raw_params.pop("from_date")
-                try:
-                    raw_params["from_date"] = date.fromisoformat(from_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'from_date': '{from_date}'. Use YYYY-MM-DD.")
+                raw_params["from_date"] = MongoProcessor.get_isoformat_date("from_date", from_date)
             if raw_params.get("to_date"):
                 to_date = raw_params.pop("to_date")
-                try:
-                    raw_params["to_date"] = date.fromisoformat(to_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'to_date': '{to_date}'. Use YYYY-MM-DD.")
+                raw_params["to_date"] = MongoProcessor.get_isoformat_date("to_date", to_date)
             if "from_date" in raw_params and "to_date" in raw_params and raw_params["from_date"] > raw_params["to_date"]:
                 raise AppException("'from date' should be less than or equal to 'to date'")
         return raw_params
