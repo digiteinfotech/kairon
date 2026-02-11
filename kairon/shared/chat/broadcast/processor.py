@@ -1,7 +1,7 @@
 from zoneinfo import ZoneInfo
 
 import ujson as json
-from datetime import datetime, date
+from datetime import datetime
 from typing import Text, Dict, List
 
 from loguru import logger
