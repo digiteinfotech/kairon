@@ -476,7 +476,6 @@ def test_upload_media_to_360dialog():
 
 def test_get_embedding_single_text():
     text = "Hello world!"
-    
     user = "test_user"
     bot = "test_bot"
     invocation = "test_invocation"
