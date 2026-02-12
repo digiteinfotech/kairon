@@ -64,15 +64,28 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         return CallbackUtility.return_response(data, message, error_code, response_type)
     except AppException as ae:
         logger.error(f"AppException: {ae}")
-        return BSResponse(
-            status=400,
-            content=JSONContent({
-                "message": str(ae),
-                "error_code": 400,
-                "data": None,
-                "success": False,
-            })
-        )
+        if len(ae.args) >= 2:
+            mssg = ae.args[0]
+            error_code = ae.args[1]
+            return BSResponse(
+                status=200,
+                content=JSONContent({
+                    "message": mssg,
+                    "data": None,
+                    "error_code": error_code,
+                    "success": False,
+                })
+            )
+        else:
+            return BSResponse(
+                status=400,
+                content=JSONContent({
+                    "message": str(ae),
+                    "error_code": 400,
+                    "data": None,
+                    "success": False,
+                })
+            )
     except Exception as e:
         logger.exception(e)
         return BSResponse(

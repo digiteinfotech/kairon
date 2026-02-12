@@ -137,16 +137,7 @@ class CallbackProcessor:
         error_code = 0
         message = "success"
         data = None
-        try:
-            entry, callback = CallbackData.validate_entry(token, identifier, request_data.get('body'))
-        except AppException as ae:
-            if len(ae.args) >= 2:
-                logger.error(f"AppException: {ae.args}")
-                mssg = ae.args[0]
-                status_code = ae.args[1]
-                return None, mssg, status_code, CallbackResponseType.KAIRON_JSON.value
-            else:
-                return None, str(ae), 400, CallbackResponseType.KAIRON_JSON.value
+        entry, callback = CallbackData.validate_entry(token, identifier, request_data.get('body'))
         predefined_objects.update(entry)
         bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
