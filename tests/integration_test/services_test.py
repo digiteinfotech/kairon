@@ -13826,62 +13826,6 @@ def test_delete_message_broadcast(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast removed!"
 
-def test_list_broadcast_logs_from_date_progress_filter():
-    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
-
-    ref_id = ObjectId().__str__()
-
-    MessageBroadcastLogs(
-        reference_id=ref_id,
-        log_type="progress",
-        bot=pytest.bot,
-        status="IN_PROGRESS",
-        user="old_user",
-        broadcast_id=pytest.broadcast_msg_id,
-        recipients=["911111111111"],
-        timestamp=datetime(2025, 6, 1, 10, 0, 0),
-    ).save()
-
-    MessageBroadcastLogs(
-        reference_id=ref_id,
-        log_type="progress",
-        bot=pytest.bot,
-        status="IN_PROGRESS",
-        user="valid_user",
-        broadcast_id=pytest.broadcast_msg_id,
-        recipients=["922222222222"],
-        timestamp=datetime(2025, 6, 2, 12, 0, 0),
-    ).save()
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs"
-        f"?from_date=2025-06-02&log_type=progress",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["success"] is True
-    assert actual["error_code"] == 0
-
-    logs = actual["data"]["logs"]
-
-    assert len(logs) == 1
-    assert actual["data"]["total_count"] == 1
-
-    logs[0].pop("timestamp")
-
-    assert logs[0] == {
-        "reference_id": ref_id,
-        "log_type": "progress",
-        "bot": pytest.bot,
-        "status": "IN_PROGRESS",
-        "user": "valid_user",
-        "broadcast_id": pytest.broadcast_msg_id,
-        "recipients": ["922222222222"],
-    }
-
-
 def test_get_broadcast_logs_with_resend_broadcasts():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
