@@ -5,6 +5,7 @@ from abc import ABC
 from typing import Any, Dict, List, Optional, Text
 
 import faiss
+import litellm
 import numpy as np
 import ujson as json
 from more_itertools import chunked
@@ -20,6 +21,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import create_directory_for_file
 from tqdm import tqdm
 
+litellm.drop_params = True
 os.environ["LITELLM_LOG"] = "ERROR"
 
 logger = logging.getLogger(__name__)
@@ -92,11 +94,11 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
                 f"either set bot_id'in LLMClassifier config or set LLM_API_KEY in environment variables"
             )
 
-    # def get_embeddings(self, text):
-    #     embeddings = litellm.embedding(
-    #         model="text-embedding-3-small", input=text, max_retries=3, **self.secret
-    #     )
-    #     return [ embedding['embedding'] for embedding in embeddings['data']]
+    def get_embeddings(self, text):
+        embeddings = litellm.embedding(
+            model="text-embedding-3-small", input=text, max_retries=3, **self.secret
+        )
+        return [ embedding['embedding'] for embedding in embeddings['data']]
 
     def train(self, training_data: TrainingData) -> Resource:
         """Train the intent classifiers on a data set."""
@@ -175,32 +177,32 @@ Please provide your answer in the specified JSON format."""
 
         return messages
 
-    # def predict(self, text):
-    #     embedding = self.get_embeddings(text)[0]
-    #     messages = self.prepare_context(embedding, text)
-    #     intent = None
-    #     explanation = None
-    #     entities = []
-    #     try:
-    #         response = litellm.completion(
-    #             model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
-    #             messages=messages,
-    #             response_format={ "type": "json_object" },
-    #             temperature=self.component_config.get("temperature", 0.0),
-    #             top_p=1,
-    #             frequency_penalty=0,
-    #             presence_penalty=0,
-    #             max_retries=3,
-    #             **self.secret
-    #         )
-    #         logger.debug(response)
-    #         responses = json.loads(response.choices[0]["message"]["content"])
-    #         intent = responses["intent"] if "intent" in responses.keys() else "nlu_fallback"
-    #         explanation = responses["explanation"] if "explanation" in responses.keys() else None
-    #         entities = responses["entities"]if "entities" in responses.keys() else []
-    #     except Exception as e:
-    #         logger.error(e)
-    #     return intent, explanation, entities
+    def predict(self, text):
+        embedding = self.get_embeddings(text)[0]
+        messages = self.prepare_context(embedding, text)
+        intent = None
+        explanation = None
+        entities = []
+        try:
+            response = litellm.completion(
+                model=self.component_config.get("prediction_model", "gpt-3.5-turbo"),
+                messages=messages,
+                response_format={ "type": "json_object" },
+                temperature=self.component_config.get("temperature", 0.0),
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+                max_retries=3,
+                **self.secret
+            )
+            logger.debug(response)
+            responses = json.loads(response.choices[0]["message"]["content"])
+            intent = responses["intent"] if "intent" in responses.keys() else "nlu_fallback"
+            explanation = responses["explanation"] if "explanation" in responses.keys() else None
+            entities = responses["entities"]if "entities" in responses.keys() else []
+        except Exception as e:
+            logger.error(e)
+        return intent, explanation, entities
 
     def process(self, messages: List[Message]) -> List[Message]:
         """Return the most likely intent and its probability for a message."""
