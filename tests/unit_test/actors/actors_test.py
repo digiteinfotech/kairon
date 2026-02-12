@@ -494,7 +494,6 @@ def test_get_embedding_single_text():
         mock_request.return_value = mock_response
 
         result = PyscriptUtility.get_embedding(text, user, bot, invocation)
-
         assert result == [0.1, 0.2, 0.3]
 
 
