@@ -488,7 +488,6 @@ def test_get_embedding_single_text():
         mock_tokenizer.encode.return_value = [1, 2, 3]
         mock_tokenizer.decode.return_value = text
         mock_get_encoding.return_value = mock_tokenizer
-
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_http_response
