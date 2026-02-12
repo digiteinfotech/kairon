@@ -121,36 +121,12 @@ class MessageBroadcastProcessor:
         log.save()
 
     @staticmethod
-    def sanitize_query_filter(request) -> dict:
-        """
-        Sanitize and validate query parameters for the given log type.
-        """
-        raw_params = dict(request.query_params)
-        if raw_params:
-            if raw_params.get("from_date"):
-                from_date = raw_params.pop("from_date")
-                raw_params["from_date"] = MongoProcessor.get_isoformat_date("from_date", from_date)
-            if raw_params.get("to_date"):
-                to_date = raw_params.pop("to_date")
-                raw_params["to_date"] = MongoProcessor.get_isoformat_date("to_date", to_date)
-            if "from_date" in raw_params and "to_date" in raw_params and raw_params["from_date"] > raw_params["to_date"]:
-                raise AppException("'from date' should be less than or equal to 'to date'")
-        return raw_params
-
-    @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
         kwargs["bot"] = bot
         if "retry_count" in kwargs:
             kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
-        if kwargs.get("from_date") or kwargs.get("to_date"):
-            kwargs = BaseLogHandler.get_default_dates(kwargs, "search")
-        else:
-            from_date, to_date = BaseLogHandler.get_default_dates(kwargs, "count")
-            kwargs["timestamp__gte"] = from_date
-            kwargs["timestamp__lte"] = to_date
-
         query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
         logs = query_objects.exclude('id').to_json()

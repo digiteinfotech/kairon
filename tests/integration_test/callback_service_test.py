@@ -539,10 +539,10 @@ async def test_post_callback_standalone_identifier_path_not_present(mock_dispatc
     print(json_response)
     assert not json_response["success"]
     assert json_response["message"] == "Cannot find identifier at path 'data.id' in request data!"
-    assert json_response["error_code"] == 422
+    assert json_response["error_code"] == 400
     assert not json_response["data"]
     assert json_response == {'message': "Cannot find identifier at path 'data.id' in request data!",
-                             'error_code': 422, 'data': None, 'success': False}
+                             'error_code': 400, 'data': None, 'success': False}
 
 
 @pytest.mark.asyncio

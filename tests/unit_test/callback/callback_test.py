@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from mongoengine import connect
 from kairon import Utility
+from kairon.async_callback.exceptions import CallbackException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -148,12 +149,12 @@ def test_get_value_from_json():
 
     json_obj = {"key1": {"key2": {"key3": "value"}}}
     path = "key1.key2.key4"
-    with pytest.raises(AppException, match="Cannot find identifier at path 'key1.key2.key4' in request data!"):
+    with pytest.raises(CallbackException,match=r"Cannot find identifier at path 'key1\.key2\.key4' in request data!"):
         CallbackData.get_value_from_json(json_obj, path)
 
     json_obj = "invalid_json"
     path = "key1.key2.key3"
-    with pytest.raises(AppException):
+    with pytest.raises(CallbackException):
         CallbackData.get_value_from_json(json_obj, path)
 
 

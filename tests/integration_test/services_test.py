@@ -13826,64 +13826,6 @@ def test_delete_message_broadcast(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast removed!"
 
-
-def test_list_broadcast_logs_from_date_with_pagination_common():
-    from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
-
-    ref_id = ObjectId().__str__()
-
-    base_timestamp = datetime(2025, 6, 3, 10, 0, 0)
-
-    for i in range(15):
-        MessageBroadcastLogs(
-            reference_id=ref_id,
-            log_type="common",
-            bot=pytest.bot,
-            status=EVENT_STATUS.COMPLETED.value,
-            user=f"user_{i}",
-            broadcast_id=pytest.broadcast_msg_id,
-            recipients=[f"9333333333{i:02d}"],
-            timestamp=base_timestamp + timedelta(minutes=i),
-        ).save()
-
-    response = client.get(
-        f"/api/bot/{pytest.bot}/channels/broadcast/message/logs"
-        f"?from_date=2025-06-03"
-        f"&start_idx=0"
-        f"&page_size=10"
-        f"&log_type=common",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["success"] is True
-    assert actual["error_code"] == 0
-
-    logs = actual["data"]["logs"]
-
-    assert actual["data"]["total_count"] == 15
-
-    assert len(logs) == 10
-
-    expected_users = [f"user_{i}" for i in range(14, 4, -1)]
-
-    for idx, log in enumerate(logs):
-        log.pop("timestamp")
-
-        expected_user_index = int(expected_users[idx].split("_")[1])
-
-        assert log == {
-            "reference_id": ref_id,
-            "log_type": "common",
-            "bot": pytest.bot,
-            "status": EVENT_STATUS.COMPLETED.value,
-            "user": expected_users[idx],
-            "broadcast_id": pytest.broadcast_msg_id,
-            "recipients": [f"9333333333{expected_user_index:02d}"]
-        }
-
-
 def test_list_broadcast_logs_from_date_progress_filter():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 

@@ -154,7 +154,7 @@ class CallbackUtility:
 
     @staticmethod
     def return_response(data: any, message : str, error_code: int, response_type: str):
-        resp_status_code = 200 if error_code == 0 or error_code == 422 else 422
+        resp_status_code = 200 if error_code == 0 else 422
         if response_type == CallbackResponseType.KAIRON_JSON.value:
             return BSResponse(
                 status=resp_status_code,
@@ -176,3 +176,17 @@ class CallbackUtility:
                 content=TextContent(str(data))
             )
 
+    @staticmethod
+    def error_response(message: str, status_code: int) -> BSResponse:
+        """Standard error response."""
+        return BSResponse(
+            status=status_code,
+            content=JSONContent(
+                {
+                    "message": message,
+                    "error_code": 400,
+                    "data": None,
+                    "success": False,
+                }
+            ),
+        )

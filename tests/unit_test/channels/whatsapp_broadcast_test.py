@@ -1,16 +1,13 @@
 import asyncio
 import os
 from unittest.mock import patch, MagicMock
-from starlette.requests import Request
 import pytest
 from aiohttp import ClientConnectionError, ClientError
 from aioresponses import aioresponses
 from mongoengine import connect, disconnect
-from datetime import date
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.clients.whatsapp.dialog360 import BSP360Dialog
-from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
@@ -539,87 +536,6 @@ def test_upsert_broadcast_progress_log_update():
     assert log is not None
     assert log.progress == progress
     assert log.total == total
-
-def create_request(query_params: dict):
-    scope = {
-        "type": "http",
-        "query_string": "&".join(f"{k}={v}" for k, v in query_params.items()).encode(),
-    }
-    return Request(scope)
-
-def test_sanitize_query_filter_valid_from_date():
-    request = create_request({
-        "from_date": "2025-06-02"
-    })
-
-    result = MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert result["from_date"] == date(2025, 6, 2)
-
-def test_sanitize_query_filter_invalid_from_date():
-    request = create_request({
-        "from_date": "06-01-2025"
-    })
-
-    with pytest.raises(AppException) as exc:
-        MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert "Invalid date format for 'from_date'" in str(exc.value)
-
-def test_sanitize_query_filter_invalid_to_date():
-    request = create_request({
-        "to_date": "2025/06/01"
-    })
-
-    with pytest.raises(AppException) as exc:
-        MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert "Invalid date format for 'to_date'" in str(exc.value)
-
-def test_sanitize_query_filter_from_date_greater_than_to_date():
-    request = create_request({
-        "from_date": "2025-06-10",
-        "to_date": "2025-06-01"
-    })
-
-    with pytest.raises(AppException) as exc:
-        MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert "'from date' should be less than or equal to 'to date'" in str(exc.value)
-
-def test_sanitize_query_filter_empty():
-    request = create_request({})
-
-    result = MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert result == {}
-
-def test_sanitize_query_filter_preserves_other_params():
-    request = create_request({
-        "log_type": "common",
-        "start_idx": "10",
-        "page_size": "50"
-    })
-
-    result = MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert result["log_type"] == "common"
-    assert result["start_idx"] == "10"
-    assert result["page_size"] == "50"
-
-def test_sanitize_query_filter_mixed_params():
-    request = create_request({
-        "from_date": "2025-06-01",
-        "log_type": "common",
-        "page_size": "20"
-    })
-
-    result = MessageBroadcastProcessor.sanitize_query_filter(request)
-
-    assert result["from_date"] == date(2025, 6, 1)
-    assert result["log_type"] == "common"
-    assert result["page_size"] == "20"
-
 
 def test_log_failed_messages():
     bot = "test_bot"
