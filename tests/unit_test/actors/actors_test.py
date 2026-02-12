@@ -1,18 +1,14 @@
 import json
 import os
 import re
-import subprocess
-import sys
 import textwrap
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 
-import litellm
 import pytest
 import requests
 import responses
-from loguru import logger
 from mongoengine import connect
 from orjson import orjson
 from pykka import ActorDeadError
@@ -415,18 +411,24 @@ def test_get_embedding():
     bot = "test_bot"
     invocation = "test_invocation"
     mock_api_key = "mocked_api_key"
-    mock_embedding_result = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+
+    mock_http_response = [[0.1, 0.2, 0.3]]
 
     with patch("tiktoken.get_encoding") as mock_get_encoding, \
-            patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}) as mock_get_llm_secret, \
-            patch("litellm.embedding", return_value=mock_embedding_result) as mock_litellm:
+         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+         patch("requests.request") as mock_request:
+
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [1, 2, 3]
         mock_tokenizer.decode.return_value = texts[0]
         mock_get_encoding.return_value = mock_tokenizer
 
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_http_response
+        mock_request.return_value = mock_response
         result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
-        assert result == [[0.1, 0.2, 0.3]]
+        assert result == mock_http_response
 
 
 def test_perform_operation():

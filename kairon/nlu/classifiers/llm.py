@@ -5,7 +5,6 @@ from abc import ABC
 from typing import Any, Dict, List, Optional, Text
 
 import faiss
-import litellm
 import numpy as np
 import ujson as json
 from more_itertools import chunked
@@ -21,7 +20,6 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import create_directory_for_file
 from tqdm import tqdm
 
-litellm.drop_params = True
 os.environ["LITELLM_LOG"] = "ERROR"
 
 logger = logging.getLogger(__name__)

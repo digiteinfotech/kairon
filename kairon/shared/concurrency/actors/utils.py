@@ -1,11 +1,13 @@
 import asyncio
 import json
+import urllib
 
 from datetime import datetime
+from http import HTTPStatus
+from loguru import logger as logging
 from typing import Text, List, Union, Dict
 from urllib import parse
 
-import litellm
 import requests
 from loguru import logger
 from orjson import orjson
@@ -66,17 +68,33 @@ class PyscriptUtility:
 
         llm_secret = Sysadmin.get_llm_secret(llm_type=DEFAULT_LLM, bot=bot)
 
-        result = litellm.embedding(
-            model="text-embedding-3-small",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': bot, 'invocation': invocation},
-            api_key=llm_secret.get("api_key"),
-            num_retries=3
+        body = {
+            "text": texts,
+            "user": user,
+            "kwargs": {
+                "truncated_texts": truncated_texts,
+                "api_key": llm_secret.get("api_key"),
+                "invocation": invocation,
+            }
+        }
+
+        timeout = Utility.environment["llm"].get("request_timeout", 30)
+        url = f"{Utility.environment['llm']['url']}/{urllib.parse.quote(bot)}/aembedding/{DEFAULT_LLM}"
+        response = requests.request(
+            method="POST",
+            url=url,
+            json=body,
+            timeout=timeout
         )
 
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
+        logging.info(f"LLM request completed with status {response.status_code} for bot: {bot}")
+        if response.status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(response.status_code).phrase)
 
-        return embeddings[0] if is_single_text else embeddings
+        http_response = response.json()
+        if is_single_text and isinstance(http_response, list):
+            return http_response[0]
+        return http_response
 
     @staticmethod
     def perform_operation(data: dict, user: str, **kwargs):
