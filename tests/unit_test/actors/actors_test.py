@@ -16,6 +16,7 @@ from pykka import ActorDeadError
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.concurrency.actors.pyscript_runner import PyScriptRunner
@@ -429,6 +430,49 @@ def test_get_embedding():
         mock_request.return_value = mock_response
         result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
         assert result == mock_http_response
+
+
+def test_get_embedding_http_error():
+    from http import HTTPStatus
+    texts = ["Hello world!"]
+    user = "test_user"
+    bot = "test_bot"
+    invocation = "test_invocation"
+    mock_api_key = "mocked_api_key"
+
+    with patch("tiktoken.get_encoding") as mock_get_encoding, \
+         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+         patch("requests.request") as mock_request:
+
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.encode.return_value = [1, 2, 3]
+        mock_tokenizer.decode.return_value = texts[0]
+        mock_get_encoding.return_value = mock_tokenizer
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.json.return_value = {"error": "server error"}
+        mock_request.return_value = mock_response
+
+        with pytest.raises(Exception) as exc:
+            PyscriptUtility.get_embedding(texts, user, bot, invocation)
+
+        assert str(exc.value) == HTTPStatus(500).phrase
+
+def test_upload_media_to_360dialog():
+    bot = "test_bot"
+    bsp_type = "whatsapp"
+    media_id = "media_123"
+    mock_external_media_id = "external_456"
+
+    with patch("asyncio.run") as mock_asyncio_run, \
+         patch.object(BSP360Dialog, "upload_media") as mock_upload_media:
+        mock_asyncio_run.return_value = mock_external_media_id
+        result = PyscriptUtility.upload_media_to_360dialog(bot, bsp_type, media_id)
+
+        mock_upload_media.assert_called_once_with(bot, bsp_type, media_id)
+        mock_asyncio_run.assert_called_once()
+        assert result == mock_external_media_id
 
 def test_get_embedding_single_text():
     text = "Hello world!"
