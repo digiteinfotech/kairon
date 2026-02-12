@@ -484,7 +484,6 @@ def test_get_embedding_single_text():
     with patch("tiktoken.get_encoding") as mock_get_encoding, \
          patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
          patch("requests.request") as mock_request:
-
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [1, 2, 3]
         mock_tokenizer.decode.return_value = text
