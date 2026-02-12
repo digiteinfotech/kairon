@@ -430,6 +430,33 @@ def test_get_embedding():
         result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
         assert result == mock_http_response
 
+def test_get_embedding_single_text():
+    text = "Hello world!"
+    user = "test_user"
+    bot = "test_bot"
+    invocation = "test_invocation"
+    mock_api_key = "mocked_api_key"
+
+    mock_http_response = [[0.1, 0.2, 0.3]]
+
+    with patch("tiktoken.get_encoding") as mock_get_encoding, \
+         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+         patch("requests.request") as mock_request:
+
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.encode.return_value = [1, 2, 3]
+        mock_tokenizer.decode.return_value = text
+        mock_get_encoding.return_value = mock_tokenizer
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_http_response
+        mock_request.return_value = mock_response
+
+        result = PyscriptUtility.get_embedding(text, user, bot, invocation)
+
+        assert result == [0.1, 0.2, 0.3]
+
 
 def test_perform_operation():
     data = {"embedding_search": "test message", "payload_search": {"filter": "some_filter"}}
