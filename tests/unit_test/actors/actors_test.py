@@ -481,7 +481,6 @@ def test_get_embedding_single_text():
     invocation = "test_invocation"
     mock_api_key = "mocked_api_key"
     mock_http_response = [[0.1, 0.2, 0.3]]
-
     with patch("tiktoken.get_encoding") as mock_get_encoding, \
          patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
          patch("requests.request") as mock_request:
