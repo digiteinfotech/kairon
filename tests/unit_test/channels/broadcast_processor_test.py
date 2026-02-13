@@ -1,9 +1,9 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from bson import ObjectId
-from mongoengine import connect, ValidationError
+from mongoengine import connect, ValidationError, DoesNotExist
 
 from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
@@ -446,3 +446,21 @@ class TestMessageBroadcastProcessor:
                 existing_config["_id"], bot, user, config
             )
 
+    def test_update_retry_count_settings_not_found(self):
+        notification_id = "test_notification_id"
+        bot = "test_bot"
+        user = "test_user"
+        retry_count = 3
+
+        with patch("kairon.shared.chat.broadcast.data_objects.MessageBroadcastSettings.objects") as mock_objects:
+            mock_queryset = MagicMock()
+            mock_queryset.get.side_effect = DoesNotExist("Not found")
+            mock_objects.return_value = mock_queryset
+
+            with pytest.raises(AppException, match="Notification settings not found!"):
+                MessageBroadcastProcessor.update_retry_count(
+                    notification_id=notification_id,
+                    bot=bot,
+                    user=user,
+                    retry_count=retry_count
+                )

@@ -243,7 +243,7 @@ async def retrieve_scheduled_message_broadcast_logs(
     """
     Retrieves logs of scheduled/one time message broadcasts in a bot.
     """
-    log_filters = MessageBroadcastProcessor.sanitize_query_filter(request)
+    log_filters = request.query_params._dict.copy()
     logs, total_count = MessageBroadcastProcessor.get_broadcast_logs(current_user.get_bot(), **log_filters)
     return Response(data={"logs": logs, "total_count": total_count})
 

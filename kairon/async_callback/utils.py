@@ -176,3 +176,17 @@ class CallbackUtility:
                 content=TextContent(str(data))
             )
 
+    @staticmethod
+    def error_response(message: str, status_code: int) -> BSResponse:
+        """Standard error response."""
+        return BSResponse(
+            status=status_code,
+            content=JSONContent(
+                {
+                    "message": message,
+                    "error_code": 400,
+                    "data": None,
+                    "success": False,
+                }
+            ),
+        )

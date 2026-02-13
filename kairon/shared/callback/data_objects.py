@@ -12,6 +12,7 @@ from mongoengine import StringField, DictField, DateTimeField, Document, Dynamic
     FloatField
 
 from kairon import Utility
+from kairon.async_callback.exceptions import CallbackException
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import CallbackActionConfig
 from kairon.shared.constants import EventClass
@@ -302,7 +303,7 @@ class CallbackData(Document):
                     key = int(key)
                 value = value[key]
         except (KeyError, IndexError, ValueError, TypeError):
-            raise AppException(f"Cannot find identifier at path '{path}' in request data!")
+            raise CallbackException(f"Cannot find identifier at path '{path}' in request data!", 200)
 
         return value
 
