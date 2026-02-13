@@ -5,7 +5,6 @@ from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
-import litellm
 from fastembed import SparseTextEmbedding, LateInteractionTextEmbedding
 from loguru import logger as logging
 from mongoengine.base import BaseList
@@ -22,12 +21,10 @@ from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.data_objects import LLMLogs
-from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from http import HTTPStatus
-litellm.callbacks = [LiteLLMLogger()]
 
 
 class LLMProcessor(LLMBase):

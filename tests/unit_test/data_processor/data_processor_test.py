@@ -103,7 +103,6 @@ from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.train import train_model_for_bot, start_training
 from deepdiff import DeepDiff
-import litellm
 
 
 class TestMongoProcessor:
