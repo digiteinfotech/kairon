@@ -9726,7 +9726,11 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists, mock_create_collection,
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
 
     mock_collection_exists.return_value = False
@@ -9735,6 +9739,15 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists,
     mock_format_and_send_mail.return_value = None
     mock_push_meta_catalog.return_value = None
     mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9767,6 +9780,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists,
             "process_item_toggle": True
         }
     }
+
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
         json = payload,
