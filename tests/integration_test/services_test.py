@@ -9767,7 +9767,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists,
             "process_item_toggle": True
         }
     }
-
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
         json = payload,
