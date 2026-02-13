@@ -9735,7 +9735,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists,
     mock_format_and_send_mail.return_value = None
     mock_push_meta_catalog.return_value = None
     mock_delete_meta_catalog.return_value = None
-
     LLMSecret.objects.delete()
     secrets = [
         {
