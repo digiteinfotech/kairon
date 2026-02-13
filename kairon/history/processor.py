@@ -93,9 +93,10 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
+                                                      "bot": collection,
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                                     "$lte": Utility.get_timestamp_from_date(to_date)},
                                                       "tag": {"$ne": "callback_message"}
@@ -138,9 +139,9 @@ class HistoryProcessor:
             client = HistoryProcessor.get_mongo_connection()
             with client as clt:
                 db = clt.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "data.intent": fallback_intent,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
@@ -153,7 +154,7 @@ class HistoryProcessor:
 
                 total_counts = list(conversations.aggregate(
                     [
-                        {"$match": {"type": "flattened",
+                        {"$match": {"type": "flattened", "bot": collection,
                                     "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                   "$lte": Utility.get_timestamp_from_date(to_date)}
                                     }
@@ -243,11 +244,12 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 users = list(
                     conversations.aggregate([
                         {
                             "$match": {
+                                "bot": collection,
                                 "$and": [
                                     {"timestamp": time_filter},
                                     {
@@ -407,12 +409,13 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 total = list(conversations.aggregate([
                     {"$match": {
                         "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                       "$lte": Utility.get_timestamp_from_date(to_date)},
-                        "type": "flattened"}
+                        "type": "flattened", "bot": collection,
+                    }
                     },
                     {"$group": {"_id": None, "count": {"$sum": 1}}},
                     {"$project": {"_id": 0, "count": 1}}
@@ -421,7 +424,7 @@ class HistoryProcessor:
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "type": "flattened",
+                            "type": "flattened", "bot": collection,
                             "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                           "$lte": Utility.get_timestamp_from_date(to_date)},
                             "data.intent": fallback_intent
@@ -638,14 +641,14 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 total = list(
                     conversations.aggregate([
                         {"$match":
                             {
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "type": "flattened"
+                                "type": "flattened", "bot": collection,
                             }
                         },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
@@ -656,7 +659,7 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                                "type": "flattened",
+                                "type": "flattened", "bot": collection,
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
                                 "data.intent": fallback_intent
@@ -756,9 +759,9 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
                                     "$lte": Utility.get_timestamp_from_date(to_date)
@@ -769,7 +772,10 @@ class HistoryProcessor:
                     {"$project": {"_id": 1, "count": 1}}
                 ]))
                 total_counts = list(conversations.aggregate([{"$match": {"$and": [
-                    {"type": "flattened"},
+                    {
+                        "type": "flattened",
+                        "bot": collection,
+                    },
                     {"timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)
@@ -808,9 +814,10 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection("flattened_conversations")
                 search_query = {
                     "type": {"$in": ["flattened", "broadcast"]},
+                    "bot": collection,
                     "timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)

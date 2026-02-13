@@ -936,7 +936,7 @@ class TestChat:
         assert len(data) == len(events)
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'bot'
-        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'flattened'}))
+        data = list(store.client.get_database(f"{config['db']}").get_collection(f"flattened_conversations").find({'type': 'flattened'}))
         assert len(data) == 1
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'flattened'
