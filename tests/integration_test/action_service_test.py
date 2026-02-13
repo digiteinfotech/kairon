@@ -13572,18 +13572,6 @@ def test_prompt_action_response_action_with_static_user_prompt(aioresponses):
          'is_enabled': True}
     ]
 
-    # def mock_completion_for_answer(*args, **kwargs):
-    #     return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-
-    def __mock_search_cache(*args, **kwargs):
-        return {'result': []}
-
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-    def __mock_cache_result(*args, **kwargs):
-        return {'result': []}
-
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
         {'role': 'user', 'content': 'hello'}, {'role': 'assistant', 'content': 'how are you'},
