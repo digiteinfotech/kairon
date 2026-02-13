@@ -5003,11 +5003,7 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_sync_type_does_not_exist(mock_embedding):
+def test_knowledge_vault_sync_sync_type_does_not_exist():
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
@@ -5015,14 +5011,6 @@ def test_knowledge_vault_sync_sync_type_does_not_exist(mock_embedding):
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     secrets = [
         {
             "llm_type": "openai",
@@ -5057,11 +5045,7 @@ def test_knowledge_vault_sync_sync_type_does_not_exist(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_missing_collection(mock_embedding):
+def test_knowledge_vault_sync_missing_collection():
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
@@ -5069,14 +5053,6 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     secrets = [
         {
             "llm_type": "openai",
@@ -5112,25 +5088,13 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
+def test_knowledge_vault_sync_missing_primary_key():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -5187,25 +5151,13 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
+def test_knowledge_vault_sync_column_length_mismatch():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -5261,25 +5213,14 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_invalid_columns(mock_embedding):
+def test_knowledge_vault_sync_invalid_columns():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
+
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -5358,25 +5299,13 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_knowledge_vault_sync_document_non_existence(mock_embedding):
+def test_knowledge_vault_sync_document_non_existence():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9797,11 +9726,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@patch(
-    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
-    new_callable=AsyncMock
-)
-def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_collection_exists, mock_create_collection,
+def test_catalog_sync_push_menu_sync_already_in_progress(mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
 
     mock_collection_exists.return_value = False
@@ -9811,14 +9736,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     mock_push_meta_catalog.return_value = None
     mock_delete_meta_catalog.return_value = None
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
-    mock_embedding.return_value = (
-        embedding,
-        200,
-        0.05,
-        {}
-    )
     LLMSecret.objects.delete()
     secrets = [
         {
