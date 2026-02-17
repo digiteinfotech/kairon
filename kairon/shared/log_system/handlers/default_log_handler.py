@@ -23,13 +23,20 @@ class DefaultLogHandler(BaseLogHandler):
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
 
-        logs_cursor = (
-            self.doc_type.objects(**query)
-            .order_by(sort_field)
-            .skip(self.start_idx)
-            .limit(self.page_size)
-            .exclude("bot", "id")
-        )
+        if "downloads" in query.keys():
+            query.pop("downloads")
+            logs_cursor = (
+                self.doc_type.objects(**query)
+                .exclude("id")
+            )
+        else:
+            logs_cursor = (
+                self.doc_type.objects(**query)
+                .order_by(sort_field)
+                .skip(self.start_idx)
+                .limit(self.page_size)
+                .exclude("bot", "id")
+            )
 
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)

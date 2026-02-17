@@ -2,6 +2,7 @@ import os
 from datetime import date, datetime
 from typing import List, Optional, Dict, Text
 
+import requests
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
@@ -25,6 +26,7 @@ from kairon.events.definitions.model_training import ModelTrainingEvent
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
@@ -1207,6 +1209,7 @@ async def get_client_config(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
     config = mongo_processor.get_chat_client_config(current_user.get_bot(), current_user.email)
     config = config.to_mongo().to_dict()
+    config['config']['chat_server_base_url'] = 'http://localhost:5000/'
     return Response(data=config['config'])
 
 
@@ -1616,6 +1619,19 @@ async def download_logs(
         log_type: str, current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     logs = mongo_processor.get_logs(current_user.get_bot(), log_type, start_date, end_date)
+    # query = mongo_processor.sanitize_query_filter(log_type, request)
+    # query = {
+    #     "from_date": start_date,
+    #     "to_date": end_date,
+    #     "downloads": ""
+    # }
+    # logs, row_cnt = mongo_processor.get_logs_for_search_query(
+    #     current_user.get_bot(),
+    #     log_type=log_type,
+    #     start_idx= 0,
+    #     page_size= 1000,
+    #     **query
+    # )
     file, temp_path = Utility.download_csv(logs, message=f"Logs not found!", filename=f"{log_type}.csv")
     response = FileResponse(
         file, filename=os.path.basename(file), background=background_tasks
@@ -1771,4 +1787,11 @@ async def get_flow_tag(
     """
     flows = mongo_processor.get_flows_by_tag(current_user.get_bot(), tag)
     return Response(data=flows)
+
+@router.get("/vectors1", response_model=Response)
+async  def get_vecots():
+    flows = mongo_processor.get_vector()
+    return Response(data=flows)
+
+
 

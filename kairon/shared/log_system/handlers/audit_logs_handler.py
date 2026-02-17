@@ -10,7 +10,11 @@ class AuditLogHandler(BaseLogHandler):
             "timestamp__gte": from_date,
             "timestamp__lte": to_date
         }
-        logs_json = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
+        if "downloads" in query.keys():
+            query.pop("downloads")
+            logs_json = self.doc_type.objects(**query).order_by("-timestamp").exclude("id")
+        else:
+            logs_json = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
             self.page_size).exclude("id")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_json)
         count = self.get_logs_count(self.doc_type, **query)

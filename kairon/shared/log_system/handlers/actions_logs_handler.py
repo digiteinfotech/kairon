@@ -20,9 +20,14 @@ class ActionLogHandler(BaseLogHandler):
         query = BaseLogHandler.get_default_dates(self.kwargs, "search")
         query["bot"] = self.bot
         query["trigger_info__trigger_id"] = ""
-        logs_cursor = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
+        if "downloads" in self.kwargs.keys():
+            logs_cursor = self.doc_type.objects(**query).order_by("-timestamp")
+        else:
+            logs_cursor = self.doc_type.objects(**query).order_by("-timestamp").skip(self.start_idx).limit(
             self.page_size).exclude("bot")
         logs = BaseLogHandler.convert_logs_cursor_to_dict(logs_cursor)
         count = self.get_logs_count(self.doc_type, **query)
         return logs, count
+
+
 
