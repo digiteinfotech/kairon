@@ -34,6 +34,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def list_settings(bot: Text, **kwargs):
         kwargs['bot'] = bot
+        kwargs["status"] = kwargs.get("status", True)
         for settings in MessageBroadcastSettings.objects(**kwargs):
             settings = settings.to_mongo().to_dict()
             settings['_id'] = settings['_id'].__str__()
@@ -119,6 +120,17 @@ class MessageBroadcastProcessor:
             if (force_update == key or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
+    @staticmethod
+    def get_all_dynamic_keys(bot_id):
+        pipeline = [
+            {"$match": {"bot": bot_id}},
+            {"$project": {"kv": {"$objectToArray": "$$ROOT"}}},
+            {"$unwind": "$kv"},
+            {"$group": {"_id": None, "keys": {"$addToSet": "$kv.k"}}}
+        ]
+
+        result = list(MessageBroadcastLogs.objects.aggregate(pipeline))
+        return result[0]['keys'] if result else []
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -127,9 +139,18 @@ class MessageBroadcastProcessor:
             kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
-        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size)
+        all_keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot)
+
+        exclude_prefixes = ('template_params',)
+        static_excludes = {'recipients', 'contacts', 'messages_list', 'recipients_list'}
+        projection = {
+            key: 0 for key in all_keys
+            if key.startswith(exclude_prefixes) or key in static_excludes
+        }
+        projection['_id'] = 0
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**projection)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
-        logs = query_objects.exclude('id').to_json()
+        logs = query_objects.to_json()
         logs = json.loads(logs)
         return logs, total_count
 
