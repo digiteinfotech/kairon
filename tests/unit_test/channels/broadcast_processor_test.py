@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -6,7 +7,9 @@ from bson import ObjectId
 from mongoengine import connect, ValidationError, DoesNotExist
 
 from kairon.exceptions import AppException
+from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs, MessageBroadcastSettings
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.utils import Utility
 
 
@@ -464,3 +467,176 @@ class TestMessageBroadcastProcessor:
                     user=user,
                     retry_count=retry_count
                 )
+
+def test_discovers_dynamic_numbered_params():
+    bot = "test_bot_01"
+    timestamp = datetime.utcnow()
+    config = {
+        "name": "test_broadcast", "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {
+            "recipients": "919876543211,919012345678,919012341234"
+        },
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ],
+        "status": False,
+        "retry_count": 1,
+        "bot": bot,
+        "user": "test_user"
+    }
+    template = [
+        {
+            "format": "TEXT",
+            "text": "Kisan Suvidha Program Follow-up",
+            "type": "HEADER"
+        },
+        {
+            "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
+            "type": "BODY"
+        },
+        {
+            "text": "reply with STOP to unsubscribe",
+            "type": "FOOTER"
+        },
+        {
+            "buttons": [
+                {
+                    "text": "Connect to Agronomist",
+                    "type": "QUICK_REPLY"
+                }
+            ],
+            "type": "BUTTONS"
+        }
+    ]
+    msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
+    MessageBroadcastLogs(
+        **{
+            "reference_id": "667bed955bfdaf3466b19de7",
+            "log_type": "common",
+            "bot": bot,
+            "status": "Completed",
+            "user": "test_user",
+            "total": 3,
+            "resend_count_1": 2,
+            "skipped_count_1": 0,
+            "event_id": msg_broadcast_id,
+            "timestamp": timestamp,
+
+        }
+    ).save()
+    timestamp = timestamp + timedelta(minutes=2)
+    MessageBroadcastLogs(
+        **{
+            "reference_id": "667bed955bfdaf3466b19de7",
+            "log_type": "send",
+            "bot": bot,
+            "status": STATUSES.SUCCESS.value,
+            "template_name": "brochure_pdf",
+            "template": template,
+            "namespace": "54500467_f322_4595_becd_419af88spm4",
+            "language_code": "hi",
+            "errors": [],
+            "api_response": {
+                "messaging_product": "whatsapp",
+                "contacts": [
+                    {
+                        "input": "919012345678",
+                        "wa_id": "919012345678"
+                    }
+                ],
+                "messages": [
+                    {
+                        "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
+                    }
+                ]
+            },
+            "recipient": "919012345678",
+            "template_params": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 0
+        }
+    ).save()
+    timestamp = timestamp + timedelta(minutes=2)
+    MessageBroadcastLogs(
+        **{
+            "reference_id": "667bed955bfdaf3466b19de7",
+            "log_type": "send",
+            "bot": bot,
+            "status": STATUSES.SUCCESS.value,
+            "template_name": "brochure_pdf",
+            "template": template,
+            "namespace": "54500467_f322_4595_becd_419af88spm4",
+            "language_code": "hi",
+            "errors": [
+                {
+                    "code": 130472,
+                    "title": "User's number is part of an experiment",
+                    "message": "User's number is part of an experiment",
+                    "error_data": {
+                        "details": "Failed to send message because this user's phone number is part of an experiment"
+                    },
+                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
+                }
+            ],
+            "api_response": {
+                "messaging_product": "whatsapp",
+                "contacts": [
+                    {
+                        "input": "919876543211",
+                        "wa_id": "919876543211"
+                    }
+                ],
+                "messages": [
+                    {
+                        "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA=="
+                    }
+                ]
+            },
+            "recipient": "919876543211",
+            "template_params_1": [
+                {
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
+                                "filename": "Brochure.pdf",
+                            },
+                        }
+                    ],
+                }
+            ],
+            "timestamp": timestamp,
+            "retry_count": 0
+        }
+    ).save()
+
+    keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot)
+
+    assert "template_params_1" in keys
+    assert "bot" in keys
+
+def test_handles_no_logs_gracefully():
+    bot_id = "non_existent_bot"
+    keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot_id)
+
+    assert isinstance(keys, list)
+    assert len(keys) == 0

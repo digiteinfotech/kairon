@@ -1293,7 +1293,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][2]['recipients'] = set(logs[0][2]['recipients'])
         logs[0][2].pop('timestamp')
         print(logs[0][2])
         assert logs[0][2] == {
@@ -1302,13 +1301,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543001', '9876543003'},
             'failure_cnt': 0,
             'total': 2,
-            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
-                                   {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
-                                  [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
-                                   {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
         }
         print(logs[0][1])
@@ -1319,8 +1313,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543001',
-            'template_params': [{'parameters': [{'type': 'text', 'text': 'Ganesh'}], 'type': 'header'},
-                                {'parameters': [{'type': 'text', 'text': 'stage-2'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -1339,8 +1331,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
-                                {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -1490,7 +1480,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         print(logs[0][1])
         assert logs[0][1] == {
             'log_type': 'common',
@@ -1498,11 +1487,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
-                                 {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
@@ -1514,8 +1500,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'header'},
-                                {'parameters': [{'type': 'text', 'text': 'stage-4'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -1693,7 +1677,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         print(logs[0][1])
         assert logs[0][1] == {
             'log_type': 'common',
@@ -1701,11 +1684,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params_1': [[{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
-                                 {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
@@ -1717,8 +1697,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{'parameters': [{'type': 'text', 'text': 'Default CROP name'}], 'type': 'header'},
-                                {'parameters': [{'type': 'text', 'text': 'Default NAME'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -1901,7 +1879,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         print(logs[0][1])
         assert logs[0][1] == {
             'log_type': 'common',
@@ -1909,15 +1886,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params_1': [[{
-                'parameters': [
-                    {'type': 'document',
-                     'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
@@ -1929,12 +1899,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{
-                'parameters': [
-                    {'type': 'document',
-                     'document': {'link': 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Aniket'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -2112,7 +2076,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         print(logs[0][1])
         assert logs[0][1] == {
             'log_type': 'common',
@@ -2120,16 +2083,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params_1': [[{
-                'parameters': [
-                    {'type': 'video',
-                     'video': {
-                         'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
@@ -2141,13 +2096,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{
-                'parameters': [
-                    {'type': 'video',
-                     'video': {
-                         'link': 'https://agtechteststorage.blob.core.windows.net/others/rallis/NayaZincMarathi.mp4'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -2325,7 +2273,6 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         print(logs[0][1])
         assert logs[0][1] == {
             'log_type': 'common',
@@ -2333,15 +2280,8 @@ class TestEventExecution:
             'status': 'Completed',
             'user': 'test_user',
             'event_id': event_id,
-            'recipients': {'9876543003'},
             'failure_cnt': 0,
             'total': 1,
-            'template_params_1': [[{
-                'parameters': [
-                    {'type': 'video',
-                     'video': {'id': '157283928392083'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}]],
             'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to one recipient."
         }
         logs[0][0].pop("timestamp")
@@ -2353,12 +2293,6 @@ class TestEventExecution:
             'status': STATUSES.SUCCESS.value,
             'api_response': {'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
             'recipient': '9876543003',
-            'template_params': [{
-                'parameters': [
-                    {'type': 'video',
-                     'video': {'id': '157283928392083'}}],
-                'type': 'header'},
-                {'parameters': [{'type': 'text', 'text': 'Mahesh'}], 'type': 'body'}],
             'event_id': event_id,
             'template_name': 'brochure_pdf',
             'language_code': 'hi',
@@ -2713,7 +2647,7 @@ class TestEventExecution:
                                      'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                                      'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ',
                                                    'message_status': 'accepted'}]}, 'recipient': '918958030541',
-                                 'template_params': None, 'template_exception': None, 'template_name': 'brochure_pdf',
+                                  'template_exception': None, 'template_name': 'brochure_pdf',
                                  'language_code': 'hi', 'namespace': None, 'retry_count': 0, 'template': [
                 {'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'}, {
                     'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
@@ -2825,10 +2759,8 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         config['collection_config'] = {}
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
-        logs[0][1].pop('template_params_1')
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
-                              'user': 'test_user', 'recipients': {'', '918958030541'},
+                              'user': 'test_user',
                               'failure_cnt': 0, 'total': 2,
                               'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
                               }
@@ -2836,7 +2768,7 @@ class TestEventExecution:
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'send',
                               'bot': 'test_execute_message_broadcast', 'status': STATUSES.SUCCESS.value, 'status_code': 200, 'api_response': {
                 'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'recipient': '918958030541', 'template_params': None, "template": template,
+                              'recipient': '918958030541', "template": template,
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0}
 
@@ -2939,25 +2871,8 @@ class TestEventExecution:
         logged_config.pop('pyscript_timeout')
         config['collection_config'] = {}
         assert logged_config == config
-        logs[0][2]['recipients'] = set(logs[0][2]['recipients'])
         assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
                               'status': 'Completed', 'user': 'test_user',
-                              'recipients': {'876543212345', '9876543210'},
-                              'template_params_1': [[{'type': 'header',
-                                                      'parameters': [{'type': 'document', 'document': {
-                                  'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                  'filename': 'Brochure.pdf'}}]}], [{'type': 'header', 'parameters': [
-                                  {'type': 'document', 'document': {
-                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}]],
-                              'template_params': [[{'type': 'header',
-                                                      'parameters': [{'type': 'document', 'document': {
-                                                          'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                                          'filename': 'Brochure.pdf'}}]}],
-                                                    [{'type': 'header', 'parameters': [
-                                                        {'type': 'document', 'document': {
-                                                            'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                                            'filename': 'Brochure.pdf'}}]}]],
                               'failure_cnt': 0, 'total': 2,
                               'Template 1': "[brochure_pdf] Broadcasting 'brochure_pdf' template message to 2 recipients."
                               }
@@ -2968,10 +2883,7 @@ class TestEventExecution:
                               'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'template_params': [{'type': 'header', 'parameters': [
-                                  {'type': 'document', 'document': {
-                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}], "template": template,
+                                "template": template,
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0}
         logs[0][0].pop("timestamp")
@@ -2979,10 +2891,7 @@ class TestEventExecution:
                               'status_code': 200,
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}]},
-                              'template_params': [{'type': 'header', 'parameters': [
-                                  {'type': 'document', 'document': {
-                                      'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                      'filename': 'Brochure.pdf'}}]}], "template": template,
+                               "template": template,
                               'template_exception': None, 'template_name': 'brochure_pdf', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0}
 
@@ -3149,8 +3058,7 @@ class TestEventExecution:
         assert logged_config == config
         exception = logs[0][0].pop("exception")
         assert exception.startswith("Whatsapp channel config not found!")
-        logs[0][0].pop('template_params')
-        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value, 'user': user, 'recipients': ['918958030541']}
+        assert logs[0][0] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value, 'user': user}
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3284,11 +3192,8 @@ class TestEventExecution:
         logged_config.pop("timestamp")
         config['collection_config'] = {}
         assert logged_config == config
-        logs[0][1]['recipients'] = set(logs[0][1]['recipients'])
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': bot, 'status': 'Completed',
-                              'user': 'test_user', 'recipients': {'918958030541'}, 'failure_cnt': 0, 'total': 1,
-                              'template_params': [[{'body': 'Udit Pandey'}]],
-                              'template_params_1': [[{'body': 'Udit Pandey'}]],
+                              'user': 'test_user', 'failure_cnt': 0, 'total': 1,
                               'Template 1': "[agronomy_support] Broadcasting 'agronomy_support' template message to one recipient."
                               }
         logs[0][0].pop("timestamp")
@@ -3298,7 +3203,7 @@ class TestEventExecution:
                               'api_response': {
                                   'contacts': [{'input': '+55123456789', 'status': 'valid', 'wa_id': '55123456789'}],
                               'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
-                              'recipient': '918958030541', 'template_params': [{'body': 'Udit Pandey'}],
+                              'recipient': '918958030541',
                               'template_exception': None, 'template_name': 'agronomy_support', 'language_code': 'hi',
                               'namespace': None, 'retry_count': 0,
                               'errors': [
@@ -3487,20 +3392,6 @@ class TestEventExecution:
                     ]
                 },
                 "recipient": "9876543210",
-                "template_params": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                    "filename": "Brochure.pdf",
-                                },
-                            }
-                        ],
-                    }
-                ],
                 "timestamp": timestamp,
                 "retry_count": 0
             }
@@ -3526,20 +3417,6 @@ class TestEventExecution:
                 'contacts': [{'input': '9876543210', 'wa_id': '9876543210'}],
                 'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
             'recipient': '9876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 0
         }
         MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
@@ -3578,20 +3455,6 @@ class TestEventExecution:
                 ]
             },
             'recipient': '9876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 0,
             'template': [
                 {
@@ -3774,20 +3637,6 @@ class TestEventExecution:
                     ]
                 },
                 "recipient": "9876543210",
-                "template_params": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                    "filename": "Brochure.pdf",
-                                },
-                            }
-                        ],
-                    }
-                ],
                 "timestamp": timestamp,
                 "retry_count": 0
             }
@@ -3812,20 +3661,6 @@ class TestEventExecution:
                 'contacts': [{'input': '9876543210', 'wa_id': '9876543210'}],
                 'messages': [{'id': 'wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ'}]},
             'recipient': '9876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 0
         }
         MessageBroadcastProcessor.update_broadcast_logs_with_template(reference_id=reference_id, event_id=event_id,
@@ -3864,20 +3699,6 @@ class TestEventExecution:
                 ]
             },
             'recipient': '9876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 0,
             'template': [],
             'template_exception': 'Failed to load the template'
@@ -4289,6 +4110,7 @@ class TestEventExecution:
         logs[0][2].pop("timestamp")
         reference_id = logs[0][2].get("reference_id")
         logged_config = logs[0][2]
+        print(logged_config)
         assert logged_config == {
             'reference_id': reference_id, 'log_type': 'resend',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values', 'status': STATUSES.SUCCESS.value,
@@ -4297,11 +4119,6 @@ class TestEventExecution:
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
             'recipient': '919876543210',
-            'template_params': [
-                {'type': 'header',
-                 'parameters': [{'type': 'document',
-                                 'document': {'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                              'filename': 'Brochure.pdf'}}]}],
             'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
@@ -4313,6 +4130,7 @@ class TestEventExecution:
         logs[0][3].get("config").pop("timestamp")
         reference_id = logs[0][3].get("reference_id")
         logged_config = logs[0][3]
+        print(logged_config)
         logs[0][3].pop("retry_1_timestamp")
         logged_config.pop('failure_count_1')
         logged_config.pop('template_1')
@@ -4320,7 +4138,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_static_values',
             'status': 'Completed', 'user': 'test_user', 'event_id': event_id,
-            'recipients': ['919876543210', '919012345678'],
             'config': {'_id': event_id, 'name': 'test_broadcast', 'connector_type': 'whatsapp',
                        'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
                        'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}], 'retry_count': 0,
@@ -4443,7 +4260,6 @@ class TestEventExecution:
                 "status": "Completed",
                 "user": "test_user",
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543210", "919012345678"],
                 "timestamp": timestamp,
 
             }
@@ -4660,11 +4476,6 @@ class TestEventExecution:
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
             'recipient': '919876543210',
-            'template_params': [
-                {'type': 'header', 'parameters': [
-                    {'type': 'document',
-                     'document': {'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                  'filename': 'Brochure.pdf'}}]}],
             'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
@@ -4683,7 +4494,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_dynamic_values', 'status': 'Completed',
             'user': 'test_user', 'event_id': event_id,
-            'recipients': ['919876543210', '919012345678'],
             'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
                        'broadcast_type': 'dynamic', 'template_config': [],
                        'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
@@ -4806,7 +4616,6 @@ class TestEventExecution:
                 "status": "Completed",
                 "user": "test_user",
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543210", "919012345678"],
                 "timestamp": timestamp,
 
             }
@@ -5023,12 +4832,6 @@ class TestEventExecution:
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
             'recipient': '919876543210',
-            'template_params': [
-                {'type': 'header', 'parameters': [
-                    {'type': 'document',
-                     'document': {
-                         'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                         'filename': 'Brochure.pdf'}}]}],
             'template': [],
             'event_id': event_id, 'template_name': 'brochure_pdf', 'language_code': 'hi',
             'namespace': '54500467_f322_4595_becd_419af88spm4', 'retry_count': 1, 'errors': []}
@@ -5042,7 +4845,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_without_template', 'status': 'Completed',
             'user': 'test_user', 'event_id': event_id,
-            'recipients': ['919876543210', '919012345678'],
             'config': {'_id': event_id, 'name': 'one_time_schedule', 'connector_type': 'whatsapp',
                        'broadcast_type': 'dynamic', 'template_config': [],
                        'pyscript': '\ncontacts = [\'919876543210\',\'919012345678\']\n\ncomponents = components = [{\'type\': \'header\', \'parameters\': [{\'type\': \'document\', \'document\': {\n                          \'link\': \'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm\',\n                          \'filename\': \'Brochure.pdf\'}}]}]\nfor contact in contacts:\n    resp = send_msg("brochure_pdf", contact, components=components, namespace="13b1e228_4a08_4d19_a0da_cdb80bc76380")\n\n    log(contact=contact,whatsapp_response=resp)            \n',
@@ -5161,7 +4963,6 @@ class TestEventExecution:
                 "status": "Completed",
                 "user": "test_user",
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543210", "919012345678", "919012341234"],
                 "timestamp": timestamp,
 
             }
@@ -5457,12 +5258,6 @@ class TestEventExecution:
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
             'recipient': '919876543210',
-            'template_params': [
-                {'type': 'header',
-                 'parameters': [
-                     {'type': 'document',
-                      'document': {'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                   'filename': 'Brochure.pdf'}}]}],
             'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
@@ -5481,7 +5276,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_with_meta_error_codes_to_skip',
             'status': 'Completed', 'user': 'test_user', 'event_id': event_id,
-            'recipients': ['919876543210', '919012345678', '919012341234'],
             'config': {'_id': event_id, 'name': 'test_broadcast',
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
@@ -5606,7 +5400,6 @@ class TestEventExecution:
                 "resend_count_1": 2,
                 "skipped_count_1": 0,
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543210", "919012345678", "919012341234"],
                 "timestamp": timestamp,
 
             }
@@ -6015,10 +5808,7 @@ class TestEventExecution:
             'api_response': {'contacts': [{'input': '919876543210', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
-            'recipient': '919876543210', 'template_params': [
-                {'type': 'header',
-                 'parameters': [{'type': 'document', 'document': {'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                                                  'filename': 'Brochure.pdf'}}]}],
+            'recipient': '919876543210',
             'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
                          {'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.', 'type': 'BODY'},
                          {'text': 'reply with STOP to unsubscribe', 'type': 'FOOTER'},
@@ -6037,7 +5827,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_multiple_times', 'status': 'Completed',
             'user': 'test_user', 'total': 3, 'resend_count_1': 2, 'skipped_count_1': 0, 'event_id': event_id,
-            'recipients': ['919876543210', '919012345678', '919012341234'],
             'config': {'_id': event_id, 'name': 'test_broadcast',
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543210,919012345678,919012341234'},
@@ -6166,7 +5955,6 @@ class TestEventExecution:
                 "resend_count_1": 2,
                 "skipped_count_1": 0,
                 "event_id": msg_broadcast_id,
-                "recipients": ["919876543211", "919012345678", "919012341234"],
                 "timestamp": timestamp,
 
             }
@@ -6575,11 +6363,7 @@ class TestEventExecution:
             'api_response': {'contacts': [{'input': '919876543211', 'status': 'valid', 'wa_id': '55123456789'}],
                              'messages': [{'id': 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjIBB==',
                                            'message_status': 'accepted'}]},
-            'recipient': '919876543211', 'template_params': [
-                {'type': 'header',
-                 'parameters': [{'type': 'document', 'document': {
-                     'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                     'filename': 'Brochure.pdf'}}]}],
+            'recipient': '919876543211',
             'template': [{'format': 'TEXT', 'text': 'Kisan Suvidha Program Follow-up', 'type': 'HEADER'},
                          {
                              'text': 'Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.',
@@ -6600,7 +6384,6 @@ class TestEventExecution:
             'reference_id': reference_id, 'log_type': 'common',
             'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history', 'status': 'Completed',
             'user': 'test_user', 'total': 3, 'resend_count_1': 2, 'skipped_count_1': 0, 'event_id': event_id,
-            'recipients': ['919876543211', '919012345678', '919012341234'],
             'config': {'_id': event_id, 'name': 'test_broadcast',
                        'connector_type': 'whatsapp', 'broadcast_type': 'static',
                        'recipients_config': {'recipients': '919876543211,919012345678,919012341234'},
