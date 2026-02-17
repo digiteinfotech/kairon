@@ -8112,7 +8112,7 @@ class MongoProcessor:
             LogType.analytics_pipeline: AnalyticsPipelineLogs,
             LogType.custom_widgets: CustomWidgetsRequestLog
         }
-        if logtype == LogType.action_logs.value:
+        if logtype == LogType.action_logs.value or logtype == LogType.custom_widgets.value:
             filter_query = {
                 "bot": bot,
                 "timestamp__gte": start_time,
