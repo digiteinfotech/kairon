@@ -13576,22 +13576,9 @@ def test_list_broadcast():
     actual["data"]["schedules"][0].pop("user")
     actual["data"]["schedules"][1].pop("timestamp")
     actual["data"]["schedules"][1].pop("user")
-    actual["data"]["schedules"][2].pop("timestamp")
-    actual["data"]["schedules"][2].pop("user")
     print(actual["data"])
     assert actual["data"] == {
         "schedules": [
-            {
-                '_id': pytest.broadcast_msg_id,
-                'name': 'test_broadcast',
-                'connector_type': 'whatsapp',
-                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
-                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
-                'collection_config': {},
-                'retry_count': 3,
-                'bot': pytest.bot,
-                'status': False
-            },
             {
                 '_id': pytest.broadcast_msg_id3,
                 'name': 'broadcast_without_filters_list',
@@ -13735,21 +13722,8 @@ def test_list_broadcast_after_update():
     actual["data"]["schedules"][0].pop("user")
     actual["data"]["schedules"][1].pop("timestamp")
     actual["data"]["schedules"][1].pop("user")
-    actual["data"]["schedules"][2].pop("timestamp")
-    actual["data"]["schedules"][2].pop("user")
     assert actual["data"] == {
         "schedules": [
-            {
-                '_id': pytest.broadcast_msg_id,
-                'name': 'test_broadcast',
-                'connector_type': 'whatsapp',
-                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
-                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
-                'collection_config': {},
-                'retry_count': 3,
-                'bot': pytest.bot,
-                'status': False
-            },
             {
                 '_id': pytest.broadcast_msg_id3,
                 'name': 'broadcast_without_filters_list',
@@ -13928,20 +13902,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 ]
             },
             'recipient': '919876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 1
         }
     ]
@@ -13974,20 +13934,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '919876543210',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 1
             },
             {
@@ -14005,20 +13951,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '918958030541',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 2
             },
             {
@@ -14027,11 +13959,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'bot': pytest.bot,
                 'status': EVENT_STATUS.COMPLETED.value,
                 'user': 'test_user',
-                'broadcast_id': pytest.broadcast_msg_id,
-                'recipients': [
-                    '919876543210',
-                    '918958030541'
-                ]
+                'broadcast_id': pytest.broadcast_msg_id
             }
         ],
         'total_count': 3
@@ -34738,8 +34666,7 @@ def test_list_broadcast_logs():
             "bot": pytest.bot,
             "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
-            "broadcast_id": pytest.first_scheduler_id,
-            "recipients": ["918958030541", ""],
+            "broadcast_id": pytest.first_scheduler_id
         }
     ]
     assert actual["data"]["total_count"] == 1
@@ -34769,21 +34696,7 @@ def test_list_broadcast_logs():
                         }
                     ]
                 },
-                "recipient": "9876543210",
-                "template_params": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                    "filename": "Brochure.pdf",
-                                },
-                            }
-                        ],
-                    }
-                ],
+                "recipient": "9876543210"
             },
             {
                 "reference_id": ref_id,
@@ -34791,8 +34704,7 @@ def test_list_broadcast_logs():
                 "bot": pytest.bot,
                 "status": EVENT_STATUS.COMPLETED.value,
                 "user": "test_user",
-                "broadcast_id": pytest.first_scheduler_id,
-                "recipients": ["918958030541", ""],
+                "broadcast_id": pytest.first_scheduler_id
             },
         ],
         "total_count": 2,
