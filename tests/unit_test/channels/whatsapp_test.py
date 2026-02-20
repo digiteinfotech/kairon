@@ -392,6 +392,103 @@ class TestWhatsappHandler:
         assert media_ids == expected_media_ids
 
     @pytest.mark.asyncio
+    async def test_interactive_nfm_reply_with__media_images_triggers_k_interactive_msg(self, monkeypatch):
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        from kairon.shared.chat.user_media import UserMedia
+
+        channel_config = {
+            "connector_type": "whatsapp",
+            "config": {
+                "bsp_type": "meta",
+                "api_key": "DUMMY",
+                "access_token": "DUMMY"
+            }
+        }
+        bot = "whatsapp_test"
+        handler = Whatsapp(channel_config)
+
+        monkeypatch.setattr(WhatsappBot, "mark_as_read", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            Whatsapp,
+            "get_business_phone_number_id",
+            lambda self: "142427035629239"
+        )
+
+        # Simulate save_whatsapp_media_content returning a list of one media id
+        s3_url = "https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg"
+        monkeypatch.setattr(
+            UserMedia,
+            "save_whatsapp_media_and_get_url",
+            lambda bot, sender_id, whatsapp_media_id, description, config: [whatsapp_media_id, s3_url]
+        )
+
+        # Spy on _handle_user_message
+        handler._handle_user_message = AsyncMock()
+
+        docs = [
+            {"id": "doc1", "mime_type": "image/jpeg", "sha256": "x", "file_name": "a.jpg"},
+            {"id": "doc2", "mime_type": "application/pdf", "sha256": "y", "file_name": "b.pdf"}
+        ]
+        flow = {
+            "flow_token": "token123",
+            "documents": docs
+        }
+        raw_resp = json.dumps(flow)
+
+        payload = {
+            "object": "whatsapp_business_account",
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "contacts": [{"profile": {"name": "Foo"}, "wa_id": "seller"}],
+                                "messages": [
+                                    {
+                                        "from": "user123",
+                                        "type": "interactive",
+                                        "interactive": {
+                                            'nfm_reply': {
+                                                'body': 'Sent',
+                                                'name': 'flow',
+                                                'response_json': '{"text":"Testing issue","images":[{"id":1581455350267123,"mime_type":"image\/jpeg","sha256":"Q+0JFKZqNlSgKHZZJ7C2qCUVfRh9EM5kioE\/InFhr4c=","file_name":"34084cac-588e-4b9f-a9e3-3c7500c18a6a.jpg"},{"id":1491951959168746,"mime_type":"image\/jpeg","sha256":"Q+0JFKZqNlSgKHZZJ7C2qCUVfRh9EM5kioE\/InFhr4c=","file_name":"cfb3b5a0-0150-4ac3-8e19-638631c7750a.jpg"}],"flow_token":"details"}'
+                                            },
+                                            'type': 'nfm_reply'
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+        await handler.handle_meta_payload(
+            payload,
+            {"channel_type": "whatsapp", "bsp_type": "meta", "tabname": "default"},
+            bot
+        )
+
+        assert handler._handle_user_message.call_count == 1
+
+        text, sender, msg_obj, bot_name, media_ids = handler._handle_user_message.call_args[0]
+
+        images = {
+            "1581455350267123": "https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            "1491951959168746": "https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg"
+        }
+
+        expected_payload =  f'/k_interactive_msg{{"flow_images": {json.dumps(images)}}}'
+        expected_media_ids = [int(key) for key in images.keys()]
+
+        assert text == expected_payload
+        assert sender == "user123"
+        assert bot_name == bot
+        assert media_ids == expected_media_ids
+
+    @pytest.mark.asyncio
     async def test_whatsapp_typing_indicator_end_to_end(self, monkeypatch):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
         from unittest.mock import MagicMock, AsyncMock

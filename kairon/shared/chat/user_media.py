@@ -28,7 +28,7 @@ import fitz
 class UserMedia:
     MEDIA_EXTRACTION_FLOW_NAME = "k_media_extraction"
     @staticmethod
-    def create_user_media_data(bot: str, media_id: str, filename: str, sender_id: str, upload_type: str = UserMediaUploadType.user_uploaded.value):
+    def create_user_media_data(bot: str, media_id: str, filename: str, sender_id: str, upload_type: str = UserMediaUploadType.user_uploaded.value, **kwargs):
         """
         Create user media data in processing state.
         Call mark_user_media_data_upload_done() to mark the upload as done or mark_user_media_data_upload_failed() to mark the upload as failed.
@@ -42,7 +42,8 @@ class UserMedia:
             upload_status=UserMediaUploadStatus.processing.value,
             sender_id=sender_id,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            **kwargs
         )
         user_media_data.save()
 
@@ -125,6 +126,7 @@ class UserMedia:
                                                        output_filename=output_filename,
                                                        filesize=filesize)
             logger.info(f"saved {media_id} successfully")
+            return url
         except ClientError as e:
             logger.exception(e)
             UserMedia.mark_user_media_data_upload_failed(media_id=media_id, reason=str(e))
@@ -604,4 +606,114 @@ class UserMedia:
         )
         media_doc.save()
         return media_doc
+
+    @staticmethod
+    def get_user_media_data(bot: str, upload_status: str, upload_type: str):
+        try:
+            media_data = (
+                UserMediaData.objects(
+                    bot=bot,
+                    upload_status=upload_status,
+                    upload_type=upload_type,
+                )
+                .only("sender_id", "timestamp", "media_url", "description", "upload_status")
+                .order_by("-timestamp")
+            )
+
+            return [
+                {
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                    "media_url": doc.media_url,
+                    "description": doc.description,
+                    "upload_status": doc.upload_status,
+                }
+                for doc in media_data
+            ]
+
+        except Exception as e:
+            raise AppException(
+                f"Error while fetching media info for bot '{bot}': {str(e)}"
+            )
+
+    @staticmethod
+    def save_whatsapp_media_and_get_url(
+            bot: str,
+            sender_id: str,
+            whatsapp_media_id: str,
+            config: dict,
+            description: str = None
+    ):
+        """
+        Download WhatsApp media, upload to S3, save DB, and return S3 URL
+        """
+        download_url = None
+        file_path = None
+        headers = {}
+        provider = config.get("bsp_type", "meta")
+        if provider == '360dialog':
+            endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
+            headers = {
+                'D360-API-KEY': config.get('api_key'),
+            }
+            resp = requests.get(endpoint, headers=headers, stream=True)
+            if resp.status_code != 200:
+                raise AppException(f"Failed to download media from 360 dialog: {resp.status_code} - {resp.text}")
+            json_resp = resp.json()
+            download_url = json_resp.get("url")
+            download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
+            mime_type = json_resp.get("mime_type")
+            extension = mimetypes.guess_extension(mime_type) or ''
+            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
+        elif provider == 'meta':
+            endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
+            access_token = config.get('access_token')
+            headers = {'Authorization': f'Bearer {access_token}'}
+            media_info_resp = requests.get(
+                endpoint,
+                params={"fields": "url", "access_token": access_token},
+                timeout=10
+            )
+            if media_info_resp.status_code != 200:
+                raise AppException(f"Failed to get url from meta for media: {whatsapp_media_id}")
+            json_resp = media_info_resp.json()
+            download_url = json_resp.get("url")
+            mime_type = json_resp.get("mime_type")
+            extension = mimetypes.guess_extension(mime_type) or ''
+            file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
+
+        media_resp = requests.get(
+            download_url,
+            headers=headers,
+            stream=True,
+            timeout=10
+        )
+        if media_resp.status_code != 200:
+            raise AppException(f"Failed to download media: {whatsapp_media_id}")
+        buffer = bytearray()
+        for chunk in media_resp.iter_content(chunk_size=8192):
+            if chunk:
+                buffer.extend(chunk)
+        file_buffer = bytes(buffer)
+
+        media_id = uuid7().hex
+
+        UserMedia.create_user_media_data(
+            bot=bot,
+            media_id=media_id,
+            filename=file_path,
+            sender_id=sender_id,
+            upload_type=UserMediaUploadType.user_uploaded.value,
+            description=description,
+        )
+
+        s3_url = UserMedia.save_media_content(
+            bot=bot,
+            sender_id=sender_id,
+            media_id=media_id,
+            binary_data=file_buffer,
+            filename=file_path
+        )
+
+        return media_id, s3_url
 

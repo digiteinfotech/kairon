@@ -854,6 +854,193 @@ class TestBusinessServiceProvider:
 
     @pytest.mark.asyncio
     @responses.activate
+    def test_get_user_media_data_with_no_data(self):
+        bot = "682323a603ec3be7dcaa75bc"
+        media_data = UserMedia.get_user_media_data(bot, "Completed", "user")
+        assert len(media_data) == 0
+        assert media_data == []
+        print(media_data)
+        UserMediaData.objects().delete()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    def test_get_user_media_data(self):
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=410484,
+            description="Issue description",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=410484,
+            description="Testing description",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=410484,
+            description="Issue description 2",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Failed",
+            upload_type="user",
+            filesize=410484,
+            description="Testing description 2",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=410484,
+            description="Issue description 3",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="processing",
+            upload_type="system",
+            filesize=410484,
+            description="Testing description 4",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+        UserMediaData(
+            media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+            filename="whataspp_360_885215267637065.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="system",
+            filesize=410484,
+            description="Testing description 5",
+            sender_id="mahesh.sattala@digite.com",
+            bot="682323a603ec3be7dcaa75bc",
+            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        ).save()
+
+        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "user")
+        assert len(media_data) == 4
+        print(media_data)
+        assert media_data == [
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Issue description',
+                'upload_status': 'Completed'
+            },
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Testing description',
+                'upload_status': 'Completed'
+            },
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Issue description 2',
+                'upload_status': 'Completed'
+            },
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Issue description 3',
+                'upload_status': 'Completed'
+            }
+        ]
+
+        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "processing", "system")
+        assert len(media_data) == 1
+        print(media_data)
+        assert media_data == [
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Testing description 4',
+                'upload_status': 'processing'
+            }
+        ]
+
+        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "system")
+        assert len(media_data) == 1
+        print(media_data)
+        assert media_data == [
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Testing description 5',
+                'upload_status': 'Completed'
+            }
+        ]
+
+        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "system")
+        assert len(media_data) == 1
+        print(media_data)
+        assert media_data == [
+            {
+                'sender_id': 'mahesh.sattala@digite.com',
+                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
+                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+                'description': 'Testing description 5',
+                'upload_status': 'Completed'
+            }
+        ]
+
+        UserMediaData.objects().delete()
+
+    @pytest.mark.asyncio
+    @responses.activate
     @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
     async def test_upload_media_success(self, mock_get_buffer):
         media_id = "0196c9efbf547b81a66ba2af7b72d5ba"

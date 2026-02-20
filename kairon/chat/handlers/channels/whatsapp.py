@@ -48,6 +48,7 @@ class Whatsapp:
                 response_json.update({"type": interactive_type})
                 entity = json.dumps({"flow_reply": response_json})
                 docs = response_json.get("documents", [])
+                images = response_json.get("images", [])
                 if docs:
                     temp_media_ids=[]
                     media_id_list=[]
@@ -63,6 +64,26 @@ class Whatsapp:
                         temp_media_ids.extend(ids)
                     media_ids=temp_media_ids
                     text = f"/k_multimedia_msg{{\"flow_docs\": \"{media_id_list}\"}}"
+                elif images:
+                    description = response_json.get("text")
+                    temp_media_ids = []
+                    media_id_list = []
+                    media_map = {}
+                    for image in images:
+                        whatsapp_media_id = image["id"]
+
+                        media_id, s3_url = UserMedia.save_whatsapp_media_and_get_url(
+                            bot=bot,
+                            sender_id=message["from"],
+                            whatsapp_media_id=whatsapp_media_id,
+                            config=self.config,
+                            description=description
+                        )
+
+                        media_map[str(media_id)] = s3_url
+                        temp_media_ids.append(media_id)
+                    media_ids = temp_media_ids
+                    text = f'/k_interactive_msg{{"flow_images": {json.dumps(media_map)}}}'
                 else:
                     text = f"/k_interactive_msg{entity}"
             else:

@@ -377,3 +377,38 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                                      validate_status=True,
                                      err_msg="media file does not exist for this media id.")
         return "Media file deleted successfully"
+
+    @staticmethod
+    async def get_media_content(bot: str, bsp_type: str, media_id: str):
+        """
+        Returns the PDF bytes from media ID.
+        """
+        connector_type = "whatsapp"
+        try:
+            media_doc = UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        if not channel_config or "config" not in channel_config or channel_config.config.get(
+                "bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        access_token = channel_config.config.get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        try:
+            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            file_stream.seek(0)
+            media_bytes = file_stream.read()
+
+            return media_bytes
+
+        except Exception as e:
+            raise e

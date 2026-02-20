@@ -179,6 +179,7 @@ class KaironSystemSlots(str, Enum):
     body = "body"
     media_ids = 'media_ids'
     flow_dos='flow_docs'
+    flow_images='flow_images'
     llm_call_id = "llm_call_id"
 
 

@@ -190,6 +190,11 @@ class PyscriptUtility:
         return external_media_id
 
     @staticmethod
+    def get_media_content(bot: str, bsp_type: str, media_id: str):
+        media_bytes = asyncio.run(BSP360Dialog.get_media_content(bot, bsp_type, media_id))
+        return media_bytes
+
+    @staticmethod
     def fetch_media_ids(bot: str):
         try:
             media_data = UserMediaData.objects(
