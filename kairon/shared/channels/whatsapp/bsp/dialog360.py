@@ -385,7 +385,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         """
         connector_type = "whatsapp"
         try:
-            media_doc = UserMediaData.objects.get(media_id=media_id)
+             UserMediaData.objects.get(media_id=media_id)
         except DoesNotExist:
             raise AppException(f"UserMediaData not found for media_id: {media_id}")
 
