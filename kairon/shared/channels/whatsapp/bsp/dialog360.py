@@ -400,7 +400,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise AppException("API key (access token) not found in channel config")
 
         try:
-            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
+            file_stream, _, _ = await UserMedia.get_media_content_buffer(media_id)
 
             if not file_stream:
                 raise AppException("File stream not found")
