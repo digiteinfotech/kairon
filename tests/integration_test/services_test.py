@@ -4728,6 +4728,164 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
     UserMediaData.objects().delete()
     Channels.objects().delete()
 
+def test_get_user_media_data_with_no_data():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == []
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
+def test_get_user_media_data():
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        description="Issue description",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        description="Testing description",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        description="Issue description 2",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Failed",
+        upload_type="user",
+        filesize=410484,
+        description="Testing description 2",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        description="Issue description 3",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="processing",
+        upload_type="system",
+        filesize=410484,
+        description="Testing description 4",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="system",
+        filesize=410484,
+        description="Testing description 5",
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == [
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'description': 'Issue description',
+            'upload_status': 'Completed'
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'description': 'Testing description',
+            'upload_status': 'Completed'
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'description': 'Issue description 2',
+            'upload_status': 'Completed'
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'description': 'Issue description 3',
+            'upload_status': 'Completed'
+        }
+    ]
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
 @pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
@@ -17197,7 +17355,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 20
+    assert len(actual['data']) == 21
     assert actual["success"]
 
 
@@ -17962,7 +18120,7 @@ def test_list_entities():
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
-                'subject', 'body', 'media_ids','flow_docs','llm_call_id'}
+                'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'llm_call_id'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -18603,12 +18761,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 27
+    assert len(actual["data"]) == 28
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 20
+    assert default_slots_count == 21
 
 
 def test_add_slots():

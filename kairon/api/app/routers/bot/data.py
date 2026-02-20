@@ -21,7 +21,7 @@ from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollection
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import User
+from kairon.shared.models import User, UserMediaUploadStatus, UserMediaUploadType
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -581,6 +581,15 @@ async def get_media_ids(
         return Response(message="List of media ids", data=media_ids)
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
+
+@router.get("/user/media/data", response_model=Response)
+async def get_user_media_data(
+        upload_status: str = Query(default=UserMediaUploadStatus.completed.value, description="Filter by upload status"),
+        upload_type: str = Query(default=UserMediaUploadType.user_uploaded.value, description="Filter by upload type"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_data = UserMedia.get_user_media_data(current_user.get_bot(), upload_status, upload_type)
+    return Response(message="List of media data", data=media_data)
 
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(
