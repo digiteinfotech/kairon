@@ -83,7 +83,11 @@ class Whatsapp:
                         media_map[str(media_id)] = s3_url
                         temp_media_ids.append(media_id)
                     media_ids = temp_media_ids
-                    text = f'/k_interactive_msg{{"flow_images": {json.dumps(media_map)}}}'
+                    data = {
+                        "flow_images": media_map,
+                        "flow_data": response_json
+                    }
+                    text = f'/k_interactive_msg{json.dumps(data)}'
                 else:
                     text = f"/k_interactive_msg{entity}"
             else:

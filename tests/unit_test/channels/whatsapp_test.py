@@ -479,8 +479,15 @@ class TestWhatsappHandler:
             "1581455350267123": "https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
             "1491951959168746": "https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg"
         }
+        response_json = '{"text":"Testing issue","images":[{"id":1581455350267123,"mime_type":"image\/jpeg","sha256":"Q+0JFKZqNlSgKHZZJ7C2qCUVfRh9EM5kioE\/InFhr4c=","file_name":"34084cac-588e-4b9f-a9e3-3c7500c18a6a.jpg"},{"id":1491951959168746,"mime_type":"image\/jpeg","sha256":"Q+0JFKZqNlSgKHZZJ7C2qCUVfRh9EM5kioE\/InFhr4c=","file_name":"cfb3b5a0-0150-4ac3-8e19-638631c7750a.jpg"}],"flow_token":"details"}'
+        response_json = json.loads(response_json)
+        response_json.update({"type": "nfm_reply"})
+        data = {
+            "flow_images": images,
+            "flow_data": response_json
+        }
 
-        expected_payload =  f'/k_interactive_msg{{"flow_images": {json.dumps(images)}}}'
+        expected_payload =  f'/k_interactive_msg{json.dumps(data)}'
         expected_media_ids = [int(key) for key in images.keys()]
 
         assert text == expected_payload
