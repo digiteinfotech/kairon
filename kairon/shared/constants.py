@@ -31,7 +31,6 @@ KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
 
 FLATTENED_CONVERSATIONS = "flattened_conversations"
 
-
 FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
 
 
