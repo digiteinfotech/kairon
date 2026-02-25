@@ -5,6 +5,7 @@ from loguru import logger
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
+from kairon.shared.constants import FLATTENED_CONVERSATIONS
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from dateutil.relativedelta import relativedelta
@@ -93,7 +94,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
                                                       "bot": collection,
@@ -139,7 +140,7 @@ class HistoryProcessor:
             client = HistoryProcessor.get_mongo_connection()
             with client as clt:
                 db = clt.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 fallback_counts = list(conversations.aggregate([
                     {"$match": {"type": "flattened", "bot": collection,
                                 "data.intent": fallback_intent,
@@ -244,7 +245,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 users = list(
                     conversations.aggregate([
                         {
@@ -409,7 +410,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 total = list(conversations.aggregate([
                     {"$match": {
                         "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
@@ -641,7 +642,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 total = list(
                     conversations.aggregate([
                         {"$match":
@@ -759,7 +760,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 fallback_counts = list(conversations.aggregate([
                     {"$match": {"type": "flattened", "bot": collection,
                                 "timestamp": {
@@ -814,7 +815,7 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection("flattened_conversations")
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 search_query = {
                     "type": {"$in": ["flattened", "broadcast"]},
                     "bot": collection,

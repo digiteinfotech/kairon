@@ -11,6 +11,7 @@ from rasa.shared.core.domain import Domain
 from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
 
+from kairon.shared.constants import FLATTENED_CONVERSATIONS
 from kairon.shared.utils import Utility
 
 
@@ -51,7 +52,7 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
         self.db = self.client.get_database(db)
         self.collection = collection
-        self.flattened_collection = "flattened_conversations"
+        self.flattened_collection = FLATTENED_CONVERSATIONS
         super().__init__(domain, event_broker, **kwargs)
 
         self._ensure_indices()

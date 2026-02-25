@@ -13,7 +13,7 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
-from kairon.shared.constants import ChannelTypes
+from kairon.shared.constants import ChannelTypes, FLATTENED_CONVERSATIONS
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.log_system.base import BaseLogHandler
@@ -217,7 +217,7 @@ class MessageBroadcastProcessor:
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
-            client = MessageBroadcastProcessor.get_db_client("flattened_conversations")
+            client = MessageBroadcastProcessor.get_db_client(FLATTENED_CONVERSATIONS)
             if log['errors']:
                 status = STATUSES.FAIL.value
                 errors = log['errors']
