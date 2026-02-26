@@ -1627,7 +1627,6 @@ async def download_logs(
     return response
 
 
-
 @router.get("/qna/flatten", response_model=Response)
 async def get_qna_flattened(
         start_idx: int = 0, page_size: int = 10,
