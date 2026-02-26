@@ -4,7 +4,6 @@ import os
 from unittest.mock import patch, AsyncMock
 from urllib.parse import urlencode, urljoin
 
-from aioresponses import aioresponses
 from mongoengine.errors import DoesNotExist
 
 from kairon.actions.definitions.schedule import ActionSchedule
@@ -14,7 +13,6 @@ Utility.load_environment()
 Utility.load_system_metadata()
 import urllib
 
-import litellm
 from unittest import mock
 import numpy as np
 import pytest
@@ -24,7 +22,6 @@ from apscheduler.util import obj_to_ref
 from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
-from litellm import embedding
 from mongoengine import connect, ValidationError
 
 from kairon.events.executors.factory import ExecutorFactory
@@ -12588,7 +12585,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
         mock.ANY
     )
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -12725,7 +12721,6 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
     ]
 
     embedding = list(np.random.random(OPENAI_EMBEDDING_OUTPUT))
-    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     expected_body = {'messages': [{'role': 'system', 'content': 'You are a personal assistant.\n'}, {'role': 'user',
                                                                                                      'content': "\nInstructions on how to use Similarity Prompt:\n['Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.']\nAnswer question based on the context above.\n\nInstructions on how to use Data science prompt:\n['Data science is a multidisciplinary field that uses scientific methods, processes, algorithms, and systems to extract insights and knowledge from structured and unstructured data.']\nAnswer question based on the context above.\n \nQ: What kind of language is python? \nA:"}],
                      "hyperparameters": hyperparameters,
@@ -12954,7 +12949,6 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(aior
          'is_enabled': True}
     ]
 
-    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -13577,18 +13571,6 @@ def test_prompt_action_response_action_with_static_user_prompt(aioresponses):
          'instructions': 'Answer according to the context', 'type': 'user', 'source': 'static',
          'is_enabled': True}
     ]
-
-    def mock_completion_for_answer(*args, **kwargs):
-        return litellm.ModelResponse(**{'choices': [{'message': {'content': generated_text, 'role': 'assistant'}}]})
-
-    def __mock_search_cache(*args, **kwargs):
-        return {'result': []}
-
-    def __mock_fetch_similar(*args, **kwargs):
-        return {'result': [{'id': uuid7().__str__(), 'score': 0.80, 'payload': {'content': bot_content}}]}
-
-    def __mock_cache_result(*args, **kwargs):
-        return {'result': []}
 
     expected_body = {'messages': [
         {'role': 'system', 'content': 'You are a personal assistant. Answer question based on the context below.\n'},
@@ -15194,7 +15176,6 @@ def test_prompt_action_response_action_when_similarity_disabled(aioresponses):
 def test_vectordb_action_execution_embedding_payload_search(mock_embedding,mock_execute_http_request):
     embedding = list(np.random.random(LLMProcessor.__embedding__))
     bot = '5f50fx0a56b698ca10d35d2f'
-    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
     mock_embedding.return_value = (
         [embedding],
         200,

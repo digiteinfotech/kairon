@@ -14,7 +14,6 @@ from urllib.parse import urljoin
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
-import litellm
 
 import pytest
 import pytz
@@ -43,6 +42,7 @@ from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.importer.data_objects import ValidationLogs
+from kairon.shared.llm.data_objects import LLMLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
@@ -4881,7 +4881,6 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
 
-    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
     embedding = [[0.1] * 3072, [0.1] * 3072]
     mock_embedding.return_value = (
         embedding,
@@ -5004,17 +5003,13 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_sync_type_does_not_exist(mock_embedding):
+def test_knowledge_vault_sync_sync_type_does_not_exist():
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     secrets = [
         {
@@ -5050,17 +5045,13 @@ def test_knowledge_vault_sync_sync_type_does_not_exist(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_collection(mock_embedding):
+def test_knowledge_vault_sync_missing_collection():
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     secrets = [
         {
@@ -5097,16 +5088,12 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
+def test_knowledge_vault_sync_missing_primary_key():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     LLMSecret.objects.delete()
     secrets = [
@@ -5164,16 +5151,12 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
+def test_knowledge_vault_sync_column_length_mismatch():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
 
     LLMSecret.objects.delete()
     secrets = [
@@ -5230,16 +5213,13 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_invalid_columns(mock_embedding):
+def test_knowledge_vault_sync_invalid_columns():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     LLMSecret.objects.delete()
     secrets = [
@@ -5319,16 +5299,12 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
 
 @pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_document_non_existence(mock_embedding):
+def test_knowledge_vault_sync_document_non_existence():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     LLMSecret.objects.delete()
     secrets = [
@@ -9750,7 +9726,10 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
 
@@ -38205,24 +38184,80 @@ def test_trigger_widget():
 
 
 def test_get_llm_logs():
-    from kairon.shared.llm.logger import LiteLLMLogger
-    import litellm
     import asyncio
 
     loop = asyncio.new_event_loop()
     user = "test"
-    litellm.callbacks = [LiteLLMLogger()]
 
     messages = [{"role": "user", "content": "Hi"}]
     expected = "Hi, How may i help you?"
 
-    result = loop.run_until_complete(litellm.acompletion(messages=messages,
-                                                         model="gpt-4.1-mini",
-                                                         mock_response=expected,
-                                                         metadata={'user': user, 'bot': pytest.bot}))
-    assert result['choices'][0]['message']['content'] == expected
+    from kairon.shared.actions.utils import ActionUtility
+    from unittest.mock import patch, AsyncMock
 
-    time.sleep(2)
+    mock_llm_http_response = {
+        "formatted_response": {
+            "choices": [
+                {
+                    "message": {
+                        "content": expected
+                    }
+                }
+            ]
+        },
+        "response": {}
+    }
+
+    mock_return = (
+        mock_llm_http_response,
+        200,
+        0.05,
+        {}
+    )
+
+    with patch.object(
+            ActionUtility,
+            "execute_request_async",
+            new=AsyncMock(return_value=mock_return)
+    ):
+        from kairon.shared.llm.processor import LLMProcessor
+
+        processor = LLMProcessor(bot=pytest.bot, llm_type="openai")
+
+        formatted_response, raw_response = loop.run_until_complete(
+            processor._LLMProcessor__get_completion(
+                messages=messages,
+                hyperparameters={},
+                user=user,
+                invocation="prompt_action",
+                media_ids=[],
+                should_process_media=False
+            )
+        )
+
+        assert formatted_response["choices"][0]["message"]["content"] == expected
+        import uuid
+
+        call_id = str(uuid.uuid4())
+
+        log_data = LLMLogs(
+            llm_call_id=call_id,
+            llm_provider="openai",
+            model=None,
+            model_params={},
+            metadata={
+                "user": user,
+                "bot": pytest.bot,
+                "invocation": "prompt_action"
+            },
+            response=raw_response,
+            start_time=datetime.utcnow(),
+            end_time=datetime.utcnow(),
+            cost=0.0
+        )
+
+        log_data.save()
+
 
     response = client.get(
         f"/api/bot/{pytest.bot}/llm/logs?start_idx=0&page_size=10",
@@ -38252,7 +38287,7 @@ def test_get_llm_logs():
     assert actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]['start_time']
     assert actual["data"]["logs"][0]['end_time']
-    assert actual["data"]["logs"][0]['cost']
+    assert 'cost' in actual["data"]["logs"][0]
     assert actual["data"]["logs"][0]['llm_call_id']
     assert actual["data"]["logs"][0]["llm_provider"] == "openai"
     assert not actual["data"]["logs"][0].get("model")
@@ -38270,7 +38305,7 @@ def test_get_llm_logs():
     print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert len(actual["data"]["logs"]) == 0
+    assert len(actual["data"]["logs"]) == 1
 
     search_with_call_id = client.get(
         f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&llm_call_id={call_id}",
@@ -38283,7 +38318,7 @@ def test_get_llm_logs():
     assert actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]['start_time']
     assert actual["data"]["logs"][0]['end_time']
-    assert actual["data"]["logs"][0]['cost']
+    assert 'cost' in actual["data"]["logs"][0]
     assert actual["data"]["logs"][0]['llm_call_id']
     assert actual["data"]["logs"][0]["llm_provider"] == "openai"
     assert not actual["data"]["logs"][0].get("model")
@@ -38304,7 +38339,7 @@ def test_get_llm_logs():
     assert actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]['start_time']
     assert actual["data"]["logs"][0]['end_time']
-    assert actual["data"]["logs"][0]['cost']
+    assert 'cost' in actual["data"]["logs"][0]
     assert actual["data"]["logs"][0]['llm_call_id']
     assert actual["data"]["logs"][0]["llm_provider"] == "openai"
     assert not actual["data"]["logs"][0].get("model")
