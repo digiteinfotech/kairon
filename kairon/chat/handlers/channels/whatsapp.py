@@ -79,6 +79,7 @@ class Whatsapp:
                             config=self.config,
                             description=description
                         )
+
                         media_map[str(media_id)] = s3_url
                         temp_media_ids.append(media_id)
                     media_ids = temp_media_ids
