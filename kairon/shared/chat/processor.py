@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Text
 
 import aiofiles
@@ -335,6 +335,7 @@ class ChatDataProcessor:
     @staticmethod
     def validate_media_file_type(bot: str, file_content: File):
         content_type = file_content.content_type
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
 
         if content_type not in MIME_TYPE_LIMITS:
             raise AppException(
@@ -353,6 +354,10 @@ class ChatDataProcessor:
                 f"File size {size / (1024 * 1024):.2f} MB exceeds the "
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
-        count = UserMediaData.objects(bot=bot, filename=file_content.filename).count()
+        count = UserMediaData.objects(
+            bot=bot,
+            filename=file_content.filename,
+            timestamp__gte=thirty_days_ago
+        ).count()
         if count > 0:
             raise AppException(f"File '{file_content.filename}' already exists. Please upload a different file.")

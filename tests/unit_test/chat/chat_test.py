@@ -1913,8 +1913,11 @@ def test_validate_media_file_type_too_large(tmp_path):
 
 
 @pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.datetime")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
+def test_validate_media_file_type_file_already_exists(mock_objects, mock_datetime, tmp_path):
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+
     test_file = tmp_path / "file.png"
     test_file.write_bytes(b"x" * (1 * 1024 * 1024))
     mock_upload = MagicMock()
@@ -1922,10 +1925,83 @@ def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
     mock_upload.content_type = "image/png"
     mock_upload.file = open(test_file, "rb")
     mock_objects.return_value.count.return_value = 1
+    mock_datetime.utcnow.return_value = fixed_now
+    thirty_days_ago = fixed_now - timedelta(days=30)
+
     with pytest.raises(AppException, match="File 'file.png' already exists"):
         ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
-    mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")
+    mock_objects.assert_called_once_with(
+        bot="test_bot",
+        filename="file.png",
+        timestamp__gte=thirty_days_ago
+    )
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    test_file = tmp_path / "file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=50),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    test_file = tmp_path / "file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    with pytest.raises(
+        AppException,
+        match=r"File 'file\.png' already exists. Please upload a different file."
+    ):
+        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
 
 
@@ -2088,7 +2164,7 @@ def test_delete_media_from_bsp_channel_does_not_exist():
 
     assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from kairon.events.utility import EventUtility
 
 def test_valid_cron():

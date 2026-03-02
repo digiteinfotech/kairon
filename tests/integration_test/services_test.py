@@ -6178,11 +6178,15 @@ def test_upload_media_channel_other_exception(mock_channels):
     assert "some random error" in body["message"].lower()
 
 @responses.activate
+@patch("kairon.shared.chat.processor.datetime")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_upload_media_file_already_exists(mock_user_media):
+def test_upload_media_file_already_exists(mock_user_media, mock_datetime):
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
     mock_user_media.return_value.count.return_value = 1
 
     file_content = io.BytesIO(b"dummy content")
+    mock_datetime.utcnow.return_value = fixed_now
+    thirty_days_ago = fixed_now - timedelta(days=30)
 
     response = client.post(
         f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
@@ -6194,7 +6198,11 @@ def test_upload_media_file_already_exists(mock_user_media):
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "file 'file.png' already exists" in body["message"].lower()
-    mock_user_media.assert_called_once_with(bot=pytest.bot, filename="file.png")
+    mock_user_media.assert_called_once_with(
+        bot=pytest.bot,
+        filename="file.png",
+        timestamp__gte=thirty_days_ago
+    )
 
 @responses.activate
 def test_get_media_ids():
