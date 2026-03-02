@@ -13,6 +13,7 @@ from ..constants import ChannelTypes
 from ..data.constant import MIME_TYPE_LIMITS
 from ..data.data_objects import UserMediaData
 from ..data.utils import DataUtility
+from ..models import UserMediaUploadStatus
 from ...exceptions import AppException
 
 
@@ -354,10 +355,19 @@ class ChatDataProcessor:
                 f"File size {size / (1024 * 1024):.2f} MB exceeds the "
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
-        count = UserMediaData.objects(
+        user_media_data_obj = UserMediaData.objects(
             bot=bot,
             filename=file_content.filename,
             timestamp__gte=thirty_days_ago
-        ).count()
-        if count > 0:
-            raise AppException(f"File '{file_content.filename}' already exists. Please upload a different file.")
+        ).first()
+
+        if user_media_data_obj:
+            # from kairon.shared.chat.user_media import UserMedia
+            #
+            # UserMedia.mark_user_media_data_upload_expired()
+            user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
+            user_media_data_obj.save()
+
+            raise AppException(
+                f"File '{file_content.filename}' already exists. Please upload a different file."
+            )

@@ -1968,6 +1968,31 @@ def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path
 
     ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="file.png",
+        upload_status=UserMediaUploadStatus.completed.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Completed',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
+
 
 @pytest.mark.asyncio
 def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
@@ -2002,6 +2027,31 @@ def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
         match=r"File 'file\.png' already exists. Please upload a different file."
     ):
         ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="file.png",
+        upload_status=UserMediaUploadStatus.expired.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Expired',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
 
 
 
