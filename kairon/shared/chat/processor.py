@@ -362,9 +362,6 @@ class ChatDataProcessor:
         ).first()
 
         if user_media_data_obj:
-            # from kairon.shared.chat.user_media import UserMedia
-            #
-            # UserMedia.mark_user_media_data_upload_expired()
             user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
             user_media_data_obj.save()
 
