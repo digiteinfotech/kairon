@@ -78,7 +78,7 @@ def get_client_name(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     data = pos_processor.get_client_details(current_user.get_bot())
-    return Response(data={"client_name": data.get("client_name")})
+    return Response(data={"client_name": data.get("client_name"), "branches": data.get("branches",None)})
 
 
 @router.post("/toggle_product/{product_id}", response_model=Response)

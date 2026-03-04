@@ -178,6 +178,9 @@ class POSProcessor:
 
         config["client_name"] = data["client_name"]
 
+        if "branches" in data:
+            config["branches"] = data["branches"]
+
         return config
 
     def onboarding_client(
@@ -752,7 +755,7 @@ class POSProcessor:
                 {
                     "name": branch_name,
                     "parent_id": 1,
-                    "currency_id": 1,
+                    "currency_id": 20,
                     "country_id": 104,
                     "state_id": state_id,
                     "street": street,
