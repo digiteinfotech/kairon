@@ -1731,6 +1731,49 @@ def test_create_branch():
             user='integration@demo.ai'
         )
 
+
+def test_get_client_name_and_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_get_client_details:
+        mock_get_client_details.return_value = {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        response = client.get(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        assert response.status_code == 200
+        assert actual["data"] == {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        mock_get_client_details.assert_called_once_with(pytest.bot)
+
 def test_create_branch_failure():
     with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
         mock_create_branch.side_effect = HTTPException(
