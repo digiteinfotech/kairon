@@ -81,7 +81,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
         self.flattened_conversations.create_indexes([
             IndexModel([("timestamp", DESCENDING)]),
-            IndexModel([("bot", ASCENDING), ("sender_id", ASCENDING)]),
+            IndexModel([("bot", ASCENDING), ("type", ASCENDING), ("timestamp", DESCENDING)]),
+            IndexModel([("bot", ASCENDING), ("sender_id", ASCENDING), ("timestamp", DESCENDING)]),
             IndexModel([("bot", ASCENDING), ("type", ASCENDING), ("sender_id", ASCENDING), ("timestamp", DESCENDING)]),
             IndexModel([("bot", ASCENDING), ("sender_id", ASCENDING), ("conversation_id", ASCENDING), ("type", ASCENDING),
                         ("timestamp", DESCENDING)]),
