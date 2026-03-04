@@ -1767,7 +1767,7 @@ def test_get_client_name():
     print(actual)
     assert actual["success"]
     assert not actual["message"]
-    assert actual["data"] == {'client_name': 'Test Client'}
+    assert actual["data"] == {'client_name': 'Test Client', 'branches': []}
     assert actual["error_code"] == 0
 
 
