@@ -21,7 +21,7 @@ from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollection
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import User, UserMediaUploadStatus, UserMediaUploadType
+from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
 router = APIRouter()
