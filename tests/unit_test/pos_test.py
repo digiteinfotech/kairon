@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from fastapi import HTTPException
 
@@ -158,6 +158,29 @@ def test_save_branch_details_no_pos_client_config():
             )
 
         assert str(exc.value) == "No POS client configuration found for this bot."
+
+def test_save_branch_details_success():
+    with patch("kairon.shared.pos.processor.POSClientDetails.objects") as mock_objects:
+
+        mock_record = MagicMock()
+        mock_record.to_mongo.return_value.to_dict.return_value = {
+            "client_name": "Test Client"
+        }
+
+        mock_qs = MagicMock()
+        mock_qs.first.return_value = mock_record
+        mock_qs.update_one.return_value = 1
+
+        mock_objects.return_value = mock_qs
+
+        result = POSProcessor.save_branch_details(
+            bot="test_bot",
+            branch_name="Test Branch",
+            company_id=123,
+            user="test_user"
+        )
+
+        assert result == 1
 
 def test_create_branch_invalid_state_raises_400():
     service = POSProcessor()
