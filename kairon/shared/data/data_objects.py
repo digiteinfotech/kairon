@@ -1087,7 +1087,7 @@ class UserMediaData(Auditlog):
     upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
                               choices=[e.value for e in UserMediaUploadType])
     filesize = IntField(default=0)
-    additional_log = StringField()
+    additional_info = DictField()
     sender_id = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

@@ -4,6 +4,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud, INVALID_STATUS_CODES
+from kairon.exceptions import AppException
 from kairon.shared.constants import WhatsappBSPTypes
 from loguru import logger
 
@@ -85,3 +86,42 @@ class BSP360Dialog(WhatsappCloud):
     def mark_as_read(self, msg_id, timeout=None):
         payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
         return self.send_action(payload)
+
+
+    def get_media_info(self, whatsapp_media_id, config):
+        import mimetypes
+        import requests
+
+        endpoint = f"{self.base_url}/{whatsapp_media_id}"
+
+        headers = {
+            "D360-API-KEY": config.get("api_key")
+        }
+
+        resp = requests.get(
+            endpoint,
+            headers=headers,
+            timeout=10
+        )
+
+        if resp.status_code != 200:
+            raise AppException(
+                f"Failed to download media from 360 dialog: {resp.status_code}"
+            )
+
+        data = resp.json()
+
+        download_url = data.get("url")
+
+        download_url = download_url.replace(
+            "https://lookaside.fbsbx.com",
+            "https://waba-v2.360dialog.io"
+        )
+
+        mime_type = data.get("mime_type")
+
+        extension = mimetypes.guess_extension(mime_type) or ""
+
+        file_path = f"whatsapp_360_{whatsapp_media_id}{extension}"
+
+        return download_url, headers, file_path
