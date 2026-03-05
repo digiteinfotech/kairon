@@ -75,7 +75,7 @@ async def test_db_user_media_data():
 
     doc = UserMediaData.objects(media_id=media_id).get()
     assert doc.upload_status == UserMediaUploadStatus.failed.value
-    assert doc.additional_log == reason
+    assert doc.additional_info == {"message": reason}
 
     UserMediaData.objects().delete()
 
@@ -197,7 +197,7 @@ def test_mark_user_media_data_upload_failed(mock_objects):
     UserMedia.mark_user_media_data_upload_failed("media123", "some error")
 
     assert mock_doc.upload_status == UserMediaUploadStatus.failed.value
-    assert mock_doc.additional_log == "some error"
+    assert mock_doc.additional_info == {"message": "some error"}
     mock_doc.save.assert_called_once()
 
 
@@ -809,34 +809,29 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
 
     mock_save_media.return_value = "https://s3.aws/test/file.jpg"
 
-    result = UserMedia.save_whatsapp_media_and_get_url(
-        bot,
-        sender_id,
-        whatsapp_media_id,
-        config,
-        description
-    )
+    created = []
+    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+        result = UserMedia.save_whatsapp_media_and_get_url(
+            bot,
+            sender_id,
+            whatsapp_media_id,
+            config,
+            description
+        )
 
-    assert result == ("uuid123", "https://s3.aws/test/file.jpg")
+    assert result == ["uuid123"]
 
     assert mock_get.call_count == 2
 
     mock_create.assert_called_once_with(
         bot=bot,
         media_id="uuid123",
-        filename="whataspp_360_media123.jpg",
+        filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        description=description
+        additional_info={"description": description}
     )
 
-    mock_save_media.assert_called_once_with(
-        bot=bot,
-        sender_id=sender_id,
-        media_id="uuid123",
-        binary_data=b"chunk1chunk2",
-        filename="whataspp_360_media123.jpg"
-    )
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.save_media_content")
@@ -854,7 +849,8 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     whatsapp_media_id = "media456"
     config = {
         "bsp_type": "meta",
-        "access_token": "token456"
+        "access_token": "token456",
+        "from_phone_number_id": "test_from_phone_number_id"
     }
     description = "Test image upload"
 
@@ -881,15 +877,17 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
 
     mock_save_media.return_value = "https://s3.aws/test/image.jpg"
 
-    result = UserMedia.save_whatsapp_media_and_get_url(
-        bot,
-        sender_id,
-        whatsapp_media_id,
-        config,
-        description
-    )
+    created = []
+    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+        result = UserMedia.save_whatsapp_media_and_get_url(
+            bot,
+            sender_id,
+            whatsapp_media_id,
+            config,
+            description
+        )
 
-    assert result == ("uuid456", "https://s3.aws/test/image.jpg")
+    assert result == ["uuid456"]
 
     assert mock_get.call_count == 2
 
@@ -908,16 +906,9 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
         filename="whatsapp_meta_media456.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        description=description
+        additional_info={"description": description}
     )
 
-    mock_save_media.assert_called_once_with(
-        bot=bot,
-        sender_id=sender_id,
-        media_id="uuid456",
-        binary_data=b"imgdata1imgdata2",
-        filename="whatsapp_meta_media456.jpg"
-    )
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.requests.get")
@@ -951,7 +942,8 @@ def test_save_whatsapp_media_and_get_url_download_failure(mock_get):
 
     config = {
         "bsp_type": "meta",
-        "access_token": "token"
+        "access_token": "token",
+        "from_phone_number_id": "test_from_phone_number_id"
     }
 
     info_resp = MagicMock()

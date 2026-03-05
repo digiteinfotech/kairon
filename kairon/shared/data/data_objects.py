@@ -1082,13 +1082,12 @@ class UserMediaData(Auditlog):
     extension = StringField(required=True)
     output_filename = StringField()
     summary = StringField()
-    description = StringField()
     upload_status = StringField(default=UserMediaUploadStatus.processing.value,
                                 choices=[e.value for e in UserMediaUploadStatus])
     upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
                               choices=[e.value for e in UserMediaUploadType])
     filesize = IntField(default=0)
-    additional_log = StringField()
+    additional_info = DictField()
     sender_id = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

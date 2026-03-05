@@ -584,12 +584,10 @@ async def get_media_ids(
 
 @router.get("/user/media/data", response_model=Response)
 async def get_user_media_data(
-        upload_status: str = Query(default=UserMediaUploadStatus.completed.value, description="Filter by upload status"),
-        upload_type: str = Query(default=UserMediaUploadType.user_uploaded.value, description="Filter by upload type"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    media_data = UserMedia.get_user_media_data(current_user.get_bot(), upload_status, upload_type)
-    return Response(message="List of media data", data=media_data)
+    media_data = UserMedia.get_user_media_data(current_user.get_bot())
+    return Response(message="List of user media data", data=media_data)
 
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(

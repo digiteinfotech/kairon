@@ -60,7 +60,7 @@ class PyScriptRunner(BaseActor):
         global_safe['send_waba_message'] = partial(PyscriptUtility.send_waba_message, bot=bot,
                                           predefined_objects=predefined_objects)
         global_safe['upload_media_to_360dialog'] = PyscriptUtility.upload_media_to_360dialog
-        global_safe['get_media_content'] = PyscriptUtility.get_media_content
+        global_safe['get_media_content'] = partial(PyscriptUtility.get_media_content, bot=bot)
         global_safe['fetch_media_ids'] = partial(PyscriptUtility.fetch_media_ids, bot=bot)
 
 

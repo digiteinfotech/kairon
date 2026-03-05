@@ -65,7 +65,7 @@ class UserMedia:
         user_media_data = UserMediaData.objects(media_id=media_id).first()
         if user_media_data:
             user_media_data.upload_status = UserMediaUploadStatus.failed.value
-            user_media_data.additional_log = reason
+            user_media_data.additional_info = {"message": reason}
             user_media_data.save()
 
 
@@ -126,7 +126,6 @@ class UserMedia:
                                                        output_filename=output_filename,
                                                        filesize=filesize)
             logger.info(f"saved {media_id} successfully")
-            return url
         except ClientError as e:
             logger.exception(e)
             UserMedia.mark_user_media_data_upload_failed(media_id=media_id, reason=str(e))
@@ -595,7 +594,7 @@ class UserMedia:
             upload_status=UserMediaUploadStatus.processing.value,
             upload_type=UserMediaUploadType.broadcast.value,
             filesize=filesize,
-            additional_log="Upload initiated",
+            additional_info={"message": "Upload initiated"},
             sender_id=sender_id,
             bot=bot,
             external_upload_info={
@@ -608,15 +607,15 @@ class UserMedia:
         return media_doc
 
     @staticmethod
-    def get_user_media_data(bot: str, upload_status: str, upload_type: str):
+    def get_user_media_data(bot: str):
         try:
             media_data = (
                 UserMediaData.objects(
                     bot=bot,
-                    upload_status=upload_status,
-                    upload_type=upload_type,
+                    upload_status=UserMediaUploadStatus.completed.value,
+                    upload_type=UserMediaUploadType.user_uploaded.value,
                 )
-                .only("sender_id", "timestamp", "media_url", "description", "upload_status")
+                .only("sender_id", "timestamp", "media_url", "additional_info")
                 .order_by("-timestamp")
             )
 
@@ -625,8 +624,7 @@ class UserMedia:
                     "sender_id": doc.sender_id,
                     "timestamp": doc.timestamp,
                     "media_url": doc.media_url,
-                    "description": doc.description,
-                    "upload_status": doc.upload_status,
+                    "additional_info": doc.additional_info,
                 }
                 for doc in media_data
             ]
@@ -647,40 +645,17 @@ class UserMedia:
         """
         Download WhatsApp media, upload to S3, save DB, and return S3 URL
         """
-        download_url = None
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+
         file_path = None
-        headers = {}
         provider = config.get("bsp_type", "meta")
-        if provider == '360dialog':
-            endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
-            headers = {
-                'D360-API-KEY': config.get('api_key'),
-            }
-            resp = requests.get(endpoint, headers=headers, stream=True)
-            if resp.status_code != 200:
-                raise AppException(f"Failed to download media from 360 dialog: {resp.status_code} - {resp.text}")
-            json_resp = resp.json()
-            download_url = json_resp.get("url")
-            download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
-        elif provider == 'meta':
-            endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
-            access_token = config.get('access_token')
-            headers = {'Authorization': f'Bearer {access_token}'}
-            media_info_resp = requests.get(
-                endpoint,
-                params={"fields": "url", "access_token": access_token},
-                timeout=10
-            )
-            if media_info_resp.status_code != 200:
-                raise AppException(f"Failed to get url from meta for media: {whatsapp_media_id}")
-            json_resp = media_info_resp.json()
-            download_url = json_resp.get("url")
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
+        access_token = config.get("access_token") if provider == "meta" else config.get("api_key")
+        from_phone_number_id = config.get("from_phone_number_id")
+        client = WhatsappFactory.get_client(provider)
+        download_url, headers, file_path = client(
+            access_token=access_token,
+            from_phone_number_id=from_phone_number_id
+        ).get_media_info(whatsapp_media_id, config)
 
         media_resp = requests.get(
             download_url,
@@ -704,16 +679,25 @@ class UserMedia:
             filename=file_path,
             sender_id=sender_id,
             upload_type=UserMediaUploadType.user_uploaded.value,
-            description=description,
+            additional_info={
+                "phone_number": sender_id,
+                "description": description
+            },
         )
 
-        s3_url = UserMedia.save_media_content(
-            bot=bot,
-            sender_id=sender_id,
-            media_id=media_id,
-            binary_data=file_buffer,
-            filename=file_path
-        )
+        def background_task():
+            try:
+                asyncio.run(UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=file_buffer,
+                    filename=file_path
+                ))
+            except Exception as e:
+                logger.exception(f"Background task failed for media_id {media_id}: {e}")
 
-        return media_id, s3_url
+        asyncio.create_task(asyncio.to_thread(background_task))
+
+        return [media_id]
 

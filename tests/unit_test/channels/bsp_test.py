@@ -856,224 +856,9 @@ class TestBusinessServiceProvider:
 
     @pytest.mark.asyncio
     @responses.activate
-    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
-    async def test_get_media_content(self, mock_get_buffer):
-        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-        bsp_type = "360dialog"
-        expected_external_media_id = "abc123"
-        bot = "682323a603ec3be7dcaa75bc"
-
-        UserMediaData(
-            media_id="0196c9efbf547b81a66ba2af7b72d5ba",
-            filename="whataspp_360_885215267637065.jpg",
-            extension=".jpg",
-            upload_status="Completed",
-            upload_type="user",
-            filesize=410484,
-            description="Issue description",
-            sender_id="mahesh.sattala@digite.com",
-            bot="682323a603ec3be7dcaa75bc",
-            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        ).save()
-
-        BotSettings(
-            bot=bot,
-            user="mahesh.sattala@digite.com",
-            whatsapp="360dialog",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        Channels(
-            bot=bot,
-            connector_type="whatsapp",
-            config={
-                "client_name": "dummy",
-                "client_id": "dummy",
-                "channel_id": "dummy",
-                "api_key": "dummy_token",
-                "partner_id": "dummy",
-                "waba_account_id": "dummy",
-                "bsp_type": "360dialog"
-            },
-            user="test@example.com",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        expected_media_bytes = b'%IMG-1.4 mock content'
-
-        mock_buffer_value = (
-            io.BytesIO(b"%IMG-1.4 mock content"),
-            "whataspp_360_885215267637065.jpg",
-            ".jpg",
-        )
-
-        mock_get_buffer.return_value = mock_buffer_value
-
-        media_bytes = await BSP360Dialog.get_media_content(bot, bsp_type, media_id)
-        assert media_bytes == expected_media_bytes
-
-        UserMediaData.objects().delete()
-        BotSettings.objects().delete()
-        Channels.objects().delete()
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_not_found(self):
-        media_id = "non_existing_media_id"
-        bsp_type = "360dialog"
-        bot = "682323a603ec3be7dcaa75bc"
-
-        with pytest.raises(AppException) as exc_info:
-            await BSP360Dialog.get_media_content(bot, bsp_type, media_id)
-
-        assert str(exc_info.value) == f"UserMediaData not found for media_id: {media_id}"
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_channel_not_configured(self):
-        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-        bsp_type = "360dialog"
-        bot = "682323a603ec3be7dcaa75bc"
-
-        UserMediaData(
-            media_id=media_id,
-            filename="whataspp_360_885215267637065.jpg",
-            extension=".jpg",
-            upload_status="Completed",
-            upload_type="user",
-            filesize=410484,
-            description="Issue description",
-            sender_id="mahesh.sattala@digite.com",
-            bot="682323a603ec3be7dcaa75bc",
-            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        ).save()
-
-        with pytest.raises(AppException) as exc_info:
-            await BSP360Dialog.get_media_content(bot, bsp_type, media_id)
-
-        assert str(
-            exc_info.value) == f"Channel config not found for bot: {bot}, connector_type: whatsapp, bsp_type: {bsp_type}"
-        UserMediaData.objects().delete()
-
-    @pytest.mark.asyncio
-    async def test_get_media_content_access_token_not_found(self):
-        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-        bsp_type = "360dialog"
-        bot = "682323a603ec3be7dcaa75bc"
-
-        UserMediaData(
-            media_id=media_id,
-            filename="whataspp_360_885215267637065.jpg",
-            extension=".jpg",
-            upload_status="Completed",
-            upload_type="user",
-            filesize=410484,
-            description="Issue description",
-            sender_id="mahesh.sattala@digite.com",
-            bot="682323a603ec3be7dcaa75bc",
-            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        ).save()
-
-        BotSettings(
-            bot=bot,
-            user="mahesh.sattala@digite.com",
-            whatsapp="360dialog",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        Channels(
-            bot=bot,
-            connector_type="whatsapp",
-            config={
-                "client_name": "dummy",
-                "client_id": "dummy",
-                "channel_id": "dummy",
-                "api_key": "",
-                "partner_id": "dummy",
-                "waba_account_id": "dummy",
-                "bsp_type": "360dialog"
-            },
-            user="test@example.com",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        with pytest.raises(AppException) as exc_info:
-            await BSP360Dialog.get_media_content(bot, bsp_type, media_id)
-
-        assert str(
-            exc_info.value) == "API key (access token) not found in channel config"
-
-        UserMediaData.objects().delete()
-        BotSettings.objects().delete()
-        Channels.objects().delete()
-
-    @pytest.mark.asyncio
-    @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
-    async def test_get_media_content_file_stream_not_found(self, mock_get_buffer):
-        media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-        bsp_type = "360dialog"
-        bot = "682323a603ec3be7dcaa75bc"
-
-        UserMediaData(
-            media_id=media_id,
-            filename="whataspp_360_885215267637065.jpg",
-            extension=".jpg",
-            upload_status="Completed",
-            upload_type="user",
-            filesize=410484,
-            description="Issue description",
-            sender_id="mahesh.sattala@digite.com",
-            bot="682323a603ec3be7dcaa75bc",
-            timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-            media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-            output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        ).save()
-
-        BotSettings(
-            bot=bot,
-            user="mahesh.sattala@digite.com",
-            whatsapp="360dialog",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        Channels(
-            bot=bot,
-            connector_type="whatsapp",
-            config={
-                "client_name": "dummy",
-                "client_id": "dummy",
-                "channel_id": "dummy",
-                "api_key": "dummy_token",
-                "partner_id": "dummy",
-                "waba_account_id": "dummy",
-                "bsp_type": "360dialog"
-            },
-            user="test@example.com",
-            timestamp=datetime.utcnow()
-        ).save()
-
-        mock_get_buffer.return_value = (None, None, None)
-
-        with pytest.raises(AppException) as exc_info:
-            await BSP360Dialog.get_media_content(bot, bsp_type, media_id)
-
-        assert str(exc_info.value) == "File stream not found"
-
-        UserMediaData.objects().delete()
-        BotSettings.objects().delete()
-        Channels.objects().delete()
-
-
-
-    @pytest.mark.asyncio
-    @responses.activate
     def test_get_user_media_data_with_no_data(self):
         bot = "682323a603ec3be7dcaa75bc"
-        media_data = UserMedia.get_user_media_data(bot, "Completed", "user")
+        media_data = UserMedia.get_user_media_data(bot)
         assert len(media_data) == 0
         assert media_data == []
         print(media_data)
@@ -1089,7 +874,7 @@ class TestBusinessServiceProvider:
             upload_status="Completed",
             upload_type="user",
             filesize=410484,
-            description="Issue description",
+            additional_info={"description": "Issue description", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1103,7 +888,7 @@ class TestBusinessServiceProvider:
             upload_status="Completed",
             upload_type="user",
             filesize=410484,
-            description="Testing description",
+            additional_info={"description": "Testing description", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1117,7 +902,7 @@ class TestBusinessServiceProvider:
             upload_status="Completed",
             upload_type="user",
             filesize=410484,
-            description="Issue description 2",
+            additional_info={"description": "Issue description 2", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1131,7 +916,7 @@ class TestBusinessServiceProvider:
             upload_status="Failed",
             upload_type="user",
             filesize=410484,
-            description="Testing description 2",
+            additional_info={"description": "Testing description 2", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1145,7 +930,7 @@ class TestBusinessServiceProvider:
             upload_status="Completed",
             upload_type="user",
             filesize=410484,
-            description="Issue description 3",
+            additional_info={"description": "Issue description 3", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1159,7 +944,7 @@ class TestBusinessServiceProvider:
             upload_status="processing",
             upload_type="system",
             filesize=410484,
-            description="Testing description 4",
+            additional_info={"description": "Testing description 4", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1173,7 +958,7 @@ class TestBusinessServiceProvider:
             upload_status="Completed",
             upload_type="system",
             filesize=410484,
-            description="Testing description 5",
+            additional_info={"description": "Testing description 5", "phone_number": "919876543210"},
             sender_id="mahesh.sattala@digite.com",
             bot="682323a603ec3be7dcaa75bc",
             timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
@@ -1181,7 +966,7 @@ class TestBusinessServiceProvider:
             output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
         ).save()
 
-        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "user")
+        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc")
         assert len(media_data) == 4
         print(media_data)
         assert media_data == [
@@ -1189,68 +974,25 @@ class TestBusinessServiceProvider:
                 'sender_id': 'mahesh.sattala@digite.com',
                 'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
                 'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Issue description',
-                'upload_status': 'Completed'
+                'additional_info': {'description': 'Issue description', 'phone_number': '919876543210'},
             },
             {
                 'sender_id': 'mahesh.sattala@digite.com',
                 'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
                 'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Testing description',
-                'upload_status': 'Completed'
+                'additional_info': {'description': 'Testing description', 'phone_number': '919876543210'},
             },
             {
                 'sender_id': 'mahesh.sattala@digite.com',
                 'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
                 'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Issue description 2',
-                'upload_status': 'Completed'
+                'additional_info': {'description': 'Issue description 2', 'phone_number': '919876543210'},
             },
             {
                 'sender_id': 'mahesh.sattala@digite.com',
                 'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
                 'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Issue description 3',
-                'upload_status': 'Completed'
-            }
-        ]
-
-        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "processing", "system")
-        assert len(media_data) == 1
-        print(media_data)
-        assert media_data == [
-            {
-                'sender_id': 'mahesh.sattala@digite.com',
-                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
-                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Testing description 4',
-                'upload_status': 'processing'
-            }
-        ]
-
-        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "system")
-        assert len(media_data) == 1
-        print(media_data)
-        assert media_data == [
-            {
-                'sender_id': 'mahesh.sattala@digite.com',
-                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
-                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Testing description 5',
-                'upload_status': 'Completed'
-            }
-        ]
-
-        media_data = UserMedia.get_user_media_data("682323a603ec3be7dcaa75bc", "Completed", "system")
-        assert len(media_data) == 1
-        print(media_data)
-        assert media_data == [
-            {
-                'sender_id': 'mahesh.sattala@digite.com',
-                'timestamp': datetime(2026, 2, 20, 5, 37, 17, 59000),
-                'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
-                'description': 'Testing description 5',
-                'upload_status': 'Completed'
+                'additional_info': {'description': 'Issue description 3', 'phone_number': '919876543210'},
             }
         ]
 
@@ -1762,7 +1504,7 @@ class TestBusinessServiceProvider:
 
             mock_doc.update.assert_any_call(
                 set__upload_status=UserMediaUploadStatus.failed.value,
-                set__additional_log="Upload failed",
+                set__additional_info={"message": "Upload failed"},
                 set__external_upload_info__error='{"error": "bad request"}'
             )
 

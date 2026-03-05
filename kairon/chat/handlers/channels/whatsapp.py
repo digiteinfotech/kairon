@@ -68,11 +68,10 @@ class Whatsapp:
                     description = response_json.get("text")
                     temp_media_ids = []
                     media_id_list = []
-                    media_map = {}
                     for image in images:
                         whatsapp_media_id = image["id"]
 
-                        media_id, s3_url = UserMedia.save_whatsapp_media_and_get_url(
+                        ids = UserMedia.save_whatsapp_media_and_get_url(
                             bot=bot,
                             sender_id=message["from"],
                             whatsapp_media_id=whatsapp_media_id,
@@ -80,14 +79,11 @@ class Whatsapp:
                             description=description
                         )
 
-                        media_map[str(media_id)] = s3_url
-                        temp_media_ids.append(media_id)
+                        media_id_list.append(whatsapp_media_id)
+                        temp_media_ids.extend(ids)
                     media_ids = temp_media_ids
-                    data = {
-                        "flow_images": media_map,
-                        "flow_data": response_json
-                    }
-                    text = f'/k_interactive_msg{json.dumps(data)}'
+                    entity = json.dumps({"flow_images": media_id_list, "flow_data": response_json})
+                    text = f'/k_interactive_msg{entity}'
                 else:
                     text = f"/k_interactive_msg{entity}"
             else:
