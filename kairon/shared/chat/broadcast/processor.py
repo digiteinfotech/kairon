@@ -13,7 +13,7 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
-from kairon.shared.constants import ChannelTypes
+from kairon.shared.constants import ChannelTypes, FLATTENED_CONVERSATIONS
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.log_system.base import BaseLogHandler
@@ -34,6 +34,7 @@ class MessageBroadcastProcessor:
     @staticmethod
     def list_settings(bot: Text, **kwargs):
         kwargs['bot'] = bot
+        kwargs["status"] = kwargs.get("status", True)
         for settings in MessageBroadcastSettings.objects(**kwargs):
             settings = settings.to_mongo().to_dict()
             settings['_id'] = settings['_id'].__str__()
@@ -119,6 +120,17 @@ class MessageBroadcastProcessor:
             if (force_update == key or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
+    @staticmethod
+    def get_all_dynamic_keys(bot_id):
+        pipeline = [
+            {"$match": {"bot": bot_id}},
+            {"$project": {"kv": {"$objectToArray": "$$ROOT"}}},
+            {"$unwind": "$kv"},
+            {"$group": {"_id": None, "keys": {"$addToSet": "$kv.k"}}}
+        ]
+
+        result = list(MessageBroadcastLogs.objects.aggregate(pipeline))
+        return result[0]['keys'] if result else []
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -127,9 +139,18 @@ class MessageBroadcastProcessor:
             kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
-        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size)
+        all_keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot)
+
+        exclude_prefixes = ('template_params',)
+        static_excludes = {'recipients', 'contacts', 'messages_list', 'recipients_list'}
+        projection = {
+            key: 0 for key in all_keys
+            if key.startswith(exclude_prefixes) or key in static_excludes
+        }
+        projection['_id'] = 0
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**projection)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
-        logs = query_objects.exclude('id').to_json()
+        logs = query_objects.to_json()
         logs = json.loads(logs)
         return logs, total_count
 
@@ -198,13 +219,14 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def log_broadcast_in_conversation_history(template_id, contact: Text, template_params, template,
-                                              status, mongo_client):
+                                              status, mongo_client, bot):
         import time
         from uuid6 import uuid7
 
         mongo_client.insert_one({
             "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name": template_id, "template": template, "template_params": template_params}, "status": status
+            "data": {"name": template_id, "template": template, "template_params": template_params},
+            "bot": bot, "status": status
         })
 
     @staticmethod
@@ -216,7 +238,7 @@ class MessageBroadcastProcessor:
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
-            client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
+            client = MessageBroadcastProcessor.get_db_client(FLATTENED_CONVERSATIONS)
             if log['errors']:
                 status = STATUSES.FAIL.value
                 errors = log['errors']
@@ -229,7 +251,7 @@ class MessageBroadcastProcessor:
                 MessageBroadcastProcessor.log_broadcast_in_conversation_history(
                     template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
                     template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                    status=status, mongo_client=client
+                    status=status, mongo_client=client, bot=broadcast_log['bot']
                 )
                 logged_msg_ids.append(msg_id)
 
