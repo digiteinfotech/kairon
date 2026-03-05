@@ -829,7 +829,7 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
         filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"description": description}
+        additional_info={"phone_number": "user1", "description": description}
     )
 
 
@@ -892,7 +892,7 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     assert mock_get.call_count == 2
 
     mock_get.assert_any_call(
-        f"https://graph.facebook.com/v22.0/{whatsapp_media_id}",
+        f"https://graph.facebook.com/v19.0/{whatsapp_media_id}",
         params={
             "fields": "url",
             "access_token": config["access_token"]
@@ -906,7 +906,7 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
         filename="whatsapp_meta_media456.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"description": description}
+        additional_info={"phone_number": "user2", "description": description}
     )
 
 
