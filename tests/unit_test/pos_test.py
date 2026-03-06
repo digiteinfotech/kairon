@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-
+from unittest.mock import Mock, patch
 from fastapi import HTTPException
 
 from kairon.exceptions import AppException
@@ -204,3 +204,25 @@ def test_create_branch_invalid_state_raises_400():
 
         mock_jsonrpc.assert_not_called()
         mock_save.assert_not_called()
+
+def test_raise_if_error_jsonrpc_error():
+    processor = POSProcessor()
+
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "error": {
+            "data": {
+                "message": "The company name must be unique!"
+            }
+        }
+    }
+
+    with patch("kairon.shared.pos.processor.logger.error") as mock_logger:
+        with pytest.raises(HTTPException) as exc_info:
+            processor._raise_if_error(mock_resp, context="Odoo request")
+
+        assert exc_info.value.status_code == 400
+        assert "Odoo request - The company name must be unique!" in str(exc_info.value.detail)
+
+        mock_logger.assert_called_once_with("The company name must be unique!")
