@@ -6540,10 +6540,52 @@ def test_upload_media_channel_other_exception(mock_channels):
     assert body["error_code"] == 422
     assert "some random error" in body["message"].lower()
 
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days():
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert body["message"] == "File 'file.png' already exists. Please upload a different file."
+
+
 @responses.activate
+@patch("kairon.shared.chat.processor.datetime")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_upload_media_file_already_exists(mock_user_media):
-    mock_user_media.return_value.count.return_value = 1
+def test_upload_media_file_already_exists(mock_user_media, mock_datetime):
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+    mock_datetime.utcnow.return_value = fixed_now
+
+    mock_db_obj = MagicMock()
+    mock_db_obj.timestamp = fixed_now - timedelta(days=10)
+
+    mock_queryset = MagicMock()
+    mock_queryset.order_by.return_value.first.return_value = mock_db_obj
+    mock_user_media.return_value = mock_queryset
 
     file_content = io.BytesIO(b"dummy content")
 
@@ -6557,7 +6599,11 @@ def test_upload_media_file_already_exists(mock_user_media):
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "file 'file.png' already exists" in body["message"].lower()
-    mock_user_media.assert_called_once_with(bot=pytest.bot, filename="file.png")
+    mock_user_media.assert_called_once_with(
+        bot=pytest.bot,
+        filename="file.png"
+    )
+    mock_queryset.order_by.assert_called_once_with("-timestamp")
 
 @responses.activate
 def test_get_media_ids():
