@@ -32,7 +32,13 @@ class POSProcessor:
 
         if isinstance(data, dict) and "error" in data:
             err = data["error"]
-            msg = err.get("data").get("message") if isinstance(err, dict) else str(err)
+            msg = "Unknown Odoo error"
+            if isinstance(err, dict):
+                err_data = err.get("data") if "data" in err else err
+                if isinstance(err_data, dict):
+                    msg = err_data.get("message", msg)
+            else:
+                msg = str(err)
             logger.error(msg)
             raise HTTPException(status_code=400, detail=f"{context} - {msg}")
 

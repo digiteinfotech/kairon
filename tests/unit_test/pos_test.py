@@ -226,3 +226,49 @@ def test_raise_if_error_jsonrpc_error():
         assert "Odoo request - The company name must be unique!" in str(exc_info.value.detail)
 
         mock_logger.assert_called_once_with("The company name must be unique!")
+
+def test_raise_if_error_with_direct_message():
+    processor = POSProcessor()
+
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "error": {
+            "message": "Database error"
+        }
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        processor._raise_if_error(mock_resp, "Odoo request")
+
+    assert exc.value.status_code == 400
+    assert "Database error" in exc.value.detail
+
+def test_raise_if_error_string_error():
+    processor = POSProcessor()
+
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "error": "Something went wrong"
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        processor._raise_if_error(mock_resp)
+
+    assert exc.value.status_code == 400
+    assert "Something went wrong" in exc.value.detail
+
+def test_raise_if_error_no_message():
+    processor = POSProcessor()
+
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "error": {}
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        processor._raise_if_error(mock_resp)
+
+    assert exc.value.status_code == 400
