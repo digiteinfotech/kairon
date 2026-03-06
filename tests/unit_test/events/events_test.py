@@ -3168,7 +3168,7 @@ class TestEventExecution:
 
         logs = MessageBroadcastProcessor.get_broadcast_logs(bot, log_type__ne=MessageBroadcastLogType.progress.value)
 
-        coll = MessageBroadcastProcessor.get_db_client(bot)
+        coll = MessageBroadcastProcessor.get_db_client("flattened_conversations")
         history = list(coll.find({}))
         print(history)
         history[0].pop("timestamp")
@@ -6445,7 +6445,8 @@ class TestEventExecution:
                 'campaign_id': reference_id
             }
         ]
-        coll = MessageBroadcastProcessor.get_db_client(bot)
+
+        coll = MessageBroadcastProcessor.get_db_client("flattened_conversations")
         history = list(coll.find({"sender_id": "919876543211"}))
         assert len(history) == 1
         history[0].pop("timestamp")
@@ -6453,6 +6454,7 @@ class TestEventExecution:
         history[0].pop("conversation_id")
         assert history[0] == {
             'type': 'broadcast', 'sender_id': '919876543211',
+            'bot': 'test_execute_message_broadcast_with_resend_broadcast_log_chat_history',
             'data': {
                 'name': 'brochure_pdf',
                 'template': template,

@@ -29,6 +29,9 @@ AGENT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES
 
 KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
 
+FLATTENED_CONVERSATIONS = "flattened_conversations"
+
+
 FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
 
 
@@ -179,6 +182,8 @@ class KaironSystemSlots(str, Enum):
     body = "body"
     media_ids = 'media_ids'
     flow_dos='flow_docs'
+    flow_images='flow_images'
+    flow_data='flow_data'
     llm_call_id = "llm_call_id"
 
 

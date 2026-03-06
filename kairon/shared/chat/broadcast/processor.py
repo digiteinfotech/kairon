@@ -13,7 +13,7 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
-from kairon.shared.constants import ChannelTypes
+from kairon.shared.constants import ChannelTypes, FLATTENED_CONVERSATIONS
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.log_system.base import BaseLogHandler
@@ -219,13 +219,14 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def log_broadcast_in_conversation_history(template_id, contact: Text, template_params, template,
-                                              status, mongo_client):
+                                              status, mongo_client, bot):
         import time
         from uuid6 import uuid7
 
         mongo_client.insert_one({
             "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name": template_id, "template": template, "template_params": template_params}, "status": status
+            "data": {"name": template_id, "template": template, "template_params": template_params},
+            "bot": bot, "status": status
         })
 
     @staticmethod
@@ -237,7 +238,7 @@ class MessageBroadcastProcessor:
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
-            client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
+            client = MessageBroadcastProcessor.get_db_client(FLATTENED_CONVERSATIONS)
             if log['errors']:
                 status = STATUSES.FAIL.value
                 errors = log['errors']
@@ -250,7 +251,7 @@ class MessageBroadcastProcessor:
                 MessageBroadcastProcessor.log_broadcast_in_conversation_history(
                     template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
                     template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                    status=status, mongo_client=client
+                    status=status, mongo_client=client, bot=broadcast_log['bot']
                 )
                 logged_msg_ids.append(msg_id)
 

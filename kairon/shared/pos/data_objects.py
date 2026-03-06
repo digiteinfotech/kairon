@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from mongoengine import StringField, DateTimeField, DictField
+from mongoengine import StringField, DateTimeField, DictField, ListField
 from mongoengine.errors import ValidationError
 
 from kairon import Utility
@@ -19,6 +19,7 @@ class POSClientDetails(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     config = DictField(required=True)
+    branches = ListField(DictField())
     timestamp = DateTimeField(default=datetime.utcnow)
 
 

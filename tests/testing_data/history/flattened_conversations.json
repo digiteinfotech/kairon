@@ -1,6 +1,7 @@
 [
   {
     "type": "broadcast",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651620,
     "data": {
@@ -34,6 +35,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651620,
     "data": {
@@ -58,6 +60,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651560,
     "data": {
@@ -80,6 +83,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651500,
     "data": {
@@ -103,6 +107,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678650600,
     "data": {
@@ -127,6 +132,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678607160,
     "data": {
@@ -149,6 +155,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "user_input": "/currentweek",
     "timestamp": 1678607160,
@@ -171,6 +178,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678650360,
     "data": {
@@ -194,6 +202,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678650060,
     "data": {
@@ -216,6 +225,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678639860,
     "data": {
@@ -238,6 +248,7 @@
   },
   {
     "type": "flattened",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678639560,
     "data": {
@@ -260,6 +271,7 @@
   },
   {
     "type": "broadcast",
+    "bot": "tests_flattened",
     "sender_id": "mathew.anil@digite.com",
     "timestamp": 1678651620,
     "data": {
