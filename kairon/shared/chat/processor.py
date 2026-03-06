@@ -357,14 +357,14 @@ class ChatDataProcessor:
             )
         user_media_data_obj = UserMediaData.objects(
             bot=bot,
-            filename=file_content.filename,
-            timestamp__gte=thirty_days_ago
-        ).first()
+            filename=file_content.filename
+        ).order_by('-timestamp').first()
 
         if user_media_data_obj:
-            user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
-            user_media_data_obj.save()
-
-            raise AppException(
-                f"File '{file_content.filename}' already exists. Please upload a different file."
-            )
+            if user_media_data_obj.timestamp >= thirty_days_ago:
+                raise AppException(
+                    f"File '{file_content.filename}' already exists. Please upload a different file."
+                )
+            else:
+                user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
+                user_media_data_obj.save()
