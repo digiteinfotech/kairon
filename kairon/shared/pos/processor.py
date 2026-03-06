@@ -32,7 +32,8 @@ class POSProcessor:
 
         if isinstance(data, dict) and "error" in data:
             err = data["error"]
-            msg = err.get("message") if isinstance(err, dict) else str(err)
+            msg = err.get("data").get("message") if isinstance(err, dict) else str(err)
+            logger.error(msg)
             raise HTTPException(status_code=400, detail=f"{context} - {msg}")
 
         return data
