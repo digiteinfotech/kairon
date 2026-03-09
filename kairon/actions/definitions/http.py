@@ -1,3 +1,4 @@
+import asyncio
 import ujson as json
 from ujson import JSONDecodeError
 from typing import Text, Dict, Any
@@ -109,14 +110,38 @@ class ActionHTTP(ActionsBase):
             else:
                 body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'], self.bot)
                 parameter_log.update({"type": "params_list", "request_body": body, "request_params": body_log})
+
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response, resp_status_code, time_elapsed, response_headers = await ActionUtility.execute_request_async(
-                headers=headers, http_url=http_url,
-                request_method=request_method, request_body=body,
-                content_type=http_action_config['content_type']
-            )
+
+            media_ids = body.pop("media_ids", [])
+            media_ids = media_ids if isinstance(media_ids, list) else [media_ids]
+            if media_ids:
+                files = await ActionUtility.prepare_files(self.bot, media_ids)
+                tasks = [
+                    asyncio.to_thread(
+                        ActionUtility.execute_http_request,
+                        headers=headers,
+                        http_url=http_url,
+                        request_method=request_method,
+                        request_body=body,
+                        content_type=http_action_config['content_type'],
+                        files=[file]
+                    )
+                    for file in files
+                ]
+
+                responses = await asyncio.gather(*tasks)
+                http_response = responses
+                resp_status_code = 200
+                response_headers = {'Content-Type': 'application/json'}
+            else:
+                http_response, resp_status_code, time_elapsed, response_headers = await ActionUtility.execute_request_async(
+                    headers=headers, http_url=http_url,
+                    request_method=request_method, request_body=body,
+                    content_type=http_action_config['content_type']
+                )
             time_elapsed = time_elapsed if time_elapsed else 0
             if response_headers:
                 response_headers = dict(response_headers)

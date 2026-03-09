@@ -910,6 +910,7 @@ class BotSettings(Auditlog):
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
+    media_size_limit = IntField(default=10)
     whatsapp = StringField(
         default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
     )

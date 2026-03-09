@@ -826,6 +826,35 @@ class TestActions:
                                                             bot="test")
         assert actual_request_body == ({}, {})
 
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.get_bot_settings")
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_bytes_from_media_id")
+    async def test_prepare_files_media_size_limit_exceeded(
+            self,
+            mock_get_media,
+            mock_bot_settings
+    ):
+        from io import BytesIO
+
+        bot = "5f50fd0a56b698ca10d35d2e"
+
+        mock_bot_settings.return_value = {"media_size_limit": 1}
+
+        large_buffer = BytesIO(b"x" * (2 * 1024 * 1024))
+
+        mock_get_media.return_value = (
+            large_buffer,
+            "large_file.png",
+            ".png"
+        )
+
+        media_ids = ["media1"]
+
+        with pytest.raises(AppException) as exc:
+            await ActionUtility.prepare_files(bot, media_ids)
+
+        assert "Total media size exceeded limit of 1MB" in str(exc.value)
+
     def test_encrypt_secrets(self):
         request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
                         "user_details": {"email": "uditpandey@digite.com", "name": "udit"}}
@@ -3377,7 +3406,8 @@ class TestActions:
                                 'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
-                                'max_instagram_user_posts': 5}
+                                'max_instagram_user_posts': 5,
+                                'media_size_limit': 10}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -4683,7 +4713,8 @@ class TestActions:
                                 'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
-                                'max_instagram_user_posts': 5}
+                                'max_instagram_user_posts': 5,
+                                'media_size_limit': 10}
 
 
     def test_get_prompt_action_config_2(self):

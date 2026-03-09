@@ -2824,6 +2824,190 @@ def test_http_action_execution_script_evaluation(aioresponses):
 
 
 @responses.activate
+@patch("kairon.shared.actions.utils.ActionUtility.prepare_files")
+@patch("kairon.shared.actions.utils.ActionUtility.execute_http_request")
+def test_http_action_with_media_ids_parallel(
+        mock_execute_http_request,
+        mock_prepare_files,
+        aioresponses
+):
+    action_name = "test_http_action_with_media_ids_parallel"
+
+    Actions(
+        name=action_name,
+        type=ActionType.http_action.value,
+        bot="5f50fd0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    source_code = """
+    media_ids = slot['flow_images']
+    body = {'attachmentName': 'test_img.png',
+               'uploaderId': '353141633',
+               'parentType': 'RF_n',
+               'parentId': '342486',
+               'ownerType': 'undefined'}
+    """
+
+    HttpActionConfig(
+        action_name=action_name,
+        content_type="json",
+        response=HttpActionResponse(
+            value="bot_response = 'success'",
+            dispatch=True,
+            evaluation_type="script",
+            dispatch_type=DispatchType.text.value
+        ),
+        http_url="http://localhost:8081/mock",
+        request_method="POST",
+        dynamic_params=source_code,
+        headers=[],
+        bot="5f50fd0a56b698ca10d35d2e",
+        user="user"
+    ).save()
+
+    resp_msg = {
+        "sender_id": "default",
+        "user_message": "get intents",
+        "intent": "test_run",
+        "media_ids": "019cbcf82d1a7a7db409be0f98aeaec4"
+    }
+    http_url = 'http://localhost:8081/mock'
+    responses.add(
+        method=responses.POST,
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": resp_msg, "statusCode": 200, 'error_code': 0},
+        status=200,
+        match=[
+            responses.matchers.json_params_matcher(
+                {"predefined_objects": {"bot": "5f50fd0a56b698ca10d35d2e", "chat_log": [],
+                                        "intent": "test_run", "kairon_user_msg": None,
+                                        "key_vault": {"EMAIL": "uditpandey@digite.com", "FIRSTNAME": "udit"},
+                                        "latest_message": {"intent_ranking": [{"name": "test_run"}],
+                                                           "text": "get intents"}, "sender_id": "default",
+                                        "session_started": None,
+                                        "slot": {"bot": "5f50fd0a56b698ca10d35d2e",
+                                                 "flow_images": "019cbcf82d1a7a7db409be0f98aeaec4"},
+                                        "user_message": "get intents"},
+                 "source_code": source_code})],
+    )
+
+    mock_prepare_files.return_value = [
+        ("file", ("file1.png", b"data1", "image/png")),
+        ("file", ("file2.png", b"data2", "image/png"))
+    ]
+
+    mock_execute_http_request.return_value = {"success": True}
+
+    data_obj = {
+        "a": 10,
+        "b": {
+            "name": "Mayank",
+            "arr": ['red', 'green', 'hotpink']
+        }
+    }
+
+    responses.add(
+        method=responses.POST,
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
+        json={"success": True, "body": {'bot_response': 'success'}, "statusCode": 200, 'error_code': 0},
+        status=200,
+        match=[
+            responses.matchers.json_params_matcher(
+                {'predefined_objects': {'bot': '5f50fd0a56b698ca10d35d2e', 'chat_log': [],
+                                        'data': [{'success': True}, {'success': True}],
+                                        'intent': 'test_run', 'kairon_user_msg': None,
+                                        'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'},
+                                        'latest_message': {'intent_ranking': [{'name': 'test_run'}],
+                                                           'text': 'get intents'},
+                                        'sender_id': 'default', 'session_started': None,
+                                        "slot": {"bot": "5f50fd0a56b698ca10d35d2e",
+                                                 "flow_images": "019cbcf82d1a7a7db409be0f98aeaec4"},
+                                        'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
+                                        'user_message': 'get intents'},
+                 'source_code': "bot_response = 'success'"})]
+    )
+
+    request_object = {
+        "next_action": action_name,
+        "tracker": {
+            "sender_id": "default",
+            "conversation_id": "default",
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e",
+                      "flow_images": "019cbcf82d1a7a7db409be0f98aeaec4"},
+            "latest_message": {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]},
+            "latest_event_time": 1537645578.314389,
+            "followup_action": "action_listen",
+            "paused": False,
+            "events": [{"event1": "hello"}, {"event2": "how are you"}],
+            "latest_input_channel": "rest",
+            "active_loop": {},
+            "latest_action": {},
+        },
+        "domain": {
+            "config": {},
+            "session_config": {},
+            "intents": [],
+            "entities": [],
+            "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+            "responses": {},
+            "actions": [],
+            "forms": {},
+            "e2e_actions": []
+        },
+        "version": "version"
+    }
+
+    response = client.post("/webhook", json=request_object)
+
+    assert response.status_code == 200
+
+    mock_prepare_files.assert_called_once()
+
+    assert mock_execute_http_request.call_count == 2
+
+    response_json = response.json()
+    print(response_json)
+    assert response.status_code == 200
+    assert len(response_json) == 2
+    assert len(response_json['events']) == 2
+    assert response_json['responses'][0]['text'] == 'success'
+    log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
+    log.pop('_id')
+    log.pop('timestamp')
+    log.pop('time_elapsed')
+    events = log.pop('events')
+    for event in events:
+        if event.get('time_elapsed') is not None:
+            del event['time_elapsed']
+    print(events)
+    assert events == [
+        {'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text', 'data': "bot_response = 'success'",
+         'evaluation_type': 'script', 'response': 'success',
+         'bot_response_log': ['evaluation_type: script', "script: bot_response = 'success'",
+                              "data: {'data': [{'success': True}, {'success': True}], 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'flow_images': '019cbcf82d1a7a7db409be0f98aeaec4'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
+                              'raise_err_on_failure: True']},
+        {'type': 'api_call', 'headers': {}, 'method': 'POST', 'url': 'http://localhost:8081/mock', 'payload': {},
+         'response': [{'success': True}, {'success': True}], 'status_code': 200,
+         'response_headers': {'Content-Type': 'application/json'}}, {'type': 'dynamic_params',
+                                                                     'data': "\n    media_ids = slot['flow_images']\n    body = {'attachmentName': 'test_img.png',\n               'uploaderId': '353141633',\n               'parentType': 'RF_n',\n               'parentId': '342486',\n               'ownerType': 'undefined'}\n    ",
+                                                                     'response': {}, 'slots': {},
+                                                                     'request_params': ['evaluation_type: script',
+                                                                                        "script: \n    media_ids = slot['flow_images']\n    body = {'attachmentName': 'test_img.png',\n               'uploaderId': '353141633',\n               'parentType': 'RF_n',\n               'parentId': '342486',\n               'ownerType': 'undefined'}\n    ",
+                                                                                        "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e', 'flow_images': '019cbcf82d1a7a7db409be0f98aeaec4'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
+                                                                                        'raise_err_on_failure: True']},
+        {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    print(log)
+    assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_with_media_ids_parallel',
+                   'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
+                   'bot_response': 'success', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'Success',
+                   'trigger_info': {'trigger_name': '', 'trigger_type': 'implicit', 'trigger_id': ''},
+                   'fail_reason': None, 'user_msg': 'get intents', 'http_status_code': 200}
+
+
+
+@responses.activate
 def test_http_action_execution_script_evaluation_with_dynamic_params_post(aioresponses):
     action_name = "test_http_action_execution_script_evaluation_with_dynamic_params_post"
     Actions(name=action_name, type=ActionType.http_action.value, bot="5f50fd0a56b698ca10d35d2e", user="user").save()

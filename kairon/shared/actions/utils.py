@@ -93,7 +93,7 @@ class ActionUtility:
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
-                             content_type: str = HttpRequestContentType.json.value):
+                             content_type: str = HttpRequestContentType.json.value, **kwargs):
         """Executes http urls provided.
 
         @param http_url: HTTP url to be executed
@@ -117,7 +117,8 @@ class ActionUtility:
                 )
             elif request_method.lower() in {'post', 'put', 'delete'}:
                 response = requests.request(
-                    request_method.upper(), http_url, headers=headers, timeout=timeout, **{content_type: request_body}
+                    request_method.upper(), http_url, headers=headers, timeout=timeout,
+                    **{content_type: request_body}, **kwargs
                 )
             else:
                 raise ActionFailure("Invalid request method!")
@@ -153,6 +154,50 @@ class ActionUtility:
 
         if isinstance(request_body, dict):
             return mask_nested_json_values(request_body)
+
+    @staticmethod
+    async def prepare_files(bot, media_ids):
+        import mimetypes
+
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.user_media import UserMedia
+
+        bot_settings = ActionUtility.get_bot_settings(bot)
+        media_size_limit_mb = bot_settings.get("media_size_limit", 10)
+        media_size_limit_bytes = media_size_limit_mb * 1024 * 1024
+
+        files = []
+        total_size = 0
+
+        for media_id in media_ids:
+            file_buffer, download_name, extension = await UserMedia.get_media_bytes_from_media_id(
+                bot,
+                WhatsappBSPTypes.bsp_360dialog.value,
+                media_id,
+            )
+
+            if not file_buffer:
+                raise AppException(f"File buffer not found for media_id: {media_id}")
+
+            file_buffer.seek(0, 2)
+            file_size = file_buffer.tell()
+            file_buffer.seek(0)
+            file_bytearray = bytearray(file_buffer.read())
+            total_size += file_size
+
+            mime_type = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
+
+            files.append(
+                ("file", (download_name, file_bytearray, mime_type))
+            )
+
+        if total_size > media_size_limit_bytes:
+            raise AppException(
+                f"Total media size exceeded limit of {media_size_limit_mb}MB"
+            )
+
+        return files
+
 
     @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[dict], bot: Text):
@@ -1038,6 +1083,8 @@ class ActionUtility:
             output = result['body']
         else:
             output = {}
+        if result.get('media_ids'):
+            output.update({"media_ids": result['media_ids']})
         end_time = time.time()
         elapsed_time = end_time - start_time
         return output, log, slot_values, elapsed_time

@@ -701,3 +701,40 @@ class UserMedia:
 
         return [media_id]
 
+    @staticmethod
+    async def get_media_bytes_from_media_id(bot: str, bsp_type: str, media_id: str):
+        """
+        Returns the PDF bytes from media ID.
+        """
+        from mongoengine import DoesNotExist
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        connector_type = "whatsapp"
+        try:
+             UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = ChatDataProcessor.get_channel_config(connector_type, bot, mask_characters=False)
+
+        if not channel_config or "config" not in channel_config or channel_config.get("config").get(
+                "bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        access_token = channel_config.get("config").get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        try:
+            file_stream, download_name, extension = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            return file_stream, download_name, extension
+
+        except Exception as e:
+            raise e
+
+
