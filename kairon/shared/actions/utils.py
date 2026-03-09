@@ -170,7 +170,7 @@ class ActionUtility:
         total_size = 0
 
         for media_id in media_ids:
-            file_buffer, download_name, extension = await UserMedia.get_media_bytes_from_media_id(
+            file_buffer, download_name, _ = await UserMedia.get_media_bytes_from_media_id(
                 bot,
                 WhatsappBSPTypes.bsp_360dialog.value,
                 media_id,
