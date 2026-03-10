@@ -158,8 +158,6 @@ class ActionUtility:
     @staticmethod
     async def prepare_files(bot, media_ids):
         import mimetypes
-
-        from kairon.shared.constants import WhatsappBSPTypes
         from kairon.shared.chat.user_media import UserMedia
 
         bot_settings = ActionUtility.get_bot_settings(bot)
@@ -172,7 +170,6 @@ class ActionUtility:
         for media_id in media_ids:
             file_buffer, download_name, _ = await UserMedia.get_media_bytes_from_media_id(
                 bot,
-                WhatsappBSPTypes.bsp_360dialog.value,
                 media_id,
             )
 

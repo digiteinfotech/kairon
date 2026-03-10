@@ -985,8 +985,6 @@ def test_save_whatsapp_media_and_get_url_download_failure(mock_get):
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 async def test_get_media_content(mock_get_buffer):
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-    bsp_type = "360dialog"
-    expected_external_media_id = "abc123"
     bot = "682323a603ec3be7dcaa75bc"
 
     UserMediaData(
@@ -1037,7 +1035,7 @@ async def test_get_media_content(mock_get_buffer):
 
     mock_get_buffer.return_value = mock_buffer_value
 
-    file_stream, filename, extension = await UserMedia.get_media_bytes_from_media_id(bot, bsp_type, media_id)
+    file_stream, filename, extension = await UserMedia.get_media_bytes_from_media_id(bot, media_id)
     assert file_stream.getvalue() == expected_media_bytes
     assert filename == "whataspp_360_885215267637065.jpg"
     assert extension == ".jpg"
@@ -1051,104 +1049,18 @@ async def test_get_media_content(mock_get_buffer):
 @pytest.mark.asyncio
 async def test_get_media_bytes_from_media_id_not_found():
     media_id = "non_existing_media_id"
-    bsp_type = "360dialog"
     bot = "682323a603ec3be7dcaa75bc"
 
     with pytest.raises(AppException) as exc_info:
-        await UserMedia.get_media_bytes_from_media_id(bot, bsp_type, media_id)
+        await UserMedia.get_media_bytes_from_media_id(bot, media_id)
 
     assert str(exc_info.value) == f"UserMediaData not found for media_id: {media_id}"
 
-@pytest.mark.asyncio
-@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-async def test_get_media_bytes_from_media_id_channel_not_configured(mock_get_channel_config):
-    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-    bsp_type = "360dialog"
-    bot = "682323a603ec3be7dcaa75bc"
-
-    mock_get_channel_config.return_value = {}
-
-    UserMediaData(
-        media_id=media_id,
-        filename="whataspp_360_885215267637065.jpg",
-        extension=".jpg",
-        upload_status="Completed",
-        upload_type="user",
-        filesize=410484,
-        additional_info={"description": "Issue description", "phone_number": "919876543210"},
-        sender_id="mahesh.sattala@digite.com",
-        bot="682323a603ec3be7dcaa75bc",
-        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-    ).save()
-
-    with pytest.raises(AppException) as exc_info:
-        await UserMedia.get_media_bytes_from_media_id(bot, bsp_type, media_id)
-
-    assert str(
-        exc_info.value) == f"Channel config not found for bot: {bot}, connector_type: whatsapp, bsp_type: {bsp_type}"
-    UserMediaData.objects().delete()
-
-@pytest.mark.asyncio
-async def test_get_media_bytes_from_media_id_access_token_not_found():
-    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-    bsp_type = "360dialog"
-    bot = "682323a603ec3be7dcaa75bc"
-
-    UserMediaData(
-        media_id=media_id,
-        filename="whataspp_360_885215267637065.jpg",
-        extension=".jpg",
-        upload_status="Completed",
-        upload_type="user",
-        filesize=410484,
-        additional_info={"description": "Issue description", "phone_number": "919876543210"},
-        sender_id="mahesh.sattala@digite.com",
-        bot="682323a603ec3be7dcaa75bc",
-        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
-        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
-    ).save()
-
-    BotSettings(
-        bot=bot,
-        user="mahesh.sattala@digite.com",
-        whatsapp="360dialog",
-        timestamp=datetime.utcnow()
-    ).save()
-
-    Channels(
-        bot=bot,
-        connector_type="whatsapp",
-        config={
-            "client_name": "dummy",
-            "client_id": "dummy",
-            "channel_id": "dummy",
-            "api_key": "",
-            "partner_id": "dummy",
-            "waba_account_id": "dummy",
-            "bsp_type": "360dialog"
-        },
-        user="test@example.com",
-        timestamp=datetime.utcnow()
-    ).save()
-
-    with pytest.raises(AppException) as exc_info:
-        await UserMedia.get_media_bytes_from_media_id(bot, bsp_type, media_id)
-
-    assert str(
-        exc_info.value) == "API key (access token) not found in channel config"
-
-    UserMediaData.objects().delete()
-    BotSettings.objects().delete()
-    Channels.objects().delete()
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buffer):
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
-    bsp_type = "360dialog"
     bot = "682323a603ec3be7dcaa75bc"
 
     UserMediaData(
@@ -1192,7 +1104,7 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
     mock_get_buffer.return_value = (None, None, None)
 
     with pytest.raises(AppException) as exc_info:
-        await UserMedia.get_media_bytes_from_media_id(bot, bsp_type, media_id)
+        await UserMedia.get_media_bytes_from_media_id(bot, media_id)
 
     assert str(exc_info.value) == "File stream not found"
 
