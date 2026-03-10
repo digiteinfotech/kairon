@@ -2824,11 +2824,9 @@ def test_http_action_execution_script_evaluation(aioresponses):
 
 
 @responses.activate
-@patch("kairon.shared.actions.utils.ActionUtility.prepare_files")
-@patch("kairon.shared.actions.utils.ActionUtility.execute_http_request")
+@patch("kairon.shared.actions.utils.ActionUtility.process_media_and_execute_requests")
 def test_http_action_with_media_ids_parallel(
-        mock_execute_http_request,
-        mock_prepare_files,
+        mock_process_media,
         aioresponses
 ):
     action_name = "test_http_action_with_media_ids_parallel"
@@ -2892,12 +2890,10 @@ def test_http_action_with_media_ids_parallel(
                  "source_code": source_code})],
     )
 
-    mock_prepare_files.return_value = [
-        ("file", ("file1.png", b"data1", "image/png")),
-        ("file", ("file2.png", b"data2", "image/png"))
+    mock_process_media.return_value = [
+        {"success": True},
+        {"success": True}
     ]
-
-    mock_execute_http_request.return_value = {"success": True}
 
     data_obj = {
         "a": 10,
@@ -2963,9 +2959,7 @@ def test_http_action_with_media_ids_parallel(
 
     assert response.status_code == 200
 
-    mock_prepare_files.assert_called_once()
-
-    assert mock_execute_http_request.call_count == 2
+    mock_process_media.assert_called_once()
 
     response_json = response.json()
     print(response_json)

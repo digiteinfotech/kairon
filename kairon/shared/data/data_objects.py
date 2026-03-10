@@ -1095,7 +1095,16 @@ class UserMediaData(Auditlog):
     external_upload_info = DictField()
 
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}
+    meta = {"indexes": [
+        {
+            "fields": [
+                "bot",
+                ("bot", "media_id"),
+                ("bot", "sender_id"),
+                "media_id"
+            ]
+        }
+    ]}
 
 
 class PetpoojaSyncConfig(EmbeddedDocument):

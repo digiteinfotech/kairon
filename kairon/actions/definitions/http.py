@@ -117,22 +117,19 @@ class ActionHTTP(ActionsBase):
 
             media_ids = body.pop("media_ids", [])
             media_ids = media_ids if isinstance(media_ids, list) else [media_ids]
-            if media_ids:
-                files = await ActionUtility.prepare_files(self.bot, media_ids)
-                tasks = [
-                    asyncio.to_thread(
-                        ActionUtility.execute_http_request,
-                        headers=headers,
-                        http_url=http_url,
-                        request_method=request_method,
-                        request_body=body,
-                        content_type=http_action_config['content_type'],
-                        files=[file]
-                    )
-                    for file in files
-                ]
 
-                responses = await asyncio.gather(*tasks)
+            if media_ids:
+
+                responses = await ActionUtility.process_media_and_execute_requests(
+                    bot=self.bot,
+                    media_ids=media_ids,
+                    headers=headers,
+                    http_url=http_url,
+                    request_method=request_method,
+                    request_body=body,
+                    content_type=http_action_config['content_type']
+                )
+
                 http_response = responses
                 resp_status_code = 200
                 response_headers = {'Content-Type': 'application/json'}

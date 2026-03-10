@@ -156,31 +156,54 @@ class ActionUtility:
             return mask_nested_json_values(request_body)
 
     @staticmethod
-    async def prepare_files(bot, media_ids):
-        import mimetypes
-        from kairon.shared.chat.user_media import UserMedia
+    def validate_media_sizes(bot: str, media_ids: list):
+        from kairon.shared.data.data_objects import UserMediaData
 
         bot_settings = ActionUtility.get_bot_settings(bot)
+
         media_size_limit_mb = bot_settings.get("media_size_limit", 10)
         media_size_limit_bytes = media_size_limit_mb * 1024 * 1024
 
-        files = []
-        total_size = 0
+        media_docs = UserMediaData.objects(bot=bot, media_id__in=media_ids)
 
-        for media_id in media_ids:
-            file_buffer, download_name, _ = await UserMedia.get_media_bytes_from_media_id(
-                bot,
-                media_id,
+        if len(media_docs) != len(media_ids):
+            raise AppException("One or more media files not found")
+
+        total_size = sum(doc.filesize for doc in media_docs)
+
+        if total_size > media_size_limit_bytes:
+            raise AppException(
+                f"Total media size exceeded limit of {media_size_limit_mb}MB"
             )
 
-            if not file_buffer:
-                raise AppException(f"File buffer not found for media_id: {media_id}")
+        return media_docs
 
-            file_buffer.seek(0, 2)
-            file_size = file_buffer.tell()
-            file_buffer.seek(0)
+    @staticmethod
+    async def process_media_and_execute_requests(
+            bot,
+            media_ids,
+            headers,
+            http_url,
+            request_method,
+            request_body,
+            content_type
+    ):
+        import mimetypes
+        import asyncio
+        from kairon.shared.chat.user_media import UserMedia
+
+        ActionUtility.validate_media_sizes(bot, media_ids)
+
+        file_tasks = [
+            UserMedia.get_media_bytes_from_media_id(bot, media_id)
+            for media_id in media_ids
+        ]
+
+        results = await asyncio.gather(*file_tasks)
+
+        files = []
+        for file_buffer, download_name, _ in results:
             file_bytearray = bytearray(file_buffer.read())
-            total_size += file_size
 
             mime_type = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
 
@@ -188,13 +211,22 @@ class ActionUtility:
                 ("file", (download_name, file_bytearray, mime_type))
             )
 
-        if total_size > media_size_limit_bytes:
-            raise AppException(
-                f"Total media size exceeded limit of {media_size_limit_mb}MB"
+        tasks = [
+            asyncio.to_thread(
+                ActionUtility.execute_http_request,
+                headers=headers,
+                http_url=http_url,
+                request_method=request_method,
+                request_body=request_body,
+                content_type=content_type,
+                files=[file]
             )
+            for file in files
+        ]
 
-        return files
+        responses = await asyncio.gather(*tasks)
 
+        return responses
 
     @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[dict], bot: Text):
