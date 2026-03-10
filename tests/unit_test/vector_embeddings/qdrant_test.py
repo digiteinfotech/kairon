@@ -15,11 +15,9 @@ from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.data.data_objects import LLMSettings
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
-import litellm
 from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.actions.models import DbActionOperationType
 import numpy as np
-import litellm
 
 
 class TestQdrant:
