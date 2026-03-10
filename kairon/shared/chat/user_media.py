@@ -701,3 +701,25 @@ class UserMedia:
 
         return [media_id]
 
+    @staticmethod
+    async def get_media_bytes_from_media_id(bot: str, media_id: str):
+        """
+        Returns the PDF bytes from media ID.
+        """
+        try:
+             UserMediaData.objects.get(bot=bot, media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        try:
+            file_stream, download_name, extension = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            return file_stream, download_name, extension
+
+        except Exception as e:
+            raise e
+
+

@@ -35157,7 +35157,8 @@ def test_get_bot_settings():
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
-                              'max_instagram_user_posts': 5}
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -35269,7 +35270,8 @@ def test_update_analytics_settings():
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
-                              'max_instagram_user_posts': 5}
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10}
 
 
 def test_delete_channels_config():

@@ -31,7 +31,7 @@ from kairon.actions.definitions.web_search import ActionWebSearch
 from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, STATUSES
-from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings
+from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings, UserMediaData
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
@@ -825,6 +825,136 @@ class TestActions:
                                                             http_action_config_params=http_action_config_params,
                                                             bot="test")
         assert actual_request_body == ({}, {})
+
+    def test_validate_media_sizes_success(self):
+        bot = "682323a603ec3be7dcaa75bc"
+
+        media_id1 = "media_1"
+        media_id2 = "media_2"
+
+        UserMediaData(
+            media_id=media_id1,
+            filename="img1.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=200000,
+            sender_id="mahesh.sattala@digite.com",
+            bot=bot
+        ).save()
+
+        UserMediaData(
+            media_id=media_id2,
+            filename="img2.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=300000,
+            sender_id="mahesh.sattala@digite.com",
+            bot=bot
+        ).save()
+
+        media_docs = ActionUtility.validate_media_sizes(bot, [media_id1, media_id2])
+
+        assert len(media_docs) == 2
+
+    def test_validate_media_sizes_missing_media(self):
+        bot = "682323a603ec3be7dcaa75bc"
+
+        media_id = "missing_media"
+
+        with pytest.raises(AppException) as exc:
+            ActionUtility.validate_media_sizes(bot, [media_id])
+
+        assert "One or more media files not found" in str(exc.value)
+
+    def test_validate_media_sizes_limit_exceeded(self):
+        bot = "682323a603ec3be7dcaa75bc"
+
+        media_id = "large_media"
+        media_size_limit_mb = 10
+
+        UserMediaData(
+            media_id=media_id,
+            filename="large.jpg",
+            extension=".jpg",
+            upload_status="Completed",
+            upload_type="user",
+            filesize=20 * 1024 * 1024,
+            sender_id="mahesh.sattala@digite.com",
+            bot=bot
+        ).save()
+
+        with pytest.raises(AppException) as exc:
+            ActionUtility.validate_media_sizes(bot, [media_id])
+
+        assert f"Total media size exceeded limit of {media_size_limit_mb}MB" in str(exc.value)
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.actions.utils.ActionUtility.execute_http_request")
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_bytes_from_media_id")
+    @patch("kairon.shared.actions.utils.ActionUtility.validate_media_sizes")
+    async def test_process_media_and_execute_requests_success(
+            self,
+            mock_validate,
+            mock_get_media,
+            mock_execute
+    ):
+        import io
+
+        bot = "682323a603ec3be7dcaa75bc"
+
+        media_ids = ["media1", "media2"]
+
+        mock_get_media.side_effect = [
+            (io.BytesIO(b"data1"), "file1.jpg", ".jpg"),
+            (io.BytesIO(b"data2"), "file2.jpg", ".jpg"),
+        ]
+
+        mock_execute.return_value = {"success": True}
+
+        responses = await ActionUtility.process_media_and_execute_requests(
+            bot=bot,
+            media_ids=media_ids,
+            headers={},
+            http_url="http://test.com",
+            request_method="POST",
+            request_body={},
+            content_type="json"
+        )
+
+        assert len(responses) == 2
+        assert responses == [{"success": True}, {"success": True}]
+
+        mock_validate.assert_called_once()
+        assert mock_get_media.call_count == 2
+        assert mock_execute.call_count == 2
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.chat.user_media.UserMedia.get_media_bytes_from_media_id")
+    @patch("kairon.shared.actions.utils.ActionUtility.validate_media_sizes")
+    async def test_process_media_and_execute_requests_media_fetch_error(
+            self,
+            mock_validate,
+            mock_get_media
+    ):
+
+        bot = "682323a603ec3be7dcaa75bc"
+
+        media_ids = ["media1"]
+
+        mock_get_media.side_effect = Exception("Media fetch failed")
+
+        with pytest.raises(Exception):
+            await ActionUtility.process_media_and_execute_requests(
+                bot=bot,
+                media_ids=media_ids,
+                headers={},
+                http_url="http://test.com",
+                request_method="POST",
+                request_body={},
+                content_type="json"
+            )
 
     def test_encrypt_secrets(self):
         request_body = {"sender_id": "default", "user_message": "get intents", "intent": "test_run",
@@ -3377,7 +3507,8 @@ class TestActions:
                                 'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
-                                'max_instagram_user_posts': 5}
+                                'max_instagram_user_posts': 5,
+                                'media_size_limit': 10}
 
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
@@ -4683,7 +4814,8 @@ class TestActions:
                                 'pos_enabled': False,
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
-                                'max_instagram_user_posts': 5}
+                                'max_instagram_user_posts': 5,
+                                'media_size_limit': 10}
 
 
     def test_get_prompt_action_config_2(self):
