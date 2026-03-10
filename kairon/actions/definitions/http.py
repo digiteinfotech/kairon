@@ -1,4 +1,3 @@
-import asyncio
 import ujson as json
 from ujson import JSONDecodeError
 from typing import Text, Dict, Any
@@ -119,7 +118,6 @@ class ActionHTTP(ActionsBase):
             media_ids = media_ids if isinstance(media_ids, list) else [media_ids]
 
             if media_ids:
-
                 responses = await ActionUtility.process_media_and_execute_requests(
                     bot=self.bot,
                     media_ids=media_ids,
