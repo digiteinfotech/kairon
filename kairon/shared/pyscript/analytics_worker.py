@@ -1,9 +1,11 @@
+import html
 import sys
 import json
 import traceback
 from functools import partial
 import os
 
+import bs4
 from mongoengine import connect, disconnect
 
 from kairon import Utility
@@ -51,6 +53,8 @@ def main():
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
+                "bs4": bs4,
+                "html": html,
                 "__builtins__": __builtins__,
             }
             converted = {k: allowed[k] for k in safe_globals if k in allowed}
