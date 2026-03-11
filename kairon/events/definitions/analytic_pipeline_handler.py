@@ -7,6 +7,7 @@ from loguru import logger
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
@@ -51,6 +52,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 bot=self.bot,
                 callback_name=callback_name
             )
+            key_vault = ActionUtility.get_all_secrets_from_keyvault(self.bot)
 
             predefined_objects = {
                 "config": config,
@@ -60,6 +62,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 "callback_name": callback_name,
                 "event_id": event_id,
                 "slot": {"bot": self.bot},
+                "key_vault": key_vault
             }
 
             runner = AnalyticsRunner()
