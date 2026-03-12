@@ -1,3 +1,4 @@
+import html
 import json
 import sys
 import subprocess
@@ -6,6 +7,7 @@ from types import ModuleType
 from datetime import datetime, date
 from typing import Dict, Optional, Text, Callable
 
+import bs4
 from RestrictedPython import compile_restricted
 from loguru import logger
 
@@ -58,6 +60,8 @@ class AnalyticsRunner():
             "srtp_time": PyscriptUtility.srtptime,
             "srtf_time": PyscriptUtility.srtftime,
             "url_parse": PyscriptUtility.url_parse_quote_plus,
+            "bs4": bs4,
+            "html": html,
             "__builtins__": self.allowed_builtins,
         }
 
