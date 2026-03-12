@@ -1478,8 +1478,8 @@ class HistoryProcessor:
 
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
-                conversations.aggregate([{"$match": {"sender_id": sender_id,
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
+                conversations.aggregate([{"$match": {"sender_id": sender_id, "bot": collection,
                                                      "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                              {"timestamp": {"$lte": till_date_timestamp}}]
                                                      }
@@ -1510,10 +1510,10 @@ class HistoryProcessor:
 
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
 
                 # Remove Archived Events
-                conversations.delete_many(filter={'sender_id': sender_id,
+                conversations.delete_many(filter={'sender_id': sender_id, "bot": collection,
                                                   "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                           {"timestamp": {"$lte": till_date_timestamp}}]})
         except Exception as e:
