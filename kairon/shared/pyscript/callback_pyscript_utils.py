@@ -468,3 +468,189 @@ class CallbackScriptUtility:
             "message": "Record updated!",
             "data": {"_id": collection_id}
         }
+
+    @staticmethod
+    def extract_data(input_source, prompt: str = None, high_res_ocr: bool = True, llm_type: str = "openrouter",
+                     result_type: str = "markdown",
+                     bot: str = None, user: str = None):
+        from llama_parse import LlamaParse
+        import requests
+        import tempfile
+        import os
+        import io
+
+        parser = LlamaParse(
+            api_key=Utility.environment['llama_parse']['key'],
+            result_type=result_type,
+            high_res_ocr=high_res_ocr
+        )
+
+        file_path = None
+
+        if isinstance(input_source, str) and input_source.startswith(("http://", "https://")):
+            if not input_source.lower().endswith(".pdf"):
+                raise Exception("Only PDF URLs are supported")
+            result = parser.parse(input_source)
+
+        elif isinstance(input_source, str) and os.path.exists(input_source):
+            if not input_source.lower().endswith(".pdf"):
+                raise ValueError("Only PDF files are supported")
+            result = parser.parse(input_source)
+
+        elif isinstance(input_source, (bytes, bytearray)):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(input_source)
+                file_path = tmp.name
+            result = parser.parse(file_path)
+
+        elif isinstance(input_source, io.IOBase):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(input_source.read())
+                file_path = tmp.name
+            result = parser.parse(file_path)
+
+        else:
+            raise ValueError("Unsupported input_source type")
+
+        full_text = "\n\n".join([page.text for page in result.pages])
+        if prompt is None:
+            extracted_data = None
+        else:
+            if "{document}" in prompt:
+                final_prompt = prompt.format(document=full_text)
+            else:
+                final_prompt = f"{prompt}\n\nDocument:\n{full_text}"
+
+            payload = {
+                "user": user,
+                "hyperparameters": {"temperature": 0, "model": "openai/gpt-4o-mini"},
+                "messages": [{"role": "user", "content": final_prompt}]
+            }
+
+            llm_server_url = Utility.environment['llm']['url']
+            response = requests.request(method="POST",
+                                        url=f"{llm_server_url}/{bot}/completion/{llm_type}",
+                                        json=payload)
+            if response.status_code != 200:
+                raise Exception(response.text)
+
+            response = response.json()
+            extracted_data = response['formatted_response']
+            logger.info(response)
+            logger.info(extracted_data)
+
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+
+        return {
+            "raw_text": full_text,
+            "extracted_data": extracted_data
+        }
+
+    @staticmethod
+    def process_instruction(data_list, prompt, operationType, modelId, llm_type: str = "openrouter",
+                            bot: str = None, user: str = None):
+        import requests
+        from kairon.shared.admin.data_objects import LLMSecret
+
+        doc = LLMSecret.objects(llm_type="openrouter").first()
+        api_key = Utility.decrypt_message(doc.api_key)
+
+        if operationType == "embedding":
+
+            llm_server_url = Utility.environment['llm']['url']
+            payload = {
+                "text": data_list,
+                "user": user,
+                "kwargs": {
+                    "model": modelId,
+                    "api_key": api_key
+                }
+            }
+
+            response = requests.request(method="POST",
+                                        url=f"{llm_server_url}/{bot}/aembedding/{llm_type}",
+                                        json=payload)
+            response.raise_for_status()
+            response = response.json()
+            logger.info(response)
+
+            return {
+                "embeddings": response
+            }
+
+        else:
+            text_input = data_list[0]
+            final_prompt = prompt.format(document=text_input)
+            payload = {
+                "user": user,
+                "hyperparameters": {"temperature": 0, "model": modelId},
+                "messages": [{"role": "user", "content": final_prompt}]
+            }
+            llm_server_url = Utility.environment['llm']['url']
+            response = requests.request(method="POST",
+                                        url=f"{llm_server_url}/{bot}/completion/{llm_type}",
+                                        json=payload)
+
+            response.raise_for_status()
+            response = response.json()
+            extracted_data = response['formatted_response']
+
+            logger.info(response)
+            logger.info(extracted_data)
+
+            return extracted_data
+
+
+    @staticmethod
+    def create_vector_collection(collection_name, model_id: str, user: str, emb_size: int = 3072,
+                                 overwrite: bool = False, metadata: list = None, bot: str = None):
+        from kairon.shared.cognition.data_objects import CognitionSchema, EmbeddingMetadata, ColumnMetadata
+        from qdrant_client.models import VectorParams, Distance
+        from qdrant_client import QdrantClient
+
+        db_url = Utility.environment['vector']['db']
+        knowledge_vault_name = collection_name
+        collection_name = f"{bot}_{collection_name}_faq_embd"
+        schema = {
+            "metadata": metadata,
+            "collection_name": knowledge_vault_name
+        }
+
+        client = QdrantClient(url=db_url)
+
+        collections = client.get_collections().collections
+        exists = any(c.name == collection_name for c in collections)
+        embed_config = {
+            "size": emb_size,
+            "distance": Distance.COSINE
+        }
+        vector_config = VectorParams(**embed_config)
+        if exists and overwrite:
+            client.delete_collection(collection_name=collection_name)
+            exist = CognitionSchema.objects(bot=bot, collection_name=knowledge_vault_name).first()
+            if exist:
+                exist.delete()
+
+        if not exists or overwrite:
+            client.create_collection(
+                collection_name=collection_name,
+                vectors_config=vector_config
+            )
+            metadata_obj = CognitionSchema(bot=bot, user=user)
+            metadata_obj.metadata = [ColumnMetadata(**meta) for meta in schema.get("metadata") or []]
+            metadata_obj.collection_name = schema.get("collection_name")
+            metadata_obj.save()
+        else:
+            return {
+                "message": "collection already exists"
+            }
+
+        exist = EmbeddingMetadata.objects(bot=bot, collection_name=collection_name, model_id=model_id,
+                                          knowledge_vault_name=knowledge_vault_name).first()
+        if not exist:
+            EmbeddingMetadata(bot=bot, collection_name=collection_name, model_id=model_id,
+                              knowledge_vault_name=knowledge_vault_name, user=user, vector_config=embed_config).save()
+        return {
+            "message": "collection created successfully"
+        }

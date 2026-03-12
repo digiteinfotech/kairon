@@ -227,6 +227,9 @@ llm:
   url: ${LLM_SERVER_URL:http://localhost}
   request_timeout: ${LLM_REQUEST_TIMEOUT:30}
 
+llama_parse:
+  key: ${LLAMA_PARSER_API_KEY:"llx-Sdpioer7ixiQDAIZ16Awr56nl68aHM4uxwAlSAA7bfmNrBhD"}
+
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
   key: ${VECTOR_DB_KEY}
