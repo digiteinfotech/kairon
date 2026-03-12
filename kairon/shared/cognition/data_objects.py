@@ -147,3 +147,20 @@ class AnalyticsCollectionData(Auditlog):
     def clean(self):
         if self.collection_name:
             self.collection_name = self.collection_name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
+class EmbeddingMetadata(Auditlog):
+    collection_name = StringField(required=True)
+    bot = StringField(required=True)
+    vector_config = DictField()
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    knowledge_vault_name = StringField(required=True)
+    model_id = StringField(required=True)
+
+    meta = {"indexes": [{"fields": ["bot", "collection_name"]}]}
+
+    def clean(self):
+        self.collection_name = self.collection_name.strip().lower()
