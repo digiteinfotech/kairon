@@ -23,6 +23,7 @@ class ProductItem(BaseModel):
     product_id: int
     qty: int
     unit_price: float
+    discount: float = 0
 
 
 class POSOrderRequest(BaseModel):
