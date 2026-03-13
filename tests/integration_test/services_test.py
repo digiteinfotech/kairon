@@ -2575,7 +2575,7 @@ def test_accept_pos_order_invoice_failure():
         status=200
     )
 
-    responses.add(responses.POST, url, json={"result": [{"id": 30}]}, status=200)
+    responses.add(responses.POST, url, json={"result": [{"journal_id": [30, "Cash"]}]}, status=200)
 
     responses.add(responses.POST, url, json={"result": 101}, status=200)
 
@@ -2625,7 +2625,7 @@ def test_accept_pos_order_success():
     responses.add(
         responses.POST,
         url,
-        json={"result": [{"id": 20}]},
+        json={"result": [{"journal_id": [20, "Cash"]}]},
         status=200
     )
 
@@ -2799,14 +2799,14 @@ def test_get_pos_products_success():
 
     products = [
         {
-            "id": 1,
+            "product_variant_id": 1,
             "name": "Product A",
             "list_price": 100,
             "barcode": "123456",
             "available_in_pos": True
         },
         {
-            "id": 2,
+            "product_variant_id": 2,
             "name": "Product B",
             "list_price": 200,
             "barcode": "789012",
