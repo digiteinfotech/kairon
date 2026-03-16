@@ -4223,51 +4223,49 @@ def test_delete_data_analytics_not_found():
 
 
 def test_extract_data_success():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
         "success": True,
         "data": {
-            "pages": [
-                {"text": "Dummy PDF file text"}
-            ]
+            "full_text": "PDF full text",
+            "extracted_data": "Parsed output"
         }
     }
 
-    completion_response = MagicMock()
-    completion_response.status_code = 200
-    completion_response.json.return_value = {
-        "formatted_response": "Summarized output"
-    }
-
-    with patch("requests.post", side_effect=[parse_response, completion_response]), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
+    with patch("requests.post", return_value=mock_response) as mock_post, \
+         patch.object(Utility, "environment", {
+             "llm": {"url": "http://fake-llm"},
+             "llama_parse": {"key": "test-key"}
          }):
 
         result = CallbackScriptUtility.extract_data(
             input_source="https://example.com/test.pdf",
-            prompt="Summarize: {document}",
+            prompt="Summarize {document}",
             bot="bot123",
             user="test_user"
         )
 
-        assert result["raw_text"] == "Dummy PDF file text"
-        assert result["extracted_data"] == "Summarized output"
+        assert result["full_text"] == "PDF full text"
+        assert result["extracted_data"] == "Parsed output"
+
+        mock_post.assert_called_once()
 
 def test_extract_data_no_prompt():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
         "success": True,
-        "data": {"pages": [{"text": "Dummy PDF file text"}]}
+        "data": {
+            "full_text": "PDF text",
+            "extracted_data": None
+        }
     }
 
-    with patch("requests.post", return_value=parse_response), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
+    with patch("requests.post", return_value=mock_response), \
+         patch.object(Utility, "environment", {
+             "llm": {"url": "http://fake-llm"},
+             "llama_parse": {"key": "test-key"}
          }):
 
         result = CallbackScriptUtility.extract_data(
@@ -4277,132 +4275,83 @@ def test_extract_data_no_prompt():
             user="test_user"
         )
 
-        assert result["raw_text"] == "Dummy PDF file text"
+        assert result["full_text"] == "PDF text"
         assert result["extracted_data"] is None
 
-def test_extract_data_bytes_input():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
-        "success": True,
-        "data": {"pages": [{"text": "Binary PDF text"}]}
-    }
 
-    with patch("requests.post", return_value=parse_response), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
+def test_extract_data_api_failure_status():
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_response.text = "Internal Server Error"
+
+    with patch("requests.post", return_value=mock_response), \
+         patch.object(Utility, "environment", {
+             "llm": {"url": "http://fake-llm"},
+             "llama_parse": {"key": "test-key"}
          }):
 
-        result = CallbackScriptUtility.extract_data(
-            input_source=b"fake pdf bytes",
-            prompt=None,
-            bot="bot123",
-            user="test_user"
-        )
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.extract_data(
+                input_source="https://example.com/test.pdf",
+                bot="bot123",
+                user="test_user"
+            )
 
-        assert result["raw_text"] == "Binary PDF text"
+        assert "Internal Server Error" in str(exc.value)
 
-def test_extract_data_file_object():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
-        "success": True,
-        "data": {"pages": [{"text": "File object text"}]}
+
+def test_extract_data_api_success_false():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "success": False,
+        "message": "Parsing failed"
     }
 
-    fake_file = io.BytesIO(b"fake pdf")
-
-    with patch("requests.post", return_value=parse_response), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
-         }):
-
-        result = CallbackScriptUtility.extract_data(
-            input_source=fake_file,
-            prompt=None,
-            bot="bot123",
-            user="test_user"
-        )
-
-        assert result["raw_text"] == "File object text"
-
-import pytest
-
-def test_extract_data_parse_api_failure():
-    parse_response = MagicMock()
-    parse_response.status_code = 500
-    parse_response.text = "Parse error"
-
-    with patch("requests.post", return_value=parse_response), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
+    with patch("requests.post", return_value=mock_response), \
+         patch.object(Utility, "environment", {
+             "llm": {"url": "http://fake-llm"},
+             "llama_parse": {"key": "test-key"}
          }):
 
         with pytest.raises(Exception):
             CallbackScriptUtility.extract_data(
                 input_source="https://example.com/test.pdf",
-                prompt=None,
                 bot="bot123",
                 user="test_user"
             )
 
-def test_extract_data_completion_failure():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
+
+def test_extract_data_payload_structure():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
         "success": True,
-        "data": {"pages": [{"text": "Dummy text"}]}
+        "data": {
+            "full_text": "PDF content",
+            "extracted_data": "summary"
+        }
     }
 
-    completion_response = MagicMock()
-    completion_response.status_code = 500
-    completion_response.text = "Completion error"
-
-    with patch("requests.post", side_effect=[parse_response, completion_response]), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
+    with patch("requests.post", return_value=mock_response) as mock_post, \
+         patch.object(Utility, "environment", {
+             "llm": {"url": "http://fake-llm"},
+             "llama_parse": {"key": "test-key"}
          }):
 
-        with pytest.raises(Exception):
-            CallbackScriptUtility.extract_data(
-                input_source="https://example.com/test.pdf",
-                prompt="Summarize {document}",
-                bot="bot123",
-                user="test_user"
-            )
-
-def test_extract_data_prompt_without_document():
-    parse_response = MagicMock()
-    parse_response.status_code = 200
-    parse_response.json.return_value = {
-        "success": True,
-        "data": {"pages": [{"text": "PDF text"}]}
-    }
-
-    completion_response = MagicMock()
-    completion_response.status_code = 200
-    completion_response.json.return_value = {
-        "formatted_response": "Processed output"
-    }
-
-    with patch("requests.post", side_effect=[parse_response, completion_response]), \
-         patch("kairon.shared.utils.Utility.environment", {
-             "llama_parse": {"key": "test"},
-             "llm": {"url": "http://fake-llm"}
-         }):
-
-        result = CallbackScriptUtility.extract_data(
+        CallbackScriptUtility.extract_data(
             input_source="https://example.com/test.pdf",
-            prompt="Summarize this document",
+            prompt="Summarize",
             bot="bot123",
             user="test_user"
         )
 
-        assert result["extracted_data"] == "Processed output"
+        args, kwargs = mock_post.call_args
+
+        assert kwargs["json"]["input_source"] == "https://example.com/test.pdf"
+        assert kwargs["json"]["parsing_instruction"] == "Summarize"
+        assert kwargs["json"]["bot"] == "bot123"
+        assert kwargs["json"]["user"] == "test_user"
 
 def test_process_instruction_embedding():
     mock_secret = MagicMock()

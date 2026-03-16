@@ -470,101 +470,51 @@ class CallbackScriptUtility:
         }
 
     @staticmethod
-    def extract_data(input_source, prompt: str = None, high_res_ocr: bool = True,
-                     llm_type: str = "openrouter", result_type: str = "markdown",
-                     bot: str = None, user: str = None):
+    def extract_data(input_source,
+                     prompt=None,
+                     result_type="markdown",
+                     llm_type: str = "openrouter",
+                     high_res_ocr: bool = True,
+                     language: str = "en",
+                     bot: str = None,
+                     user: str = None):
 
         import requests
-        import tempfile
-        import os
-        import io
 
         llm_server_url = Utility.environment['llm']['url']
 
-        file_path = None
-        api_input_source = input_source
+        payload = {
+            "input_source": input_source,
+            "llama_parser_api_key": Utility.environment['llama_parse']['key'],
+            "result_type": result_type,
+            "high_res_ocr": high_res_ocr,
+            "language": language,
+            "parsing_instruction": prompt,
+            "user": user,
+            "bot": bot,
+            "llm_type": llm_type
+        }
 
-        try:
-            if isinstance(input_source, (bytes, bytearray)):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(input_source)
-                    file_path = tmp.name
-                api_input_source = file_path
+        response = requests.post(
+            f"{llm_server_url}/{bot}/parse/{llm_type}",
+            json=payload
+        )
 
-            elif isinstance(input_source, io.IOBase):
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(input_source.read())
-                    file_path = tmp.name
-                api_input_source = file_path
+        if response.status_code != 200:
+            raise Exception(response.text)
 
-            payload = {
-                "input_source": api_input_source,
-                "llama_parser_api_key": Utility.environment['llama_parse']['key'],
-                "result_type": result_type,
-                "high_res_ocr": high_res_ocr
-            }
+        response = response.json()
 
-            response = requests.post(
-                f"{llm_server_url}/{bot}/parse/pdf/{llm_type}",
-                json=payload
-            )
+        if not response.get("success"):
+            raise Exception(response)
 
-            if response.status_code != 200:
-                raise Exception(response.text)
+        result = response.get("data")
 
-            response = response.json()
+        return {
+            "full_text": result.get("full_text"),
+            "extracted_data": result.get("extracted_data")
+        }
 
-            if not response.get("success"):
-                raise Exception(response)
-
-            result = response.get("data")
-
-            full_text = "\n\n".join([page["text"] for page in result.get("pages", [])])
-
-            if prompt is None:
-                extracted_data = None
-
-            else:
-
-                if "{document}" in prompt:
-                    final_prompt = prompt.format(document=full_text)
-                else:
-                    final_prompt = f"{prompt}\n\nDocument:\n{full_text}"
-
-                payload = {
-                    "user": user,
-                    "hyperparameters": {
-                        "temperature": 0,
-                        "model": "openai/gpt-4o-mini"
-                    },
-                    "messages": [
-                        {"role": "user", "content": final_prompt}
-                    ]
-                }
-
-                response = requests.post(
-                    f"{llm_server_url}/{bot}/completion/{llm_type}",
-                    json=payload
-                )
-
-                if response.status_code != 200:
-                    raise Exception(response.text)
-
-                response = response.json()
-
-                extracted_data = response["formatted_response"]
-
-                logger.info(response)
-                logger.info(extracted_data)
-
-            return {
-                "raw_text": full_text,
-                "extracted_data": extracted_data
-            }
-
-        finally:
-            if file_path and os.path.exists(file_path):
-                os.remove(file_path)
 
     @staticmethod
     def process_instruction(data_list, prompt, operation_type, model_id, llm_type: str = "openrouter",
