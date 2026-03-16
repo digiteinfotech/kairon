@@ -491,7 +491,6 @@ class CallbackScriptUtility:
             "language": language,
             "parsing_instruction": prompt,
             "user": user,
-            "bot": bot,
             "llm_type": llm_type
         }
 

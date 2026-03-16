@@ -4350,8 +4350,13 @@ def test_extract_data_payload_structure():
 
         assert kwargs["json"]["input_source"] == "https://example.com/test.pdf"
         assert kwargs["json"]["parsing_instruction"] == "Summarize"
-        assert kwargs["json"]["bot"] == "bot123"
         assert kwargs["json"]["user"] == "test_user"
+        assert kwargs["json"]["llama_parser_api_key"] == "test-key"
+        assert kwargs["json"]["result_type"] == "markdown"
+        assert kwargs["json"]["high_res_ocr"]
+        assert kwargs["json"]["language"] == "en"
+        assert kwargs["json"]["llm_type"] == "openrouter"
+
 
 def test_process_instruction_embedding():
     mock_secret = MagicMock()
