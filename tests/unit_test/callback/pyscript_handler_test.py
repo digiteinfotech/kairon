@@ -4256,6 +4256,154 @@ def test_extract_data_success():
         assert result["raw_text"] == "Dummy PDF file text"
         assert result["extracted_data"] == "Summarized output"
 
+def test_extract_data_no_prompt():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {"pages": [{"text": "Dummy PDF file text"}]}
+    }
+
+    with patch("requests.post", return_value=parse_response), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        result = CallbackScriptUtility.extract_data(
+            input_source="https://example.com/test.pdf",
+            prompt=None,
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result["raw_text"] == "Dummy PDF file text"
+        assert result["extracted_data"] is None
+
+def test_extract_data_bytes_input():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {"pages": [{"text": "Binary PDF text"}]}
+    }
+
+    with patch("requests.post", return_value=parse_response), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        result = CallbackScriptUtility.extract_data(
+            input_source=b"fake pdf bytes",
+            prompt=None,
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result["raw_text"] == "Binary PDF text"
+
+def test_extract_data_file_object():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {"pages": [{"text": "File object text"}]}
+    }
+
+    fake_file = io.BytesIO(b"fake pdf")
+
+    with patch("requests.post", return_value=parse_response), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        result = CallbackScriptUtility.extract_data(
+            input_source=fake_file,
+            prompt=None,
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result["raw_text"] == "File object text"
+
+import pytest
+
+def test_extract_data_parse_api_failure():
+    parse_response = MagicMock()
+    parse_response.status_code = 500
+    parse_response.text = "Parse error"
+
+    with patch("requests.post", return_value=parse_response), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        with pytest.raises(Exception):
+            CallbackScriptUtility.extract_data(
+                input_source="https://example.com/test.pdf",
+                prompt=None,
+                bot="bot123",
+                user="test_user"
+            )
+
+def test_extract_data_completion_failure():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {"pages": [{"text": "Dummy text"}]}
+    }
+
+    completion_response = MagicMock()
+    completion_response.status_code = 500
+    completion_response.text = "Completion error"
+
+    with patch("requests.post", side_effect=[parse_response, completion_response]), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        with pytest.raises(Exception):
+            CallbackScriptUtility.extract_data(
+                input_source="https://example.com/test.pdf",
+                prompt="Summarize {document}",
+                bot="bot123",
+                user="test_user"
+            )
+
+def test_extract_data_prompt_without_document():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {"pages": [{"text": "PDF text"}]}
+    }
+
+    completion_response = MagicMock()
+    completion_response.status_code = 200
+    completion_response.json.return_value = {
+        "formatted_response": "Processed output"
+    }
+
+    with patch("requests.post", side_effect=[parse_response, completion_response]), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        result = CallbackScriptUtility.extract_data(
+            input_source="https://example.com/test.pdf",
+            prompt="Summarize this document",
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result["extracted_data"] == "Processed output"
+
 def test_process_instruction_embedding():
     mock_secret = MagicMock()
     mock_secret.api_key = "encrypted"
@@ -4334,6 +4482,65 @@ def test_create_vector_collection_success():
         )
 
         mock_client.create_collection.assert_called_once()
+        assert result["message"] == "collection created successfully"
+
+def test_create_vector_collection_overwrite():
+    mock_collection = MagicMock()
+    mock_collection.name = "bot123_test_collection_faq_embd"
+
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = [mock_collection]
+
+    mock_existing_schema = MagicMock()
+    mock_existing_schema.delete = MagicMock()
+
+    mock_schema_cls = MagicMock()
+    mock_schema_cls.objects.return_value.first.return_value = mock_existing_schema
+
+    mock_embedding_meta_cls = MagicMock()
+    mock_embedding_meta_cls.objects.return_value.first.return_value = None
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+         patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
+         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", mock_embedding_meta_cls), \
+         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="text-embedding-3-large",
+            user="test_user",
+            metadata=[{"name": "column1"}],
+            overwrite=True,
+            bot="bot123"
+        )
+
+        mock_client.delete_collection.assert_called_once()
+        mock_client.create_collection.assert_called_once()
+        assert result["message"] == "collection created successfully"
+
+def test_create_vector_collection_embedding_metadata_exists():
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = []
+
+    mock_schema = MagicMock()
+
+    mock_embedding_meta_cls = MagicMock()
+    mock_embedding_meta_cls.objects.return_value.first.return_value = MagicMock()
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+         patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
+         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", mock_embedding_meta_cls), \
+         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="text-embedding-3-large",
+            user="test_user",
+            bot="bot123"
+        )
+
         assert result["message"] == "collection created successfully"
 
 def test_create_vector_collection_exists():
