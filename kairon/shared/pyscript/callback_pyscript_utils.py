@@ -470,9 +470,9 @@ class CallbackScriptUtility:
         }
 
     @staticmethod
-    def extract_data(input_source,
-                     prompt=None,
-                     result_type="markdown",
+    def extract_data(input_source: str,
+                     prompt: str=None,
+                     result_type: str="markdown",
                      llm_type: str = "openrouter",
                      high_res_ocr: bool = True,
                      language: str = "en",
