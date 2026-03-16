@@ -4343,7 +4343,8 @@ def test_extract_data_payload_structure():
             input_source="https://example.com/test.pdf",
             prompt="Summarize",
             bot="bot123",
-            user="test_user"
+            user="test_user",
+            high_res_ocr=True
         )
 
         args, kwargs = mock_post.call_args
