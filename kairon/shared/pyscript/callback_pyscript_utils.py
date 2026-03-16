@@ -471,10 +471,10 @@ class CallbackScriptUtility:
 
     @staticmethod
     def extract_data(input_source: str,
-                     prompt: str=None,
+                     prompt: str = None,
                      result_type: str="markdown",
                      llm_type: str = "openrouter",
-                     high_res_ocr: bool = True,
+                     high_res_ocr: bool = False,
                      language: str = "en",
                      bot: str = None,
                      user: str = None):
