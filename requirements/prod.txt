@@ -75,3 +75,4 @@ blacksheep==2.0.7
 fastembed==0.5.1
 markdown-pdf==1.7
 genson==1.3.0
+qdrant-client==1.13.3
