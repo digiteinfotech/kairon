@@ -4220,3 +4220,137 @@ def test_delete_data_analytics_not_found():
             CallbackScriptUtility.delete_data_analytics(collection_id, bot_id)
 
         assert "does not exists" in str(exc.value)
+
+
+def test_extract_data_success():
+    parse_response = MagicMock()
+    parse_response.status_code = 200
+    parse_response.json.return_value = {
+        "success": True,
+        "data": {
+            "pages": [
+                {"text": "Dummy PDF file text"}
+            ]
+        }
+    }
+
+    completion_response = MagicMock()
+    completion_response.status_code = 200
+    completion_response.json.return_value = {
+        "formatted_response": "Summarized output"
+    }
+
+    with patch("requests.post", side_effect=[parse_response, completion_response]), \
+         patch("kairon.shared.utils.Utility.environment", {
+             "llama_parse": {"key": "test"},
+             "llm": {"url": "http://fake-llm"}
+         }):
+
+        result = CallbackScriptUtility.extract_data(
+            input_source="https://example.com/test.pdf",
+            prompt="Summarize: {document}",
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result["raw_text"] == "Dummy PDF file text"
+        assert result["extracted_data"] == "Summarized output"
+
+def test_process_instruction_embedding():
+    mock_secret = MagicMock()
+    mock_secret.api_key = "encrypted"
+
+    mock_qs = MagicMock()
+    mock_qs.first.return_value = mock_secret
+
+    fake_response = MagicMock()
+    fake_response.json.return_value = {"embedding": [1, 2, 3]}
+    fake_response.raise_for_status = MagicMock()
+
+    with patch("kairon.shared.admin.data_objects.LLMSecret.objects", return_value=mock_qs), \
+         patch("kairon.shared.utils.Utility.decrypt_message", return_value="decrypted_key"), \
+         patch("requests.request", return_value=fake_response), \
+         patch("kairon.shared.utils.Utility.environment", {"llm": {"url": "http://fake-llm"}}):
+
+        result = CallbackScriptUtility.process_instruction(
+            data_list=["hello world"],
+            prompt="",
+            operation_type="embedding",
+            model_id="text-embedding-3-small",
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert "embeddings" in result
+        assert result["embeddings"] == {"embedding": [1, 2, 3]}
+
+def test_process_instruction_completion():
+    from kairon.shared.admin.data_objects import LLMSecret
+
+    mock_secret = MagicMock()
+    mock_secret.api_key = "encrypted"
+
+    mock_qs = MagicMock()
+    mock_qs.first.return_value = mock_secret
+
+    fake_response = MagicMock()
+    fake_response.json.return_value = {"formatted_response": "summary result"}
+    fake_response.raise_for_status = MagicMock()
+
+    with patch("kairon.shared.admin.data_objects.LLMSecret.objects", return_value=mock_qs), \
+            patch("kairon.shared.utils.Utility.decrypt_message", return_value="decrypted_key"), \
+            patch("requests.request", return_value=fake_response), \
+            patch("kairon.shared.utils.Utility.environment", {"llm": {"url": "http://fake-llm"}}):
+        result = CallbackScriptUtility.process_instruction(
+            data_list=["This is document"],
+            prompt="Summarize {document}",
+            operation_type="completion",
+            model_id="openai/gpt-4o-mini",
+            bot="bot123",
+            user="test_user"
+        )
+
+        assert result == "summary result"
+
+def test_create_vector_collection_success():
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = []
+
+    mock_schema = MagicMock()
+    mock_embedding_meta = MagicMock()
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+         patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
+         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", return_value=mock_embedding_meta), \
+         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="text-embedding-3-large",
+            user="test_user",
+            metadata=[{"name": "column1"}],
+            bot="bot123"
+        )
+
+        mock_client.create_collection.assert_called_once()
+        assert result["message"] == "collection created successfully"
+
+def test_create_vector_collection_exists():
+    mock_collection = MagicMock()
+    mock_collection.name = "bot123_test_collection_faq_embd"
+
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = [mock_collection]
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="text-embedding-3-large",
+            user="test_user",
+            bot="bot123"
+        )
+
+        assert result["message"] == "collection already exists"

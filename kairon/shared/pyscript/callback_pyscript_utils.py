@@ -470,85 +470,104 @@ class CallbackScriptUtility:
         }
 
     @staticmethod
-    def extract_data(input_source, prompt: str = None, high_res_ocr: bool = True, llm_type: str = "openrouter",
-                     result_type: str = "markdown",
+    def extract_data(input_source, prompt: str = None, high_res_ocr: bool = True,
+                     llm_type: str = "openrouter", result_type: str = "markdown",
                      bot: str = None, user: str = None):
-        from llama_parse import LlamaParse
+
         import requests
         import tempfile
         import os
         import io
 
-        parser = LlamaParse(
-            api_key=Utility.environment['llama_parse']['key'],
-            result_type=result_type,
-            high_res_ocr=high_res_ocr
-        )
+        llm_server_url = Utility.environment['llm']['url']
 
         file_path = None
+        api_input_source = input_source
 
-        if isinstance(input_source, str) and input_source.startswith(("http://", "https://")):
-            if not input_source.lower().endswith(".pdf"):
-                raise Exception("Only PDF URLs are supported")
-            result = parser.parse(input_source)
+        try:
+            if isinstance(input_source, (bytes, bytearray)):
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(input_source)
+                    file_path = tmp.name
+                api_input_source = file_path
 
-        elif isinstance(input_source, str) and os.path.exists(input_source):
-            if not input_source.lower().endswith(".pdf"):
-                raise ValueError("Only PDF files are supported")
-            result = parser.parse(input_source)
-
-        elif isinstance(input_source, (bytes, bytearray)):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(input_source)
-                file_path = tmp.name
-            result = parser.parse(file_path)
-
-        elif isinstance(input_source, io.IOBase):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(input_source.read())
-                file_path = tmp.name
-            result = parser.parse(file_path)
-
-        else:
-            raise ValueError("Unsupported input_source type")
-
-        full_text = "\n\n".join([page.text for page in result.pages])
-        if prompt is None:
-            extracted_data = None
-        else:
-            if "{document}" in prompt:
-                final_prompt = prompt.format(document=full_text)
-            else:
-                final_prompt = f"{prompt}\n\nDocument:\n{full_text}"
+            elif isinstance(input_source, io.IOBase):
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(input_source.read())
+                    file_path = tmp.name
+                api_input_source = file_path
 
             payload = {
-                "user": user,
-                "hyperparameters": {"temperature": 0, "model": "openai/gpt-4o-mini"},
-                "messages": [{"role": "user", "content": final_prompt}]
+                "input_source": api_input_source,
+                "llama_parser_api_key": Utility.environment['llama_parse']['key'],
+                "result_type": result_type,
+                "high_res_ocr": high_res_ocr
             }
 
-            llm_server_url = Utility.environment['llm']['url']
-            response = requests.request(method="POST",
-                                        url=f"{llm_server_url}/{bot}/completion/{llm_type}",
-                                        json=payload)
+            response = requests.post(
+                f"{llm_server_url}/{bot}/parse/pdf/{llm_type}",
+                json=payload
+            )
+
             if response.status_code != 200:
                 raise Exception(response.text)
 
             response = response.json()
-            extracted_data = response['formatted_response']
-            logger.info(response)
-            logger.info(extracted_data)
 
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
+            if not response.get("success"):
+                raise Exception(response)
 
-        return {
-            "raw_text": full_text,
-            "extracted_data": extracted_data
-        }
+            result = response.get("data")
+
+            full_text = "\n\n".join([page["text"] for page in result.get("pages", [])])
+
+            if prompt is None:
+                extracted_data = None
+
+            else:
+
+                if "{document}" in prompt:
+                    final_prompt = prompt.format(document=full_text)
+                else:
+                    final_prompt = f"{prompt}\n\nDocument:\n{full_text}"
+
+                payload = {
+                    "user": user,
+                    "hyperparameters": {
+                        "temperature": 0,
+                        "model": "openai/gpt-4o-mini"
+                    },
+                    "messages": [
+                        {"role": "user", "content": final_prompt}
+                    ]
+                }
+
+                response = requests.post(
+                    f"{llm_server_url}/{bot}/completion/{llm_type}",
+                    json=payload
+                )
+
+                if response.status_code != 200:
+                    raise Exception(response.text)
+
+                response = response.json()
+
+                extracted_data = response["formatted_response"]
+
+                logger.info(response)
+                logger.info(extracted_data)
+
+            return {
+                "raw_text": full_text,
+                "extracted_data": extracted_data
+            }
+
+        finally:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
 
     @staticmethod
-    def process_instruction(data_list, prompt, operationType, modelId, llm_type: str = "openrouter",
+    def process_instruction(data_list, prompt, operation_type, model_id, llm_type: str = "openrouter",
                             bot: str = None, user: str = None):
         import requests
         from kairon.shared.admin.data_objects import LLMSecret
@@ -556,14 +575,14 @@ class CallbackScriptUtility:
         doc = LLMSecret.objects(llm_type="openrouter").first()
         api_key = Utility.decrypt_message(doc.api_key)
 
-        if operationType == "embedding":
+        if operation_type == "embedding":
 
             llm_server_url = Utility.environment['llm']['url']
             payload = {
                 "text": data_list,
                 "user": user,
                 "kwargs": {
-                    "model": modelId,
+                    "model": model_id,
                     "api_key": api_key
                 }
             }
@@ -584,7 +603,7 @@ class CallbackScriptUtility:
             final_prompt = prompt.format(document=text_input)
             payload = {
                 "user": user,
-                "hyperparameters": {"temperature": 0, "model": modelId},
+                "hyperparameters": {"temperature": 0, "model": model_id},
                 "messages": [{"role": "user", "content": final_prompt}]
             }
             llm_server_url = Utility.environment['llm']['url']
