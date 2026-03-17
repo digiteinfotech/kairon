@@ -61,7 +61,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 "pipeline_name": pipeline_name,
                 "callback_name": callback_name,
                 "event_id": event_id,
-                "slot": {"bot": self.bot},
+                "slot": {"bot": self.bot, "user": self.user},
                 "key_vault": key_vault
             }
 

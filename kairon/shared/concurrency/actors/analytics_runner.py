@@ -46,6 +46,7 @@ class AnalyticsRunner():
             raise AppException(f"Validation failed: {e}")
 
         bot = predefined_objects.get("slot", {}).get("bot")
+        user = predefined_objects.get("slot", {}).get("user")
 
         safe_objects = {
             "add_data": partial(PyscriptSharedUtility.add_data, bot=bot),
@@ -57,6 +58,9 @@ class AnalyticsRunner():
             "mark_as_processed": partial(CallbackScriptUtility.mark_as_processed, bot=bot),
             "update_data_analytics": partial(CallbackScriptUtility.update_data_analytics, bot=bot),
             "delete_data_analytics": partial(CallbackScriptUtility.delete_data_analytics, bot=bot),
+            "extract_data": partial(CallbackScriptUtility.extract_data, bot=bot, user=user),
+            "process_instruction": partial(CallbackScriptUtility.process_instruction, bot=bot, user=user),
+            "create_vector_collection": partial(CallbackScriptUtility.create_vector_collection, bot=bot),
             "srtp_time": PyscriptUtility.srtptime,
             "srtf_time": PyscriptUtility.srtftime,
             "url_parse": PyscriptUtility.url_parse_quote_plus,
