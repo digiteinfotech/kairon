@@ -399,7 +399,7 @@ class POSProcessor:
                 args=[domain],
                 kwargs={
                     "fields": [
-                        "id", "name", "list_price",
+                        "product_variant_id", "name", "list_price",
                         "barcode", "available_in_pos"
                     ]
                 }
@@ -665,7 +665,7 @@ class POSProcessor:
                 session_id=session_id,
                 model="pos.payment.method",
                 method="search_read",
-                args=[[[]]],
+                args=[[]],
                 kwargs={"limit": 1}
             )
 
@@ -793,7 +793,7 @@ class POSProcessor:
             methods = self.jsonrpc_call(session_id, "pos.payment.method", "search_read", args=[[["is_cash_count", "=", True]]], kwargs={"limit": 1})
             if not methods:
                 raise HTTPException(status_code=404, detail="No POS payment method found")
-            payment_method_id = methods[0]["id"]
+            payment_method_id = methods[0]["journal_id"][0]
 
             payment_data = {"amount": order["amount_total"], "payment_method_id": payment_method_id, "pos_order_id": order_id}
             self.jsonrpc_call(session_id, "pos.payment", "create", args=[payment_data])
