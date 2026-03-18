@@ -3884,6 +3884,7 @@ def test_search_and_list_analytics_pipeline_logs():
             callback_name="callback_test",
             exception=e.get("exception"),
             bot=pytest.bot,
+            bot_response={"message": "Record Saved!"},
             user = "integration@demo.ai",
             start_timestamp=now + timedelta(minutes=e["start_offset"]),
             end_timestamp=now + timedelta(minutes=e["end_offset"]),
@@ -3906,6 +3907,7 @@ def test_search_and_list_analytics_pipeline_logs():
         assert log["status"]
         assert log["pipeline_name"] == "daily_analytics_pipeline"
         assert log["callback_name"] == "callback_test"
+        assert log["bot_response"] == {"message": "Record Saved!"}
         assert log.get("start_time") or log.get("start_timestamp")
         assert log.get("end_time") or log.get("end_timestamp")
         assert log["user"] == "integration@demo.ai"

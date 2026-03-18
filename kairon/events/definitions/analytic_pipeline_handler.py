@@ -66,7 +66,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             }
 
             runner = AnalyticsRunner()
-            runner.execute(source_code, predefined_objects=predefined_objects)
+            runner_data = runner.execute(source_code, predefined_objects=predefined_objects)
             status = EVENT_STATUS.COMPLETED
 
         except Exception as e:
@@ -80,6 +80,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 bot = self.bot,
                 user = self.user,
                 status=status,
+                bot_response=runner_data.get("data", {}).get("bot_response"),
                 exception=exception,
                 pipeline_name = pipeline_name,
                 callback_name = callback_name,
