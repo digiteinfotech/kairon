@@ -8,6 +8,7 @@ from datetime import datetime, date
 from typing import Dict, Optional, Text, Callable
 
 import bs4
+import requests
 from RestrictedPython import compile_restricted
 from loguru import logger
 
@@ -66,6 +67,8 @@ class AnalyticsRunner():
             "url_parse": PyscriptUtility.url_parse_quote_plus,
             "bs4": bs4,
             "html": html,
+            "requests": requests,
+            "json": json,
             "__builtins__": self.allowed_builtins,
         }
 

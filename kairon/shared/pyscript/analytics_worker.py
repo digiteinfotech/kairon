@@ -6,6 +6,7 @@ from functools import partial
 import os
 
 import bs4
+import requests
 from mongoengine import connect, disconnect
 
 from kairon import Utility
@@ -58,6 +59,8 @@ def main():
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
                 "bs4": bs4,
                 "html": html,
+                "requests": requests,
+                "json": json,
                 "__builtins__": __builtins__,
             }
             converted = {k: allowed[k] for k in safe_globals if k in allowed}
