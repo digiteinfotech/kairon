@@ -44,7 +44,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         end_time = None
         pipeline_name = None
         callback_name = None
-        runner_data = {}
+        bot_response = {}
         try:
             config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
             pipeline_name = config["pipeline_name"]
@@ -68,6 +68,8 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
 
             runner = AnalyticsRunner()
             runner_data = runner.execute(source_code, predefined_objects=predefined_objects)
+
+            bot_response = runner_data.get("data", {}).get("bot_response")
             status = EVENT_STATUS.COMPLETED
 
         except Exception as e:
@@ -81,7 +83,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 bot = self.bot,
                 user = self.user,
                 status=status,
-                bot_response=runner_data.get("data", {}).get("bot_response"),
+                bot_response=bot_response,
                 exception=exception,
                 pipeline_name = pipeline_name,
                 callback_name = callback_name,
