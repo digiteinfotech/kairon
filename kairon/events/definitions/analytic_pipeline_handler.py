@@ -44,6 +44,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         end_time = None
         pipeline_name = None
         callback_name = None
+        runner_data = {}
         try:
             config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
             pipeline_name = config["pipeline_name"]
