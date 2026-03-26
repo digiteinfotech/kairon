@@ -28,7 +28,7 @@ class Qdrant(DatabaseBase, ABC):
         self.EMBEDDING_CTX_LENGTH = 8191
 
     async def __get_embedding(self, text: Text, user: str, **kwargs) -> List[float]:
-        return await self.llm.get_embedding(text, user=user, invocation='db_action_qdrant')
+        return await self.llm.get_embedding(text, user=user, invocation='db_action_qdrant', collection=self.collection_name)
 
     async def perform_operation(self, data: Dict, user: str, **kwargs):
         request = {}
