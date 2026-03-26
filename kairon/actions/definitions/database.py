@@ -10,6 +10,8 @@ from kairon.shared.actions.data_objects import ActionServerLogs, DatabaseAction,
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.cognition.data_objects import EmbeddingMetadata
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.data.constant import STATUSES
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
@@ -81,6 +83,11 @@ class ActionDatabase(ActionsBase):
             db_type = vector_action_config['db_type']
             vector_db = DatabaseFactory.get_instance(db_type)(self.bot, collection_name,
                                                               bot_settings["llm_settings"])
+            EmbeddingMetaData = EmbeddingMetadata.objects(bot = self.bot, collection_name = collection_name).first()
+            if EmbeddingMetaData:
+                vector_db.llm.llm_type = "openrouter"
+                vector_db.llm.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
+                vector_db.llm.llm_secret_embedding = vector_db.llm.llm_secret
             payload = vector_action_config['payload']
             request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
