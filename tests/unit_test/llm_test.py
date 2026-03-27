@@ -29,7 +29,6 @@ from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
-import litellm
 from deepdiff import DeepDiff
 
 
@@ -1207,7 +1206,10 @@ class TestLLM:
         }
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
-        mock_embedding.side_effect = [Exception("Connection reset by peer!"), litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})]
+        mock_embedding.side_effect = [
+            Exception("Connection reset by peer!"),
+            (embedding, 200, 0.05, {})
+        ]
 
         response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
