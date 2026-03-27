@@ -10,16 +10,13 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.constants import BotSecretType
-from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
+from kairon.shared.admin.data_objects import  LLMSecret
 from kairon.shared.data.data_objects import LLMSettings
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
 from kairon.shared.vector_embeddings.db.qdrant import Qdrant
-import litellm
 from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.actions.models import DbActionOperationType
 import numpy as np
-import litellm
 
 
 class TestQdrant:
