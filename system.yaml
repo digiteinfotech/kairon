@@ -227,6 +227,9 @@ llm:
   url: ${LLM_SERVER_URL:http://localhost}
   request_timeout: ${LLM_REQUEST_TIMEOUT:30}
 
+llama_parse:
+  key: ${LLAMA_PARSER_API_KEY:"test-key"}
+
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
   key: ${VECTOR_DB_KEY}
@@ -238,6 +241,9 @@ verify:
     type: ${VERIFY_EMAIl_TYPE:quickemail}
     key: ${VERIFY_EMAIL_KEY}
 
+integrations:
+  email:
+    interval: ${MINIMUM_EMAIL_TRIGGER_TIME:10}
 
 actors:
   default_timeout: ${ACTORS_DEFAULT_TIMEOUT:10}

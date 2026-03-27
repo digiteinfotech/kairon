@@ -1,12 +1,11 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Text
 
 import aiofiles
 from fastapi import File
 from loguru import logger
 from mongoengine import DoesNotExist
-
 from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
@@ -14,6 +13,7 @@ from ..constants import ChannelTypes
 from ..data.constant import MIME_TYPE_LIMITS
 from ..data.data_objects import UserMediaData
 from ..data.utils import DataUtility
+from ..models import UserMediaUploadStatus
 from ...exceptions import AppException
 
 
@@ -34,8 +34,12 @@ class ChatDataProcessor:
             configuration['config']['private_key'] = private_key.replace("\\n", "\n")
         if configuration['connector_type'] == ChannelTypes.MAIL.value:
             from kairon.shared.channels.mail.processor import MailProcessor
+            from kairon.events.utility import EventUtility
             if MailProcessor.check_email_config_exists(bot, configuration['config']):
                 raise AppException("Email configuration already exists for same email address and subject")
+            input_interval = configuration["config"]["interval"]
+            system_interval = int(Utility.environment['integrations']["email"]['interval'])
+            EventUtility.validate_cron(input_interval,system_interval)
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
@@ -332,6 +336,7 @@ class ChatDataProcessor:
     @staticmethod
     def validate_media_file_type(bot: str, file_content: File):
         content_type = file_content.content_type
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
 
         if content_type not in MIME_TYPE_LIMITS:
             raise AppException(
@@ -350,6 +355,16 @@ class ChatDataProcessor:
                 f"File size {size / (1024 * 1024):.2f} MB exceeds the "
                 f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
             )
-        count = UserMediaData.objects(bot=bot, filename=file_content.filename).count()
-        if count > 0:
-            raise AppException(f"File '{file_content.filename}' already exists. Please upload a different file.")
+        user_media_data_obj = UserMediaData.objects(
+            bot=bot,
+            filename=file_content.filename
+        ).order_by('-timestamp').first()
+
+        if user_media_data_obj:
+            if user_media_data_obj.timestamp >= thirty_days_ago:
+                raise AppException(
+                    f"File '{file_content.filename}' already exists. Please upload a different file."
+                )
+            else:
+                user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
+                user_media_data_obj.save()

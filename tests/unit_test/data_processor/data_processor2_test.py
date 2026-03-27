@@ -1386,6 +1386,7 @@ import io
 def test_file_handler_save_and_validate_success(tmp_path):
     bot = "test_bot"
     user = "test_user"
+    collection_name = "test_collection"
 
     # Prepare fake CSV file
     file_content = SimpleNamespace(
@@ -1399,10 +1400,11 @@ def test_file_handler_save_and_validate_success(tmp_path):
     instance.file_handler_save_and_validate(
         bot=bot,
         user=user,
+        collection_name=collection_name,
         file_content=file_content
     )
 
-    content_dir = os.path.join("file_content_upload_records", bot)
+    content_dir = os.path.join("file_content_upload_records", bot, user, collection_name)
     file_path = os.path.join(content_dir, file_content.filename)
     assert os.path.exists(file_path)
 
@@ -1411,6 +1413,7 @@ def test_file_handler_save_and_validate_success(tmp_path):
 def test_file_upload_validate_schema_and_log_success(monkeypatch):
     bot = "test_bot"
     user = "test_user"
+    collection_name = "test_collection"
 
     file_content = SimpleNamespace(
         filename="test.csv",
@@ -1431,7 +1434,8 @@ def test_file_upload_validate_schema_and_log_success(monkeypatch):
     result = instance.file_upload_validate_schema_and_log(
         bot=bot,
         user=user,
-        file_content=file_content
+        file_content=file_content,
+        collection_name=collection_name
     )
 
     assert result is True

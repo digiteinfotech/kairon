@@ -8,10 +8,9 @@ from mongoengine import DoesNotExist
 
 from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration
+from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration, EmailActionConfig
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
-
 
 class AnalyticsPipelineProcessor:
 
@@ -133,7 +132,7 @@ class AnalyticsPipelineProcessor:
         return callback_config.pyscript_code
 
     @staticmethod
-    def add_event_log(event_id, bot, user, status, exception, pipeline_name, callback_name, start_time, end_time):
+    def add_event_log(event_id, bot, user, status, bot_response, exception, pipeline_name, callback_name, start_time, end_time):
         AnalyticsPipelineLogs(
             event_id=event_id,
             bot = bot,
@@ -141,7 +140,31 @@ class AnalyticsPipelineProcessor:
             status=status,
             pipeline_name=pipeline_name,
             callback_name=callback_name,
+            bot_response=bot_response,
             exception=exception,
             start_timestamp=start_time,
             end_timestamp=end_time,
         ).save()
+
+    @staticmethod
+    def trigger_email(triggers: list, condition: str, bot: str):
+        from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
+        for trigger in triggers:
+            if trigger.get("condition") == condition and trigger.get(
+                    "action_type") == "email_action" and trigger.get("action_name"):
+                action_name = trigger.get("action_name")
+                email_action = EmailActionConfig.objects(bot=bot, action_name=action_name).first()
+                if not email_action:
+                    logger.error(f"EmailActionConfig not found for bot={bot}, action_name={action_name}")
+                    continue
+                try:
+                    CallbackScriptUtility.send_email(
+                        email_action.action_name,
+                        from_email=email_action.from_email.value,
+                        to_email=email_action.to_email.value[0],
+                        subject=email_action.subject,
+                        body=email_action.response,
+                        bot=email_action.bot
+                    )
+                except Exception:
+                    logger.exception(f"triggering email failed on {condition} case")

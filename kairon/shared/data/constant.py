@@ -259,6 +259,9 @@ DEFAULT_LLM = "openai"
 
 QDRANT_SUFFIX = "_faq_embd"
 
+class ExcludedLLMTypes(str, Enum):
+    openrouter = "openrouter"
+
 
 class AuditlogActions(str, Enum):
     SAVE = "save"
@@ -321,6 +324,10 @@ class LogType(str, Enum):
     action_logs = "action_logs"
     training_data_generator = "training_data_generator"
     data_importer = "data_importer"
+    file_upload = "file_upload"
+    analytics_pipeline = "analytics_pipeline"
+    custom_widgets = "custom_widgets"
+
 
 
 class FeatureMappings(str, Enum):

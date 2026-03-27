@@ -7,6 +7,7 @@ from loguru import logger
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
+from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
@@ -43,6 +44,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         end_time = None
         pipeline_name = None
         callback_name = None
+        bot_response = None
         try:
             config = AnalyticsPipelineProcessor.retrieve_config(event_id, self.bot)
             pipeline_name = config["pipeline_name"]
@@ -51,6 +53,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 bot=self.bot,
                 callback_name=callback_name
             )
+            key_vault = ActionUtility.get_all_secrets_from_keyvault(self.bot)
 
             predefined_objects = {
                 "config": config,
@@ -59,11 +62,14 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 "pipeline_name": pipeline_name,
                 "callback_name": callback_name,
                 "event_id": event_id,
-                "slot": {"bot": self.bot},
+                "slot": {"bot": self.bot, "user": self.user},
+                "key_vault": key_vault
             }
 
             runner = AnalyticsRunner()
-            runner.execute(source_code, predefined_objects=predefined_objects)
+            runner_data = runner.execute(source_code, predefined_objects=predefined_objects)
+
+            bot_response = runner_data.get("data", {}).get("bot_response")
             status = EVENT_STATUS.COMPLETED
 
         except Exception as e:
@@ -77,6 +83,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 bot = self.bot,
                 user = self.user,
                 status=status,
+                bot_response=bot_response,
                 exception=exception,
                 pipeline_name = pipeline_name,
                 callback_name = callback_name,
@@ -124,7 +131,9 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             if isinstance(run_at, (int, float)):
                 tzinfo = ZoneInfo(timezone) if timezone else ZoneInfo("UTC")
                 run_at = datetime.fromtimestamp(run_at, tzinfo)
+                run_at = run_at.isoformat()
 
+            config['scheduler_config']['schedule'] = run_at
             event_id = AnalyticsPipelineProcessor.add_scheduled_task(self.bot, self.user, config)
 
             payload = {"bot": self.bot, "user": self.user, "event_id": event_id}
@@ -133,7 +142,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
                 EventClass.analytics_pipeline,
                 payload,
                 is_scheduled=True,
-                run_at=run_at.isoformat(),
+                run_at=run_at,
                 timezone=timezone,
             )
 

@@ -21,7 +21,7 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM
+    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes
 )
 from kairon.shared.actions.models import (
     ActionParameterType,
@@ -1206,7 +1206,7 @@ class PromptActionConfigRequest(BaseModel):
         from kairon.shared.utils import Utility
         bot = values.get('bot')
         llm_type = values.get('llm_type')
-        if llm_type and v:
+        if llm_type and v and llm_type not in {e.value for e in ExcludedLLMTypes}:
             Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
         return v
 

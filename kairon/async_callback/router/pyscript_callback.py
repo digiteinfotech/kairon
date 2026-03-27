@@ -5,6 +5,7 @@ from blacksheep.contents import JSONContent
 from loguru import logger
 
 from kairon.async_callback.auth import CallbackAuthenticator
+from kairon.async_callback.exceptions import CallbackException
 from kairon.async_callback.processor import CallbackProcessor
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
@@ -64,26 +65,13 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         return CallbackUtility.return_response(data, message, error_code, response_type)
     except AppException as ae:
         logger.error(f"AppException: {ae}")
-        return BSResponse(
-            status=400,
-            content=JSONContent({
-                "message": str(ae),
-                "error_code": 400,
-                "data": None,
-                "success": False,
-            })
-        )
+        return CallbackUtility.error_response(str(ae), 400)
+    except CallbackException as cbe:
+        logger.error(f"CallbackException: {cbe.error_message}")
+        return CallbackUtility.error_response(str(cbe.error_message), cbe.status_code)
     except Exception as e:
         logger.exception(e)
-        return BSResponse(
-            status=500,
-            content=JSONContent({
-                "message": str(e),
-                "error_code": 400,
-                "data": None,
-                "success": False
-            })
-        )
+        return CallbackUtility.error_response(str(e), 500)
 
 
 @router.route("/callback/d/{identifier}/{token}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

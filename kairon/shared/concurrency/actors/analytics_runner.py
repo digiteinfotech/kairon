@@ -1,3 +1,4 @@
+import html
 import json
 import sys
 import subprocess
@@ -6,11 +7,13 @@ from types import ModuleType
 from datetime import datetime, date
 from typing import Dict, Optional, Text, Callable
 
+import bs4
+import requests
 from RestrictedPython import compile_restricted
 from loguru import logger
 
 from kairon.exceptions import AppException
-
+from kairon.shared.constants import TriggerCondition
 
 class AnalyticsRunner():
 
@@ -34,7 +37,7 @@ class AnalyticsRunner():
         from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
         from kairon.shared.concurrency.actors.utils import PyscriptUtility
         from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
-
+        from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
         predefined_objects = predefined_objects or {}
 
         try:
@@ -44,6 +47,7 @@ class AnalyticsRunner():
             raise AppException(f"Validation failed: {e}")
 
         bot = predefined_objects.get("slot", {}).get("bot")
+        user = predefined_objects.get("slot", {}).get("user")
 
         safe_objects = {
             "add_data": partial(PyscriptSharedUtility.add_data, bot=bot),
@@ -55,9 +59,16 @@ class AnalyticsRunner():
             "mark_as_processed": partial(CallbackScriptUtility.mark_as_processed, bot=bot),
             "update_data_analytics": partial(CallbackScriptUtility.update_data_analytics, bot=bot),
             "delete_data_analytics": partial(CallbackScriptUtility.delete_data_analytics, bot=bot),
+            "extract_data": partial(CallbackScriptUtility.extract_data, bot=bot, user=user),
+            "process_instruction": partial(CallbackScriptUtility.process_instruction, bot=bot, user=user),
+            "create_vector_collection": partial(CallbackScriptUtility.create_vector_collection, bot=bot),
             "srtp_time": PyscriptUtility.srtptime,
             "srtf_time": PyscriptUtility.srtftime,
             "url_parse": PyscriptUtility.url_parse_quote_plus,
+            "bs4": bs4,
+            "html": html,
+            "requests": requests,
+            "json": json,
             "__builtins__": self.allowed_builtins,
         }
 
@@ -67,6 +78,7 @@ class AnalyticsRunner():
             "predefined_objects":predefined_objects,
             "bot": bot,
         }, default=str)
+        action = predefined_objects.get("config", {})
         try:
             process = subprocess.Popen(
                 [sys.executable, "-m", "kairon.shared.pyscript.analytics_worker"],
@@ -81,14 +93,19 @@ class AnalyticsRunner():
             if process.returncode != 0:
                 raise AppException(f"Subprocess error: {stdout.strip()}")
 
+            triggers = action.get("triggers", [])
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.success.value, bot)
             result = json.loads(stdout)
             return self.__cleanup(result)
 
         except Exception as e:
             msg = stdout.strip() if 'stdout' in locals() and stdout else str(e)
             logger.exception(msg)
+            triggers = action.get("triggers", [])
+            if triggers:
+                AnalyticsPipelineProcessor.trigger_email(triggers, TriggerCondition.failure.value, bot)
             raise AppException(f"Execution error: {msg}") from e
-
     def __cleanup(self, values: Dict):
         clean = {}
         for k, v in values.items():

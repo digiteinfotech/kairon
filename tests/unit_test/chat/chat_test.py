@@ -936,7 +936,7 @@ class TestChat:
         assert len(data) == len(events)
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'bot'
-        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'flattened'}))
+        data = list(store.client.get_database(f"{config['db']}").get_collection(f"flattened_conversations").find({'type': 'flattened'}))
         assert len(data) == 1
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'flattened'
@@ -1002,6 +1002,11 @@ class TestChat:
 
         #non error case
         #different email and subject
+        monkeypatch.setitem(
+            Utility.environment,
+            "integrations",
+            {"email": {"interval": "1"}},
+        )
         ChatDataProcessor.save_channel_config({
             'connector_type': 'mail',
             'config': {
@@ -1010,7 +1015,8 @@ class TestChat:
                 'email_password': 'test',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '*/2 * * * *'
             }
         }, 'test', 'test')
 
@@ -1023,7 +1029,8 @@ class TestChat:
                 'email_password': 'subject1,subject2',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '*/2 * * * *'
             }
         }, 'test', 'test')
 
@@ -1036,7 +1043,8 @@ class TestChat:
                     'email_password': 'test',
                     'imap_server': 'imap.gmail.com',
                     'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': '587'
+                    'smtp_port': '587',
+                    'interval': '*/2 * * * *'
                 }
         }, 'test', 'test')
         assert mock_request_epock.call_count == 3
@@ -1904,20 +1912,157 @@ def test_validate_media_file_type_too_large(tmp_path):
         ChatDataProcessor.validate_media_file_type(bot, mock_upload)
 
 
+
 @pytest.mark.asyncio
-@patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_validate_media_file_type_file_already_exists(mock_objects, tmp_path):
+def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
     test_file = tmp_path / "file.png"
     test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
     mock_upload = MagicMock()
     mock_upload.filename = "file.png"
     mock_upload.content_type = "image/png"
     mock_upload.file = open(test_file, "rb")
-    mock_objects.return_value.count.return_value = 1
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=50),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="file.png",
+        upload_status=UserMediaUploadStatus.expired.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Expired',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'additional_info': {},
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    test_file = tmp_path / "test_file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "test_file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="test_file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    with pytest.raises(
+        AppException,
+        match=r"File 'test_file.png' already exists. Please upload a different file."
+    ):
+        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="test_file.png",
+        upload_status=UserMediaUploadStatus.completed.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'test_file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Completed',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'additional_info': {},
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.datetime")
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+def test_validate_media_file_type_file_already_exists(mock_objects, mock_datetime, tmp_path):
+
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+    mock_datetime.utcnow.return_value = fixed_now
+
+    test_file = tmp_path / "file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    mock_db_obj = MagicMock()
+    mock_db_obj.timestamp = fixed_now - timedelta(days=10)
+
+    mock_queryset = MagicMock()
+    mock_queryset.order_by.return_value.first.return_value = mock_db_obj
+    mock_objects.return_value = mock_queryset
+
     with pytest.raises(AppException, match="File 'file.png' already exists"):
         ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
 
-    mock_objects.assert_called_once_with(bot="test_bot", filename="file.png")
+    mock_objects.assert_called_once_with(
+        bot="test_bot",
+        filename="file.png"
+    )
+
+    mock_queryset.order_by.assert_called_once_with("-timestamp")
 
 
 
@@ -2079,3 +2224,58 @@ def test_delete_media_from_bsp_channel_does_not_exist():
             )
 
     assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
+
+from datetime import datetime, timedelta
+from kairon.events.utility import EventUtility
+
+def test_valid_cron():
+    # Every hour, min interval 30 min -> valid
+    EventUtility.validate_cron("0 * * * *", 30)
+
+def test_cron_too_frequent():
+    # Every 10 minutes, min interval 15 min -> invalid
+    with pytest.raises(AppException, match="Minimum time interval should be greater than equal to 15 minutes"):
+        EventUtility.validate_cron("*/10 * * * *", 15)
+
+
+def test_invalid_cron_expression():
+    # Invalid cron string
+    with pytest.raises(AppException, match="Invalid cron expression"):
+        EventUtility.validate_cron("invalid_cron", 10)
+
+def test_min_interval_edge_case():
+    # Cron every 15 minutes, min interval 15 -> valid
+    EventUtility.validate_cron("*/15 * * * *", 15)
+
+def test_check_more_occurrences():
+    # Cron every 5 min, min 5 min, check only 5 occurrences
+    EventUtility.validate_cron("*/5 * * * *", 5, check_occurrences=5)
+
+def test_small_min_interval():
+    # Cron every minute, min interval 0.5 min -> valid
+    EventUtility.validate_cron("* * * * *", 0.5)
+
+def test_interval_below_minimum_raises_exception():
+    """
+    Every 5 minutes, minimum interval 10 → should raise AppException
+    """
+    with pytest.raises(AppException) as exc_info:
+        EventUtility.validate_cron("*/5 * * * *", 10)
+
+    assert "Minimum time interval should be greater than equal to 10 minutes" in str(exc_info.value)
+
+def test_exact_minimum_interval_allowed():
+    """
+    Every 15 minutes, minimum interval 15 → valid
+    """
+    EventUtility.validate_cron("*/15 * * * *", 15)
+
+def test_custom_check_occurrences():
+    """
+    Verify function respects custom number of occurrences
+    """
+    EventUtility.validate_cron(
+        "*/20 * * * *",
+        min_interval_minutes=10,
+        check_occurrences=5
+    )

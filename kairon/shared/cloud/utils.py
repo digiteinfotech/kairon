@@ -160,7 +160,15 @@ class CloudUtility:
         except DoesNotExist:
             log = ExecutorLogs(executor_log_id=executor_log_id, task_type=task_type, event_class=event_class)
 
-        log.data = data if data else log.data
+        if data:
+            if isinstance(data, dict):
+                cleaned_data = dict(data)
+                if "source_code" in cleaned_data:
+                    cleaned_data.pop("source_code")
+                log.data = cleaned_data
+            else:
+                log.data = data
+
         log.status = status if status else log.status
 
         for key, value in kwargs.items():

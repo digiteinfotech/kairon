@@ -141,4 +141,5 @@ class UserMediaUploadStatus(str, Enum):
     processing = "processing"
     completed = "Completed"
     failed = "Failed"
+    expired = "Expired"
 

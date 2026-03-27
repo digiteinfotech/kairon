@@ -18,7 +18,7 @@ from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.constant import DEFAULT_LLM
+from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.data_objects import LLMLogs
@@ -47,7 +47,7 @@ class LLMProcessor(LLMBase):
         # self.vectors_config = {}
         # self.sparse_vectors_config = {}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
-        if llm_type != DEFAULT_LLM:
+        if (llm_type != DEFAULT_LLM and llm_type not in {e.value for e in ExcludedLLMTypes}):
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
             self.llm_secret_embedding = self.llm_secret
@@ -154,27 +154,33 @@ class LLMProcessor(LLMBase):
     async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
         """
         Get embeddings for a batch of texts.
+        Truncates text in Kairon before sending to LiteLLM.
         """
         is_single_text = isinstance(texts, str)
         if is_single_text:
             texts = [texts]
 
         truncated_texts = self.truncate_text(texts)
-
-        result = await litellm.aembedding(
-            model="text-embedding-3-large",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
+        kwargs["truncated_texts"] = truncated_texts
+        kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
+        body = {
+            "text": texts,
+            "user": user,
+            "kwargs": kwargs,
+        }
+        timeout = Utility.environment["llm"].get("request_timeout", 30)
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/aembedding/{self.llm_type}",
+            request_method="POST",
+            request_body=body,
+            timeout=timeout,
         )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        if is_single_text:
-            return embeddings[0]
-
-        return embeddings
+        logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
+        if status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(status_code).phrase)
+        if is_single_text and isinstance(http_response, list):
+            return http_response[0]
+        return http_response
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -253,7 +259,7 @@ class LLMProcessor(LLMBase):
                                                                should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
-        litellm_call_id = raw_response.get("litellm_call_id") if isinstance(raw_response, dict) else None
+        litellm_call_id = raw_response.get("litellm_call_id") or raw_response.get("openrouter_call_id") if isinstance(raw_response, dict) else None
         return {"content": completion, "litellm_call_id": litellm_call_id}
 
     async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):

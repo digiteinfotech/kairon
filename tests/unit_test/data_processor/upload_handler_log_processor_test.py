@@ -1,6 +1,8 @@
 import pytest, os
 from mongoengine import connect
 from unittest.mock import patch, MagicMock
+
+from kairon.events.definitions.crud_file_upload import CrudFileUploader
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.log_system.base import BaseLogHandler
 from kairon.shared.upload_handler.data_objects import UploadHandlerLogs
@@ -52,13 +54,14 @@ class TestUploadHandlerLogProcessor:
     def test_is_event_in_progress_true_raises(self):
         bot="test_bot"
         collection_name="test_collection"
+        user="test_user"
         assert UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, False)
 
         with pytest.raises(AppException):
-            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name)
+            UploadHandlerLogProcessor.is_event_in_progress(bot, collection_name, user)
 
     def test_is_event_in_progress_true_no_exception(self):
-        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2")
+        result = UploadHandlerLogProcessor.is_event_in_progress("test_bot", "test_collection_2", "test_user")
         assert not result
 
     def test_add_log_success(self):
@@ -105,6 +108,40 @@ class TestUploadHandlerLogProcessor:
         assert log[0]['end_timestamp'] is not None
         assert log[0]['start_timestamp'] is not None
 
+    def test_logs_not_overridden_when_users_upload_to_different_collections(self):
+        bot = "test_bot"
+        UploadHandlerLogs.objects(bot=bot).delete()
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userA",
+            file_name="fileA.csv",
+            collection_name="collection1",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user="userB",
+            file_name="fileB.csv",
+            collection_name="collection2",
+            event_status=EVENT_STATUS.INITIATED.value
+        )
+
+        logs = list(UploadHandlerLogs.objects(bot=bot))
+        assert len(logs) == 2
+        logA = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection1"
+        ).first()
+        assert logA.file_name == "fileA.csv"
+        assert logA.user == "userA"
+
+        logB = UploadHandlerLogs.objects(
+            bot=bot, collection_name="collection2"
+        ).first()
+        assert logB.file_name == "fileB.csv"
+        assert logB.user == "userB"
+        assert logA.id != logB.id
+
     def test_is_limit_exceeded_exception(self, monkeypatch):
         bot = 'test_bot'
         try:
@@ -130,9 +167,68 @@ class TestUploadHandlerLogProcessor:
         bot_settings.save()
         assert not UploadHandlerLogProcessor.is_limit_exceeded(bot)
 
-    def test_get_latest_event_file_name(self):
-        result = UploadHandlerLogProcessor.get_latest_event_file_name("test_bot")
-        assert result == "Salesstore.csv"
+
+    def test_execute_deletes_file_after_processing(self,tmp_path):
+        from unittest import mock
+        bot = "test_bot"
+        user = "ganesh.reddy@nimble.com"
+        collection = "test_collection"
+
+        test_file = tmp_path / "Salesstore.csv"
+        test_file.write_text("some data")
+
+        uploader = CrudFileUploader(
+            bot=bot,
+            user=user,
+            upload_type="crud_data",
+            collection_name=collection,
+            overwrite=False,
+        )
+
+        with mock.patch(
+                "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.get_latest_event_file_name",
+                return_value="Salesstore.csv",
+        ), mock.patch(
+            "kairon.shared.utils.Utility.get_latest_file",
+            return_value=str(test_file),
+        ), mock.patch(
+            "kairon.importer.file_importer.FileImporter.preprocess",
+            side_effect=Exception("force failure"),
+        ):
+            uploader.execute()
+
+        assert not os.path.exists(test_file)
+
+    def test_execute_deletes_file_in_finally(self,tmp_path):
+        from unittest import mock
+        bot = "test_bot"
+        user = "test_user"
+        collection = "test_collection"
+
+        test_file = tmp_path / "test.csv"
+        test_file.write_text("data")
+
+        uploader = CrudFileUploader(
+            bot=bot,
+            user=user,
+            upload_type="crud_data",
+            collection_name=collection,
+            overwrite=False,
+        )
+
+        with mock.patch(
+                "kairon.shared.upload_handler.upload_handler_log_processor.UploadHandlerLogProcessor.get_latest_event_file_name",
+                return_value="test.csv",
+        ), mock.patch(
+            "kairon.shared.utils.Utility.get_latest_file",
+            return_value=str(test_file),
+        ), mock.patch(
+            "kairon.importer.file_importer.FileImporter"
+        ) as mock_importer:
+            mock_importer.side_effect = Exception("fail")
+
+            uploader.execute()
+        assert not os.path.exists(test_file)
 
     @patch("kairon.shared.upload_handler.data_objects.UploadHandlerLogs")
     def test_delete_enqueued_event_log_no_match(self, mock_logs):

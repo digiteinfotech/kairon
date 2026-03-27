@@ -1,9 +1,12 @@
+import html
 import sys
 import json
 import traceback
 from functools import partial
 import os
 
+import bs4
+import requests
 from mongoengine import connect, disconnect
 
 from kairon import Utility
@@ -48,9 +51,16 @@ def main():
                 "mark_as_processed": partial(CallbackScriptUtility.mark_as_processed, bot=bot),
                 "update_data_analytics": partial(CallbackScriptUtility.update_data_analytics, bot=bot),
                 "delete_data_analytics": partial(CallbackScriptUtility.delete_data_analytics, bot=bot),
+                "extract_data": CallbackScriptUtility.extract_data,
+                "process_instruction": CallbackScriptUtility.process_instruction,
+                "create_vector_collection": CallbackScriptUtility.create_vector_collection,
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
+                "bs4": bs4,
+                "html": html,
+                "requests": requests,
+                "json": json,
                 "__builtins__": __builtins__,
             }
             converted = {k: allowed[k] for k in safe_globals if k in allowed}

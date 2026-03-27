@@ -582,6 +582,13 @@ async def get_media_ids(
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
 
+@router.get("/user/media/data", response_model=Response)
+async def get_user_media_data(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_data = UserMedia.get_user_media_data(current_user.get_bot())
+    return Response(message="List of user media data", data=media_data)
+
 @router.delete("/{channel}/media/{media_id}", response_model=Response)
 async def delete_media_data(
         channel: ChannelTypes,

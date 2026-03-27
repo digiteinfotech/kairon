@@ -793,7 +793,10 @@ def test_get_model_llm_type_map_dynamic():
         'anthropic': ['bedrock/us.anthropic', 'claude'],
         'gemini': ['gemini/'],
         'perplexity': ['perplexity/llama'],
-        'aws-nova': ['bedrock/converse/us.amazon.nova']
+        'aws-nova': ['bedrock/converse/us.amazon.nova'],
+        'aws-llama': ['bedrock/us.meta.llama4-maverick', 'bedrock/us.meta.llama4-scout'],
+        'openrouter': ["gpt-3.5-turbo", "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "anthropic/claude-3-7-sonnet-20250219",
+               "google/gemini-2.5-flash-image", "google/gemini-2.0-flash-001", "google/gemini-2.0-flash-exp"]
     }
 
     for model_name, provider in result.items():
@@ -810,6 +813,15 @@ def test_add_llm_type_based_on_model():
 
     llm_secret = LLMSecret(
         llm_type="openai",
+        api_key='value',
+        models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+        bot=bot,
+        user='user'
+    )
+    llm_secret.save()
+
+    llm_secret = LLMSecret(
+        llm_type="openrouter",
         api_key='value',
         models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
         bot=bot,
@@ -838,6 +850,6 @@ def test_add_llm_type_based_on_model():
         },
     }
     assert not DataValidation.validate_prompt_action(bot, data)
-    assert data['llm_type'] == 'openai'
+    assert data['llm_type'] in ['openai', 'openrouter']
 
     LLMSecret.objects.delete()

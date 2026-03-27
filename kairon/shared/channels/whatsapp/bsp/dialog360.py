@@ -333,7 +333,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         except requests.RequestException as e:
                     media_doc.update(
                         set__upload_status = UserMediaUploadStatus.failed.value,
-                        set__additional_log = "Upload failed: network error",
+                        set__additional_info ={"message": "Upload failed: network error"},
                         set__external_upload_info__error = str(e),
                     )
                     raise AppException(f"Upload request failed: {e}") from e
@@ -341,7 +341,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         if response.status_code not in (200, 201):
             media_doc.update(
                 set__upload_status = UserMediaUploadStatus.failed.value,
-                set__additional_log = "Upload failed",
+                set__additional_info ={"message": "Upload failed"},
                 set__external_upload_info__error = response.text,
             )
             raise AppException(response.text)
@@ -353,7 +353,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             set__media_id = external_media_id,
             set__upload_status = UserMediaUploadStatus.completed.value,
             set__upload_type = UserMediaUploadType.broadcast.value,
-            set__additional_log = "Upload successful",
+            set__additional_info ={"message": "Upload successful"},
             set__external_upload_info__external_media_id = external_media_id,
             set__external_upload_info__expiry_date = expiration_date,
         )

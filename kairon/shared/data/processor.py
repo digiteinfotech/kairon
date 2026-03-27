@@ -169,11 +169,11 @@ from .data_validation import DataValidation
 from .model_data_imporer import KRasaFileImporter, CustomRuleStep
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
-from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..chat.broadcast.data_objects import MessageBroadcastLogs, AnalyticsPipelineLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
 from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, UploadHandlerClass
 from ..content_importer.content_processor import ContentImporterLogProcessor
-from ..custom_widgets.data_objects import CustomWidgets
+from ..custom_widgets.data_objects import CustomWidgets, CustomWidgetsRequestLog
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
 from ..log_system.base import BaseLogHandler
@@ -181,7 +181,7 @@ from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
 from ..upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
-
+from ..upload_handler.data_objects import UploadHandlerLogs
 
 class MongoProcessor:
     """
@@ -8108,8 +8108,11 @@ class MongoProcessor:
             LogType.data_importer.value: ValidationLogs,
             LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
             LogType.multilingual.value: BotReplicationLogs,
+            LogType.file_upload.value: UploadHandlerLogs,
+            LogType.analytics_pipeline: AnalyticsPipelineLogs,
+            LogType.custom_widgets: CustomWidgetsRequestLog
         }
-        if logtype == LogType.action_logs.value:
+        if logtype == LogType.action_logs.value or logtype == LogType.custom_widgets.value:
             filter_query = {
                 "bot": bot,
                 "timestamp__gte": start_time,
@@ -8966,7 +8969,7 @@ class MongoProcessor:
 
         return error_message
 
-    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File):
+    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File, collection_name:str):
         """
         Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
 
@@ -8980,14 +8983,15 @@ class MongoProcessor:
             bot=bot,
             user=user,
             file_name=file_content.filename,
+            collection_name=collection_name,
             event_status=EVENT_STATUS.VALIDATING.value
         )
 
-        self.file_handler_save_and_validate(bot, user, file_content)
+        self.file_handler_save_and_validate(bot, user, collection_name, file_content)
 
         return True
 
-    def file_handler_save_and_validate(self, bot: Text, user: Text, file_content: File):
+    def file_handler_save_and_validate(self, bot: Text, user: Text, collection_name: str, file_content: File):
         """
         Saves the training file and performs validation.
 
@@ -8995,7 +8999,7 @@ class MongoProcessor:
         :param file_content: The file to be saved and validated
         :return: A dictionary of error messages if validation fails
         """
-        content_dir = os.path.join('file_content_upload_records', bot)
+        content_dir = os.path.join('file_content_upload_records', bot, user, collection_name)
         Utility.make_dirs(content_dir)
         file_path = os.path.join(content_dir, file_content.filename)
 
@@ -9327,6 +9331,14 @@ class MongoProcessor:
         return {col["id"] for col in logs_metadata.get(log_type, []) if "id" in col}
 
     @staticmethod
+    def get_isoformat_date(date_type, date_value):
+        try:
+            formatted_date = date.fromisoformat(date_value)
+        except ValueError:
+            raise AppException(f"Invalid date format for '{date_type}': '{date_value}'. Use YYYY-MM-DD.")
+        return formatted_date
+
+    @staticmethod
     def sanitize_query_filter(log_type: str, request) -> dict:
         """
         Sanitize and validate query parameters for the given log type.
@@ -9341,16 +9353,10 @@ class MongoProcessor:
         if raw_params:
             if raw_params.get("from_date"):
                 from_date = raw_params.pop("from_date")
-                try:
-                    sanitized["from_date"] = date.fromisoformat(from_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'from_date': '{from_date}'. Use YYYY-MM-DD.")
+                sanitized["from_date"] = MongoProcessor.get_isoformat_date("from_date", from_date)
             if raw_params.get("to_date"):
                 to_date = raw_params.pop("to_date")
-                try:
-                    sanitized["to_date"] = date.fromisoformat(to_date)
-                except ValueError:
-                    raise AppException(f"Invalid date format for 'to_date': '{to_date}'. Use YYYY-MM-DD.")
+                sanitized["to_date"] = MongoProcessor.get_isoformat_date("to_date", to_date)
             if "from_date" in sanitized and "to_date" in sanitized and sanitized["from_date"] > sanitized["to_date"]:
                 raise AppException("'from date' should be less than or equal to 'to date'")
 

@@ -9,9 +9,11 @@ import time
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
+from zoneinfo import ZoneInfo
+
 import litellm
 
 import pytest
@@ -54,7 +56,7 @@ from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, Actions, ParallelActionConfig, \
-    PyscriptActionConfig, PromptAction, HttpActionConfig
+    PyscriptActionConfig, PromptAction, HttpActionConfig, AnalyticsPipelineConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
@@ -99,6 +101,7 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
+from fastapi import HTTPException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -1503,6 +1506,7 @@ def test_list_bots():
     assert response["data"]["shared"] == []
 
 
+
 def test_get_client_name_with_no_configuration():
     response = client.get(
         f"/api/bot/{pytest.bot}/pos/odoo/client_name",
@@ -1658,6 +1662,144 @@ def test_pos_login():
     pytest.session_id = actual["session_id"]
     assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=1&menu_id=233'
 
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login_with_cid():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client", "company_id": 2},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    pytest.session_id = actual["session_id"]
+    assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=2&menu_id=233'
+
+
+def test_create_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.return_value = {
+            "name": "Test branch"
+        }
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        # Act
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        # Assert
+        assert response.status_code == 200
+        assert actual["message"] == "Branch created"
+        assert actual["data"] == {
+            "name": "Test branch"
+        }
+
+        mock_create_branch.assert_called_once_with(
+            session_id=session_id,
+            branch_name="Test branch",
+            street="Andheri East",
+            city="Mumbai",
+            state="Maharashtra",
+            bot=pytest.bot,
+            user='integration@demo.ai'
+        )
+
+
+def test_get_client_name_and_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_get_client_details:
+        mock_get_client_details.return_value = {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        response = client.get(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        assert response.status_code == 200
+        assert actual["data"] == {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        mock_get_client_details.assert_called_once_with(pytest.bot)
+
+def test_create_branch_failure():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.side_effect = HTTPException(
+            status_code=404,
+            detail="Error in creating branch"
+        )
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+        assert actual["message"] == "Error in creating branch"
 
 def test_get_client_name():
     response = client.get(
@@ -1668,7 +1810,7 @@ def test_get_client_name():
     print(actual)
     assert actual["success"]
     assert not actual["message"]
-    assert actual["data"] == {'client_name': 'Test Client'}
+    assert actual["data"] == {'client_name': 'Test Client', 'branches': []}
     assert actual["error_code"] == 0
 
 
@@ -2230,6 +2372,75 @@ def test_create_pos_order_success():
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
 
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_success_with_cid():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": [],
+            "company_id": 2
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [123]},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
+        "partner_id": 3
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == 123
+    assert data["data"]["status"] == "created"
+    assert data["error_code"] == 0
+
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2374,7 +2585,7 @@ def test_accept_pos_order_invoice_failure():
         status=200
     )
 
-    responses.add(responses.POST, url, json={"result": [{"id": 30}]}, status=200)
+    responses.add(responses.POST, url, json={"result": [{"journal_id": [30, "Cash"]}]}, status=200)
 
     responses.add(responses.POST, url, json={"result": 101}, status=200)
 
@@ -2424,7 +2635,7 @@ def test_accept_pos_order_success():
     responses.add(
         responses.POST,
         url,
-        json={"result": [{"id": 20}]},
+        json={"result": [{"journal_id": [20, "Cash"]}]},
         status=200
     )
 
@@ -2598,14 +2809,14 @@ def test_get_pos_products_success():
 
     products = [
         {
-            "id": 1,
+            "product_variant_id": 1,
             "name": "Product A",
             "list_price": 100,
             "barcode": "123456",
             "available_in_pos": True
         },
         {
-            "id": 2,
+            "product_variant_id": 2,
             "name": "Product B",
             "list_price": 200,
             "barcode": "789012",
@@ -3329,9 +3540,11 @@ def test_create_pipeline_event_cron(mock_event_server):
     pytest.analytics_event_id = actual["data"]["event_id"]
 
 
+
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_create_pipeline_event_epoch(mock_event_server):
     future_epoch = int(time.time()) + 3600
+    timezone = "Asia/Kolkata"
 
     payload = {
         "pipeline_name": "one_time_pipeline",
@@ -3339,8 +3552,8 @@ def test_create_pipeline_event_epoch(mock_event_server):
         "timestamp": "2025-11-25T14:30:00Z",
         "scheduler_config": {
             "expression_type": "epoch",
-            "schedule": str(future_epoch),
-            "timezone": "Asia/Kolkata"
+            "schedule": future_epoch,
+            "timezone": timezone
         },
         "data_deletion_policy": [],
         "triggers": []
@@ -3357,6 +3570,22 @@ def test_create_pipeline_event_epoch(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Event scheduled!"
     assert "event_id" in actual["data"]
+
+    event_id = actual["data"]["event_id"]
+    saved_event = AnalyticsPipelineConfig.objects(id=event_id).get()
+    saved_schedule = saved_event.scheduler_config["schedule"]
+
+    expected_dt = datetime.fromtimestamp(
+        future_epoch,
+        ZoneInfo(timezone)
+    ).isoformat()
+
+    assert saved_schedule == expected_dt
+
+    mock_event_server.assert_called_once()
+    _, kwargs = mock_event_server.call_args
+    assert kwargs["run_at"] == expected_dt
+    assert kwargs["timezone"] == timezone
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -3752,6 +3981,7 @@ def test_search_and_list_analytics_pipeline_logs():
             callback_name="callback_test",
             exception=e.get("exception"),
             bot=pytest.bot,
+            bot_response={"message": "Record Saved!"},
             user = "integration@demo.ai",
             start_timestamp=now + timedelta(minutes=e["start_offset"]),
             end_timestamp=now + timedelta(minutes=e["end_offset"]),
@@ -3774,6 +4004,7 @@ def test_search_and_list_analytics_pipeline_logs():
         assert log["status"]
         assert log["pipeline_name"] == "daily_analytics_pipeline"
         assert log["callback_name"] == "callback_test"
+        assert log["bot_response"] == {"message": "Record Saved!"}
         assert log.get("start_time") or log.get("start_timestamp")
         assert log.get("end_time") or log.get("end_timestamp")
         assert log["user"] == "integration@demo.ai"
@@ -4127,7 +4358,8 @@ def test_odoo_login():
         mock_pos.return_value.authenticate.assert_called_once_with(
             client_name="XYZ_Pvt_Ltd",
             page_type="pos_products",
-            bot=pytest.bot
+            bot=pytest.bot,
+            company_id=1
         )
 
 def test_bulk_save_success():
@@ -4804,12 +5036,169 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
     UserMediaData.objects().delete()
     Channels.objects().delete()
 
+def test_get_user_media_data_with_no_data():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == []
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
+def test_get_user_media_data():
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Testing description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description 2", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Failed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Testing description 2", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description 3", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="processing",
+        upload_type="system",
+        filesize=410484,
+        additional_info={"description": "Testing description 4", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="system",
+        filesize=410484,
+        additional_info={"description": "Testing description 5", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == [
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Testing description', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description 2', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description 3', 'phone_number': '919876543210'},
+        }
+    ]
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
 @pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -4823,8 +5212,14 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+    embedding = [[0.1] * 3072, [0.1] * 3072]
 
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -4903,19 +5298,22 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}', '{"id":2,"item":"Apples","price":1.2,"quantity":20}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
 
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
@@ -4927,7 +5325,10 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
     LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -4941,7 +5342,15 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+
+    # mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}, {'embedding': embedding}]})
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -5035,19 +5444,22 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}', '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     LLMSecret.objects.delete()
@@ -6227,10 +6639,52 @@ def test_upload_media_channel_other_exception(mock_channels):
     assert body["error_code"] == 422
     assert "some random error" in body["message"].lower()
 
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days():
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert body["message"] == "File 'file.png' already exists. Please upload a different file."
+
+
 @responses.activate
+@patch("kairon.shared.chat.processor.datetime")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_upload_media_file_already_exists(mock_user_media):
-    mock_user_media.return_value.count.return_value = 1
+def test_upload_media_file_already_exists(mock_user_media, mock_datetime):
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+    mock_datetime.utcnow.return_value = fixed_now
+
+    mock_db_obj = MagicMock()
+    mock_db_obj.timestamp = fixed_now - timedelta(days=10)
+
+    mock_queryset = MagicMock()
+    mock_queryset.order_by.return_value.first.return_value = mock_db_obj
+    mock_user_media.return_value = mock_queryset
 
     file_content = io.BytesIO(b"dummy content")
 
@@ -6244,7 +6698,11 @@ def test_upload_media_file_already_exists(mock_user_media):
     assert body["success"] is False
     assert body["error_code"] == 422
     assert "file 'file.png' already exists" in body["message"].lower()
-    mock_user_media.assert_called_once_with(bot=pytest.bot, filename="file.png")
+    mock_user_media.assert_called_once_with(
+        bot=pytest.bot,
+        filename="file.png"
+    )
+    mock_queryset.order_by.assert_called_once_with("-timestamp")
 
 @responses.activate
 def test_get_media_ids():
@@ -6301,7 +6759,74 @@ def test_get_media_ids():
     Channels.objects().delete()
     assert body["data"][0]['media_id'] == media_id
 
+@responses.activate
+def test_get_media_ids_within_30_days():
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    if bot_settings:
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
+    channel = Channels.objects(bot=pytest.bot).first()
+    if channel:
+        channel = channel.to_mongo().to_dict()
+        print(channel)
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
 
+    UserMediaData(
+        media_id=media_id,
+        filename="new_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()- timedelta(days=40),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    media_id2 = "0196c9efbf547b81a66ba2af7b72d5bb"
+    UserMediaData(
+        media_id=media_id2,
+        filename="old_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_ids",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+    assert len(body["data"]) == 1, "Expected only one media record within 30 days"
+    assert body["data"][0]['media_id'] == media_id2
+    assert all(item['media_id'] != media_id for item in body["data"]), "Old media should be filtered out"
 
 @pytest.mark.django_db
 @responses.activate
@@ -7020,7 +7545,10 @@ def test_add_pos_integration_config_invalid_sync_type():
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7031,9 +7559,13 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7221,7 +7753,10 @@ def test_get_catalog_sync_logs():
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_collection_points,
                                                          mock_delete_meta_catalog, mock_push_meta_catalog):
@@ -7234,9 +7769,13 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
     mock_delete_collection_points.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     payload = {
         "connector_type": "petpooja",
         "config": {
@@ -7353,7 +7892,10 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7363,9 +7905,13 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     payload = {
         "connector_type": "petpooja",
         "config": {
@@ -7494,7 +8040,10 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7505,9 +8054,13 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7623,7 +8176,10 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7633,9 +8189,13 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7752,7 +8312,10 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7763,9 +8326,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -7918,7 +8485,10 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -7928,9 +8498,13 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8139,7 +8713,10 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8150,9 +8727,13 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8309,7 +8890,10 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8319,9 +8903,13 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
     mock_update_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8465,7 +9053,10 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8476,9 +9067,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8630,7 +9225,10 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8641,9 +9239,13 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8762,7 +9364,10 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8773,9 +9378,13 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -8959,7 +9568,10 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -8970,9 +9582,13 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9166,7 +9782,10 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9177,9 +9796,13 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9310,7 +9933,10 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9321,9 +9947,13 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9470,7 +10100,10 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
 @mock.patch.object(CognitionDataProcessor, "preprocess_push_menu_data", side_effect=Exception("Simulated preprocess error"))
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9481,9 +10114,13 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9633,9 +10270,13 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9769,7 +10410,10 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -9784,9 +10428,13 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -9910,7 +10558,10 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
 @mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
 @mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
 @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
                                         mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
     mock_collection_exists.return_value = False
@@ -9921,9 +10572,13 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
     mock_delete_meta_catalog.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(
-        **{'data': [{'embedding': embedding}, {'embedding': embedding}, {'embedding': embedding}]})
-
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
     LLMSecret.objects.delete()
     secrets = [
         {
@@ -10712,7 +11367,6 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]["event_class"] == "pyscript_evaluator"
     assert actual["data"]["logs"][0]["status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["data"] == {
-        'source_code': 'bot_response = "test - this is from callback test"',
         'predefined_objects': {
             'req': {'type': 'GET', 'body': None, 'params': {}},
             'req_host': '127.0.0.1', 'action_name': 'clbk1',
@@ -13430,22 +14084,9 @@ def test_list_broadcast():
     actual["data"]["schedules"][0].pop("user")
     actual["data"]["schedules"][1].pop("timestamp")
     actual["data"]["schedules"][1].pop("user")
-    actual["data"]["schedules"][2].pop("timestamp")
-    actual["data"]["schedules"][2].pop("user")
     print(actual["data"])
     assert actual["data"] == {
         "schedules": [
-            {
-                '_id': pytest.broadcast_msg_id,
-                'name': 'test_broadcast',
-                'connector_type': 'whatsapp',
-                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
-                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
-                'collection_config': {},
-                'retry_count': 3,
-                'bot': pytest.bot,
-                'status': False
-            },
             {
                 '_id': pytest.broadcast_msg_id3,
                 'name': 'broadcast_without_filters_list',
@@ -13589,21 +14230,8 @@ def test_list_broadcast_after_update():
     actual["data"]["schedules"][0].pop("user")
     actual["data"]["schedules"][1].pop("timestamp")
     actual["data"]["schedules"][1].pop("user")
-    actual["data"]["schedules"][2].pop("timestamp")
-    actual["data"]["schedules"][2].pop("user")
     assert actual["data"] == {
         "schedules": [
-            {
-                '_id': pytest.broadcast_msg_id,
-                'name': 'test_broadcast',
-                'connector_type': 'whatsapp',
-                'broadcast_type': 'static', 'recipients_config': {'recipients': '919876543210,919012345678'},
-                'template_config': [{'template_id': 'sales_template', 'language': 'en'}],
-                'collection_config': {},
-                'retry_count': 3,
-                'bot': pytest.bot,
-                'status': False
-            },
             {
                 '_id': pytest.broadcast_msg_id3,
                 'name': 'broadcast_without_filters_list',
@@ -13679,7 +14307,6 @@ def test_delete_message_broadcast(mock_event_server):
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast removed!"
-
 
 def test_get_broadcast_logs_with_resend_broadcasts():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
@@ -13783,20 +14410,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 ]
             },
             'recipient': '919876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 1
         }
     ]
@@ -13829,20 +14442,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '919876543210',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 1
             },
             {
@@ -13860,20 +14459,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '918958030541',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 2
             },
             {
@@ -13882,11 +14467,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'bot': pytest.bot,
                 'status': EVENT_STATUS.COMPLETED.value,
                 'user': 'test_user',
-                'broadcast_id': pytest.broadcast_msg_id,
-                'recipients': [
-                    '919876543210',
-                    '918958030541'
-                ]
+                'broadcast_id': pytest.broadcast_msg_id
             }
         ],
         'total_count': 3
@@ -17052,7 +17633,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 20
+    assert len(actual['data']) == 22
     assert actual["success"]
 
 
@@ -17817,7 +18398,7 @@ def test_list_entities():
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
-                'subject', 'body', 'media_ids','flow_docs','llm_call_id'}
+                'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'flow_data', 'llm_call_id'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -18458,12 +19039,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 27
+    assert len(actual["data"]) == 29
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 20
+    assert default_slots_count == 22
 
 
 def test_add_slots():
@@ -34159,6 +34740,62 @@ def test_add_one_time_schedule_integration_failure(mock_request_event_server):
     assert "Event server failed" in body["message"]
 
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_message_broadcast_one_time_scheduled_broadcast(mock_event_server):
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": 2524608000,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(response.json())
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_list_broadcast_config_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    for sched in actual["data"]["schedules"]:
+        sched.pop("_id", None)
+        sched.pop("timestamp", None)
+        sched.pop("bot", None)
+        sched.pop("user", None)
+
+    print(actual["data"])
+    assert actual["data"]["schedules"][2] == {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'scheduler_config': {'expression_type': 'epoch', 'schedule': 2524608000, 'timezone': 'Asia/Calcutta'},
+         'recipients_config': {'recipients': '916200035185,'},
+         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
+         'retry_count': 0, 'status': True
+                                              }
+
+
 def test_broadcast_config_error():
     config = {
         "name": "one_time_schedule",
@@ -34537,8 +35174,7 @@ def test_list_broadcast_logs():
             "bot": pytest.bot,
             "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
-            "broadcast_id": pytest.first_scheduler_id,
-            "recipients": ["918958030541", ""],
+            "broadcast_id": pytest.first_scheduler_id
         }
     ]
     assert actual["data"]["total_count"] == 1
@@ -34568,21 +35204,7 @@ def test_list_broadcast_logs():
                         }
                     ]
                 },
-                "recipient": "9876543210",
-                "template_params": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                    "filename": "Brochure.pdf",
-                                },
-                            }
-                        ],
-                    }
-                ],
+                "recipient": "9876543210"
             },
             {
                 "reference_id": ref_id,
@@ -34590,13 +35212,11 @@ def test_list_broadcast_logs():
                 "bot": pytest.bot,
                 "status": EVENT_STATUS.COMPLETED.value,
                 "user": "test_user",
-                "broadcast_id": pytest.first_scheduler_id,
-                "recipients": ["918958030541", ""],
+                "broadcast_id": pytest.first_scheduler_id
             },
         ],
         "total_count": 2,
     }
-
 
 def test_get_bot_settings():
     response = client.get(
@@ -34636,7 +35256,8 @@ def test_get_bot_settings():
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
-                              'max_instagram_user_posts': 5}
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -34748,7 +35369,8 @@ def test_update_analytics_settings():
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
                               'catalog_sync_limit_per_day': 5,
-                              'max_instagram_user_posts': 5}
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10}
 
 
 def test_delete_channels_config():

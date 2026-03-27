@@ -29,6 +29,9 @@ AGENT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES
 
 KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
 
+FLATTENED_CONVERSATIONS = "flattened_conversations"
+
+
 FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
 
 
@@ -102,7 +105,6 @@ class EventRequestType(str, Enum):
     add_schedule = "add_schedule"
     add_one_time_schedule = "add_one_time_schedule"
     resend_broadcast = "resend_broadcast"
-
 
 class EventExecutor(str, Enum):
     aws_lambda = "aws_lambda"
@@ -180,6 +182,8 @@ class KaironSystemSlots(str, Enum):
     body = "body"
     media_ids = 'media_ids'
     flow_dos='flow_docs'
+    flow_images='flow_images'
+    flow_data='flow_data'
     llm_call_id = "llm_call_id"
 
 
@@ -192,3 +196,7 @@ class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
     callable_runner = "callable_runner"
     analytics_runner = "analytics_runner"
+
+class TriggerCondition(str, Enum):
+    success = "success"
+    failure = "failure"

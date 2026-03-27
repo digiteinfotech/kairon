@@ -910,6 +910,7 @@ class BotSettings(Auditlog):
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
     refresh_token_expiry = IntField(default=60)
+    media_size_limit = IntField(default=10)
     whatsapp = StringField(
         default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
     )
@@ -1087,14 +1088,23 @@ class UserMediaData(Auditlog):
     upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
                               choices=[e.value for e in UserMediaUploadType])
     filesize = IntField(default=0)
-    additional_log = StringField()
+    additional_info = DictField()
     sender_id = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     external_upload_info = DictField()
 
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}
+    meta = {"indexes": [
+        {
+            "fields": [
+                "bot",
+                ("bot", "media_id"),
+                ("bot", "sender_id"),
+                "media_id"
+            ]
+        }
+    ]}
 
 
 class PetpoojaSyncConfig(EmbeddedDocument):

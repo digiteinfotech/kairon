@@ -26,7 +26,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch, ANY
+from unittest.mock import patch, ANY, AsyncMock
 import numpy as np
 import pandas as pd
 import pytest
@@ -3080,7 +3080,7 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 23
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 18
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 20
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 10
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
@@ -3633,7 +3633,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
                                                  mock_collection_exists):
         bot = 'test_bot'
@@ -3695,8 +3698,13 @@ class TestMongoProcessor:
         mock_collection_upsert.return_value = None
 
         embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3725,14 +3733,21 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 3.00  # Updated price
         assert updated_record.data["quantity"] == 5
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":2.5,"quantity":10}',
-                   '{"id":2,"item":"Milk","price":3.0,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":2.5,"quantity":10}',
+            '{"id":2,"item":"Milk","price":3.0,"quantity":5}'
+        ]
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -3742,7 +3757,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
                                                     mock_create_collection,
                                                     mock_collection_exists):
@@ -3819,9 +3837,13 @@ class TestMongoProcessor:
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
@@ -3850,14 +3872,22 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 27.00  # Updated price
         assert updated_record.data["quantity"] == 12
 
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":1,"item":"Juice","price":80.5,"quantity":56}',
-                   '{"id":2,"item":"Milk","price":27.0,"quantity":12}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="value",
-            num_retries=3
-        )
+
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":80.5,"quantity":56}',
+            '{"id":2,"item":"Milk","price":27.0,"quantity":12}'
+        ]
 
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
@@ -3868,7 +3898,10 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
     @patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_empty_data_list(self, mock_embedding, mock_delete_collection_points,
                                                mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
@@ -3928,9 +3961,13 @@ class TestMongoProcessor:
         mock_collection_upsert.return_value = None
         mock_delete_collection_points.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
@@ -3946,10 +3983,37 @@ class TestMongoProcessor:
         assert result["message"] == "Upsert complete!"
         assert len(data) == 0
 
+
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
 
+
+    def test_get_llm_metadata_coverage(self):
+        bot = "test_bot"
+        llm_type = "openai"
+
+        LLMSecret.objects(bot=bot, llm_type=llm_type).delete()
+        LLMSecret.objects(bot__exists=False, llm_type=llm_type).delete()
+
+        secret1 = LLMSecret(bot=bot, llm_type=llm_type, api_key="value", models=["model1", "model2"], user="user")
+        secret1.save()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["model1", "model2"]
+
+        secret1.delete()
+
+        secret2 = LLMSecret(bot=None, llm_type=llm_type, api_key="value", models=["fallback_model"], user="user")
+        secret2.save()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["fallback_model"]
+
+        secret2.delete()
+
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == []
     def test_get_pydantic_type_int(self):
         result = CognitionDataProcessor().get_pydantic_type('int')
         expected = (int, ...)
@@ -5808,13 +5872,15 @@ class TestMongoProcessor:
         assert all(slot.name in ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                                  'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document',
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
-                                 'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids','flow_docs', 'llm_call_id'] for slot in domain.slots)
+                                 'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
+                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                              'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
-                             'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'llm_call_id'], ignore_order=True)
+                             'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body',
+                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
@@ -5913,8 +5979,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -5922,7 +5988,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -5984,11 +6050,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 29
+        assert domain.slots.__len__() == 31
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 29
+        assert domain.entities.__len__() == 31
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -6027,9 +6093,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 29
+        assert domain.slots.__len__() == 31
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 29
+        assert domain.entities.__len__() == 31
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 27
@@ -6054,10 +6120,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 21
+        assert domain.slots.__len__() == 23
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 20
+        assert domain.entities.__len__() == 22
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -6304,7 +6370,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 21
+        assert slots.__len__() == 23
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -6337,7 +6403,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 22
+        assert slots.__len__() == 24
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -6381,7 +6447,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
-                    'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs','llm_call_id']
+                    'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
+                    'flow_data', 'llm_call_id']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -6834,7 +6901,10 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
@@ -6864,7 +6934,13 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
         embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        embedding = [[0.1] * 1532, [0.1] * 1532]
+        mock_openai.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
@@ -9081,8 +9157,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9090,7 +9166,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -9146,9 +9222,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 29
+        assert domain.slots.__len__() == 31
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 29
+        assert domain.entities.__len__() == 31
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
@@ -9226,8 +9302,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9235,7 +9311,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -9291,8 +9367,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9300,7 +9376,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9341,8 +9417,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9350,7 +9426,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9399,8 +9475,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9408,7 +9484,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9444,8 +9520,8 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 18
+        assert domain.slots.__len__() == 32
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
@@ -9453,7 +9529,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9499,10 +9575,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
+        assert domain.slots.__len__() == 32
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 31
         assert domain.intents.__len__() == 33
@@ -9577,10 +9653,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 30
+        assert domain.slots.__len__() == 32
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 30
+        assert domain.entities.__len__() == 32
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -9938,6 +10014,31 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'actions.yml'))
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
+
+
+    def test_get_latest_file_folder_not_exists(self,tmp_path):
+        folder = tmp_path / "non_existent"
+
+        with pytest.raises(AppException, match="Folder does not exists"):
+            Utility.get_latest_file(str(folder))
+
+
+    def test_get_latest_file_returns_latest(self,tmp_path):
+        folder = tmp_path / "files"
+        import time
+        import os
+        folder.mkdir()
+
+        file1 = folder / "a.txt"
+        file2 = folder / "b.txt"
+
+        file1.write_text("first")
+        time.sleep(1)
+        file2.write_text("second")
+
+        latest = Utility.get_latest_file(str(folder))
+
+        assert latest == str(file2)
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self,
@@ -11348,11 +11449,15 @@ class TestMongoProcessor:
              'is_default': True},
             {'name': 'flow_docs', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
+            {'name': 'flow_images', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'flow_data', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
             {'name': 'llm_call_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True}
 
         ]
-        assert len(slots) == 30
+        assert len(slots) == 32
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):

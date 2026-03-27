@@ -1,12 +1,10 @@
 import asyncio
 import os
 from unittest.mock import patch, MagicMock
-
 import pytest
 from aiohttp import ClientConnectionError, ClientError
 from aioresponses import aioresponses
 from mongoengine import connect, disconnect
-
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.cloud import WhatsappCloud
 from kairon.chat.handlers.channels.clients.whatsapp.dialog360 import BSP360Dialog
@@ -538,7 +536,6 @@ def test_upsert_broadcast_progress_log_update():
     assert log is not None
     assert log.progress == progress
     assert log.total == total
-
 
 def test_log_failed_messages():
     bot = "test_bot"

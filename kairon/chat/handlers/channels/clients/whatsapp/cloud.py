@@ -263,3 +263,36 @@ class WhatsappCloud(object):
             return False, last_status_code, {"error": str(ce), "response": last_response}
         except Exception as e:
             return False, last_status_code, {"error": str(e), "response": last_response}
+
+    def get_media_info(self, whatsapp_media_id, config):
+        import mimetypes
+
+        endpoint = f"{self.app}/{whatsapp_media_id}"
+
+        access_token = config.get("access_token")
+
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
+        resp = requests.get(
+            endpoint,
+            params={"fields": "url", "access_token": access_token},
+            timeout=10
+        )
+
+        if resp.status_code != 200:
+            raise AppException(
+                f"Failed to get url from meta for media: {whatsapp_media_id}"
+            )
+
+        data = resp.json()
+
+        download_url = data.get("url")
+        mime_type = data.get("mime_type")
+
+        extension = mimetypes.guess_extension(mime_type) or ""
+
+        file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
+
+        return download_url, headers, file_path
