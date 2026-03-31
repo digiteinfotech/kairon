@@ -569,6 +569,8 @@ class POSProcessor:
 
         order_lines = []
         total = 0.0
+        total_excl = 0.0
+        total_incl = 0.0
 
         for p in products:
             product_id = p["product_id"]
@@ -601,6 +603,8 @@ class POSProcessor:
 
             tax_total = 0.0
 
+            subtotal_excl = (price_unit * qty) * (1 - (discount / 100))
+
             if tax_ids:
                 taxes = self.jsonrpc_call(
                     session_id=session_id,
@@ -612,10 +616,12 @@ class POSProcessor:
 
                 for t in taxes:
                     if t["amount_type"] == "percent":
-                        tax_total += (price_unit * qty) * (t["amount"] / 100)
+                        base = subtotal_excl if not t["price_include"] else subtotal_excl / (1 + t["amount"] / 100)
+                        tax_total += base * (t["amount"] / 100)
 
-            subtotal_excl = (price_unit * qty) * (1 - (discount / 100))
             subtotal_incl = subtotal_excl + tax_total
+            total_excl += subtotal_excl
+            total_incl += subtotal_incl
 
             total += subtotal_incl
 
@@ -703,6 +709,8 @@ class POSProcessor:
 
         payment_method_id = payment_method_ids[0]
 
+        amount_tax = total_incl - total_excl
+
         order_data = {
             "name": f"POS/{int(time.time())}",
             "sequence_number": sequence_number,
@@ -717,7 +725,7 @@ class POSProcessor:
             "amount_total": total,
             "amount_paid": total,
             "amount_return": 0.0,
-            "amount_tax": 0.0,
+            "amount_tax": amount_tax,
             "lines": order_lines,
             "statement_ids": [[0, 0, {
                 "amount": total,
