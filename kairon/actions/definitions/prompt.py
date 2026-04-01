@@ -78,16 +78,21 @@ class ActionPrompt(ActionsBase):
             user_msg = self.__get_user_msg(tracker, user_question)
             llm_type = k_faq_action_config['llm_type']
             llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain,**kwargs)
-            collection = llm_params["similarity_prompt"][0].get("collection")
-            collection_name = f"{self.bot}_{collection}_faq_embd"
             llm_processor = LLMProcessor(self.bot, llm_type)
-            embeddings_dict = EmbeddingMetadata.objects(bot=self.bot, collection_name=collection_name).first()
-            embedding = embeddings_dict.vector_config.get("size") if embeddings_dict else 3072
-            if embeddings_dict and not llm_processor.llm_type == 'openrouter':
-                llm_processor.llm_type = "openrouter"
-                llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
-                llm_processor.llm_secret_embedding = llm_processor.llm_secret
-            llm_processor.vector_config["size"] = embedding
+            similarity_prompt = llm_params["similarity_prompt"]
+            collection = None
+            collection_name = None
+            if similarity_prompt:
+                collection = similarity_prompt[0].get("collection", None)
+            if collection:
+                collection_name = f"{self.bot}_{collection}_faq_embd"
+                embeddings_dict = EmbeddingMetadata.objects(bot=self.bot, collection_name=collection_name).first()
+                embedding = embeddings_dict.vector_config.get("size") if embeddings_dict else 3072
+                if embeddings_dict and not llm_processor.llm_type == 'openrouter':
+                    llm_processor.llm_type = "openrouter"
+                    llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
+                    llm_processor.llm_secret_embedding = llm_processor.llm_secret
+                llm_processor.vector_config["size"] = embedding
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             media_ids = tracker.get_slot('media_ids')
