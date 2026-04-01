@@ -29,7 +29,7 @@ from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
-from kairon.shared.cognition.data_objects import AnalyticsCollectionData
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData, SchemaMetadata
 
 
 class CallbackScriptUtility:
@@ -591,8 +591,7 @@ class CallbackScriptUtility:
         exists = any(c.name == collection_name for c in collections)
         embed_config = {
             "size": emb_size,
-            "distance": Distance.COSINE,
-            "provider": "openrouter"
+            "distance": Distance.COSINE
         }
         vector_config = VectorParams(**embed_config)
         if exists and overwrite:
@@ -609,7 +608,10 @@ class CallbackScriptUtility:
             metadata_obj = CognitionSchema(bot=bot, user=user)
             metadata_obj.metadata = [ColumnMetadata(**meta) for meta in schema.get("metadata") or []]
             metadata_obj.collection_name = schema.get("collection_name")
-            metadata_obj.training_needed = False
+            metadata_obj.schema_metadata = SchemaMetadata(
+                training_needed=False,
+                provider="openrouter"
+            )
             metadata_obj.save()
         else:
             return {
