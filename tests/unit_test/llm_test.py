@@ -557,6 +557,7 @@ class TestLLM:
         value = "knupur"
         collection = 'python'
         llm_type = "openai"
+        collection_name = f"{bot}_{collection}_faq_embd"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
@@ -611,7 +612,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection=collection_name, **k_faq_action_config)
 
             req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
 
@@ -636,6 +637,7 @@ class TestLLM:
         value = "knupur"
         collection = 'default'
         llm_type = "openai"
+        collection_name = f"{bot}_{collection}_faq_embd"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
@@ -690,7 +692,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
 
         assert req_json['limit'] == 10
@@ -720,6 +722,7 @@ class TestLLM:
         key = 'test'
         user = "tests"
         llm_type = "openai"
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -769,7 +772,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
 
             log = gpt3.logs[0]
 
@@ -808,6 +811,7 @@ class TestLLM:
         key = 'test'
         user = "tests"
         llm_type = "openai"
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -856,7 +860,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
             log = gpt3.logs[0]
 
             assert log['type'] == 'answer_query'
@@ -905,6 +909,7 @@ class TestLLM:
         bot = "payload_with_instruction"
         key = 'test'
         llm_type = 'openai'
+        collection_name = f"{bot}_User_details_faq_embd"
         CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -997,7 +1002,7 @@ class TestLLM:
             ]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         logs = copy.deepcopy(gpt3.logs)
         logs[0].pop('raw_completion_response')
 
@@ -1048,6 +1053,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -1096,7 +1102,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
 
         assert response == {
             'is_failure': True,
@@ -1130,6 +1136,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1164,7 +1171,7 @@ class TestLLM:
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
-        response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user="test", collection = collection_name, **k_faq_action_config)
         assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
 
         assert gpt3.logs == [
@@ -1185,6 +1192,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1209,7 +1217,7 @@ class TestLLM:
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
         mock_embedding.side_effect = [Exception("Connection reset by peer!"), litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})]
 
-        response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user="test", collection = collection_name, **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
         assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
@@ -1232,6 +1240,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1294,7 +1303,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         assert response['content'] == embedding
 
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
@@ -1320,6 +1329,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -1393,7 +1403,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         assert response['content'] == embedding
 
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
@@ -1430,7 +1440,7 @@ class TestLLM:
         gpt3 = LLMProcessor(bot, llm_type)
 
         with pytest.raises(Exception) as exc_info:
-            await gpt3.get_embedding("Hello world", user)
+            await gpt3.get_embedding("Hello world", user, collection = "test")
 
         assert str(exc_info.value) == HTTPStatus(500).phrase
 

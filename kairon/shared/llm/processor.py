@@ -73,9 +73,8 @@ class LLMProcessor(LLMBase):
 
         for collection_name, contents in collection_groups.items():
             collection = f"{self.bot}_{collection_name}{self.suffix}" if collection_name else f"{self.bot}{self.suffix}"
-            cognition_dict = CognitionSchema.objects(bot=self.bot, collection_name=collection).first()
-            training_needed = cognition_dict.training_needed
-            if training_needed:
+            EmbeddingMetaData = EmbeddingMetadata.objects(bot = self.bot, collection_name = collection).first()
+            if not EmbeddingMetaData:
                 await self.__create_collection__(collection)
 
                 for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
@@ -298,7 +297,8 @@ class LLMProcessor(LLMBase):
                                             timeout=5)
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
-                    if collection['name'].startswith(self.bot):
+                    EmbeddingMetaData = EmbeddingMetadata.objects(bot=self.bot, collection_name=collection['name']).first()
+                    if collection['name'].startswith(self.bot) and not EmbeddingMetaData:
                         await client.request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
                                              request_method="DELETE",
                                              headers=self.headers,

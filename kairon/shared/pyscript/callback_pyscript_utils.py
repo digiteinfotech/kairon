@@ -591,7 +591,8 @@ class CallbackScriptUtility:
         exists = any(c.name == collection_name for c in collections)
         embed_config = {
             "size": emb_size,
-            "distance": Distance.COSINE
+            "distance": Distance.COSINE,
+            "provider": "openrouter"
         }
         vector_config = VectorParams(**embed_config)
         if exists and overwrite:
@@ -608,6 +609,7 @@ class CallbackScriptUtility:
             metadata_obj = CognitionSchema(bot=bot, user=user)
             metadata_obj.metadata = [ColumnMetadata(**meta) for meta in schema.get("metadata") or []]
             metadata_obj.collection_name = schema.get("collection_name")
+            metadata_obj.training_needed = False
             metadata_obj.save()
         else:
             return {
