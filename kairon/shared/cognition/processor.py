@@ -139,11 +139,10 @@ class CognitionDataProcessor:
             item = value.to_mongo().to_dict()
             metadata = item.pop("metadata")
             collection = item.pop('collection_name', None)
-            training_needed = item.pop("training_needed", True)
+            schema_metadata = item.pop("schema_metadata", {})
             Embeddingmetadata ={
                     "size": 3072,
-                    "distance": Distance.COSINE,
-                    "provider": "openai"
+                    "distance": Distance.COSINE
                 }
             model_id = "text-embedding-3-large"
             collection_name = f"{bot}_{collection}_faq_embd"
@@ -155,7 +154,7 @@ class CognitionDataProcessor:
             final_data['metadata'] = metadata
             final_data['collection_name'] = collection
             final_data['embedding_metadata'] = Embeddingmetadata
-            final_data["training_needed"] = training_needed
+            final_data["schema_metadata"] = schema_metadata
             final_data["model_id"] = model_id
             yield final_data
 
@@ -799,7 +798,7 @@ class CognitionDataProcessor:
             insert_operations.clear()
             if embedding_payloads:
                 embeddings = await llm_processor.get_embedding(embedding_payloads, user,
-                                                               invocation="knowledge_vault_sync")
+                                                               invocation="knowledge_vault_sync", collection = qdrant_collection)
                 points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
                           for idx in range(len(vector_ids))]
                 await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},

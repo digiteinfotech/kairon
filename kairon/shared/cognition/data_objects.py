@@ -31,6 +31,9 @@ class ColumnMetadata(EmbeddedDocument):
         if not Utility.check_empty_string(self.column_name):
             self.column_name = self.column_name.strip().lower()
 
+class SchemaMetadata(EmbeddedDocument):
+    training_needed = BooleanField(default=True)
+    provider = StringField(default="openai")
 
 @auditlogger.log
 @push_notification.apply
@@ -41,7 +44,7 @@ class CognitionSchema(Auditlog):
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     activeStatus = BooleanField(default=True)
-    training_needed = BooleanField(default=True)
+    schema_metadata = EmbeddedDocumentField(SchemaMetadata, default=SchemaMetadata)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 

@@ -1,6 +1,7 @@
 import os
 import time
 import urllib.parse
+import asyncio
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
@@ -16,7 +17,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import CognitionData, EmbeddingMetadata, CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionData, EmbeddingMetadata
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
@@ -426,36 +427,59 @@ class LLMProcessor(LLMBase):
     def logs(self):
         return self.__logs
 
-    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
-        similarity_prompt = kwargs.pop('similarity_prompt')
-        for similarity_context_prompt in similarity_prompt:
-            use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
-            similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
-            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
-            limit = similarity_context_prompt.get('top_results', 10)
-            score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
-            extracted_values = []
-            if use_similarity_prompt:
-                collection = similarity_context_prompt.get('collection')
-                if collection == 'default':
-                    collection_name = f"{self.bot}{self.suffix}"
-                else:
-                    collection_name = f"{self.bot}_{collection}{self.suffix}"
-                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
-                                                                 score_threshold=score_threshold)
+    async def _process_similarity_prompt(self, similarity_context_prompt, query_embedding):
+        use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
 
-                for entry in search_result['result']:
-                    if 'content' not in entry['payload']:
-                        extracted_payload = {}
-                        for key, value in entry['payload'].items():
-                            if key != 'collection_name':
-                                extracted_payload[key] = value
-                        extracted_values.append(extracted_payload)
-                    else:
-                        extracted_values.append(entry['payload']['content'])
-                if extracted_values:
-                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
-                    context_prompt = f"{context_prompt}\n{similarity_context}"
+        if not use_similarity_prompt:
+            return None
+
+        similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
+        similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+        limit = similarity_context_prompt.get('top_results', 10)
+        score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+
+        collection = similarity_context_prompt.get('collection')
+        if collection == 'default':
+            collection_name = f"{self.bot}{self.suffix}"
+        else:
+            collection_name = f"{self.bot}_{collection}{self.suffix}"
+
+        search_result = await self.__collection_search__(
+            collection_name,
+            vector=query_embedding,
+            limit=limit,
+            score_threshold=score_threshold
+        )
+
+        extracted_values = []
+        for entry in search_result['result']:
+            payload = entry.get('payload', {})
+            if 'content' in payload:
+                extracted_values.append(payload['content'])
+            else:
+                extracted_values.append({
+                    k: v for k, v in payload.items() if k != 'collection_name'
+                })
+
+        if extracted_values:
+            return f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+
+        return None
+
+    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
+        similarity_prompt = kwargs.pop('similarity_prompt', [])
+
+        tasks = [
+            self._process_similarity_prompt(sp, query_embedding)
+            for sp in similarity_prompt
+        ]
+
+        results = await asyncio.gather(*tasks)
+
+        for similarity_context in results:
+            if similarity_context:
+                context_prompt = f"{context_prompt}\n{similarity_context}"
+
         return context_prompt
 
     @staticmethod
