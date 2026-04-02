@@ -2622,3 +2622,42 @@ class TestLLM:
             assert "RERANK MODEL LOADED" in log_contents
 
         LLMSecret.objects.delete()
+
+@pytest.mark.asyncio
+async def test_get_embedding_sets_model_from_metadata():
+    # Arrange
+    mock_metadata = MagicMock()
+    mock_metadata.model_id = "test-model"
+
+    with patch("kairon.shared.cognition.data_objects.EmbeddingMetadata.objects") as mock_objects, \
+         patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock) as mock_request:
+
+        mock_objects.return_value.first.return_value = mock_metadata
+        mock_request.return_value = ([{"embedding": [0.1, 0.2]}], 200, 0.1, {})
+
+        bot = "test_bot"
+        llm_type = "openai"
+        user = "test_user"
+        key = "test"
+        llm_secret = LLMSecret(
+            llm_type=llm_type,
+            api_key=key,
+            models=["model1", "model2"],
+            api_base_url="https://api.example.com",
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        obj = LLMProcessor(bot, llm_type)
+
+
+        kwargs = {"collection": "test_collection"}
+
+        await obj.get_embedding("hello", user="test_user", **kwargs)
+
+        called_body = mock_request.call_args.kwargs["request_body"]
+        passed_kwargs = called_body["kwargs"]
+
+        assert passed_kwargs["model"] == "test-model"
+        LLMSecret.objects.delete()
