@@ -39,7 +39,6 @@ def main():
         predefined = data.get("predefined_objects", {})
         safe_globals = data.get("safe_globals", {})
         bot = data.get("bot")
-        user = data.get("user")
 
         if isinstance(safe_globals, list):
             allowed = {
@@ -52,9 +51,9 @@ def main():
                 "mark_as_processed": partial(CallbackScriptUtility.mark_as_processed, bot=bot),
                 "update_data_analytics": partial(CallbackScriptUtility.update_data_analytics, bot=bot),
                 "delete_data_analytics": partial(CallbackScriptUtility.delete_data_analytics, bot=bot),
-                "extract_data": partial(CallbackScriptUtility.extract_data, bot=bot, user=user),
-                "process_instruction": partial(CallbackScriptUtility.process_instruction, bot=bot, user=user),
-                "create_vector_collection": partial(CallbackScriptUtility.create_vector_collection, bot=bot),
+                "extract_data": CallbackScriptUtility.extract_data,
+                "process_instruction": CallbackScriptUtility.process_instruction,
+                "create_vector_collection": CallbackScriptUtility.create_vector_collection,
                 "send_email": partial(CallbackScriptUtility.send_email, bot=bot),
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,

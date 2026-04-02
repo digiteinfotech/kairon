@@ -78,7 +78,6 @@ class AnalyticsRunner():
             "safe_globals": list(safe_objects.keys()),
             "predefined_objects":predefined_objects,
             "bot": bot,
-            "user": user,
         }, default=str)
         action = predefined_objects.get("config", {})
         try:
