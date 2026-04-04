@@ -54,6 +54,7 @@ def main():
                 "extract_data": CallbackScriptUtility.extract_data,
                 "process_instruction": CallbackScriptUtility.process_instruction,
                 "create_vector_collection": CallbackScriptUtility.create_vector_collection,
+                "send_email": partial(CallbackScriptUtility.send_email, bot=bot),
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,
                 "url_parse": PyscriptUtility.url_parse_quote_plus,
