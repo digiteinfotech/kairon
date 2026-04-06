@@ -2623,41 +2623,101 @@ class TestLLM:
 
         LLMSecret.objects.delete()
 
-@pytest.mark.asyncio
-async def test_get_embedding_sets_model_from_metadata():
-    # Arrange
-    mock_metadata = MagicMock()
-    mock_metadata.model_id = "test-model"
+    @pytest.mark.asyncio
+    async def test_get_embedding_sets_model_from_metadata(self):
+        # Arrange
+        mock_metadata = MagicMock()
+        mock_metadata.model_id = "test-model"
 
-    with patch("kairon.shared.cognition.data_objects.EmbeddingMetadata.objects") as mock_objects, \
-         patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock) as mock_request:
+        with patch("kairon.shared.cognition.data_objects.EmbeddingMetadata.objects") as mock_objects, \
+             patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock) as mock_request:
 
-        mock_objects.return_value.first.return_value = mock_metadata
-        mock_request.return_value = ([{"embedding": [0.1, 0.2]}], 200, 0.1, {})
+            mock_objects.return_value.first.return_value = mock_metadata
+            mock_request.return_value = ([{"embedding": [0.1, 0.2]}], 200, 0.1, {})
 
-        bot = "test_bot"
-        llm_type = "openai"
-        user = "test_user"
-        key = "test"
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
+            bot = "test_bot"
+            llm_type = "openai"
+            user = "test_user"
+            key = "test"
+            llm_secret = LLMSecret(
+                llm_type=llm_type,
+                api_key=key,
+                models=["model1", "model2"],
+                api_base_url="https://api.example.com",
+                bot=bot,
+                user=user
+            )
+            llm_secret.save()
 
-        obj = LLMProcessor(bot, llm_type)
+            obj = LLMProcessor(bot, llm_type)
 
 
-        kwargs = {"collection": "test_collection"}
+            kwargs = {"collection": "test_collection"}
 
-        await obj.get_embedding("hello", user="test_user", **kwargs)
+            await obj.get_embedding("hello", user="test_user", **kwargs)
 
-        called_body = mock_request.call_args.kwargs["request_body"]
-        passed_kwargs = called_body["kwargs"]
+            called_body = mock_request.call_args.kwargs["request_body"]
+            passed_kwargs = called_body["kwargs"]
 
-        assert passed_kwargs["model"] == "test-model"
-        LLMSecret.objects.delete()
+            assert passed_kwargs["model"] == "test-model"
+            LLMSecret.objects.delete()
+
+    @pytest.fixture
+    def action_prompt_instance(self):
+        from kairon.actions.definitions.prompt import ActionPrompt
+        instance = ActionPrompt("test_bot", "action_llm_query0")
+        instance.bot = "test_bot"
+        instance.name = "action_llm_query"
+        return instance
+
+    @pytest.mark.asyncio
+    async def test_execute_forces_openrouter_on_embeddings(self, action_prompt_instance):
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        tracker.sender_id = "user_123"
+        tracker.get_intent_of_latest_message.return_value = "ask_faq"
+        tracker.get_slot.return_value = None  # for media_ids
+
+        domain = {}
+        kwargs = {'action_call': {'trigger_info': {}}}
+
+        action_prompt_instance.retrieve_config = MagicMock(return_value=(
+            {
+                'user_question': 'What is AI?',
+                'llm_type': 'openai',
+                'set_slots': [],
+                'dispatch_response': True
+            },
+            {}
+        ))
+
+        action_prompt_instance._ActionPrompt__get_user_msg = MagicMock(return_value="What is AI?")
+        action_prompt_instance._ActionPrompt__get_llm_params = AsyncMock(return_value={
+            "similarity_prompt": [{"collection": "kb"}],
+            "hyperparameters": {"model": "gpt-4"}
+        })
+        action_prompt_instance._ActionPrompt__add_user_context_to_http_response = MagicMock(return_value="context")
+
+        mock_emb_metadata = MagicMock()
+        mock_emb_metadata.vector_config = {"size": 3072}
+
+        with patch('kairon.shared.cognition.data_objects.EmbeddingMetadata.objects') as mock_query, \
+                patch('kairon.shared.admin.processor.Sysadmin.get_llm_secret', return_value="sk-router-key") as mock_secret, \
+                patch('kairon.shared.admin.processor.Sysadmin.check_llm_model_exists'), \
+                patch('kairon.actions.definitions.prompt.LLMProcessor') as MockProcessor:
+            mock_processor_inst = MockProcessor.return_value
+            mock_processor_inst.llm_type = "openai"
+            mock_processor_inst.predict = AsyncMock(return_value=(
+                {"content": "AI is cool", "is_failure": False},
+                0.5
+            ))
+            mock_processor_inst.logs = []
+            mock_query.return_value.first.return_value = mock_emb_metadata
+
+            await action_prompt_instance.execute(dispatcher, tracker, domain, **kwargs)
+
+            assert mock_processor_inst.llm_type == "openrouter"
+            mock_secret.assert_called_with("openrouter", "test_bot")
+
+            assert mock_processor_inst.llm_secret == "sk-router-key"
+            assert mock_processor_inst.llm_secret_embedding == "sk-router-key"
