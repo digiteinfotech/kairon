@@ -2737,3 +2737,64 @@ class TestLLM:
 
             assert mock_processor_inst.llm_secret == "sk-router-key"
             assert mock_processor_inst.llm_secret_embedding == "sk-router-key"
+
+    @pytest.mark.asyncio
+    async def test_execute_forces_openrouter_on_database_action(self):
+        # 1. Setup execution mocks
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        tracker.sender_id = "test_user"
+        tracker.get_intent_of_latest_message.return_value = "ask_data"
+
+        # Define the configuration that retrieve_config would return
+        mock_config = {
+            'collection': 'test_collection',
+            'db_type': 'qdrant',
+            'response': {'dispatch': True},
+            'failure_response': 'Failed',
+            'payload': [],
+            'set_slots': []
+        }
+        mock_bot_settings = {"llm_settings": {"enable_faq": True}}
+
+        mock_schema = MagicMock()
+
+        mock_schema.schema_metadata.training_needed = False
+        with patch("kairon.shared.vector_embeddings.db.factory.DatabaseFactory.get_instance") as mock_factory, \
+                patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_query, \
+                patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret",
+                      return_value="router_key") as mock_secret, \
+                patch("kairon.shared.actions.utils.ActionUtility.get_payload", return_value={}), \
+                patch("kairon.shared.actions.utils.ActionUtility.build_context", return_value={}), \
+                patch("kairon.shared.actions.utils.ActionUtility.compose_response",
+                      return_value=("Bot Response", [], None)), \
+                patch("kairon.shared.actions.utils.ActionUtility.fill_slots_from_response",
+                      return_value=({}, [], None)), \
+                patch("kairon.actions.definitions.database.ActionServerLogs.save"):
+
+            mock_vector_db = MagicMock()
+            mock_vector_db.llm = MagicMock()
+            mock_vector_db.perform_operation = AsyncMock(return_value={"data": "success"})
+
+            mock_factory.return_value.return_value = mock_vector_db
+            mock_query.return_value.first.return_value = mock_schema
+
+            from kairon.actions.definitions.database import ActionDatabase
+            action = ActionDatabase(bot="test_bot", name="test_db_action")
+            action.suffix = "_faq_embd"
+
+            action.retrieve_config = MagicMock(return_value=(mock_config, mock_bot_settings))
+
+            await action.execute(dispatcher, tracker, {})
+
+            mock_query.assert_called_with(bot="test_bot", collection_name="test_collection")
+
+            assert mock_vector_db.llm.llm_type == "openrouter"
+            assert mock_vector_db.llm.llm_secret == "router_key"
+            assert mock_vector_db.llm.llm_secret_embedding == "router_key"
+
+            mock_secret.assert_called_with("openrouter", "test_bot")
+
+            mock_vector_db.perform_operation.assert_called_once()
+            _, call_kwargs = mock_vector_db.perform_operation.call_args
+            assert call_kwargs['collection'] == "test_collection"
