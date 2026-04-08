@@ -4420,11 +4420,9 @@ def test_create_vector_collection_success():
     mock_client.get_collections.return_value.collections = []
 
     mock_schema = MagicMock()
-    mock_embedding_meta = MagicMock()
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
-         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", return_value=mock_embedding_meta), \
+         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
@@ -4452,12 +4450,9 @@ def test_create_vector_collection_overwrite():
     mock_schema_cls = MagicMock()
     mock_schema_cls.objects.return_value.first.return_value = mock_existing_schema
 
-    mock_embedding_meta_cls = MagicMock()
-    mock_embedding_meta_cls.objects.return_value.first.return_value = None
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
-         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", mock_embedding_meta_cls), \
+         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
@@ -4478,16 +4473,14 @@ def test_create_vector_collection_embedding_metadata_exists():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
 
-    mock_schema = MagicMock()
-
-    mock_embedding_meta_cls = MagicMock()
-    mock_embedding_meta_cls.objects.return_value.first.return_value = MagicMock()
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
-         patch("kairon.shared.cognition.data_objects.EmbeddingMetadata", mock_embedding_meta_cls), \
-         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+            patch("kairon.shared.cognition.data_objects.CognitionSchema") as mock_schema_class, \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
+            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+        mock_schema_class.objects.return_value.first.return_value = None
+        mock_instance = MagicMock()
+        mock_schema_class.return_value = mock_instance
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4497,6 +4490,10 @@ def test_create_vector_collection_embedding_metadata_exists():
         )
 
         assert result["message"] == "collection created successfully"
+        mock_client.create_collection.assert_called_once()
+
+        assert mock_instance.save.called
+        assert mock_instance.schema_metadata is not None
 
 def test_create_vector_collection_exists():
     mock_collection = MagicMock()

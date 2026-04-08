@@ -573,7 +573,7 @@ class CallbackScriptUtility:
     @staticmethod
     def create_vector_collection(collection_name, model_id: str, user: str, emb_size: int = 3072,
                                  overwrite: bool = False, metadata: list = None, bot: str = None):
-        from kairon.shared.cognition.data_objects import CognitionSchema, EmbeddingMetadata, ColumnMetadata
+        from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata
         from qdrant_client.models import VectorParams, Distance
         from qdrant_client import QdrantClient
 
@@ -609,8 +609,11 @@ class CallbackScriptUtility:
             metadata_obj.metadata = [ColumnMetadata(**meta) for meta in schema.get("metadata") or []]
             metadata_obj.collection_name = schema.get("collection_name")
             metadata_obj.schema_metadata = SchemaMetadata(
-                training_needed=False,
-                provider="openrouter"
+                training_needed = False,
+                provider = "openrouter",
+                model_id = model_id,
+                size = emb_size,
+                IsVisible = True
             )
             metadata_obj.save()
         else:
@@ -618,11 +621,6 @@ class CallbackScriptUtility:
                 "message": "collection already exists"
             }
 
-        exist = EmbeddingMetadata.objects(bot=bot, collection_name=collection_name, model_id=model_id,
-                                          knowledge_vault_name=knowledge_vault_name).first()
-        if not exist:
-            EmbeddingMetadata(bot=bot, collection_name=collection_name, model_id=model_id,
-                              knowledge_vault_name=knowledge_vault_name, user=user, vector_config=embed_config).save()
         return {
             "message": "collection created successfully"
         }

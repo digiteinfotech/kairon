@@ -26,7 +26,7 @@ Utility.load_system_metadata()
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, SchemaMetadata
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
 from deepdiff import DeepDiff
@@ -118,11 +118,14 @@ class TestLLM:
                       {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True},
                       {"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             collection_name="Country_details",
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="model1", size=3072),
             bot=bot, user=user).save()
+
         CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
             collection_name="User_details",
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="model1", size=3072),
             bot=bot, user=user
         ).save()
         test_content_two = CognitionData(
@@ -210,10 +213,10 @@ class TestLLM:
             response = await gpt3.train(user=user)
             assert response['faq'] == 3
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
-            points = list(aioresponses.requests.values())[3][0].kwargs['json']['points']
+            points = list(aioresponses.requests.values())[2][0].kwargs['json']['points']
 
             assert points[0]['id'] == test_content_two.vector_id
             assert points[0]['payload'] == {'country': 'Spain'}
@@ -221,10 +224,10 @@ class TestLLM:
             assert points[1]['id'] == test_content_three.vector_id
             assert points[1]['payload'] == {'role': 'ds'}
 
-            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
-            points = list(aioresponses.requests.values())[5][0].kwargs['json']['points']
+            points = list(aioresponses.requests.values())[4][0].kwargs['json']['points']
 
             assert points[0]['id'] == test_content.vector_id
             assert points[0]['payload'] == {'name': 'Nupur'}
@@ -425,35 +428,42 @@ class TestLLM:
             0.05,
             {}
         )
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, "url": "http://kairon:5057"}}):
-            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
+        mock_schema = MagicMock()
+        mock_schema.schema_metadata = MagicMock()
+        mock_schema.schema_metadata.training_needed = True  # Force the code into the IF block
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
-                method="GET",
-                payload={"time": 0, "status": "ok", "result": {"collections": []}})
+        # 2. Patch the CognitionSchema objects call
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_query:
+            mock_query.return_value.first.return_value = mock_schema
+            with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, "url": "http://kairon:5057"}}):
+                gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
-            aioresponses.add(
-                method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}")
-            )
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                    method="GET",
+                    payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                status=200
-            )
+                aioresponses.add(
+                    method="DELETE",
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}")
+                )
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
-                method="PUT",
-                payload={"result": None,
-                         'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},
-                         "time": 0.003612634}
-            )
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                    method="PUT",
+                    status=200
+                )
 
-            with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
-                await gpt3.train(user=user)
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                    method="PUT",
+                    payload={"result": None,
+                             'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},
+                             "time": 0.003612634}
+                )
+
+                with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
+                    await gpt3.train(user=user)
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
                                                                                  'vectors': gpt3.vector_config}
@@ -2627,9 +2637,11 @@ class TestLLM:
     async def test_get_embedding_sets_model_from_metadata(self):
         # Arrange
         mock_metadata = MagicMock()
-        mock_metadata.model_id = "test-model"
+        mock_metadata.schema_metadata = MagicMock()
+        mock_metadata.schema_metadata.model_id = "test-model"
+        mock_metadata.schema_metadata.training_needed = False
 
-        with patch("kairon.shared.cognition.data_objects.EmbeddingMetadata.objects") as mock_objects, \
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_objects, \
              patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock) as mock_request:
 
             mock_objects.return_value.first.return_value = mock_metadata
@@ -2676,7 +2688,7 @@ class TestLLM:
         tracker = MagicMock()
         tracker.sender_id = "user_123"
         tracker.get_intent_of_latest_message.return_value = "ask_faq"
-        tracker.get_slot.return_value = None  # for media_ids
+        tracker.get_slot.return_value = None
 
         domain = {}
         kwargs = {'action_call': {'trigger_info': {}}}
@@ -2699,10 +2711,14 @@ class TestLLM:
         action_prompt_instance._ActionPrompt__add_user_context_to_http_response = MagicMock(return_value="context")
 
         mock_emb_metadata = MagicMock()
-        mock_emb_metadata.vector_config = {"size": 3072}
+        mock_emb_metadata.schema_metadata = MagicMock()
+        mock_emb_metadata.schema_metadata.size = 3072
+        mock_emb_metadata.schema_metadata.model_id = "test-model"
+        mock_emb_metadata.schema_metadata.training_needed = False
 
-        with patch('kairon.shared.cognition.data_objects.EmbeddingMetadata.objects') as mock_query, \
-                patch('kairon.shared.admin.processor.Sysadmin.get_llm_secret', return_value="sk-router-key") as mock_secret, \
+        with patch('kairon.shared.cognition.data_objects.CognitionSchema.objects') as mock_query, \
+                patch('kairon.shared.admin.processor.Sysadmin.get_llm_secret',
+                      return_value="sk-router-key") as mock_secret, \
                 patch('kairon.shared.admin.processor.Sysadmin.check_llm_model_exists'), \
                 patch('kairon.actions.definitions.prompt.LLMProcessor') as MockProcessor:
             mock_processor_inst = MockProcessor.return_value

@@ -16,7 +16,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import CognitionData, EmbeddingMetadata
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
@@ -64,15 +64,16 @@ class LLMProcessor(LLMBase):
         collection_groups = {}
         for content in collections_data:
             content_dict = content.to_mongo()
-            collection_name = content_dict.get('collection') or ""
+            collection_name = content_dict.get('collection', '')
             if collection_name not in collection_groups:
                 collection_groups[collection_name] = []
             collection_groups[collection_name].append(content_dict)
 
         for collection_name, contents in collection_groups.items():
             collection = f"{self.bot}_{collection_name}{self.suffix}" if collection_name else f"{self.bot}{self.suffix}"
-            EmbeddingMetaData = EmbeddingMetadata.objects(bot = self.bot, collection_name = collection).first()
-            if not EmbeddingMetaData:
+            EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+            training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+            if training_needed or collection_name == '':
                 await self.__create_collection__(collection)
 
                 for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
@@ -162,11 +163,12 @@ class LLMProcessor(LLMBase):
         if is_single_text:
             texts = [texts]
         collection_name = kwargs.get("collection", None)
-        EmbeddingMetaData = EmbeddingMetadata.objects(bot = self.bot, collection_name = collection_name).first()
-        if not EmbeddingMetaData:
+        EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+        training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+        if training_needed:
             kwargs.pop("collection")
         else:
-            kwargs["model"] = EmbeddingMetaData.model_id
+            kwargs["model"] = EmbeddingMetaData.schema_metadata.model_id
         truncated_texts = self.truncate_text(texts)
         kwargs["truncated_texts"] = truncated_texts
         kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
@@ -295,8 +297,12 @@ class LLMProcessor(LLMBase):
                                             timeout=5)
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
-                    EmbeddingMetaData = EmbeddingMetadata.objects(bot=self.bot, collection_name=collection['name']).first()
-                    if collection['name'].startswith(self.bot) and not EmbeddingMetaData:
+                    name = collection.get('name')
+                    parts = name.split("_")
+                    collection_name = "_".join(parts[1:-2])
+                    EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+                    training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+                    if collection['name'].startswith(self.bot) and (training_needed or collection_name == ''):
                         await client.request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
                                              request_method="DELETE",
                                              headers=self.headers,

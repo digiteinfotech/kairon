@@ -12,7 +12,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import EmbeddingMetadata
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE, STATUSES
@@ -85,14 +85,14 @@ class ActionPrompt(ActionsBase):
             if similarity_prompt:
                 collection = similarity_prompt[0].get("collection", None)
             if collection:
-                collection_name = f"{self.bot}_{collection}_faq_embd"
-                embeddings_dict = EmbeddingMetadata.objects(bot=self.bot, collection_name=collection_name).first()
-                embedding = embeddings_dict.vector_config.get("size") if embeddings_dict else 3072
-                if embeddings_dict and not llm_processor.llm_type == 'openrouter':
+                EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection).first()
+                training_needed = EmbeddingMetaData.schema_metadata.training_needed
+                embedding_size = EmbeddingMetaData.schema_metadata.size if not training_needed else 3072
+                if not training_needed and not llm_processor.llm_type == 'openrouter':
                     llm_processor.llm_type = "openrouter"
                     llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
                     llm_processor.llm_secret_embedding = llm_processor.llm_secret
-                llm_processor.vector_config["size"] = embedding
+                llm_processor.vector_config["size"] = embedding_size
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             media_ids = tracker.get_slot('media_ids')
@@ -104,7 +104,7 @@ class ActionPrompt(ActionsBase):
                                                                                 llm_type=llm_type,
                                                                                 media_ids=media_ids,
                                                                                 should_process_media=should_process_media,
-                                                                                collection = collection_name,
+                                                                                collection = collection,
                                                                                 **llm_params)
             status = STATUSES.FAIL.value if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")

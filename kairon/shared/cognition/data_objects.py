@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from mongoengine import EmbeddedDocument, StringField, BooleanField, ValidationError, ListField, EmbeddedDocumentField, \
-    DateTimeField, SequenceField, DynamicField, DictField
+    DateTimeField, SequenceField, DynamicField, DictField, IntField
 
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -34,6 +34,9 @@ class ColumnMetadata(EmbeddedDocument):
 class SchemaMetadata(EmbeddedDocument):
     training_needed = BooleanField(default=True)
     provider = StringField(default="openai")
+    model_id = StringField(default = "text-embedding-3-large")
+    size = IntField(default = 3072)
+    IsVisible = BooleanField(default=True)
 
 @auditlogger.log
 @push_notification.apply
@@ -151,20 +154,3 @@ class AnalyticsCollectionData(Auditlog):
     def clean(self):
         if self.collection_name:
             self.collection_name = self.collection_name.strip().lower()
-
-
-@auditlogger.log
-@push_notification.apply
-class EmbeddingMetadata(Auditlog):
-    collection_name = StringField(required=True)
-    bot = StringField(required=True)
-    vector_config = DictField()
-    user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
-    knowledge_vault_name = StringField(required=True)
-    model_id = StringField(required=True)
-
-    meta = {"indexes": [{"fields": ["bot", "collection_name"]}]}
-
-    def clean(self):
-        self.collection_name = self.collection_name.strip().lower()

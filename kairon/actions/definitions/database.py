@@ -11,7 +11,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import EmbeddingMetadata
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.data.constant import STATUSES
 from kairon.shared.vector_embeddings.db.factory import DatabaseFactory
@@ -79,12 +79,14 @@ class ActionDatabase(ActionsBase):
             vector_action_config, bot_settings = self.retrieve_config()
             dispatch_bot_response = vector_action_config['response']['dispatch']
             failure_response = vector_action_config['failure_response']
+            collection = vector_action_config['collection']
             collection_name = f"{self.bot}_{vector_action_config['collection']}{self.suffix}"
             db_type = vector_action_config['db_type']
             vector_db = DatabaseFactory.get_instance(db_type)(self.bot, collection_name,
                                                               bot_settings["llm_settings"])
-            EmbeddingMetaData = EmbeddingMetadata.objects(bot = self.bot, collection_name = collection_name).first()
-            if EmbeddingMetaData:
+            EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection).first()
+            training_needed = EmbeddingMetaData.schema_metadata.training_needed
+            if not training_needed:
                 vector_db.llm.llm_type = "openrouter"
                 vector_db.llm.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
                 vector_db.llm.llm_secret_embedding = vector_db.llm.llm_secret
@@ -92,7 +94,7 @@ class ActionDatabase(ActionsBase):
             request_body = ActionUtility.get_payload(payload, tracker)
             msg_logger.append(request_body)
             tracker_data = ActionUtility.build_context(tracker, True)
-            response = await vector_db.perform_operation(request_body, user=tracker.sender_id)
+            response = await vector_db.perform_operation(request_body, user=tracker.sender_id, collection = collection)
             logger.info("response: " + str(response))
             response_context = self.__add_user_context_to_http_response(response, tracker_data)
             bot_response, bot_resp_log, _ = ActionUtility.compose_response(vector_action_config['response'], response_context)

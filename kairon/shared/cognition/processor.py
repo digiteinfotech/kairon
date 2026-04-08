@@ -14,8 +14,7 @@ from kairon.exceptions import AppException
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData, \
-    EmbeddingMetadata
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
 from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
 from kairon.shared.data.processor import MongoProcessor
@@ -140,22 +139,10 @@ class CognitionDataProcessor:
             metadata = item.pop("metadata")
             collection = item.pop('collection_name', None)
             schema_metadata = item.pop("schema_metadata", {})
-            Embeddingmetadata ={
-                    "size": 3072,
-                    "distance": Distance.COSINE
-                }
-            model_id = "text-embedding-3-large"
-            collection_name = f"{bot}_{collection}_faq_embd"
-            embeddings_dict = EmbeddingMetadata.objects(bot=bot, collection_name=collection_name).first()
-            if embeddings_dict:
-                Embeddingmetadata = embeddings_dict.vector_config
-                model_id = embeddings_dict.model_id
             final_data["_id"] = item["_id"].__str__()
             final_data['metadata'] = metadata
             final_data['collection_name'] = collection
-            final_data['embedding_metadata'] = Embeddingmetadata
             final_data["schema_metadata"] = schema_metadata
-            final_data["model_id"] = model_id
             yield final_data
 
     @staticmethod
@@ -798,7 +785,7 @@ class CognitionDataProcessor:
             insert_operations.clear()
             if embedding_payloads:
                 embeddings = await llm_processor.get_embedding(embedding_payloads, user,
-                                                               invocation="knowledge_vault_sync", collection = qdrant_collection)
+                                                               invocation="knowledge_vault_sync", collection = collection_name)
                 points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
                           for idx in range(len(vector_ids))]
                 await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},
