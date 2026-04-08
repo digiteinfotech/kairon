@@ -19718,39 +19718,35 @@ class TestMongoProcessor:
         bot = "test_bot"
 
         mock_doc = MagicMock()
-        mock_doc.to_mongo.return_value.to_dict.return_value = {
+        schema_data = {
             "_id": "123",
             "metadata": [{"key": "value"}],
             "collection_name": "test_collection",
-            "schema_metadata": {"training_needed": False}
+            "schema_metadata": {
+                "training_needed": False,
+                "model_id": "custom-model",
+                "size": 512,
+                "provider": "openai"
+            }
         }
 
-        mock_embedding = MagicMock()
-        mock_embedding.vector_config = {
-            "size": 512,
-            "distance": "dot"
-        }
-        mock_embedding.model_id = "custom-model"
+        mock_doc.to_mongo.return_value.to_dict.return_value = schema_data
 
-        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_cognition_objects, \
-                patch("kairon.shared.cognition.data_objects.EmbeddingMetadata.objects") as mock_embedding_objects:
-
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_cognition_objects:
             mock_cognition_objects.return_value = [mock_doc]
 
-            mock_embedding_objects.return_value.first.return_value = mock_embedding
-
             obj = CognitionDataProcessor()
-
-
             result = list(obj.list_cognition_schema(bot))
 
             assert len(result) == 1
-
             data = result[0]
 
-            assert data["embedding_metadata"] == mock_embedding.vector_config
-            assert data["model_id"] == "custom-model"
+            assert data["_id"] == "123"
+            assert data["metadata"] == [{"key": "value"}]
+            assert data["collection_name"] == "test_collection"
 
+            assert data["schema_metadata"]["model_id"] == "custom-model"
+            assert data["schema_metadata"]["size"] == 512
 
     def test_save_payload_metadata_column_limit_exceeded(self):
         processor = CognitionDataProcessor()
