@@ -81,7 +81,6 @@ class ActionPrompt(ActionsBase):
             llm_processor = LLMProcessor(self.bot, llm_type)
             similarity_prompt = llm_params["similarity_prompt"]
             collection = None
-            collection_name = None
             if similarity_prompt:
                 collection = similarity_prompt[0].get("collection", None)
             if collection:

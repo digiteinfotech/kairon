@@ -7,7 +7,6 @@ from loguru import logger
 from mongoengine import DoesNotExist, Q
 from pydantic import constr, create_model, ValidationError
 from pymongo import UpdateOne
-from qdrant_client.http.models import Distance
 
 from kairon import Utility
 from kairon.exceptions import AppException
