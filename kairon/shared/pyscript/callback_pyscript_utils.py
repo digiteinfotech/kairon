@@ -29,7 +29,7 @@ from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
-from kairon.shared.cognition.data_objects import AnalyticsCollectionData, SchemaMetadata
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 
 
 class CallbackScriptUtility:
@@ -573,7 +573,7 @@ class CallbackScriptUtility:
     @staticmethod
     def create_vector_collection(collection_name, model_id: str, user: str, emb_size: int = 3072,
                                  overwrite: bool = False, metadata: list = None, bot: str = None):
-        from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata
+        from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, SchemaMetadata
         from qdrant_client.models import VectorParams, Distance
         from qdrant_client import QdrantClient
 
