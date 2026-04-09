@@ -12,6 +12,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
@@ -712,6 +713,9 @@ class CognitionDataProcessor:
 
         from kairon.shared.llm.processor import LLMProcessor
         llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        llm_processor.llm_type = "openrouter"
+        llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", bot)
+        llm_processor.llm_secret_embedding = llm_processor.llm_secret
         suffix = "_faq_embd"
         qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
 

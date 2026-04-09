@@ -83,7 +83,7 @@ class ActionPrompt(ActionsBase):
             collection = None
             if similarity_prompt:
                 collection = similarity_prompt[0].get("collection", None)
-            if collection:
+            if collection and not collection == "default":
                 EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection).first()
                 training_needed = EmbeddingMetaData.schema_metadata.training_needed
                 embedding_size = EmbeddingMetaData.schema_metadata.size if not training_needed else 3072
