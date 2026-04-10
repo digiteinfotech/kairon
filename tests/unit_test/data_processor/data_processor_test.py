@@ -26,7 +26,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch, ANY, AsyncMock
+from unittest.mock import patch, ANY, AsyncMock, MagicMock
 import numpy as np
 import pandas as pd
 import pytest
@@ -19713,6 +19713,40 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
+
+    def test_list_cognition_schema_with_embedding_metadata(self):
+        bot = "test_bot"
+
+        mock_doc = MagicMock()
+        schema_data = {
+            "_id": "123",
+            "metadata": [{"key": "value"}],
+            "collection_name": "test_collection",
+            "schema_metadata": {
+                "training_needed": False,
+                "model_id": "custom-model",
+                "size": 512,
+                "provider": "openai"
+            }
+        }
+
+        mock_doc.to_mongo.return_value.to_dict.return_value = schema_data
+
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_cognition_objects:
+            mock_cognition_objects.return_value = [mock_doc]
+
+            obj = CognitionDataProcessor()
+            result = list(obj.list_cognition_schema(bot))
+
+            assert len(result) == 1
+            data = result[0]
+
+            assert data["_id"] == "123"
+            assert data["metadata"] == [{"key": "value"}]
+            assert data["collection_name"] == "test_collection"
+
+            assert data["schema_metadata"]["model_id"] == "custom-model"
+            assert data["schema_metadata"]["size"] == 512
 
     def test_save_payload_metadata_column_limit_exceeded(self):
         processor = CognitionDataProcessor()

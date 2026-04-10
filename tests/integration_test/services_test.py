@@ -58,7 +58,7 @@ from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction,
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData, CollectionData
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData, CollectionData, SchemaMetadata
 from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import (
@@ -1729,6 +1729,96 @@ def test_create_branch():
             user='integration@demo.ai'
         )
 
+
+@pytest.mark.asyncio
+async def test_vector_data_insertion_full_flow():
+    """
+    Test the full flow from API to upsert_vector_data,
+    ensuring stale data deletion and metadata handling.
+    """
+    import uuid
+
+    LLMSecret.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+    schema_meta = SchemaMetadata(training_needed=False, model_id="text-embedding-3-large", size=3072)
+
+    schema = CognitionSchema(
+        collection_name="groceries",
+        bot=pytest.bot,
+        user="test_user",
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        schema_metadata=schema_meta
+    )
+    schema.save()
+
+    LLMSecret(
+        llm_type="openrouter",
+        api_key="sk-test-key",
+        user="test_user",
+        models=["gpt-4o", "gpt-4"],
+        timestamp=datetime.utcnow()
+    ).save()
+    LLMSecret(
+        llm_type="openai",
+        api_key="sk-test-key-2",
+        user="test_user",
+        models=["gpt-4o", "gpt-4"],
+        timestamp=datetime.utcnow()
+    ).save()
+
+    stale_vector_id = str(uuid.uuid4())
+    CognitionData(
+        data={"id": 99, "item": "Old Milk"},
+        vector_id=stale_vector_id,
+        content_type="json",
+        collection="groceries",
+        bot=pytest.bot,
+        user="test_user"
+    ).save()
+
+    with mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async",
+                    new_callable=AsyncMock) as mock_exe, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__collection_exists__",
+                       new_callable=AsyncMock) as mock_exists, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__collection_upsert__",
+                       new_callable=AsyncMock) as mock_upsert, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__delete_collection_points__",
+                       new_callable=AsyncMock) as mock_delete:
+        mock_exe.return_value = ([[0.1] * 3072], 200, 0.01, {})
+        mock_exists.return_value = True
+        mock_upsert.return_value = None
+        mock_delete.return_value = None
+
+        sync_data = [{"id": 1, "item": "Apple"}]
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/vector/insert?primary_key_col=id&collection_name=groceries",
+            json=sync_data,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        )
+
+        res_json = response.json()
+        print(res_json)
+        assert res_json["success"] is True
+        assert res_json["message"] == "Processing completed successfully"
+
+        assert CognitionData.objects(bot=pytest.bot, collection="groceries").count() == 1
+        assert CognitionData.objects(bot=pytest.bot, data__id=1).first() is not None
+        assert CognitionData.objects(bot=pytest.bot, data__id=99).first() is None
+
+        mock_delete.assert_called_once()
+        assert stale_vector_id in mock_delete.call_args[0][1]
+
+        assert mock_upsert.called
+    CognitionData.objects(bot=pytest.bot, collection="groceries",).delete()
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries",).delete()
+    LLMSecret.objects.delete()
 
 def test_get_client_name_and_branch():
     with patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_get_client_details:
