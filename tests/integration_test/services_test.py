@@ -1816,6 +1816,9 @@ async def test_vector_data_insertion_full_flow():
         assert stale_vector_id in mock_delete.call_args[0][1]
 
         assert mock_upsert.called
+    CognitionData.objects(bot=pytest.bot, collection="groceries",).delete()
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries",).delete()
+    LLMSecret.objects.delete()
 
 def test_get_client_name_and_branch():
     with patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_get_client_details:
