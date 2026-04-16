@@ -7929,7 +7929,7 @@ class MongoProcessor:
         if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("llm_prompts", []), request_data.get("llm_type", 'openai'), bot)
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data["bot"] = bot
         request_data["user"] = user
@@ -7944,7 +7944,7 @@ class MongoProcessor:
         )
         return prompt_action_id
 
-    def __validate_llm_prompts(self, llm_prompts, bot: Text):
+    def __validate_llm_prompts(self, llm_prompts, llm_type,  bot: Text):
         for prompt in llm_prompts:
             if prompt["source"] == "slot":
                 if not Utility.is_exist(
@@ -7978,6 +7978,15 @@ class MongoProcessor:
                 if missing_collections:
                     raise AppException(f'Collections not found: {missing_collections}')
 
+            if prompt["source"] == "bot_content":
+                collection = prompt["data"]
+                EmbeddingMetaData = CognitionSchema.objects(bot=bot, collection_name=collection).first()
+                training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+                provider = EmbeddingMetaData.schema_metadata.provider if EmbeddingMetaData else "openai"
+                if not training_needed:
+                    if not llm_type == provider:
+                        raise AppException(f'LLM Type must be {provider} for the chosen faq table')
+
     def edit_prompt_action(
             self, prompt_action_id: str, request_data: dict, bot: Text, user: Text
     ):
@@ -7996,7 +8005,7 @@ class MongoProcessor:
                 PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True
         ):
             raise AppException("Action not found")
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("llm_prompts", []), request_data.get("llm_type", 'openai'), bot)
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")

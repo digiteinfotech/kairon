@@ -14921,20 +14921,18 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "llm_type": DEFAULT_LLM,
               "hyperparameters": Utility.get_default_llm_hyperparameters()}
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/prompt",
-        json=action,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": None,
-            "collection_name": "Python"
+            "collection_name": "python"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response_one.json()
 
@@ -15623,6 +15621,17 @@ def test_add_prompt_action_with_utter(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "utter_test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -15635,7 +15644,7 @@ def test_add_prompt_action_with_utter(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15681,6 +15690,17 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_similarity_threshold",
         "llm_prompts": [
@@ -15694,7 +15714,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 'hyperparameters': {"top_results": 10, "similarity_threshold": 1.70},
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15740,6 +15760,17 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_top_results",
         "llm_prompts": [
@@ -15753,7 +15784,7 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 'hyperparameters': {"top_results": 40, "similarity_threshold": 0.70},
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15795,6 +15826,17 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
 
 
 def test_add_prompt_action_with_invalid_query_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_query_prompt",
         "llm_prompts": [
@@ -15807,7 +15849,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15846,6 +15888,17 @@ def test_add_prompt_action_with_invalid_query_prompt():
 
 
 def test_add_prompt_action_with_invalid_num_bot_responses():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_num_bot_responses",
         "llm_prompts": [
@@ -15858,7 +15911,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15905,6 +15958,17 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
 
 
 def test_add_prompt_action_with_invalid_system_prompt_source():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_system_prompt_source",
         "llm_prompts": [
@@ -15917,7 +15981,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -15964,6 +16028,17 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
 
 
 def test_add_prompt_action_with_multiple_system_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_multiple_system_prompt",
         "llm_prompts": [
@@ -15984,7 +16059,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16031,6 +16106,17 @@ def test_add_prompt_action_with_multiple_system_prompt():
 
 
 def test_add_prompt_action_with_empty_llm_prompt_name():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_empty_llm_prompt_name",
         "llm_prompts": [
@@ -16043,7 +16129,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16090,6 +16176,17 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
 
 
 def test_add_prompt_action_with_empty_data_for_static_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_empty_data_for_static_prompt",
         "llm_prompts": [
@@ -16102,7 +16199,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16149,6 +16246,17 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
 
 
 def test_add_prompt_action_with_multiple_history_source_prompts():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_multiple_history_source_prompts",
         "llm_prompts": [
@@ -16173,7 +16281,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16212,6 +16320,17 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
 
 
 def test_add_prompt_action_with_gpt_feature_disabled():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_gpt_feature_disabled",
         "llm_prompts": [
@@ -16224,7 +16343,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16278,6 +16397,17 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_llm_type", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -16290,7 +16420,7 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16345,6 +16475,17 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_hyperameters", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -16357,7 +16498,7 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16410,6 +16551,17 @@ def test_add_prompt_action(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -16422,7 +16574,7 @@ def test_add_prompt_action(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16473,6 +16625,17 @@ def test_add_prompt_action_already_exist(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -16485,7 +16648,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16527,6 +16690,17 @@ def test_add_prompt_action_already_exist(monkeypatch):
 
 
 def test_update_prompt_action_does_not_exist():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_does_not_exist",
         "llm_prompts": [
@@ -16539,7 +16713,7 @@ def test_update_prompt_action_does_not_exist():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16580,6 +16754,17 @@ def test_update_prompt_action_does_not_exist():
 
 
 def test_update_prompt_action_with_invalid_similarity_threshold():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_similarity_threshold",
         "llm_prompts": [
@@ -16592,7 +16777,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 'hyperparameters': {"top_results": 9, "similarity_threshold": 1.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
@@ -16635,6 +16820,17 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
 
 
 def test_update_prompt_action_with_invalid_top_results():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_top_results",
         "llm_prompts": [
@@ -16647,7 +16843,7 @@ def test_update_prompt_action_with_invalid_top_results():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection"
+                "data": "test_collection"
                 , 'hyperparameters': {"top_results": 39, "similarity_threshold": 0.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
@@ -16682,6 +16878,17 @@ def test_update_prompt_action_with_invalid_top_results():
 
 
 def test_update_prompt_action_with_invalid_num_bot_responses():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_num_bot_responses",
         "llm_prompts": [
@@ -16694,7 +16901,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16730,6 +16937,17 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
 
 
 def test_update_prompt_action_with_invalid_query_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_query_prompt",
         "llm_prompts": [
@@ -16742,7 +16960,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16841,6 +17059,17 @@ def test_update_prompt_action_with_query_prompt_with_false():
 
 
 def test_update_prompt_action():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action", 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
         "llm_prompts": [
@@ -16853,7 +17082,7 @@ def test_update_prompt_action():
             },
             {
                 "name": "Similarity_analytical Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -16937,7 +17166,7 @@ def test_get_prompt_action():
             },
             {
                 'name': 'Similarity_analytical Prompt',
-                'data': 'Bot_collection',
+                'data': 'test_collection',
                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                 'type': 'user',
                 'source': 'bot_content',
@@ -17107,6 +17336,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     }
 
     assert not DeepDiff(prompt_action, expected_action, ignore_order=True)
+    CognitionSchema.objects(bot=pytest.bot).delete()
 
 def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
@@ -17120,7 +17350,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "States"
+            "collection_name": "states"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -17130,7 +17360,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     payload = {
         "data": {"name": "Karnataka"},
         "content_type": "json",
-        "collection": "States"}
+        "collection": "states"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -17248,7 +17478,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": None,
-            "collection_name": "Python"
+            "collection_name": "python"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -17260,7 +17490,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 "Its design philosophy emphasizes code readability with the use of significant indentation. "
                 "Python is dynamically typed and garbage-collected.",
         "content_type": "text",
-        "collection": "Python"}
+        "collection": "python"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -39259,6 +39489,17 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_stop_hyperparameters", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -39271,7 +39512,7 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -39502,6 +39743,17 @@ def test_add_parallel_action(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -39514,7 +39766,7 @@ def test_add_parallel_action(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",

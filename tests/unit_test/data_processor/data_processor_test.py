@@ -68,7 +68,7 @@ from kairon.shared.actions.models import ActionType, DispatchType, DbActionOpera
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData, SchemaMetadata
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
@@ -664,6 +664,18 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
@@ -675,7 +687,7 @@ class TestMongoProcessor:
                                     'source': 'static',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    "data": "Bot_collection",
+                                    "data": "test",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -702,6 +714,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
@@ -715,7 +738,7 @@ class TestMongoProcessor:
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70}},
                                    {'name': 'Http action Prompt',
@@ -741,6 +764,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
                    'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
@@ -752,7 +786,7 @@ class TestMongoProcessor:
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70},
                                     },
@@ -773,6 +807,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
 
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -783,7 +828,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 40,
                                                         'similarity_threshold': 0.3},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -823,6 +868,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -888,6 +944,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -895,7 +962,7 @@ class TestMongoProcessor:
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    'data': 'Bot_collection',
+                                    'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -922,7 +989,7 @@ class TestMongoProcessor:
             'llm_prompts': [
                 {'name': 'System Prompt', 'data': 'You are a personal assistant.',
                  'type': 'system', 'source': 'static', 'is_enabled': True},
-                {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                {'name': 'Similarity Prompt', 'data': 'test_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                 {'name': 'Query Prompt',
@@ -943,10 +1010,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -962,10 +1040,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -985,11 +1074,22 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_system_prompt_source',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1008,7 +1108,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -1016,7 +1126,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1031,14 +1141,70 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
             processor.add_prompt_action(request, bot, user)
 
+    def test_validate_llm_prompts_bot_content_provider_mismatch(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = "test_collection_mismatch"
+
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(
+                training_needed=False,
+                provider="openai",
+                model_id="text-embedding-3-large"
+            )
+        ).save()
+
+        request = {
+            'name': 'test_llm_mismatch_action',
+            'llm_type': 'anthropic',
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True},
+                {
+                    'name': 'Similarity Prompt',
+                    'data': collection_name,
+                    'instructions': 'Search this collection',
+                    'type': 'user',
+                    'source': 'bot_content',
+                    'is_enabled': True
+                }
+            ],
+            "failure_message": "Error",
+            "num_bot_responses": 1
+        }
+
+        # 3. Assert that AppException is raised due to the provider mismatch
+        expected_error = "LLM Type must be openai for the chosen faq table"
+        with pytest.raises(AppException, match=expected_error):
+            processor.add_prompt_action(request, bot, user)
+
     def test_add_prompt_action_with_empty_llm_prompt_name(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
                    'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1057,11 +1223,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1079,14 +1255,24 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1105,14 +1291,35 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
-
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection_1",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection_2",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                       {'name': 'Similarity Prompt', "data": "Bot_collection",
+                       {'name': 'Similarity Prompt', "data": "test_collection_1",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                       {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
+                       {'name': 'Another Similarity Prompt', "data": "test_collection_2",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True}
                    ],
@@ -1518,12 +1725,23 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
 
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                   {'name': 'Similarity Prompt', 'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1572,7 +1790,7 @@ class TestMongoProcessor:
                 },
                 {
                     'name': 'Similarity Prompt',
-                    'data': 'Bot_collection',
+                    'data': 'test_collection',
                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                     'type': 'user',
                     'source': 'bot_content',
@@ -1643,12 +1861,23 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
 
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                   {'name': 'Similarity Prompt', 'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -1687,7 +1916,7 @@ class TestMongoProcessor:
                  'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
-                 'data': 'Bot_collection',
+                 'data': 'test_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
@@ -1732,6 +1961,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
 
         request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
                'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
@@ -1739,7 +1979,7 @@ class TestMongoProcessor:
                'llm_prompts': [
                    {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                     'source': 'static', 'is_enabled': True},
-                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                   {'name': 'Similarity Prompt', 'data': 'test_collection',
                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                    {'name': 'Query Prompt',
@@ -1787,7 +2027,7 @@ class TestMongoProcessor:
                  'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
-                 'data': 'Bot_collection',
+                 'data': 'test_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
@@ -1834,6 +2074,17 @@ class TestMongoProcessor:
             user=user
         )
         llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
 
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
@@ -1863,7 +2114,7 @@ class TestMongoProcessor:
                  'is_enabled': True
                  },
                 {'name': 'Similarity Prompt',
-                 'data': 'Bot_collection',
+                 'data': 'test_collection',
                  'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                  'type': 'user',
                  'source': 'bot_content',
