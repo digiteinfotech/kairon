@@ -2901,14 +2901,18 @@ def test_get_pos_products_success():
             "name": "Product A",
             "list_price": 100,
             "barcode": "123456",
-            "available_in_pos": True
+            "available_in_pos": True,
+            "categ_id": [1, "Snacks"],
+            "description_sale": "Crunchy Fries Available!"
         },
         {
             "product_variant_id": 2,
             "name": "Product B",
             "list_price": 200,
             "barcode": "789012",
-            "available_in_pos": True
+            "available_in_pos": True,
+            "categ_id": [2, "Beverages"],
+            "description_sale": False
         }
     ]
 

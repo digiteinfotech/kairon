@@ -400,7 +400,7 @@ class POSProcessor:
                 kwargs={
                     "fields": [
                         "product_variant_id", "name", "list_price",
-                        "barcode", "available_in_pos"
+                        "barcode", "available_in_pos", "categ_id", "description_sale"
                     ]
                 }
             )
