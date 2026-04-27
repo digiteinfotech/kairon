@@ -93,6 +93,22 @@ channels:
       - ignore_from_emails
       - seen_status
       - mail_template
+  voice:
+    telephony_provider:
+      twilio:
+        required_fields:
+          - account_sid
+          - auth_token
+          - phone_number
+        optional_fields:
+          - voice_type
+          - voice_types
+          - language
+          - welcome_message
+        disabled_fields:
+          - call_url
+          - process_url
+          - status_url
 actions:
   pipedrive:
     required_fields:
