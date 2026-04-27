@@ -398,6 +398,28 @@ class DataUtility:
         return channel_endpoint
 
     @staticmethod
+    def get_voice_channel_endpoints(channel_config: dict) -> dict:
+        from kairon.shared.auth import Authentication
+        bot = channel_config['bot']
+        user = channel_config['user']
+        provider = channel_config['config'].get('telephony_provider', 'twilio')
+
+        token, _ = Authentication.generate_integration_token(
+            bot, user, role=ACCESS_ROLES.CHAT.value,
+            access_limit=[
+                f"/api/bot/{bot}/channel/voice/{provider}/.+",
+            ],
+            token_type=TOKEN_TYPE.CHANNEL.value
+        )
+
+        base = Utility.environment['model']['agent']['url']
+        return {
+            "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}"),
+            "process_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/process/{token}"),
+            "status_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}"),
+        }
+
+    @staticmethod
     def get_integration_endpoint(integration_config: dict):
         from kairon.shared.auth import Authentication
 

@@ -8,6 +8,7 @@ from kairon.chat.handlers.channels.slack import SlackHandler
 from kairon.chat.handlers.channels.telegram import TelegramHandler
 from kairon.chat.handlers.channels.whatsapp import WhatsappHandler
 from kairon.chat.handlers.channels.line import LineHandler
+from kairon.chat.handlers.channels.voice import VoiceHandler
 from kairon.shared.constants import ChannelTypes
 
 
@@ -22,7 +23,8 @@ class ChannelHandlerFactory:
         ChannelTypes.TELEGRAM.value: TelegramHandler,
         ChannelTypes.INSTAGRAM.value: InstagramHandler,
         ChannelTypes.BUSINESS_MESSAGES.value: BusinessMessagesHandler,
-        ChannelTypes.LINE.value: LineHandler
+        ChannelTypes.LINE.value: LineHandler,
+        ChannelTypes.VOICE.value: VoiceHandler,
     }
 
     @staticmethod
