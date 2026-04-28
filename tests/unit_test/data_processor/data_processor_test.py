@@ -20965,7 +20965,7 @@ class TestModelProcessor:
         u2.bot = bot2["_id"].__str__()
         u2.user = "divya"
         u2.save()
-        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelli@digite.com")
+        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelly@digite.com")
         assert result[bot1["_id"].__str__()] == 0.6424565337899992
         assert result[bot2["_id"].__str__()] == 0.9875645647434565
 

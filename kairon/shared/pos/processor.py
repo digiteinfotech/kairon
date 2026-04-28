@@ -550,7 +550,7 @@ class POSProcessor:
                 )
                 return resp.json()
         except Exception as e:
-            raise HTTPException(400,"⚠️ Notification failed:")
+            raise HTTPException(status_code=400, detail=f"⚠️ Notification failed: {str(e)}")
 
     def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
         """
