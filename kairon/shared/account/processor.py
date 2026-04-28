@@ -339,7 +339,7 @@ class AccountProcessor:
             bot_details = AccountProcessor.get_bot(bot["bot"])
             bot_details["_id"] = bot_details["_id"].__str__()
             bot_details["role"] = bot["role"]
-            bot_setting_obj = BotSettings.objects(bot=bot["_id"]).first()
+            bot_setting_obj = BotSettings.objects(bot=bot_details["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot_details["pos_enabled"] = bot_setting.get("pos_enabled")
             shared_bots.append(bot_details)
