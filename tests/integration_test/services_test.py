@@ -2937,6 +2937,145 @@ def test_get_pos_products_success():
     assert data["error_code"] == 0
     assert not data["message"]
 
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    mock_odoo_response = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": [
+            {
+                "id": 1,
+                "name": "Admin",
+                "login": "admin",
+                "company_id": [1, "Main Company"],
+                "company_ids": [1]
+            }
+        ]
+    }
+
+    responses.add(
+        responses.POST,
+        url,
+        json=mock_odoo_response,
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"] == mock_odoo_response
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_odoo_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={
+            "error": {
+                "code": 400,
+                "message": "Bad Request"
+            }
+        },
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert "error" in data["data"]
+
+@pytest.mark.asyncio
+def test_create_user_success():
+    from unittest.mock import patch, MagicMock
+
+    payload = {
+        "login": "test_user",
+        "password": "1234",
+        "name": "Test User",
+        "db_name": "test_db",  # ✅ ADD THIS
+        "partner_id": None,
+        "pos_role": "user"
+    }
+
+    mock_user = MagicMock()
+    mock_user.get_bot.return_value = "test_bot"
+    mock_user.get_user.return_value = "test_user"
+
+    with patch("kairon.shared.pos.processor.POSProcessor.jsonrpc_call") as mock_rpc, \
+         patch("kairon.shared.pos.processor.POSProcessor.get_group_id") as mock_group, \
+         patch("kairon.api.app.routers.pos.Authentication.get_current_user_and_bot", return_value=mock_user):
+
+        mock_rpc.side_effect = [
+            [],
+            101,
+            201,
+            True
+        ]
+
+        mock_group.side_effect = [10, 20]
+
+        res = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/user?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        data = res.json()
+        print(data)
+
+        assert data["success"]
+        assert data["data"]["user_id"] == 201
+
+@pytest.mark.asyncio
+def test_create_user_already_exists():
+
+    payload = {
+        "login": "existing_user",
+        "password": "1234",
+        "name": "Existing User",
+        "db_name": "test_db"
+    }
+
+    with patch("kairon.shared.pos.processor.POSProcessor.jsonrpc_call") as mock_rpc:
+
+        mock_rpc.return_value = [{"id": 999}]  # user exists
+
+        res = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/user?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+    data = res.json()
+
+    assert data["success"]
+    assert data["data"]["user_id"] == 999
+    assert "already exists" in data["data"]["message"]
 
 @pytest.mark.asyncio
 @responses.activate

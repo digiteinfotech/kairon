@@ -1,4 +1,4 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from unittest.mock import Mock, patch
 from fastapi import HTTPException
 
@@ -10,6 +10,9 @@ mock_env = {
             "odoo_url": "http://localhost:8080",
             "odoo_master_password":"admin@123"
         }
+    },
+    "live_agent":{
+        "url":"http://localhost:8000/api/v1"
     }
 }
 
@@ -272,3 +275,37 @@ def test_raise_if_error_no_message():
         processor._raise_if_error(mock_resp)
 
     assert exc.value.status_code == 400
+
+@pytest.mark.asyncio
+async def test_send_notification_success():
+    processor = POSProcessor()
+
+    mock_response = {"status": "sent"}
+
+    mock_post_response = MagicMock()
+    mock_post_response.json.return_value = mock_response
+
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_post_response)):
+        result = await processor.send_notification(
+            data={"message": "test"},
+            bot="test_bot"
+        )
+
+        assert result == mock_response
+
+@pytest.mark.asyncio
+async def test_send_notification_failure():
+    processor = POSProcessor()
+
+    with patch(
+        "httpx.AsyncClient.post",
+        new=AsyncMock(side_effect=Exception("Connection error"))
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await processor.send_notification(
+                data={"message": "test"},
+                bot="test_bot"
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "Notification failed" in exc_info.value.detail

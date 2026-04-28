@@ -13,11 +13,23 @@ class LoginRequest(BaseModel):
     page_type: PageType = PageType.pos_products.value
     company_id: int = 1
 
+class UserAccessRequest(BaseModel):
+    db_name: str
+    password: str
+
 class BranchRequest(BaseModel):
     branch_name: str
     street: str
     city: str
     state: str
+
+class CreateUserRequest(BaseModel):
+    db_name: str
+    login: str
+    password: str
+    name: str
+    partner_id: Optional[int] = None
+    pos_role: str = "user"
 
 class ProductItem(BaseModel):
     product_id: int

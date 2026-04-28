@@ -13,12 +13,13 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.pos.constants import POSType, OnboardingStatus
 from kairon.shared.pos.data_objects import POSClientDetails
 from kairon.shared.utils import Utility
-
+import httpx
 
 class POSProcessor:
 
     __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
     __master_password = Utility.environment["pos"]["odoo"]["odoo_master_password"]
+    __live_agent_url = Utility.environment["live_agent"]["url"]
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""
@@ -539,6 +540,18 @@ class POSProcessor:
             kwargs={"limit": 1}
         )[0]
 
+    async def send_notification(self, data, bot: str):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{self.__live_agent_url}/internal/notify/{bot}",
+                    json=data,
+                    timeout=2
+                )
+                return resp.json()
+        except Exception as e:
+            raise HTTPException(400,"⚠️ Notification failed:")
+
     def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
         """
         Create POS order using JSON-RPC (create_from_ui)
@@ -866,5 +879,118 @@ class POSProcessor:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error rejecting POS order: {e}")
 
+    def get_group_id(self, session_id: str, xml_id: str) -> int:
+        module, name = xml_id.split(".")
 
+        data = self.jsonrpc_call(
+            session_id=session_id,
+            model="ir.model.data",
+            method="search_read",
+            args=[[["module", "=", module], ["name", "=", name]]],
+            kwargs={"fields": ["res_id"], "limit": 1}
+        )
+
+        if not data:
+            raise Exception(f"Group XML-ID '{xml_id}' not found")
+
+        return data[0]["res_id"]
+
+    def create_user(
+            self,
+            session_id: str,
+            login: str,
+            password: str,
+            name: str,
+            partner_id: int = None,
+            pos_role: str = "user"  # user / manager
+    ):
+        """
+        Create Odoo user with POS access using JSON-RPC session_id.
+        pos_role = "user" or "manager"
+        """
+
+        existing_users = self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="search_read",
+            args=[[["login", "=", login]]],
+            kwargs={"fields": ["id"], "limit": 1}
+        )
+
+        if existing_users:
+            return {
+                "message": f"User {login} already exists",
+                "user_id": existing_users[0]["id"]
+            }
+
+        if not partner_id:
+            partner_id = self.jsonrpc_call(
+                session_id=session_id,
+                model="res.partner",
+                method="create",
+                args=[{"name": name}]
+            )
+
+        base_internal_user = self.get_group_id(session_id, "base.group_user")
+
+
+        pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_user")
+
+        groups = [base_internal_user, pos_group]
+
+        user_vals = {
+            "name": name,
+            "login": login,
+            "partner_id": partner_id,
+            "groups_id": [(6, 0, groups)]
+        }
+
+        user_id = self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="create",
+            args=[user_vals]
+        )
+
+        self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="write",
+            args=[[user_id], {"password": password}]
+        )
+
+        return {
+            "message": f"User created with login {login} and POS {pos_role} access",
+            "user_id": user_id
+        }
+
+    def get_user_branch_access(self, session_id: str, db_name: str, password: str):
+        url = f"{self.__base_url}/jsonrpc"
+        db = db_name
+        password = password
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute_kw",
+                "args": [
+                            db,
+                            2,
+                            password,
+                            "res.users",
+                            "search_read",
+                            [[]],
+                            {
+                                "fields": ["id", "name", "login", "company_id", "company_ids"]
+                            }
+                        ]
+            },
+            "id": 1,
+        }
+        sess = requests.Session()
+        sess.cookies.set("session_id", session_id)
+        resp = sess.post(url, json=payload)
+        return resp.json()
 
