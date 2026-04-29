@@ -309,3 +309,141 @@ async def test_send_notification_failure_logs():
 
         assert result is None
         mock_logger.exception.assert_called_once()
+
+def test_create_pos_user_success():
+    import json
+    processor = POSProcessor()
+
+    with patch("kairon.shared.pos.processor.BotSettings.objects") as mock_objects, \
+         patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_client_details, \
+         patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_get_instance, \
+         patch("kairon.shared.pos.processor.POSProcessor.generate_password") as mock_password, \
+         patch("kairon.shared.pos.processor.POSProcessor.create_user") as mock_create_user:
+
+
+        mock_record = MagicMock()
+        mock_record.to_mongo.return_value.to_dict.return_value = {
+            "pos_enabled": True
+        }
+
+        mock_qs = MagicMock()
+        mock_qs.first.return_value = mock_record
+        mock_objects.return_value = mock_qs
+
+
+        mock_client_details.return_value = {
+            "pos_type": "odoo",
+            "client_name": "test_client"
+        }
+
+
+        mock_pos_instance = MagicMock()
+        mock_pos_instance.authenticate.return_value.body = json.dumps({
+            "session_id": "test_session"
+        })
+
+        mock_get_instance.return_value = lambda: mock_pos_instance
+
+
+        mock_password.return_value = "test_password"
+
+
+        processor.create_pos_user(bot="test_bot", email="test@demo.ai")
+
+
+        mock_create_user.assert_called_once_with(
+            session_id="test_session",
+            bot="test_bot",
+            client_name="test_client",
+            login="test@demo.ai",
+            password="test_password",
+            name="test@demo.ai"
+        )
+
+def test_create_pos_user_disabled():
+    processor = POSProcessor()
+
+    with patch("kairon.shared.pos.processor.BotSettings.objects") as mock_objects, \
+         patch("kairon.shared.pos.processor.POSProcessor.create_user") as mock_create_user:
+
+        mock_record = MagicMock()
+        mock_record.to_mongo.return_value.to_dict.return_value = {
+            "pos_enabled": False
+        }
+
+        mock_qs = MagicMock()
+        mock_qs.first.return_value = mock_record
+        mock_objects.return_value = mock_qs
+
+        processor.create_pos_user(bot="test_bot", email="test@demo.ai")
+
+        mock_create_user.assert_not_called()
+
+def test_generate_password_default_length():
+    password = POSProcessor.generate_password()
+
+    assert isinstance(password, str)
+    assert len(password) == 12
+
+def test_create_user_already_exists():
+    processor = POSProcessor()
+
+    with patch.object(processor, "jsonrpc_call") as mock_jsonrpc:
+
+
+        mock_jsonrpc.return_value = [{"id": 101}]
+
+        result = processor.create_user(
+            session_id="sess",
+            bot="test_bot",
+            client_name="client",
+            login="test@demo.ai",
+            password="pass",
+            name="Test User"
+        )
+
+        assert result["message"] == "User test@demo.ai already exists"
+        assert result["user_id"] == 101
+
+
+        assert mock_jsonrpc.call_count == 1
+
+def test_create_user_success():
+    processor = POSProcessor()
+
+    with patch.object(processor, "jsonrpc_call") as mock_jsonrpc, \
+         patch.object(processor, "get_group_id") as mock_group, \
+         patch("kairon.shared.pos.processor.POSProcessor.save_user_details") as mock_save:
+
+
+        mock_jsonrpc.side_effect = [
+            [],
+            201,
+            301,
+            True
+        ]
+
+        mock_group.side_effect = [10, 20]
+
+        result = processor.create_user(
+            session_id="sess",
+            bot="test_bot",
+            client_name="client",
+            login="test@demo.ai",
+            password="pass",
+            name="Test User"
+        )
+
+        assert result["user_id"] == 301
+        assert "User created" in result["message"]
+
+
+        assert mock_jsonrpc.call_count == 4
+
+        mock_save.assert_called_once_with(
+            client_name="client",
+            username="test@demo.ai",
+            password="pass",
+            bot="test_bot",
+            user="Test User",
+        )

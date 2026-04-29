@@ -90,27 +90,6 @@ async def allow_bot_for_user(
     bot_name, url = AccountProcessor.allow_bot_and_generate_invite_url(bot, allow_bot.email,
                                                                        current_user.get_user(),
                                                                        current_user.account, allow_bot.role)
-    bot_setting_obj = BotSettings.objects(bot=bot).first()
-    bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
-    if bot_setting.get("pos_enabled", False):
-        client_details = POSProcessor.get_client_details(bot)
-        pos_type = client_details.get("pos_type", "odoo")
-        client_name = client_details["client_name"]
-        pos_instance = POSFactory.get_instance(pos_type)
-        response = pos_instance().authenticate(client_name=client_name,
-                                               bot=current_user.get_bot())
-        pos_response = json.loads(response.body)
-        session_id = pos_response.get("session_id")
-        password = POSProcessor().generate_password()
-        background_tasks.add_task(POSProcessor().create_user(
-            session_id=session_id,
-            bot=bot,
-            client_name=client_name,
-            login=allow_bot.email,
-            password=password,
-            name=allow_bot.email
-        ))
-
     if Utility.email_conf["email"]["enable"]:
         accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
         accessor = "Buddy"
@@ -139,6 +118,7 @@ async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email,
                                   bot_name=bot_name, role=role, accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
+    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
     return {"message": "Invitation accepted"}
 
 
@@ -158,6 +138,7 @@ async def accept_bot_collaboration_invite(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email, accessor_name=accessor_name,
                                   bot_name=bot_name, role=role)
+    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
     return {"message": "Invitation accepted"}
 
 

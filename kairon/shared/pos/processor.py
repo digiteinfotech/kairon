@@ -7,9 +7,10 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from typing import Any, Dict, List, Optional
 from loguru import logger
-
+import json
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.pos.constants import POSType, OnboardingStatus
 from kairon.shared.pos.data_objects import POSClientDetails, POSUserDetails
@@ -891,16 +892,6 @@ class POSProcessor:
             if order["state"] not in ["draft", "paid"]:
                 raise HTTPException(status_code=400, detail=f"Cannot accept order. order already in '{order['state']}' state.")
 
-            methods = self.jsonrpc_call(session_id, "pos.payment.method", "search_read", args=[[["is_cash_count", "=", True]]], kwargs={"limit": 1})
-            if not methods:
-                raise HTTPException(status_code=404, detail="No POS payment method found")
-            payment_method_id = methods[0]["journal_id"][0]
-
-            payment_data = {"amount": order["amount_total"], "payment_method_id": payment_method_id, "pos_order_id": order_id}
-            self.jsonrpc_call(session_id, "pos.payment", "create", args=[payment_data])
-
-            self.jsonrpc_call(session_id, "pos.order", "action_pos_order_paid", args=[[order_id]])
-
             try:
                 self.jsonrpc_call(session_id, "pos.order", "action_pos_order_invoice", args=[[order_id]])
                 return {"order_id": order_id, "accepted": True}
@@ -955,7 +946,7 @@ class POSProcessor:
             password: str,
             name: str,
             partner_id: int = None,
-            pos_role: str = "user"  # user / manager
+            pos_role: str = "user"
     ):
         """
         Create Odoo user with POS access using JSON-RPC session_id.
@@ -1053,7 +1044,24 @@ class POSProcessor:
         sess.cookies.set("session_id", session_id)
         resp = sess.post(url, json=payload)
         return resp.json()
+
     @staticmethod
     def generate_password(length=12):
         characters = string.ascii_letters + string.digits + string.punctuation
         return ''.join(secrets.choice(characters) for _ in range(length))
+
+    def create_pos_user(self, bot: str, email: str):
+        from kairon.pos.definitions.factory import POSFactory
+        bot_setting_obj = BotSettings.objects(bot=bot).first()
+        bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
+        if bot_setting.get("pos_enabled", False):
+            client_details = POSProcessor.get_client_details(bot)
+            pos_type = client_details.get("pos_type", "odoo")
+            client_name = client_details["client_name"]
+            pos_instance = POSFactory.get_instance(pos_type)
+            response = pos_instance().authenticate(client_name=client_name,
+                                                   bot=bot)
+            pos_response = json.loads(response.body)
+            session_id = pos_response.get("session_id")
+            password = POSProcessor.generate_password()
+            self.create_user(session_id=session_id,bot=bot,client_name=client_name,login=email,password=password,name=email)
