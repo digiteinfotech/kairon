@@ -2,12 +2,9 @@
 
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
-import json
-from kairon.pos.definitions.factory import POSFactory
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest
-from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.pos.processor import POSProcessor
 from kairon.shared.utils import Utility, MailUtility
