@@ -1,7 +1,8 @@
 import requests
 import time
 from datetime import datetime
-
+import secrets
+import string
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from typing import Any, Dict, List, Optional
@@ -11,7 +12,7 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.pos.constants import POSType, OnboardingStatus
-from kairon.shared.pos.data_objects import POSClientDetails
+from kairon.shared.pos.data_objects import POSClientDetails, POSUserDetails
 from kairon.shared.utils import Utility
 import httpx
 
@@ -132,6 +133,55 @@ class POSProcessor:
 
         record = (
             POSClientDetails(
+                pos_type=pos_type,
+                client_name=client_name.strip(),
+                config=client_details,
+                bot=bot.strip(),
+                user=user.strip(),
+            )
+            .save()
+            .to_mongo()
+            .to_dict()
+        )
+        return record
+
+    @staticmethod
+    def save_user_details(
+            client_name: str,
+            username: str,
+            password: str,
+            bot: str,
+            user: str,
+            pos_type: POSType = POSType.odoo.value
+    ):
+        """
+        Save Odoo Client Configuration Details.
+
+        :param client_name: Name of the client (unique)
+        :param username: Odoo admin username
+        :param password: Odoo admin password
+        :param bot: Bot ID
+        :param user: User who is saving
+        :param pos_type: POS Type
+        :return: Saved client details as dict
+        """
+
+        if Utility.check_empty_string(client_name):
+            raise AppException("Client Name cannot be empty.")
+
+        if not Utility.special_match(client_name, search=RE_ALPHA_NUM):
+            raise AppException("Client name can only contain letters, numbers, spaces and underscores.")
+
+        client_details = {
+            "username": username.strip(),
+            "password": Utility.encrypt_message(password.strip()),
+        }
+
+        client_detail = POSClientDetails.objects(bot=bot).first()
+        client_id = str(client_detail.id) if client_detail else None
+        record = (
+            POSUserDetails(
+                pos_client_id=client_id,
                 pos_type=pos_type,
                 client_name=client_name.strip(),
                 config=client_details,
@@ -550,7 +600,8 @@ class POSProcessor:
                 )
                 return resp.json()
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"⚠️ Notification failed: {str(e)}")
+            logger.exception(f"Notification failed for bot {bot}: {e}")
+            return None
 
     def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
         """
@@ -898,6 +949,8 @@ class POSProcessor:
     def create_user(
             self,
             session_id: str,
+            bot: str,
+            client_name: str,
             login: str,
             password: str,
             name: str,
@@ -958,6 +1011,13 @@ class POSProcessor:
             method="write",
             args=[[user_id], {"password": password}]
         )
+        POSProcessor.save_user_details(
+            client_name=client_name,
+            username=login,
+            password=password,
+            bot=bot,
+            user=name,
+        )
 
         return {
             "message": f"User created with login {login} and POS {pos_role} access",
@@ -993,4 +1053,7 @@ class POSProcessor:
         sess.cookies.set("session_id", session_id)
         resp = sess.post(url, json=payload)
         return resp.json()
-
+    @staticmethod
+    def generate_password(length=12):
+        characters = string.ascii_letters + string.digits + string.punctuation
+        return ''.join(secrets.choice(characters) for _ in range(length))

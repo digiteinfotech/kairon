@@ -23,14 +23,6 @@ class BranchRequest(BaseModel):
     city: str
     state: str
 
-class CreateUserRequest(BaseModel):
-    db_name: str
-    login: str
-    password: str
-    name: str
-    partner_id: Optional[int] = None
-    pos_role: str = "user"
-
 class ProductItem(BaseModel):
     product_id: int
     qty: int

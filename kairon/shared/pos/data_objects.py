@@ -35,3 +35,21 @@ class POSClientDetails(Auditlog):
             raise ValidationError("Client Name is required")
         if not self.config:
             raise ValidationError("POS Config is required")
+
+@auditlogger.log
+class POSUserDetails(Auditlog):
+    pos_client_id = StringField(required=True)
+    client_name = StringField(required=True)
+    pos_type = StringField(required=True, default=POSType.odoo.value,
+                           choices=[pos_type.value for pos_type in POSType])
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    config = DictField(required=True)
+    branches = ListField(DictField())
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    def validate(self, clean=True):
+        if Utility.check_empty_string(self.client_name):
+            raise ValidationError("Client Name is required")
+        if not self.config:
+            raise ValidationError("POS Config is required")

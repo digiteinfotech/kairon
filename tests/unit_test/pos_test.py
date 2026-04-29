@@ -294,18 +294,18 @@ async def test_send_notification_success():
         assert result == mock_response
 
 @pytest.mark.asyncio
-async def test_send_notification_failure():
+async def test_send_notification_failure_logs():
     processor = POSProcessor()
 
     with patch(
         "httpx.AsyncClient.post",
         new=AsyncMock(side_effect=Exception("Connection error"))
-    ):
-        with pytest.raises(HTTPException) as exc_info:
-            await processor.send_notification(
-                data={"message": "test"},
-                bot="test_bot"
-            )
+    ), patch("kairon.shared.pos.processor.logger") as mock_logger:
 
-        assert exc_info.value.status_code == 400
-        assert "Notification failed" in exc_info.value.detail
+        result = await processor.send_notification(
+            data={"message": "test"},
+            bot="test_bot"
+        )
+
+        assert result is None
+        mock_logger.exception.assert_called_once()

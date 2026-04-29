@@ -2,10 +2,14 @@
 
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
+import json
+from kairon.pos.definitions.factory import POSFactory
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.multilingual.utils.translator import Translator
+from kairon.shared.pos.processor import POSProcessor
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
@@ -86,6 +90,27 @@ async def allow_bot_for_user(
     bot_name, url = AccountProcessor.allow_bot_and_generate_invite_url(bot, allow_bot.email,
                                                                        current_user.get_user(),
                                                                        current_user.account, allow_bot.role)
+    bot_setting_obj = BotSettings.objects(bot=bot).first()
+    bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
+    if bot_setting.get("pos_enabled", False):
+        client_details = POSProcessor.get_client_details(bot)
+        pos_type = client_details.get("pos_type", "odoo")
+        client_name = client_details["client_name"]
+        pos_instance = POSFactory.get_instance(pos_type)
+        response = pos_instance().authenticate(client_name=client_name,
+                                               bot=current_user.get_bot())
+        pos_response = json.loads(response.body)
+        session_id = pos_response.get("session_id")
+        password = POSProcessor().generate_password()
+        background_tasks.add_task(POSProcessor().create_user(
+            session_id=session_id,
+            bot=bot,
+            client_name=client_name,
+            login=allow_bot.email,
+            password=password,
+            name=allow_bot.email
+        ))
+
     if Utility.email_conf["email"]["enable"]:
         accessor_name = AccountProcessor.get_user(allow_bot.email, raise_error=False)
         accessor = "Buddy"
