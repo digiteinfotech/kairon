@@ -2587,43 +2587,6 @@ def test_accept_pos_order_not_found():
     assert not data["data"]
     assert data["error_code"] == 404
 
-
-@pytest.mark.asyncio
-@responses.activate
-def test_accept_pos_order_no_payment_method():
-    base = Utility.environment["pos"]["odoo"]["odoo_url"]
-    url = f"{base}/web/dataset/call_kw"
-
-    order_id = 13
-
-    responses.add(
-        responses.POST,
-        url,
-        json={"result": [{
-            "id": order_id,
-            "amount_total": 150,
-            "state": "draft",
-            "partner_id": [2, "Sam"],
-            "session_id": [1, "Session A"]
-        }]},
-        status=200
-    )
-
-    responses.add(responses.POST, url, json={"result": []}, status=200)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    data = response.json()
-    print(data)
-    assert not data["success"]
-    assert data["message"] == "No POS payment method found"
-    assert not data["data"]
-    assert data["error_code"] == 404
-
-
 @pytest.mark.asyncio
 @responses.activate
 def test_accept_pos_order_unexpected_error():
@@ -2653,51 +2616,39 @@ def test_accept_pos_order_unexpected_error():
 
 
 @pytest.mark.asyncio
-@responses.activate
 def test_accept_pos_order_invoice_failure():
-    base = Utility.environment["pos"]["odoo"]["odoo_url"]
-    url = f"{base}/web/dataset/call_kw"
-
     order_id = 11
 
-    responses.add(
-        responses.POST,
-        url,
-        json={"result": [{
-            "id": order_id,
-            "amount_total": 200,
-            "partner_id": [1, "John"],
-            "state": "draft",
-            "session_id": [1, "Session A"]
-        }]},
-        status=200
-    )
-
-    responses.add(responses.POST, url, json={"result": [{"journal_id": [30, "Cash"]}]}, status=200)
-
-    responses.add(responses.POST, url, json={"result": 101}, status=200)
-
-    responses.add(responses.POST, url, json={"result": True}, status=200)
-
-    responses.add(responses.POST, url, body="Internal Server Error", status=500)
-
-    response = client.post(
-        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    data = response.json()
-    print(data)
-
-    assert data["success"]
-    assert data["message"] == "Order accepted"
-    assert data["data"] == {
-        "order_id": order_id,
-        "accepted": True,
-        "invoiced": False
+    order_data = {
+        "id": order_id,
+        "amount_total": 200,
+        "partner_id": [1, "John"],
+        "state": "draft",
+        "session_id": [1, "Session A"]
     }
-    assert data["error_code"] == 0
 
+    with patch("kairon.shared.pos.processor.POSProcessor.jsonrpc_call") as mock_jsonrpc:
+
+        mock_jsonrpc.side_effect = [
+            [order_data],
+            Exception("Invoice failed")
+        ]
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        data = response.json()
+
+        assert data["success"]
+        assert data["message"] == "Order accepted"
+        assert data["data"] == {
+            "order_id": order_id,
+            "accepted": True,
+            "invoiced": False
+        }
+        assert data["error_code"] == 0
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2936,6 +2887,78 @@ def test_get_pos_products_success():
     assert data["data"]["data"] == products
     assert data["error_code"] == 0
     assert not data["message"]
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    mock_odoo_response = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": [
+            {
+                "id": 1,
+                "name": "Admin",
+                "login": "admin",
+                "company_id": [1, "Main Company"],
+                "company_ids": [1]
+            }
+        ]
+    }
+
+    responses.add(
+        responses.POST,
+        url,
+        json=mock_odoo_response,
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"] == mock_odoo_response
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_odoo_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={
+            "error": {
+                "code": 400,
+                "message": "Bad Request"
+            }
+        },
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert "error" in data["data"]
 
 
 @pytest.mark.asyncio

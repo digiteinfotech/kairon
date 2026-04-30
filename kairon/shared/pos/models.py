@@ -13,6 +13,10 @@ class LoginRequest(BaseModel):
     page_type: PageType = PageType.pos_products.value
     company_id: int = 1
 
+class UserAccessRequest(BaseModel):
+    db_name: str
+    password: str
+
 class BranchRequest(BaseModel):
     branch_name: str
     street: str

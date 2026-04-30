@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Query, Security, Path
-
+from fastapi import APIRouter, Query, Security, Path, BackgroundTasks
 from kairon.pos.definitions.factory import POSFactory
 from kairon.shared.pos.constants import POSType
 from kairon.shared.pos.models import (
-    LoginRequest, ClientRequest, POSOrderRequest, BranchRequest
+    LoginRequest, ClientRequest, POSOrderRequest, BranchRequest, UserAccessRequest
 )
 from kairon.api.models import Response
 from kairon.shared.pos.processor import POSProcessor
@@ -105,7 +104,7 @@ def list_pos_orders(
 
 
 @router.post("/pos_order", response_model=Response)
-def create_order(req: POSOrderRequest, session_id: str = Query(...),
+async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, session_id: str = Query(...),
                  current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
     result = pos_processor.create_pos_order(
         session_id=session_id,
@@ -113,8 +112,19 @@ def create_order(req: POSOrderRequest, session_id: str = Query(...),
         partner_id=req.partner_id,
         company_id=req.company_id
     )
-    return Response(data=result, message="POS order created")
 
+    if result["status"] == "created":
+        background_tasks.add_task(
+            pos_processor.send_notification,
+            {
+                "type": "new_order",
+                "message": "New POS Order Received 🎉",
+                "order_id": result.get("order_id"),
+                "data": result
+            },
+            current_user.get_bot()
+        )
+    return Response(data=result, message="POS order created")
 
 @router.post("/pos_order/accept/{order_id}", response_model=Response)
 def accept_order(
@@ -154,3 +164,12 @@ def invalidate_session_api(session_id: str = Query(..., description="Odoo sessio
 
     pos_processor.invalidate_session(session_id)
     return Response(message="Session invalidated successfully")
+
+@router.post("/user/access", response_model=Response)
+async def get_user_access(
+    req: UserAccessRequest,
+    session_id: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
+):
+    users = pos_processor.get_user_branch_access(session_id, req.db_name, req.password)
+    return Response(data=users)
