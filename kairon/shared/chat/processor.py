@@ -57,6 +57,11 @@ class ChatDataProcessor:
             MailScheduler.request_epoch(bot)
         if primary_slack_config_changed:
             ChatDataProcessor.delete_channel_config(bot, connector_type="slack", config__is_primary=False)
+        if configuration['connector_type'] == ChannelTypes.VOICE.value:
+            endpoints = DataUtility.get_voice_channel_endpoints(channel)
+            channel.config.update(endpoints)
+            channel.save()
+            return {k: v for k, v in endpoints.items() if k in ("call_url", "status_url")}
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
 
@@ -64,7 +69,13 @@ class ChatDataProcessor:
     def __validate_config_for_update(channel: Channels, config: dict) -> dict:
         merged = dict(channel.config or {})
         connector_type = channel.connector_type
-        channel_params = Utility.system_metadata["channels"][connector_type]
+        if connector_type == ChannelTypes.VOICE.value:
+            provider = channel.config.get('telephony_provider', 'twilio')
+            channel_params = Utility.system_metadata["channels"][connector_type].get(
+                "telephony_provider", {}
+            ).get(provider, {})
+        else:
+            channel_params = Utility.system_metadata["channels"][connector_type]
         required_fields = set(channel_params.get("required_fields", []))
 
         for key, val in config.items():
@@ -162,10 +173,24 @@ class ChatDataProcessor:
             bsp_type = config['config']['bsp_type']
             channel_params = Utility.system_metadata['channels'][connector_type]["business_providers"][bsp_type]
             ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
+        elif connector_type == ChannelTypes.VOICE.value:
+            ChatDataProcessor.__prepare_voice_config(config, mask_characters)
         else:
             channel_params = Utility.system_metadata['channels'][connector_type]
             ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
         return config
+
+    @staticmethod
+    def __prepare_voice_config(config: dict, mask_characters: bool):
+        provider = config['config'].get('telephony_provider', 'twilio')
+        telephony_params = Utility.system_metadata['channels']['voice'].get('telephony_provider', {})
+        channel_params = telephony_params.get(provider, {})
+        _encrypted_fields = {"account_sid", "auth_token"}
+        for field in channel_params.get('required_fields', []):
+            if field in _encrypted_fields and field in config['config']:
+                config['config'][field] = Utility.decrypt_message(config['config'][field])
+                if mask_characters:
+                    config['config'][field] = config['config'][field][:-5] + '*****'
 
     @staticmethod
     def __prepare_required_fields(data: dict, channel_params, mask_characters: bool):

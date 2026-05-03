@@ -1579,8 +1579,25 @@ class Utility:
     def validate_channel(channel, config, error, encrypt=True):
         if channel == ChannelTypes.WHATSAPP.value and config.get("bsp_type"):
             Utility.validate_whatsapp_bsp(channel, config, error, encrypt)
+        elif channel == ChannelTypes.VOICE.value:
+            Utility.validate_voice_provider(config, error, encrypt)
         else:
             Utility.validate_channel_config(channel, config, error, encrypt)
+
+    @staticmethod
+    def validate_voice_provider(config, error, encrypt=True):
+        provider = config.get("provider", "twilio")
+        telephony_providers = Utility.system_metadata["channels"]["voice"].get("telephony_provider", {})
+        if provider not in telephony_providers:
+            raise error(f"Invalid telephony provider {provider}")
+        provider_params = telephony_providers[provider]
+        _secret_fields = {"account_sid", "auth_token"}
+        for required_field in provider_params["required_fields"]:
+            if required_field not in config:
+                raise error(f"Missing {provider_params['required_fields']} all or any in config")
+            if encrypt and required_field in _secret_fields:
+                config[required_field] = Utility.encrypt_message(config[required_field])
+        config["telephony_provider"] = provider
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):

@@ -133,6 +133,7 @@ class ChannelTypes(str, Enum):
     BUSINESS_MESSAGES = "business_messages"
     LINE = "line"
     MAIL = "mail"
+    VOICE = "voice"
 
 class CatalogProvider(str, Enum):
     PETPOOJA = "petpooja"
@@ -150,6 +151,10 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+
+
+class VoiceProviderTypes(str, Enum):
+    twilio = "twilio"
 
 
 class GPT3ResourceTypes(str, Enum):
