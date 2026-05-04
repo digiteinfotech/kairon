@@ -593,9 +593,9 @@ class POSProcessor:
 
     @staticmethod
     def get_pos_notification_message() -> str:
-        import random
+        import secrets
 
-        return random.choice(POS_NOTIFICATION_MESSAGES)
+        return secrets.choice(POS_NOTIFICATION_MESSAGES)
 
     async def send_notification(self, data, bot: str):
         try:
