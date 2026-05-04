@@ -21,7 +21,7 @@ from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollection
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import User
+from kairon.shared.models import User, VaultSyncType
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -476,6 +476,37 @@ async def knowledge_vault_sync(
         )
 
     await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), sync_type.lower(), data,
+                                    current_user.get_bot(), current_user.get_user())
+
+    return Response(
+        success=True,
+        message="Processing completed successfully",
+        data=None
+    )
+
+@router.post("/vector/insert", response_model=Response)
+async def vector_data_insertion(
+    primary_key_col: str,
+    collection_name: str,
+    data: List[dict],
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Validates and syncs data to the specified MongoDB collection and vector database.
+    """
+    data = [{key.lower(): value for key, value in row.items()} for row in data]
+
+    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), VaultSyncType.push_menu.name, data, current_user.get_bot())
+
+    if error_summary:
+        return Response(
+            success=False,
+            message="Validation failed",
+            data=error_summary,
+            error_code=400
+        )
+
+    await cognition_processor.upsert_vector_data(primary_key_col.lower(), collection_name.lower(), data,
                                     current_user.get_bot(), current_user.get_user())
 
     return Response(

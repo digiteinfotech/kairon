@@ -12,6 +12,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
 from kairon.shared.data.constant import DEFAULT_LLM, SyncType
@@ -137,9 +138,11 @@ class CognitionDataProcessor:
             item = value.to_mongo().to_dict()
             metadata = item.pop("metadata")
             collection = item.pop('collection_name', None)
+            schema_metadata = item.pop("schema_metadata", {})
             final_data["_id"] = item["_id"].__str__()
             final_data['metadata'] = metadata
             final_data['collection_name'] = collection
+            final_data["schema_metadata"] = schema_metadata
             yield final_data
 
     @staticmethod
@@ -782,7 +785,7 @@ class CognitionDataProcessor:
             insert_operations.clear()
             if embedding_payloads:
                 embeddings = await llm_processor.get_embedding(embedding_payloads, user,
-                                                               invocation="knowledge_vault_sync")
+                                                               invocation="knowledge_vault_sync", collection = collection_name)
                 points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
                           for idx in range(len(vector_ids))]
                 await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},
@@ -813,6 +816,126 @@ class CognitionDataProcessor:
                 await llm_processor.__delete_collection_points__(qdrant_collection, vector_ids,
                                                                  "Cannot delete stale points fro Qdrant!")
                 logger.info(f"Deleted {len(stale_docs)} stale points from Qdrant.")
+
+        return {"message": "Upsert complete!", "stale_ids": remaining_primary_keys}
+
+    async def upsert_vector_data(self, primary_key_col: str, collection_name: str, data: List[Dict], bot: str,
+                          user: Text):
+        """
+       Insert data to Qdrant collection
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        EmbeddingMetaData = CognitionSchema.objects(bot=bot, collection_name=collection_name).first()
+        training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+        if not training_needed:
+            llm_processor.llm_type = "openrouter"
+            llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", bot)
+            llm_processor.llm_secret_embedding = llm_processor.llm_secret
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
+
+        if not await llm_processor.__collection_exists__(qdrant_collection):
+            await llm_processor.__create_collection__(qdrant_collection)
+
+        existing_documents = CognitionData.objects(bot=bot, collection=collection_name).as_pymongo()
+
+        existing_document_map = {
+            doc["data"].get(primary_key_col): doc for doc in existing_documents
+        }
+
+        processed_keys = set()
+
+        update_operations = []
+        insert_operations = []
+
+        embedding_payloads = []
+        search_payloads = []
+        vector_ids = []
+
+        batch_size = 50
+        for i in tqdm(range(0, len(data), batch_size), desc="Inserting data to Qdrant"):
+            batch_contents = data[i:i + batch_size]
+
+            for row in batch_contents:
+                primary_key_value = row.get(primary_key_col)
+                existing_document = existing_document_map.get(primary_key_value)
+
+                vector_id = str(uuid.uuid4()) if not existing_document else existing_document.get("vector_id")
+
+                merged_data = row
+                if existing_document:
+                    existing_data = existing_document.get("data", {})
+                    merged_data = {**existing_data, **row}
+                    update_operations.append(UpdateOne(
+                        {"_id": existing_document["_id"]},
+                        {"$set": {"data": merged_data, "timestamp": datetime.utcnow()}}
+                    ))
+                else:
+                    new_doc = CognitionData(
+                        data=merged_data,
+                        vector_id=vector_id,
+                        content_type=CognitionDataType.json.value,
+                        collection=collection_name,
+                        bot=bot,
+                        user=user
+                    )
+                    insert_operations.append(new_doc)
+
+                processed_keys.add(primary_key_value)
+
+                metadata = self.find_matching_metadata(bot, merged_data, collection_name)
+                search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(merged_data,
+                                                                                                          metadata)
+
+                embedding_payloads.append(embedding_payload)
+                search_payloads.append(search_payload)
+                vector_ids.append(vector_id)
+
+            if update_operations:
+                CognitionData._get_collection().bulk_write(update_operations)
+                logger.info(f"Updated {len(update_operations)} documents in MongoDB")
+
+            if insert_operations:
+                CognitionData.objects.insert(insert_operations, load_bulk=False)
+                logger.info(f"Inserted {len(insert_operations)} new documents in MongoDB")
+
+            update_operations.clear()
+            insert_operations.clear()
+            if embedding_payloads:
+                embeddings = await llm_processor.get_embedding(embedding_payloads, user,
+                                                               invocation="knowledge_vault_sync", collection = collection_name)
+                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                          for idx in range(len(vector_ids))]
+                await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},
+                                                          err_msg="Unable to upsert data in qdrant! Contact support")
+                logger.info(f"Upserted {len(points)} points in Qdrant.")
+
+            embedding_payloads.clear()
+            search_payloads.clear()
+            vector_ids.clear()
+
+        remaining_primary_keys = []
+
+        stale_docs = [doc for key, doc in existing_document_map.items() if key not in processed_keys]
+
+        if stale_docs:
+            doc_ids = []
+            vector_ids = []
+            remaining_primary_keys = []
+
+            for doc in stale_docs:
+                doc_ids.append(doc["_id"])
+                vector_ids.append(doc["vector_id"])
+                remaining_primary_keys.append(doc["data"].get(primary_key_col))
+
+            CognitionData.objects(id__in=doc_ids).delete()
+            logger.info(f"Deleted {len(stale_docs)} stale documents from MongoDB.")
+
+            await llm_processor.__delete_collection_points__(qdrant_collection, vector_ids,
+                                                             "Cannot delete stale points fro Qdrant!")
+            logger.info(f"Deleted {len(stale_docs)} stale points from Qdrant.")
 
         return {"message": "Upsert complete!", "stale_ids": remaining_primary_keys}
 

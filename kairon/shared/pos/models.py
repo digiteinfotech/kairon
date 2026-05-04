@@ -13,6 +13,10 @@ class LoginRequest(BaseModel):
     page_type: PageType = PageType.pos_products.value
     company_id: int = 1
 
+class UserAccessRequest(BaseModel):
+    db_name: str
+    password: str
+
 class BranchRequest(BaseModel):
     branch_name: str
     street: str
@@ -23,6 +27,7 @@ class ProductItem(BaseModel):
     product_id: int
     qty: int
     unit_price: float
+    discount: float = 0
 
 
 class POSOrderRequest(BaseModel):

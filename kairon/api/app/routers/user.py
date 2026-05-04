@@ -6,6 +6,7 @@ from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, A
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest
 from kairon.shared.multilingual.utils.translator import Translator
+from kairon.shared.pos.processor import POSProcessor
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.account.processor import AccountProcessor
@@ -114,6 +115,7 @@ async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email,
                                   bot_name=bot_name, role=role, accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
+    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
     return {"message": "Invitation accepted"}
 
 
@@ -133,6 +135,7 @@ async def accept_bot_collaboration_invite(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email, accessor_name=accessor_name,
                                   bot_name=bot_name, role=role)
+    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
     return {"message": "Invitation accepted"}
 
 

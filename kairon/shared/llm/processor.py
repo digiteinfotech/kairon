@@ -1,6 +1,7 @@
 import os
 import time
 import urllib.parse
+import asyncio
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
@@ -15,7 +16,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import CognitionData
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
@@ -63,41 +64,44 @@ class LLMProcessor(LLMBase):
         collection_groups = {}
         for content in collections_data:
             content_dict = content.to_mongo()
-            collection_name = content_dict.get('collection') or ""
+            collection_name = content_dict.get('collection', '')
             if collection_name not in collection_groups:
                 collection_groups[collection_name] = []
             collection_groups[collection_name].append(content_dict)
 
         for collection_name, contents in collection_groups.items():
             collection = f"{self.bot}_{collection_name}{self.suffix}" if collection_name else f"{self.bot}{self.suffix}"
-            await self.__create_collection__(collection)
+            EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+            training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+            if training_needed or collection_name == '':
+                await self.__create_collection__(collection)
 
-            for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
-                batch_contents = contents[i:i + batch_size]
+                for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
+                    batch_contents = contents[i:i + batch_size]
 
-                embedding_payloads = []
-                search_payloads = []
-                vector_ids = []
+                    embedding_payloads = []
+                    search_payloads = []
+                    vector_ids = []
 
-                for content in batch_contents:
-                    if content['content_type'] == CognitionDataType.json.value:
-                        metadata = processor.find_matching_metadata(self.bot, content['data'],
-                                                                    content.get('collection'))
-                        search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
-                            content['data'], metadata)
-                    else:
-                        search_payload, embedding_payload = {'content': content["data"]}, content["data"]
+                    for content in batch_contents:
+                        if content['content_type'] == CognitionDataType.json.value:
+                            metadata = processor.find_matching_metadata(self.bot, content['data'],
+                                                                        content.get('collection'))
+                            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                                content['data'], metadata)
+                        else:
+                            search_payload, embedding_payload = {'content': content["data"]}, content["data"]
 
-                    embedding_payloads.append(embedding_payload)
-                    search_payloads.append(search_payload)
-                    vector_ids.append(content['vector_id'])
+                        embedding_payloads.append(embedding_payload)
+                        search_payloads.append(search_payload)
+                        vector_ids.append(content['vector_id'])
 
-                embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
-                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
-                          for idx in range(len(vector_ids))]
-                await self.__collection_upsert__(collection, {'points': points},
-                                                 err_msg="Unable to train FAQ! Contact support")
-                count += len(batch_contents)
+                    embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation, collection = collection)
+                    points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                              for idx in range(len(vector_ids))]
+                    await self.__collection_upsert__(collection, {'points': points},
+                                                     err_msg="Unable to train FAQ! Contact support")
+                    count += len(batch_contents)
 
         return {"faq": count}
 
@@ -106,8 +110,10 @@ class LLMProcessor(LLMBase):
         embeddings_created = False
         invocation = kwargs.pop('invocation', None)
         llm_type = kwargs.pop('llm_type', DEFAULT_LLM)
+        collection = kwargs.pop("collection")
         try:
-            query_embedding = await self.get_embedding(query, user, invocation=invocation)
+            query_embedding = await self.get_embedding(query, user, invocation=invocation,
+                                                       collection = collection)
             embeddings_created = True
 
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
@@ -156,7 +162,13 @@ class LLMProcessor(LLMBase):
         is_single_text = isinstance(texts, str)
         if is_single_text:
             texts = [texts]
-
+        collection_name = kwargs.get("collection", None)
+        EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+        training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+        if training_needed:
+            kwargs.pop("collection")
+        else:
+            kwargs["model"] = EmbeddingMetaData.schema_metadata.model_id
         truncated_texts = self.truncate_text(texts)
         kwargs["truncated_texts"] = truncated_texts
         kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
@@ -285,7 +297,12 @@ class LLMProcessor(LLMBase):
                                             timeout=5)
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
-                    if collection['name'].startswith(self.bot):
+                    name = collection.get('name')
+                    parts = name.split("_")
+                    collection_name = "_".join(parts[1:-2])
+                    EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+                    training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+                    if collection['name'].startswith(self.bot) and (training_needed or collection_name == ''):
                         await client.request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
                                              request_method="DELETE",
                                              headers=self.headers,
@@ -413,35 +430,59 @@ class LLMProcessor(LLMBase):
     def logs(self):
         return self.__logs
 
-    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
-        similarity_prompt = kwargs.pop('similarity_prompt')
-        for similarity_context_prompt in similarity_prompt:
-            use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
-            similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
-            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
-            limit = similarity_context_prompt.get('top_results', 10)
-            score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
-            extracted_values = []
-            if use_similarity_prompt:
-                if similarity_context_prompt.get('collection') == 'default':
-                    collection_name = f"{self.bot}{self.suffix}"
-                else:
-                    collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
-                                                                 score_threshold=score_threshold)
+    async def _process_similarity_prompt(self, similarity_context_prompt, query_embedding):
+        use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
 
-                for entry in search_result['result']:
-                    if 'content' not in entry['payload']:
-                        extracted_payload = {}
-                        for key, value in entry['payload'].items():
-                            if key != 'collection_name':
-                                extracted_payload[key] = value
-                        extracted_values.append(extracted_payload)
-                    else:
-                        extracted_values.append(entry['payload']['content'])
-                if extracted_values:
-                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
-                    context_prompt = f"{context_prompt}\n{similarity_context}"
+        if not use_similarity_prompt:
+            return None
+
+        similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
+        similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+        limit = similarity_context_prompt.get('top_results', 10)
+        score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+
+        collection = similarity_context_prompt.get('collection')
+        if collection == 'default':
+            collection_name = f"{self.bot}{self.suffix}"
+        else:
+            collection_name = f"{self.bot}_{collection}{self.suffix}"
+
+        search_result = await self.__collection_search__(
+            collection_name,
+            vector=query_embedding,
+            limit=limit,
+            score_threshold=score_threshold
+        )
+
+        extracted_values = []
+        for entry in search_result['result']:
+            payload = entry.get('payload', {})
+            if 'content' in payload:
+                extracted_values.append(payload['content'])
+            else:
+                extracted_values.append({
+                    k: v for k, v in payload.items() if k != 'collection_name'
+                })
+
+        if extracted_values:
+            return f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+
+        return None
+
+    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
+        similarity_prompt = kwargs.pop('similarity_prompt', [])
+
+        tasks = [
+            self._process_similarity_prompt(sp, query_embedding)
+            for sp in similarity_prompt
+        ]
+
+        results = await asyncio.gather(*tasks)
+
+        for similarity_context in results:
+            if similarity_context:
+                context_prompt = f"{context_prompt}\n{similarity_context}"
+
         return context_prompt
 
     @staticmethod

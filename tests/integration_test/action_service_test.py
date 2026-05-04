@@ -24,7 +24,7 @@ from deepdiff import DeepDiff
 from fastapi.testclient import TestClient
 from jira import JIRAError
 from mongoengine import connect, ValidationError
-
+from kairon.shared.cognition.data_objects import CognitionSchema, SchemaMetadata
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 
@@ -4422,6 +4422,16 @@ def test_vectordb_action_execution_payload_search_from_slot():
         bot=bot,
         user="user"
     ).save()
+    CognitionSchema(
+        bot=bot,
+        user="user",
+        collection_name="test_vectordb_action_execution_payload_search_from_slot",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
+    ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
     llm_secret = LLMSecret(
         llm_type="openai",
@@ -4510,6 +4520,16 @@ def test_vectordb_action_execution_payload_search_from_user_message():
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2e",
         user="user"
+    ).save()
+    CognitionSchema(
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user",
+        collection_name="test_vectordb_action_execution_payload_search_from_user_message",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2e", user="user").save()
     llm_secret = LLMSecret(
@@ -4600,6 +4620,16 @@ def test_vectordb_action_execution_payload_search_from_user_message_in_slot():
         set_slots=[SetSlotsFromResponse(name="city_value", value="${data.0.id}")],
         bot="5f50md0a56b698ca10d35d2f",
         user="user"
+    ).save()
+    CognitionSchema(
+        bot="5f50md0a56b698ca10d35d2f",
+        user="user",
+        collection_name="test_vectordb_action_execution_payload_search_from_user_message_in_slot",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2f", user="user").save()
     llm_secret = LLMSecret(
@@ -4709,6 +4739,16 @@ def test_vectordb_action_execution_embedding_search_from_value(
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
         bot="5f50fd0a56b698ca10d75d2e",
         user="user"
+    ).save()
+    CognitionSchema(
+        bot="5f50fd0a56b698ca10d75d2e",
+        user="user",
+        collection_name="test_vectordb_action_execution",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56b698ca10d75d2e", user="user").save()
     llm_secret = LLMSecret(
@@ -4831,6 +4871,16 @@ def test_vectordb_action_execution_payload_search_from_value():
         bot="5f50md0a56b698ca10d35d2z",
         user="user"
     ).save()
+    CognitionSchema(
+        bot="5f50md0a56b698ca10d35d2z",
+        user="user",
+        collection_name="test_vectordb_action_execution_payload_search_from_value",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
+    ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50md0a56b698ca10d35d2z", user="user").save()
     llm_secret = LLMSecret(
         llm_type="openai",
@@ -4917,6 +4967,16 @@ def test_vectordb_action_execution_payload_search_from_value_json_decode_error()
         bot="5f50md0a56b698ca10d35d2e",
         user="user"
     ).save()
+    CognitionSchema(
+        bot="5f50md0a56b698ca10d35d2e",
+        user="user",
+        collection_name="test_vectordb_action_execution_payload_search_from_value",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
+    ).save()
 
     request_object = {
         "next_action": action_name,
@@ -4996,6 +5056,16 @@ def test_vectordb_action_execution_embedding_search_from_slot(mock_embedding, mo
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
         bot="5f50fx0a56b698ca10d35d2e",
         user="user"
+    ).save()
+    CognitionSchema(
+        bot="5f50fx0a56b698ca10d35d2e",
+        user="user",
+        collection_name="test_vectordb_action_execution_embedding_search_from_slot",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fx0a56b698ca10d35d2e", user="user").save()
     llm_secret = LLMSecret(
@@ -5129,6 +5199,16 @@ def test_vectordb_action_execution_embedding_search_no_response_dispatch(mock_em
         set_slots=[SetSlotsFromResponse(name="vector_value", value="${data.result.0.vector}")],
         bot="5f50fd0a56v098ca10d75d2e",
         user="user"
+    ).save()
+    CognitionSchema(
+        bot="5f50fd0a56v098ca10d75d2e",
+        user="user",
+        collection_name="test_vectordb_action_execution_no_response_dispatch",
+        schema_metadata=SchemaMetadata(
+            model_id="model1",
+            size=3072,
+            training_needed=True
+        )
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot="5f50fd0a56v098ca10d75d2e", user="user").save()
     llm_secret = LLMSecret(
@@ -12702,6 +12782,16 @@ def test_prompt_action_response_action_with_prompt_question_from_slot(aiorespons
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
 
@@ -12824,6 +12914,16 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  llm_type="perplexity", hyperparameters=hyperparameters,
                  user_question=UserQuestion(type="from_slot", value="prompt_question")).save()
@@ -12961,6 +13061,16 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_different_
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name,
                  llm_type="anthropic",
                  hyperparameters=Utility.get_llm_hyperparameters("anthropic"),
@@ -13072,6 +13182,16 @@ def test_prompt_action_response_action_with_bot_responses(aioresponses):
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13183,6 +13303,16 @@ def test_prompt_action_response_action_with_bot_responses_with_instructions(aior
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, num_bot_responses=2, llm_prompts=llm_prompts,
                  instructions=instructions).save()
 
@@ -13294,6 +13424,16 @@ def test_prompt_action_response_action_with_query_prompt(aioresponses):
     llm_secret.save()
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
     request_object = json.load(open("tests/testing_data/actions/action-request.json"))
@@ -13406,6 +13546,16 @@ def test_prompt_response_action(aioresponses):
     llm_secret.save()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name,
                  bot=bot,
                  user=user,
@@ -13508,6 +13658,16 @@ def test_prompt_response_action_with_instructions(aioresponses):
     llm_secret.save()
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, instructions=instructions).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
 
@@ -13612,6 +13772,16 @@ def test_prompt_response_action_streaming_enabled(aioresponses):
         user=user
     )
     llm_secret.save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
 
     PromptAction(name=action_name, bot=bot, user=user, hyperparameters=hyperparameters, llm_prompts=llm_prompts).save()
 
@@ -13796,6 +13966,16 @@ def test_prompt_action_response_action_with_static_user_prompt(aioresponses):
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -13953,6 +14133,16 @@ def test_prompt_action_response_action_with_action_prompt(aioresponses):
         user=user
     )
     llm_secret.save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
 
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
@@ -14016,6 +14206,16 @@ def test_kairon_faq_response_with_google_search_prompt(mock_google_search, aiore
                        num_results=3,
                        set_slot="google_response").save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -14227,6 +14427,16 @@ def test_prompt_action_dispatch_response_disabled(aioresponses):
         user=user
     )
     llm_secret.save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
 
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts, dispatch_response=False).save()
 
@@ -14505,6 +14715,16 @@ def test_prompt_action_response_action_slot_prompt(aioresponses):
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -15117,6 +15337,16 @@ def test_prompt_action_user_message_in_slot(aioresponses):
         user=user
     )
     llm_secret.save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
 
     PromptAction(name=action_name, bot=bot, user=user, llm_prompts=llm_prompts).save()
 
@@ -15212,6 +15442,16 @@ def test_prompt_action_response_action_when_similarity_is_empty(aioresponses):
 
     Actions(name=action_name, type=ActionType.prompt_action.value, bot=bot, user=user).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user=user).save()
+    CognitionSchema(
+        bot=bot,
+        user=user,
+        collection_name="python",
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key=value,
@@ -15392,6 +15632,16 @@ def test_vectordb_action_execution_embedding_payload_search(mock_embedding,mock_
         user="user"
     ).save()
     BotSettings(llm_settings=LLMSettings(enable_faq=True), bot=bot, user="user").save()
+    CognitionSchema(
+        bot=bot,
+        user="user",
+        collection_name=action_name,
+        schema_metadata=SchemaMetadata(
+            model_id="text-embedding-3-small",
+            size=OPENAI_EMBEDDING_OUTPUT,
+            training_needed=True
+        )
+    ).save()
     llm_secret = LLMSecret(
         llm_type="openai",
         api_key="key_value",

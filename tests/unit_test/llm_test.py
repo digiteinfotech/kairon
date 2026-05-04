@@ -26,7 +26,7 @@ Utility.load_system_metadata()
 from kairon.exceptions import AppException
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, SchemaMetadata
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_LLM
 from kairon.shared.llm.processor import LLMProcessor
 from deepdiff import DeepDiff
@@ -118,11 +118,14 @@ class TestLLM:
                       {"column_name": "lang", "data_type": "str", "enable_search": False, "create_embeddings": True},
                       {"column_name": "role", "data_type": "str", "enable_search": True, "create_embeddings": True}],
             collection_name="Country_details",
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="model1", size=3072),
             bot=bot, user=user).save()
+
         CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "city", "data_type": "str", "enable_search": False, "create_embeddings": True}],
             collection_name="User_details",
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="model1", size=3072),
             bot=bot, user=user
         ).save()
         test_content_two = CognitionData(
@@ -210,10 +213,10 @@ class TestLLM:
             response = await gpt3.train(user=user)
             assert response['faq'] == 3
 
-            assert list(aioresponses.requests.values())[2][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_country_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
-            points = list(aioresponses.requests.values())[3][0].kwargs['json']['points']
+            points = list(aioresponses.requests.values())[2][0].kwargs['json']['points']
 
             assert points[0]['id'] == test_content_two.vector_id
             assert points[0]['payload'] == {'country': 'Spain'}
@@ -221,10 +224,10 @@ class TestLLM:
             assert points[1]['id'] == test_content_three.vector_id
             assert points[1]['payload'] == {'role': 'ds'}
 
-            assert list(aioresponses.requests.values())[4][0].kwargs['json'] == {
+            assert list(aioresponses.requests.values())[3][0].kwargs['json'] == {
                 'name': f"{gpt3.bot}_user_details{gpt3.suffix}",
                 'vectors': gpt3.vector_config}
-            points = list(aioresponses.requests.values())[5][0].kwargs['json']['points']
+            points = list(aioresponses.requests.values())[4][0].kwargs['json']['points']
 
             assert points[0]['id'] == test_content.vector_id
             assert points[0]['payload'] == {'name': 'Nupur'}
@@ -425,35 +428,42 @@ class TestLLM:
             0.05,
             {}
         )
-        with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, "url": "http://kairon:5057"}}):
-            gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
+        mock_schema = MagicMock()
+        mock_schema.schema_metadata = MagicMock()
+        mock_schema.schema_metadata.training_needed = True  # Force the code into the IF block
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections"),
-                method="GET",
-                payload={"time": 0, "status": "ok", "result": {"collections": []}})
+        # 2. Patch the CognitionSchema objects call
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_query:
+            mock_query.return_value.first.return_value = mock_schema
+            with mock.patch.dict(Utility.environment, {'llm': {"faq": "GPT3_FAQ_EMBED", 'api_key': llm_secret, "url": "http://kairon:5057"}}):
+                gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
-            aioresponses.add(
-                method="DELETE",
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}")
-            )
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections"),
+                    method="GET",
+                    payload={"time": 0, "status": "ok", "result": {"collections": []}})
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
-                method="PUT",
-                status=200
-            )
+                aioresponses.add(
+                    method="DELETE",
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}")
+                )
 
-            aioresponses.add(
-                url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
-                method="PUT",
-                payload={"result": None,
-                         'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},
-                         "time": 0.003612634}
-            )
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}"),
+                    method="PUT",
+                    status=200
+                )
 
-            with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
-                await gpt3.train(user=user)
+                aioresponses.add(
+                    url=urljoin(Utility.environment['vector']['db'], f"/collections/{gpt3.bot}{gpt3.suffix}/points"),
+                    method="PUT",
+                    payload={"result": None,
+                             'status': {'error': 'Json deserialize error: missing field `vectors` at line 1 column 34779'},
+                             "time": 0.003612634}
+                )
+
+                with pytest.raises(AppException, match="Unable to train FAQ! Contact support"):
+                    await gpt3.train(user=user)
 
             assert list(aioresponses.requests.values())[1][0].kwargs['json'] == {'name': gpt3.bot + gpt3.suffix,
                                                                                  'vectors': gpt3.vector_config}
@@ -556,6 +566,7 @@ class TestLLM:
         value = "knupur"
         collection = 'python'
         llm_type = "openai"
+        collection_name = f"{bot}_{collection}_faq_embd"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
@@ -610,7 +621,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection=collection_name, **k_faq_action_config)
 
             req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
 
@@ -635,6 +646,7 @@ class TestLLM:
         value = "knupur"
         collection = 'default'
         llm_type = "openai"
+        collection_name = f"{bot}_{collection}_faq_embd"
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection=collection, bot=bot, user=user).save()
@@ -689,7 +701,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
 
         assert req_json['limit'] == 10
@@ -719,6 +731,7 @@ class TestLLM:
         key = 'test'
         user = "tests"
         llm_type = "openai"
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -768,7 +781,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
 
             log = gpt3.logs[0]
 
@@ -807,6 +820,7 @@ class TestLLM:
         key = 'test'
         user = "tests"
         llm_type = "openai"
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -855,7 +869,7 @@ class TestLLM:
                     {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
             )
 
-            response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+            response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
             log = gpt3.logs[0]
 
             assert log['type'] == 'answer_query'
@@ -904,6 +918,7 @@ class TestLLM:
         bot = "payload_with_instruction"
         key = 'test'
         llm_type = 'openai'
+        collection_name = f"{bot}_User_details_faq_embd"
         CognitionSchema(
             metadata=[{"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True},
                       {"column_name": "city", "data_type": "str", "enable_search": True, "create_embeddings": True}],
@@ -996,7 +1011,7 @@ class TestLLM:
             ]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         logs = copy.deepcopy(gpt3.logs)
         logs[0].pop('raw_completion_response')
 
@@ -1047,6 +1062,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -1095,7 +1111,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
 
         assert response == {
             'is_failure': True,
@@ -1129,6 +1145,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1163,7 +1180,7 @@ class TestLLM:
 
         gpt3 = LLMProcessor(test_content.bot, DEFAULT_LLM)
 
-        response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user="test", collection = collection_name, **k_faq_action_config)
         assert response == {'exception': 'Failed to connect to service: localhost', 'is_failure': True, "content": None}
 
         assert gpt3.logs == [
@@ -1184,6 +1201,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1211,7 +1229,7 @@ class TestLLM:
             (embedding, 200, 0.05, {})
         ]
 
-        response, time_elapsed = await gpt3.predict(query, user="test", **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user="test", collection = collection_name, **k_faq_action_config)
         assert response == {'exception': 'Connection reset by peer!', 'is_failure': True, "content": None}
 
         assert gpt3.logs == [{'error': 'Creating a new embedding for the provided query. Connection reset by peer!'}]
@@ -1234,6 +1252,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type="openai",
@@ -1296,7 +1315,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         assert response['content'] == embedding
 
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
@@ -1322,6 +1341,7 @@ class TestLLM:
         test_content = CognitionData(
             data="Python is a high-level, general-purpose programming language. Its design philosophy emphasizes code readability with the use of significant indentation. Python is dynamically typed and garbage-collected.",
             collection='python', bot=bot, user=user).save()
+        collection_name = f"{test_content.bot}_{test_content.collection}_faq_embd"
 
         llm_secret = LLMSecret(
             llm_type=llm_type,
@@ -1395,7 +1415,7 @@ class TestLLM:
                 {'id': test_content.vector_id, 'score': 0.80, "payload": {'content': test_content.data}}]}
         )
 
-        response, time_elapsed = await gpt3.predict(query, user=user, **k_faq_action_config)
+        response, time_elapsed = await gpt3.predict(query, user=user, collection = collection_name, **k_faq_action_config)
         assert response['content'] == embedding
 
         req_json = list(aioresponses.requests.values())[0][0].kwargs['json']
@@ -1432,7 +1452,7 @@ class TestLLM:
         gpt3 = LLMProcessor(bot, llm_type)
 
         with pytest.raises(Exception) as exc_info:
-            await gpt3.get_embedding("Hello world", user)
+            await gpt3.get_embedding("Hello world", user, collection = "test")
 
         assert str(exc_info.value) == HTTPStatus(500).phrase
 
@@ -2612,3 +2632,169 @@ class TestLLM:
             assert "RERANK MODEL LOADED" in log_contents
 
         LLMSecret.objects.delete()
+
+    @pytest.mark.asyncio
+    async def test_get_embedding_sets_model_from_metadata(self):
+        # Arrange
+        mock_metadata = MagicMock()
+        mock_metadata.schema_metadata = MagicMock()
+        mock_metadata.schema_metadata.model_id = "test-model"
+        mock_metadata.schema_metadata.training_needed = False
+
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_objects, \
+             patch("kairon.shared.actions.utils.ActionUtility.execute_request_async", new_callable=AsyncMock) as mock_request:
+
+            mock_objects.return_value.first.return_value = mock_metadata
+            mock_request.return_value = ([{"embedding": [0.1, 0.2]}], 200, 0.1, {})
+
+            bot = "test_bot"
+            llm_type = "openai"
+            user = "test_user"
+            key = "test"
+            llm_secret = LLMSecret(
+                llm_type=llm_type,
+                api_key=key,
+                models=["model1", "model2"],
+                api_base_url="https://api.example.com",
+                bot=bot,
+                user=user
+            )
+            llm_secret.save()
+
+            obj = LLMProcessor(bot, llm_type)
+
+
+            kwargs = {"collection": "test_collection"}
+
+            await obj.get_embedding("hello", user="test_user", **kwargs)
+
+            called_body = mock_request.call_args.kwargs["request_body"]
+            passed_kwargs = called_body["kwargs"]
+
+            assert passed_kwargs["model"] == "test-model"
+            LLMSecret.objects.delete()
+
+    @pytest.fixture
+    def action_prompt_instance(self):
+        from kairon.actions.definitions.prompt import ActionPrompt
+        instance = ActionPrompt("test_bot", "action_llm_query0")
+        instance.bot = "test_bot"
+        instance.name = "action_llm_query"
+        return instance
+
+    @pytest.mark.asyncio
+    async def test_execute_forces_openrouter_on_embeddings(self, action_prompt_instance):
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        tracker.sender_id = "user_123"
+        tracker.get_intent_of_latest_message.return_value = "ask_faq"
+        tracker.get_slot.return_value = None
+
+        domain = {}
+        kwargs = {'action_call': {'trigger_info': {}}}
+
+        action_prompt_instance.retrieve_config = MagicMock(return_value=(
+            {
+                'user_question': 'What is AI?',
+                'llm_type': 'openai',
+                'set_slots': [],
+                'dispatch_response': True
+            },
+            {}
+        ))
+
+        action_prompt_instance._ActionPrompt__get_user_msg = MagicMock(return_value="What is AI?")
+        action_prompt_instance._ActionPrompt__get_llm_params = AsyncMock(return_value={
+            "similarity_prompt": [{"collection": "kb"}],
+            "hyperparameters": {"model": "gpt-4"}
+        })
+        action_prompt_instance._ActionPrompt__add_user_context_to_http_response = MagicMock(return_value="context")
+
+        mock_emb_metadata = MagicMock()
+        mock_emb_metadata.schema_metadata = MagicMock()
+        mock_emb_metadata.schema_metadata.size = 3072
+        mock_emb_metadata.schema_metadata.model_id = "test-model"
+        mock_emb_metadata.schema_metadata.training_needed = False
+
+        with patch('kairon.shared.cognition.data_objects.CognitionSchema.objects') as mock_query, \
+                patch('kairon.shared.admin.processor.Sysadmin.get_llm_secret',
+                      return_value="sk-router-key") as mock_secret, \
+                patch('kairon.shared.admin.processor.Sysadmin.check_llm_model_exists'), \
+                patch('kairon.actions.definitions.prompt.LLMProcessor') as MockProcessor:
+            mock_processor_inst = MockProcessor.return_value
+            mock_processor_inst.llm_type = "openai"
+            mock_processor_inst.predict = AsyncMock(return_value=(
+                {"content": "AI is cool", "is_failure": False},
+                0.5
+            ))
+            mock_processor_inst.logs = []
+            mock_query.return_value.first.return_value = mock_emb_metadata
+
+            await action_prompt_instance.execute(dispatcher, tracker, domain, **kwargs)
+
+            assert mock_processor_inst.llm_type == "openrouter"
+            mock_secret.assert_called_with("openrouter", "test_bot")
+
+            assert mock_processor_inst.llm_secret == "sk-router-key"
+            assert mock_processor_inst.llm_secret_embedding == "sk-router-key"
+
+    @pytest.mark.asyncio
+    async def test_execute_forces_openrouter_on_database_action(self):
+        # 1. Setup execution mocks
+        dispatcher = MagicMock()
+        tracker = MagicMock()
+        tracker.sender_id = "test_user"
+        tracker.get_intent_of_latest_message.return_value = "ask_data"
+
+        # Define the configuration that retrieve_config would return
+        mock_config = {
+            'collection': 'test_collection',
+            'db_type': 'qdrant',
+            'response': {'dispatch': True},
+            'failure_response': 'Failed',
+            'payload': [],
+            'set_slots': []
+        }
+        mock_bot_settings = {"llm_settings": {"enable_faq": True}}
+
+        mock_schema = MagicMock()
+
+        mock_schema.schema_metadata.training_needed = False
+        with patch("kairon.shared.vector_embeddings.db.factory.DatabaseFactory.get_instance") as mock_factory, \
+                patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_query, \
+                patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret",
+                      return_value="router_key") as mock_secret, \
+                patch("kairon.shared.actions.utils.ActionUtility.get_payload", return_value={}), \
+                patch("kairon.shared.actions.utils.ActionUtility.build_context", return_value={}), \
+                patch("kairon.shared.actions.utils.ActionUtility.compose_response",
+                      return_value=("Bot Response", [], None)), \
+                patch("kairon.shared.actions.utils.ActionUtility.fill_slots_from_response",
+                      return_value=({}, [], None)), \
+                patch("kairon.actions.definitions.database.ActionServerLogs.save"):
+
+            mock_vector_db = MagicMock()
+            mock_vector_db.llm = MagicMock()
+            mock_vector_db.perform_operation = AsyncMock(return_value={"data": "success"})
+
+            mock_factory.return_value.return_value = mock_vector_db
+            mock_query.return_value.first.return_value = mock_schema
+
+            from kairon.actions.definitions.database import ActionDatabase
+            action = ActionDatabase(bot="test_bot", name="test_db_action")
+            action.suffix = "_faq_embd"
+
+            action.retrieve_config = MagicMock(return_value=(mock_config, mock_bot_settings))
+
+            await action.execute(dispatcher, tracker, {})
+
+            mock_query.assert_called_with(bot="test_bot", collection_name="test_collection")
+
+            assert mock_vector_db.llm.llm_type == "openrouter"
+            assert mock_vector_db.llm.llm_secret == "router_key"
+            assert mock_vector_db.llm.llm_secret_embedding == "router_key"
+
+            mock_secret.assert_called_with("openrouter", "test_bot")
+
+            mock_vector_db.perform_operation.assert_called_once()
+            _, call_kwargs = mock_vector_db.perform_operation.call_args
+            assert call_kwargs['collection'] == "test_collection"

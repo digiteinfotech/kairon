@@ -1,24 +1,27 @@
 import requests
 import time
 from datetime import datetime
-
+import secrets
+import string
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from typing import Any, Dict, List, Optional
 from loguru import logger
-
+import json
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.pos.constants import POSType, OnboardingStatus
-from kairon.shared.pos.data_objects import POSClientDetails
+from kairon.shared.pos.data_objects import POSClientDetails, POSUserDetails
 from kairon.shared.utils import Utility
-
+import httpx
 
 class POSProcessor:
 
     __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
     __master_password = Utility.environment["pos"]["odoo"]["odoo_master_password"]
+    __live_agent_url = Utility.environment["live_agent"]["url"]
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""
@@ -131,6 +134,55 @@ class POSProcessor:
 
         record = (
             POSClientDetails(
+                pos_type=pos_type,
+                client_name=client_name.strip(),
+                config=client_details,
+                bot=bot.strip(),
+                user=user.strip(),
+            )
+            .save()
+            .to_mongo()
+            .to_dict()
+        )
+        return record
+
+    @staticmethod
+    def save_user_details(
+            client_name: str,
+            username: str,
+            password: str,
+            bot: str,
+            user: str,
+            pos_type: POSType = POSType.odoo.value
+    ):
+        """
+        Save Odoo Client Configuration Details.
+
+        :param client_name: Name of the client (unique)
+        :param username: Odoo admin username
+        :param password: Odoo admin password
+        :param bot: Bot ID
+        :param user: User who is saving
+        :param pos_type: POS Type
+        :return: Saved client details as dict
+        """
+
+        if Utility.check_empty_string(client_name):
+            raise AppException("Client Name cannot be empty.")
+
+        if not Utility.special_match(client_name, search=RE_ALPHA_NUM):
+            raise AppException("Client name can only contain letters, numbers, spaces and underscores.")
+
+        client_details = {
+            "username": username.strip(),
+            "password": Utility.encrypt_message(password.strip()),
+        }
+
+        client_detail = POSClientDetails.objects(bot=bot).first()
+        client_id = str(client_detail.id) if client_detail else None
+        record = (
+            POSUserDetails(
+                pos_client_id=client_id,
                 pos_type=pos_type,
                 client_name=client_name.strip(),
                 config=client_details,
@@ -388,9 +440,9 @@ class POSProcessor:
 
         return self.jsonrpc_call(session_id, model, "search_read", args=[domain], kwargs=kwargs)
 
-    def get_pos_products(self, session_id: str):
+    def get_pos_products(self, session_id: str, return_all: bool = False):
         try:
-            domain = [["available_in_pos", "=", True]]
+            domain = [] if return_all else [["available_in_pos", "=", True]]
 
             products = self.jsonrpc_call(
                 session_id=session_id,
@@ -400,7 +452,7 @@ class POSProcessor:
                 kwargs={
                     "fields": [
                         "product_variant_id", "name", "list_price",
-                        "barcode", "available_in_pos"
+                        "barcode", "available_in_pos", "categ_id", "description_sale"
                     ]
                 }
             )
@@ -408,6 +460,20 @@ class POSProcessor:
 
         except Exception as e:
             raise HTTPException(500, detail=f"Odoo error: {e}")
+
+    def invalidate_session(self, session_id):
+        url = f"{self.__base_url}/web/session/destroy"
+        cookies = {"session_id": session_id}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {}
+        }
+        try:
+            response = requests.post(url, json=payload, cookies=cookies, timeout=30).json()
+            return response
+        except Exception as e:
+            raise HTTPException(400, detail=f"Odoo error: {e}")
 
     def toggle_product_in_pos(self, session_id: str, product_id: int) -> Dict[str, Any]:
         """
@@ -525,6 +591,19 @@ class POSProcessor:
             kwargs={"limit": 1}
         )[0]
 
+    async def send_notification(self, data, bot: str):
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{self.__live_agent_url}/internal/notify/{bot}",
+                    json=data,
+                    timeout=2
+                )
+                return resp.json()
+        except Exception as e:
+            logger.exception(f"Notification failed for bot {bot}: {e}")
+            return None
+
     def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
         """
         Create POS order using JSON-RPC (create_from_ui)
@@ -532,19 +611,36 @@ class POSProcessor:
         """
 
         if not partner_id:
-            partner_id = self.jsonrpc_call(
+            existing = self.jsonrpc_call(
                 session_id=session_id,
                 model="res.partner",
-                method="create",
-                args=[{"name": "POS Customer", "customer_rank": 1}]
+                method="search_read",
+                args=[[["name", "=", "POS Customer"]]],
+                kwargs={"fields": ["id"], "limit": 1}
             )
+
+            if existing:
+                partner_id = existing[0]["id"]
+            else:
+                partner_id = self.jsonrpc_call(
+                    session_id=session_id,
+                    model="res.partner",
+                    method="create",
+                    args=[{
+                        "name": "POS Customer",
+                        "customer_rank": 1
+                    }]
+                )
 
         order_lines = []
         total = 0.0
+        total_excl = 0.0
+        total_incl = 0.0
 
         for p in products:
             product_id = p["product_id"]
             qty = p["qty"]
+            discount = p.get("discount", 0)
 
             product_data = self.jsonrpc_call(
                 session_id=session_id,
@@ -572,6 +668,8 @@ class POSProcessor:
 
             tax_total = 0.0
 
+            subtotal_excl = (price_unit * qty) * (1 - (discount / 100))
+
             if tax_ids:
                 taxes = self.jsonrpc_call(
                     session_id=session_id,
@@ -583,10 +681,12 @@ class POSProcessor:
 
                 for t in taxes:
                     if t["amount_type"] == "percent":
-                        tax_total += (price_unit * qty) * (t["amount"] / 100)
+                        base = subtotal_excl if not t["price_include"] else subtotal_excl / (1 + t["amount"] / 100)
+                        tax_total += base * (t["amount"] / 100)
 
-            subtotal_excl = price_unit * qty
             subtotal_incl = subtotal_excl + tax_total
+            total_excl += subtotal_excl
+            total_incl += subtotal_incl
 
             total += subtotal_incl
 
@@ -602,7 +702,7 @@ class POSProcessor:
 
                 "price_subtotal": subtotal_excl,
                 "price_subtotal_incl": subtotal_incl,
-                "discount": 0,
+                "discount": discount,
             }])
 
         pos_configs = self.jsonrpc_call(
@@ -674,6 +774,8 @@ class POSProcessor:
 
         payment_method_id = payment_method_ids[0]
 
+        amount_tax = total_incl - total_excl
+
         order_data = {
             "name": f"POS/{int(time.time())}",
             "sequence_number": sequence_number,
@@ -688,7 +790,7 @@ class POSProcessor:
             "amount_total": total,
             "amount_paid": total,
             "amount_return": 0.0,
-            "amount_tax": 0.0,
+            "amount_tax": amount_tax,
             "lines": order_lines,
             "statement_ids": [[0, 0, {
                 "amount": total,
@@ -790,16 +892,6 @@ class POSProcessor:
             if order["state"] not in ["draft", "paid"]:
                 raise HTTPException(status_code=400, detail=f"Cannot accept order. order already in '{order['state']}' state.")
 
-            methods = self.jsonrpc_call(session_id, "pos.payment.method", "search_read", args=[[["is_cash_count", "=", True]]], kwargs={"limit": 1})
-            if not methods:
-                raise HTTPException(status_code=404, detail="No POS payment method found")
-            payment_method_id = methods[0]["journal_id"][0]
-
-            payment_data = {"amount": order["amount_total"], "payment_method_id": payment_method_id, "pos_order_id": order_id}
-            self.jsonrpc_call(session_id, "pos.payment", "create", args=[payment_data])
-
-            self.jsonrpc_call(session_id, "pos.order", "action_pos_order_paid", args=[[order_id]])
-
             try:
                 self.jsonrpc_call(session_id, "pos.order", "action_pos_order_invoice", args=[[order_id]])
                 return {"order_id": order_id, "accepted": True}
@@ -829,5 +921,147 @@ class POSProcessor:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error rejecting POS order: {e}")
 
+    def get_group_id(self, session_id: str, xml_id: str) -> int:
+        module, name = xml_id.split(".")
+
+        data = self.jsonrpc_call(
+            session_id=session_id,
+            model="ir.model.data",
+            method="search_read",
+            args=[[["module", "=", module], ["name", "=", name]]],
+            kwargs={"fields": ["res_id"], "limit": 1}
+        )
+
+        if not data:
+            raise Exception(f"Group XML-ID '{xml_id}' not found")
+
+        return data[0]["res_id"]
+
+    def create_user(
+            self,
+            session_id: str,
+            bot: str,
+            client_name: str,
+            login: str,
+            password: str,
+            name: str,
+            partner_id: int = None,
+            pos_role: str = "user"
+    ):
+        """
+        Create Odoo user with POS access using JSON-RPC session_id.
+        pos_role = "user" or "manager"
+        """
+
+        existing_users = self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="search_read",
+            args=[[["login", "=", login]]],
+            kwargs={"fields": ["id"], "limit": 1}
+        )
+
+        if existing_users:
+            return {
+                "message": f"User {login} already exists",
+                "user_id": existing_users[0]["id"]
+            }
+
+        if not partner_id:
+            partner_id = self.jsonrpc_call(
+                session_id=session_id,
+                model="res.partner",
+                method="create",
+                args=[{"name": name}]
+            )
+
+        base_internal_user = self.get_group_id(session_id, "base.group_user")
 
 
+        pos_group = self.get_group_id(session_id, "point_of_sale.group_pos_user")
+
+        groups = [base_internal_user, pos_group]
+
+        user_vals = {
+            "name": name,
+            "login": login,
+            "partner_id": partner_id,
+            "groups_id": [(6, 0, groups)]
+        }
+
+        user_id = self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="create",
+            args=[user_vals]
+        )
+
+        self.jsonrpc_call(
+            session_id=session_id,
+            model="res.users",
+            method="write",
+            args=[[user_id], {"password": password}]
+        )
+        POSProcessor.save_user_details(
+            client_name=client_name,
+            username=login,
+            password=password,
+            bot=bot,
+            user=name,
+        )
+
+        return {
+            "message": f"User created with login {login} and POS {pos_role} access",
+            "user_id": user_id
+        }
+
+    def get_user_branch_access(self, session_id: str, db_name: str, password: str):
+        url = f"{self.__base_url}/jsonrpc"
+        db = db_name
+        password = password
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute_kw",
+                "args": [
+                            db,
+                            2,
+                            password,
+                            "res.users",
+                            "search_read",
+                            [[]],
+                            {
+                                "fields": ["id", "name", "login", "company_id", "company_ids"]
+                            }
+                        ]
+            },
+            "id": 1,
+        }
+        sess = requests.Session()
+        sess.cookies.set("session_id", session_id)
+        resp = sess.post(url, json=payload)
+        return resp.json()
+
+    @staticmethod
+    def generate_password(length=12):
+        characters = string.ascii_letters + string.digits + string.punctuation
+        return ''.join(secrets.choice(characters) for _ in range(length))
+
+    def create_pos_user(self, bot: str, email: str):
+        from kairon.pos.definitions.factory import POSFactory
+        bot_setting_obj = BotSettings.objects(bot=bot).first()
+        bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
+        if bot_setting.get("pos_enabled", False):
+            client_details = POSProcessor.get_client_details(bot)
+            pos_type = client_details.get("pos_type", "odoo")
+            client_name = client_details["client_name"]
+            pos_instance = POSFactory.get_instance(pos_type)
+            response = pos_instance().authenticate(client_name=client_name,
+                                                   bot=bot)
+            pos_response = json.loads(response.body)
+            session_id = pos_response.get("session_id")
+            password = POSProcessor.generate_password()
+            self.create_user(session_id=session_id,bot=bot,client_name=client_name,login=email,password=password,name=email)
