@@ -12,7 +12,7 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.pos.constants import POSType, OnboardingStatus
+from kairon.shared.pos.constants import POSType, OnboardingStatus, POS_NOTIFICATION_MESSAGES
 from kairon.shared.pos.data_objects import POSClientDetails, POSUserDetails
 from kairon.shared.utils import Utility
 import httpx
@@ -590,6 +590,12 @@ class POSProcessor:
             args=[[["id", "!=", 0]]],
             kwargs={"limit": 1}
         )[0]
+
+    @staticmethod
+    def get_pos_notification_message() -> str:
+        import random
+
+        return random.choice(POS_NOTIFICATION_MESSAGES)
 
     async def send_notification(self, data, bot: str):
         try:

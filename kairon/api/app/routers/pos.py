@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Query, Security, Path, BackgroundTasks
+
+from kairon import Utility
 from kairon.pos.definitions.factory import POSFactory
-from kairon.shared.pos.constants import POSType
+from kairon.shared.pos.constants import POSType, OdooPOSActions, OdooPOSMenus
 from kairon.shared.pos.models import (
     LoginRequest, ClientRequest, POSOrderRequest, BranchRequest, UserAccessRequest
 )
@@ -114,13 +116,24 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
     )
 
     if result["status"] == "created":
+        base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
+        action = OdooPOSActions.ACTION_POS_ORDER_LIST.value
+        menu = OdooPOSMenus.MENU_POS_ORDERS.value
+        company_id = req.company_id
+        orders_link = f"{base_url}/web#action={action}&model=pos.order&view_type=list&cids={company_id}&menu_id={menu}"
+        order = result.get("order_id", {})
+
         background_tasks.add_task(
             pos_processor.send_notification,
             {
-                "type": "new_order",
-                "message": "New POS Order Received 🎉",
-                "order_id": result.get("order_id"),
-                "data": result
+                "type": "link",
+                "link": orders_link,
+                "botId": current_user.get_bot(),
+                "message": pos_processor.get_pos_notification_message(),
+                "posType": POSType.odoo.value,
+                "order_id": order.get("id"),
+                "pos_reference": order.get("pos_reference"),
+                "status": order.get("status")
             },
             current_user.get_bot()
         )
