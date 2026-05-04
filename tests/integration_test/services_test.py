@@ -2376,6 +2376,12 @@ def test_create_pos_order_without_partner():
 
     responses.add(responses.POST, url, json={"result": [555]}, status=200)
 
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
     payload = {"products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
 
     res = client.post(
@@ -2388,7 +2394,7 @@ def test_create_pos_order_without_partner():
     print(data)
     assert data["success"]
     assert data["message"] == "POS order created"
-    assert data["data"]["order_id"] == 555
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["error_code"] == 0
 
 
@@ -2440,6 +2446,12 @@ def test_create_pos_order_success():
         status=200
     )
 
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
     payload = {
         "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
         "partner_id": 3
@@ -2456,7 +2468,7 @@ def test_create_pos_order_success():
 
     assert data["success"]
     assert data["message"] == "POS order created"
-    assert data["data"]["order_id"] == 123
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
 
@@ -2509,6 +2521,13 @@ def test_create_pos_order_success_with_cid():
         status=200
     )
 
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
+
     payload = {
         "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
         "partner_id": 3
@@ -2525,7 +2544,7 @@ def test_create_pos_order_success_with_cid():
 
     assert data["success"]
     assert data["message"] == "POS order created"
-    assert data["data"]["order_id"] == 123
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
 
