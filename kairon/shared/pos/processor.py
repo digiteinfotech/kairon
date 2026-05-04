@@ -593,8 +593,6 @@ class POSProcessor:
 
     @staticmethod
     def get_pos_notification_message() -> str:
-        import secrets
-
         return secrets.choice(POS_NOTIFICATION_MESSAGES)
 
     async def send_notification(self, data, bot: str):

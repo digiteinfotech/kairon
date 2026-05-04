@@ -133,7 +133,7 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
                 "posType": POSType.odoo.value,
                 "order_id": order.get("id"),
                 "pos_reference": order.get("pos_reference"),
-                "status": order.get("status")
+                "status": result.get("status")
             },
             current_user.get_bot()
         )
