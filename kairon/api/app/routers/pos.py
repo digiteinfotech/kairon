@@ -122,6 +122,13 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
         company_id = req.company_id
         orders_link = f"{base_url}/web#action={action}&model=pos.order&view_type=list&cids={company_id}&menu_id={menu}"
         order = result.get("order_id", {})
+        client_detail = pos_processor.get_client_details(current_user.get_bot())
+        name = client_detail.get("client_name", "")
+        if not req.company_id == 1:
+            for branch in client_detail["branches"]:
+                if req.company_id == branch["company_id"]:
+                    name = branch["branch_name"]
+                    break
 
         background_tasks.add_task(
             pos_processor.send_notification,
@@ -133,7 +140,8 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
                 "pos_type": POSType.odoo.value,
                 "order_id": order.get("id"),
                 "pos_reference": order.get("pos_reference"),
-                "status": result.get("status")
+                "status": result.get("status"),
+                "branch_name": name
             },
             current_user.get_bot()
         )

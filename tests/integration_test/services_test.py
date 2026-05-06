@@ -2384,11 +2384,20 @@ def test_create_pos_order_without_partner():
 
     payload = {"products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
 
-    res = client.post(
-        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
-        json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 1, "branch_name": "Main Branch"}
+                ]
+            }
+    ):
+        res = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
 
     data = res.json()
     print(data)
@@ -2457,11 +2466,20 @@ def test_create_pos_order_success():
         "partner_id": 3
     }
 
-    response = client.post(
-        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
-        json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 1, "branch_name": "Main Branch"}
+                ]
+            }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
 
     data = response.json()
     print(data)
@@ -2533,11 +2551,20 @@ def test_create_pos_order_success_with_cid():
         "partner_id": 3
     }
 
-    response = client.post(
-        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
-        json=payload,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 1, "branch_name": "Main Branch"}
+                ]
+            }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
 
     data = response.json()
     print(data)
