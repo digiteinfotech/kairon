@@ -2382,14 +2382,14 @@ def test_create_pos_order_without_partner():
             "account_move": False
         }}, status=200)
 
-    payload = {"products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
+    payload = {"company_id": 10, "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
 
     with patch(
             "kairon.shared.pos.processor.POSProcessor.get_client_details",
             return_value={
                 "client_name": "Test Client",
                 "branches": [
-                    {"company_id": 1, "branch_name": "Main Branch"}
+                    {"company_id": 10, "branch_name": "kairon Branch"}
                 ]
             }
     ):
@@ -2471,7 +2471,7 @@ def test_create_pos_order_success():
             return_value={
                 "client_name": "Test Client",
                 "branches": [
-                    {"company_id": 1, "branch_name": "Main Branch"}
+                    {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
     ):
@@ -2556,7 +2556,7 @@ def test_create_pos_order_success_with_cid():
             return_value={
                 "client_name": "Test Client",
                 "branches": [
-                    {"company_id": 1, "branch_name": "Main Branch"}
+                    {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
     ):
