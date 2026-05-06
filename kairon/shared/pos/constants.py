@@ -26,3 +26,14 @@ class OdooPOSMenus(str, Enum):
     MENU_POS_PRODUCTS = 233
     MENU_POS_ORDERS = 231
 
+
+POS_NOTIFICATION_MESSAGES = [
+    "New Order Received 🎉",
+    "Order Alert 🚀 A new order just came in!",
+    "You’ve got a new order 🧾",
+    "Incoming order! Time to process 📦",
+    "Another order landed 🎯",
+    "Heads up! New order 📢",
+    "Fresh order just arrived 🛒",
+    "New customer order waiting 👀"
+]
