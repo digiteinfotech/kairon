@@ -2575,6 +2575,129 @@ def test_create_pos_order_success_with_cid():
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
 
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_create_new_session():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [
+            {"id": 1, "company_id": [1, "My Company"]}
+        ]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": 99},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": 99,
+            "sequence_number": 1,
+            "payment_method_ids": [5]
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [2]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }]},
+        status=200
+    )
+
+    payload = {
+        "products": [
+            {
+                "product_id": 1,
+                "qty": 2,
+                "unit_price": 20.0
+            }
+        ],
+        "partner_id": 3
+    }
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value={
+            "client_name": "Test Client",
+            "branches": [
+                {
+                    "company_id": 10,
+                    "branch_name": "Main Branch"
+                }
+            ]
+        }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+    data = response.json()
+
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["status"] == "created"
+    assert data["data"]["order_id"] == {
+        "id": 555,
+        "pos_reference": "POS/1777892348",
+        "account_move": False
+    }
+    assert data["error_code"] == 0
 
 @pytest.mark.asyncio
 @responses.activate
