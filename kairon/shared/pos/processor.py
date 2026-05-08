@@ -762,6 +762,20 @@ class POSProcessor:
                 args=[[session_id_odoo]]
             )
 
+            open_session = self.jsonrpc_call(
+                session_id=session_id,
+                model="pos.session",
+                method="search_read",
+                args=[
+                    [
+                        ["config_id", "=", config_id],
+                        ["state", "in", ["opened", "opening_control"]]
+                    ]
+                ],
+                kwargs={"limit": 1}
+            )
+            payment_method_ids = open_session[0].get("payment_method_ids", [])
+
             sequence_number = 1
 
         if not payment_method_ids:
