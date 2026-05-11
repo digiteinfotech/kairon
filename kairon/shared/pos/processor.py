@@ -747,6 +747,7 @@ class POSProcessor:
             session_id_odoo = open_session[0]["id"]
             sequence_number = open_session[0].get("sequence_number", 1)
             payment_method_ids = open_session[0].get("payment_method_ids", [])
+            logger.info(f"Inside If Statement: {payment_method_ids}")
         else:
             session_id_odoo = self.jsonrpc_call(
                 session_id=session_id,
@@ -775,6 +776,7 @@ class POSProcessor:
                 kwargs={"limit": 1}
             )
             payment_method_ids = open_session[0].get("payment_method_ids", [])
+            logger.info(f"Inside else Statement: {payment_method_ids}")
 
             sequence_number = 1
 
@@ -818,6 +820,7 @@ class POSProcessor:
         }
 
         payload = [{"data": order_data}]
+        logger.info(f"order payload: {payload}")
 
         order_ids = self.jsonrpc_call(
             session_id=session_id,
