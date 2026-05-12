@@ -11,7 +11,7 @@ from kairon.shared.pos.processor import POSProcessor
 from kairon.shared.constants import ADMIN_ACCESS
 from kairon.shared.auth import Authentication
 from kairon.shared.models import User
-
+from loguru import logger
 
 pos_processor = POSProcessor()
 router = APIRouter()
@@ -108,6 +108,7 @@ def list_pos_orders(
 @router.post("/pos_order", response_model=Response)
 async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, session_id: str = Query(...),
                  current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
+    logger.info(f"request payload: {req}")
     result = pos_processor.create_pos_order(
         session_id=session_id,
         products=[p.dict() for p in req.products],
