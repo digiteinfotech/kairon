@@ -4584,3 +4584,25 @@ def test_create_vector_collection_faq_enabled():
 
         assert result["message"] == "collection created successfully"
         mock_client.create_collection.assert_called_once()
+
+def test_create_vector_collection_bot_settings_not_found():
+
+    with patch(
+        "kairon.shared.data.data_objects.BotSettings.objects"
+    ) as mock_bot_settings_obj, \
+         patch(
+             "kairon.shared.utils.Utility.environment",
+             {"vector": {"db": "http://fake-qdrant"}}
+         ):
+
+        mock_bot_settings_obj.return_value.get.side_effect = DoesNotExist
+
+        with pytest.raises(Exception) as exc:
+            CallbackScriptUtility.create_vector_collection(
+                collection_name="test_collection",
+                model_id="text-embedding-3-large",
+                user="test_user",
+                bot="bot123"
+            )
+
+        assert "Bot settings not found" in str(exc.value)

@@ -581,8 +581,8 @@ class CallbackScriptUtility:
         db_url = Utility.environment['vector']['db']
         try:
             bot_settings = BotSettings.objects(bot=bot, status=True).get()
-        except DoesNotExist:
-            raise Exception("Bot settings not found")
+        except DoesNotExist as err:
+            raise Exception("Bot settings not found") from err
 
         if not bot_settings.llm_settings.enable_faq:
             raise Exception(
