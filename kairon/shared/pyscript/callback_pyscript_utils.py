@@ -28,6 +28,8 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
+from mongoengine.errors import DoesNotExist
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 
@@ -578,6 +580,15 @@ class CallbackScriptUtility:
         from qdrant_client import QdrantClient
 
         db_url = Utility.environment['vector']['db']
+        try:
+            bot_settings = BotSettings.objects(bot=bot, status=True).get()
+        except DoesNotExist:
+            raise Exception("Bot settings not found")
+
+        if not bot_settings.llm_settings.enable_faq:
+            raise Exception(
+                "Please enable FAQ/LLM before creating vector collection"
+            )
         knowledge_vault_name = collection_name
         collection_name = f"{bot}_{collection_name}_faq_embd"
         schema = {
