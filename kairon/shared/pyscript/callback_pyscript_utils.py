@@ -28,7 +28,6 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
-from mongoengine.errors import DoesNotExist
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
