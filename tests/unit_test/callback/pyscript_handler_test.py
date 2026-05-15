@@ -4421,16 +4421,18 @@ def test_create_vector_collection_success():
 
     mock_schema = MagicMock()
 
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = True
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
          patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": True
+            }
+        }
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4456,17 +4458,18 @@ def test_create_vector_collection_overwrite():
     mock_schema_cls = MagicMock()
     mock_schema_cls.objects.return_value.first.return_value = mock_existing_schema
 
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = True
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
-         patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": True
+            }
+        }
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4485,19 +4488,22 @@ def test_create_vector_collection_embedding_metadata_exists():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
 
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = True
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
             patch("kairon.shared.cognition.data_objects.CognitionSchema") as mock_schema_class, \
-            patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
             patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
             patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": True
+            }
+        }
+
         mock_schema_class.objects.return_value.first.return_value = None
         mock_instance = MagicMock()
         mock_schema_class.return_value = mock_instance
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4519,14 +4525,15 @@ def test_create_vector_collection_exists():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = [mock_collection]
 
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = True
-
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": True
+            }
+        }
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4537,16 +4544,18 @@ def test_create_vector_collection_exists():
 
         assert result["message"] == "collection already exists"
 
-def test_create_vector_collection_faq_disabled():
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = False
+def test_create_vector_collection_llm_disabled():
 
-    with patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
+    with patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.utils.Utility.environment",{"vector": {"db": "http://fake-qdrant"}}):
 
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": False
+            }
+        }
 
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(AppException) as exc:
             CallbackScriptUtility.create_vector_collection(
                 collection_name="test_collection",
                 model_id="text-embedding-3-large",
@@ -4554,55 +4563,5 @@ def test_create_vector_collection_faq_disabled():
                 bot="bot123"
             )
 
-        assert "Please enable FAQ/LLM before creating vector collection" in str(exc.value)
+        assert "LLM is disabled, Please enable it" in str(exc.value)
 
-def test_create_vector_collection_faq_enabled():
-    mock_client = MagicMock()
-    mock_client.get_collections.return_value.collections = []
-
-    mock_bot_settings = MagicMock()
-    mock_bot_settings.llm_settings.enable_faq = True
-
-    mock_schema = MagicMock()
-
-    with patch("qdrant_client.QdrantClient",return_value=mock_client), \
-         patch("kairon.shared.data.data_objects.BotSettings.objects") as mock_bot_settings_obj, \
-         patch("kairon.shared.cognition.data_objects.CognitionSchema",return_value=mock_schema), \
-         patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
-         patch("kairon.shared.cognition.data_objects.ColumnMetadata",side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment",{"vector": {"db": "http://fake-qdrant"}}):
-
-        mock_bot_settings_obj.return_value.get.return_value = mock_bot_settings
-
-        result = CallbackScriptUtility.create_vector_collection(
-            collection_name="test_collection",
-            model_id="text-embedding-3-large",
-            user="test_user",
-            metadata=[{"name": "column1"}],
-            bot="bot123"
-        )
-
-        assert result["message"] == "collection created successfully"
-        mock_client.create_collection.assert_called_once()
-
-def test_create_vector_collection_bot_settings_not_found():
-
-    with patch(
-        "kairon.shared.data.data_objects.BotSettings.objects"
-    ) as mock_bot_settings_obj, \
-         patch(
-             "kairon.shared.utils.Utility.environment",
-             {"vector": {"db": "http://fake-qdrant"}}
-         ):
-
-        mock_bot_settings_obj.return_value.get.side_effect = DoesNotExist
-
-        with pytest.raises(Exception) as exc:
-            CallbackScriptUtility.create_vector_collection(
-                collection_name="test_collection",
-                model_id="text-embedding-3-large",
-                user="test_user",
-                bot="bot123"
-            )
-
-        assert "Bot settings not found" in str(exc.value)
