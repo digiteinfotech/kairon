@@ -578,6 +578,11 @@ class CallbackScriptUtility:
         from qdrant_client import QdrantClient
 
         db_url = Utility.environment['vector']['db']
+
+        bot_settings = ActionUtility.get_bot_settings(bot=bot)
+        if not bot_settings.get("llm_settings", {}).get("enable_faq", False):
+            raise AppException("LLM is disabled, Please enable it")
+
         knowledge_vault_name = collection_name
         collection_name = f"{bot}_{collection_name}_faq_embd"
         schema = {
