@@ -4428,7 +4428,7 @@ def test_create_vector_collection_success():
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}),\
          patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret", return_value={"api_key": "fake_key"}), \
-         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info", return_value={"output_vector_size": 3072}):
+         patch("litellm.get_model_info", return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
             "llm_settings": {
@@ -4468,7 +4468,7 @@ def test_create_vector_collection_overwrite():
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
          patch(SECRET_PATH, return_value={"api_key": "test"}), \
-         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+         patch("litellm.get_model_info",
                   return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
@@ -4501,7 +4501,7 @@ def test_create_vector_collection_embedding_metadata_exists():
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
             patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
             patch(SECRET_PATH, return_value={"api_key": "test"}), \
-            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+            patch("litellm.get_model_info",
                   return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
@@ -4538,7 +4538,7 @@ def test_create_vector_collection_exists():
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
          patch(SECRET_PATH, return_value={"api_key": "test"}), \
-         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+         patch("litellm.get_model_info",
                 return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
@@ -4591,9 +4591,9 @@ def test_create_vector_collection_unknown_model_fallback():
             patch(SECRET_PATH, return_value={"api_key": "test"}),\
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
             patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
-            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+            patch("litellm.get_model_info",
                   side_effect=Exception("model not found")), \
-            patch("kairon.shared.pyscript.callback_pyscript_utils.requests.post",
+            patch("requests.post",
                   return_value=mock_response) as mock_post:
 
         mock_get_bot_settings.return_value = {
