@@ -6,8 +6,6 @@ from email.mime.text import MIMEText
 from smtplib import SMTP
 from typing import Text, Dict, Callable, List
 import base64
-import litellm
-import requests
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
 from mongoengine import DoesNotExist
@@ -27,7 +25,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
-from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
@@ -579,6 +576,9 @@ class CallbackScriptUtility:
         from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, SchemaMetadata
         from qdrant_client.models import VectorParams, Distance
         from qdrant_client import QdrantClient
+        from kairon.shared.admin.processor import Sysadmin
+        import litellm
+        import requests
 
         db_url = Utility.environment['vector']['db']
 
