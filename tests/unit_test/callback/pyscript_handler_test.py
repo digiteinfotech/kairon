@@ -4415,6 +4415,10 @@ def test_process_instruction_completion():
 
         assert result == "summary result"
 
+PROCESS_INSTRUCTION_PATH = "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.process_instruction"
+FAKE_EMBEDDINGS = {"embeddings": [[0.1] * 3072]}
+
+
 def test_create_vector_collection_success():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
@@ -4424,17 +4428,12 @@ def test_create_vector_collection_success():
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
-         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
+         patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}),\
-         patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret", return_value={"api_key": "fake_key"}), \
-         patch("litellm.get_model_info", return_value={"output_vector_size": 3072}):
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+         patch(PROCESS_INSTRUCTION_PATH, return_value=FAKE_EMBEDDINGS) as mock_proc:
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": True
-            }
-        }
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": True}}
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4444,10 +4443,14 @@ def test_create_vector_collection_success():
             bot="bot123"
         )
 
+        mock_proc.assert_called_once_with(
+            ["This is a text to get embedding size"],
+            "This is test prompt", "embedding", "text-embedding-3-small", "openrouter", "bot123", "admin"
+        )
         mock_client.create_collection.assert_called_once()
         assert result["message"] == "collection created successfully"
 
-SECRET_PATH = "kairon.shared.admin.processor.Sysadmin.get_llm_secret"
+
 def test_create_vector_collection_overwrite():
     mock_collection = MagicMock()
     mock_collection.name = "bot123_test_collection_faq_embd"
@@ -4464,18 +4467,12 @@ def test_create_vector_collection_overwrite():
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
-         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
+         patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
-         patch(SECRET_PATH, return_value={"api_key": "test"}), \
-         patch("litellm.get_model_info",
-                  return_value={"output_vector_size": 3072}):
+         patch(PROCESS_INSTRUCTION_PATH, return_value=FAKE_EMBEDDINGS):
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": True
-            }
-        }
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": True}}
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4490,6 +4487,7 @@ def test_create_vector_collection_overwrite():
         mock_client.create_collection.assert_called_once()
         assert result["message"] == "collection created successfully"
 
+
 def test_create_vector_collection_embedding_metadata_exists():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
@@ -4497,18 +4495,12 @@ def test_create_vector_collection_embedding_metadata_exists():
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
             patch("kairon.shared.cognition.data_objects.CognitionSchema") as mock_schema_class, \
             patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
-            patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
             patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
-            patch(SECRET_PATH, return_value={"api_key": "test"}), \
-            patch("litellm.get_model_info",
-                  return_value={"output_vector_size": 3072}):
+            patch(PROCESS_INSTRUCTION_PATH, return_value=FAKE_EMBEDDINGS):
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": True
-            }
-        }
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": True}}
 
         mock_schema_class.objects.return_value.first.return_value = None
         mock_instance = MagicMock()
@@ -4523,9 +4515,9 @@ def test_create_vector_collection_embedding_metadata_exists():
 
         assert result["message"] == "collection created successfully"
         mock_client.create_collection.assert_called_once()
-
         assert mock_instance.save.called
         assert mock_instance.schema_metadata is not None
+
 
 def test_create_vector_collection_exists():
     mock_collection = MagicMock()
@@ -4537,15 +4529,9 @@ def test_create_vector_collection_exists():
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
-         patch(SECRET_PATH, return_value={"api_key": "test"}), \
-         patch("litellm.get_model_info",
-                return_value={"output_vector_size": 3072}):
+         patch(PROCESS_INSTRUCTION_PATH, return_value=FAKE_EMBEDDINGS):
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": True
-            }
-        }
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": True}}
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
@@ -4555,17 +4541,14 @@ def test_create_vector_collection_exists():
         )
 
         assert result["message"] == "collection already exists"
+        mock_client.create_collection.assert_not_called()
+
 
 def test_create_vector_collection_llm_disabled():
-
     with patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
-         patch("kairon.shared.utils.Utility.environment",{"vector": {"db": "http://fake-qdrant"}}):
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": False
-            }
-        }
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": False}}
 
         with pytest.raises(AppException) as exc:
             CallbackScriptUtility.create_vector_collection(
@@ -4577,39 +4560,37 @@ def test_create_vector_collection_llm_disabled():
 
         assert "LLM is disabled, Please enable it" in str(exc.value)
 
-def test_create_vector_collection_unknown_model_fallback():
+
+def test_create_vector_collection_embedding_size_from_process_instruction():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
 
-    mock_response = MagicMock()
-    mock_response.json.return_value = {"data": [{"embedding": [0.1] * 2048}]}
+    embeddings_2048 = {"embeddings": [[0.1] * 2048]}
 
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-            patch("kairon.shared.cognition.data_objects.CognitionSchema"), \
-            patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings,\
-            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
-            patch(SECRET_PATH, return_value={"api_key": "test"}),\
-            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
-            patch("litellm.get_model_info",
-                  side_effect=Exception("model not found")), \
-            patch("requests.post",
-                  return_value=mock_response) as mock_post:
+         patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
+         patch("kairon.shared.cognition.data_objects.CognitionSchema") as mock_schema_class, \
+         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta, \
+         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+         patch(PROCESS_INSTRUCTION_PATH, return_value=embeddings_2048):
 
-        mock_get_bot_settings.return_value = {
-            "llm_settings": {
-                "enable_faq": True
-            }
-        }
-        result = CallbackScriptUtility.create_vector_collection(
+        mock_get_bot_settings.return_value = {"llm_settings": {"enable_faq": True}}
+        mock_instance = MagicMock()
+        mock_schema_class.return_value = mock_instance
+
+        CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
             model_id="qwen/qwen3-embedding-4b",
             user="test_user",
-            metadata=[{"name": "column1"}],
             bot="bot123"
         )
-        assert result["message"] == "collection created successfully"
-        mock_post.assert_called_once()
-        call_kwargs = mock_post.call_args
-        assert call_kwargs.kwargs["json"]["model"] == "qwen/qwen3-embedding-4b"
+
+        create_call = mock_client.create_collection.call_args
+        vector_params = create_call.kwargs.get("vectors_config") or create_call.args[0] if create_call.args else create_call.kwargs["vectors_config"]
+        assert vector_params.size == 2048
+
+        schema_meta_call = mock_schema_meta.call_args
+        assert schema_meta_call.kwargs.get("size") == 2048
+        assert schema_meta_call.kwargs.get("model_id") == "qwen/qwen3-embedding-4b"
 
