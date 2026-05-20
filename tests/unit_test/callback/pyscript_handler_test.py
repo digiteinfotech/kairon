@@ -4426,7 +4426,9 @@ def test_create_vector_collection_success():
          patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
          patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}),\
+         patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret", return_value={"api_key": "fake_key"}), \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info", return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
             "llm_settings": {
@@ -4436,7 +4438,7 @@ def test_create_vector_collection_success():
 
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
-            model_id="text-embedding-3-large",
+            model_id="text-embedding-3-small",
             user="test_user",
             metadata=[{"name": "column1"}],
             bot="bot123"
@@ -4445,6 +4447,7 @@ def test_create_vector_collection_success():
         mock_client.create_collection.assert_called_once()
         assert result["message"] == "collection created successfully"
 
+SECRET_PATH = "kairon.shared.admin.processor.Sysadmin.get_llm_secret"
 def test_create_vector_collection_overwrite():
     mock_collection = MagicMock()
     mock_collection.name = "bot123_test_collection_faq_embd"
@@ -4463,7 +4466,10 @@ def test_create_vector_collection_overwrite():
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
          patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
          patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+         patch(SECRET_PATH, return_value={"api_key": "test"}), \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
             "llm_settings": {
@@ -4493,7 +4499,10 @@ def test_create_vector_collection_embedding_metadata_exists():
             patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
             patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
             "llm_settings": {
@@ -4527,7 +4536,10 @@ def test_create_vector_collection_exists():
 
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
          patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings, \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+         patch(SECRET_PATH, return_value={"api_key": "test"}), \
+         patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                return_value={"output_vector_size": 3072}):
 
         mock_get_bot_settings.return_value = {
             "llm_settings": {
@@ -4564,4 +4576,40 @@ def test_create_vector_collection_llm_disabled():
             )
 
         assert "LLM is disabled, Please enable it" in str(exc.value)
+
+def test_create_vector_collection_unknown_model_fallback():
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = []
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"data": [{"embedding": [0.1] * 2048}]}
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+            patch("kairon.shared.cognition.data_objects.CognitionSchema"), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_bot_settings") as mock_get_bot_settings,\
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}),\
+            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  side_effect=Exception("model not found")), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.requests.post",
+                  return_value=mock_response) as mock_post:
+
+        mock_get_bot_settings.return_value = {
+            "llm_settings": {
+                "enable_faq": True
+            }
+        }
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="qwen/qwen3-embedding-4b",
+            user="test_user",
+            metadata=[{"name": "column1"}],
+            bot="bot123"
+        )
+        assert result["message"] == "collection created successfully"
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args
+        assert call_kwargs.kwargs["json"]["model"] == "qwen/qwen3-embedding-4b"
 
