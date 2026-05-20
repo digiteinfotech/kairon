@@ -674,7 +674,7 @@ class MongoProcessor:
         :param bot: The ID of the bot for which to aggregate data.
         :return: A list of dictionaries containing aggregated data for the bot.
         """
-        schema_results = CognitionSchema.objects(bot=bot, schema_metadata__training_needed = True).only("collection_name", "metadata", "schema_metadata")
+        schema_results = CognitionSchema.objects(bot=bot, schema_metadata__training_needed = True).only("collection_name", "metadata")
 
         formatted_result = []
         for schema_result in schema_results:
