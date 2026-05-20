@@ -4,13 +4,9 @@ import json
 import traceback
 from functools import partial
 import os
-
-import litellm
 import bs4
 import requests
 from mongoengine import connect, disconnect
-
-litellm.suppress_debug_info = True
 
 from kairon import Utility
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
