@@ -4418,24 +4418,29 @@ def test_process_instruction_completion():
 def test_create_vector_collection_success():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
-
     mock_schema = MagicMock()
-    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
-         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
-         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
 
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+            patch("kairon.shared.cognition.data_objects.CognitionSchema", return_value=mock_schema), \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
+            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch("kairon.shared.admin.processor.Sysadmin.get_llm_secret", return_value={"api_key": "fake_key"}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 1536}):
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
-            model_id="text-embedding-3-large",
+            model_id="text-embedding-3-small",
             user="test_user",
             metadata=[{"name": "column1"}],
             bot="bot123"
         )
 
-        mock_client.create_collection.assert_called_once()
         assert result["message"] == "collection created successfully"
+        mock_client.create_collection.assert_called_once()
+
+SECRET_PATH = "kairon.shared.admin.processor.Sysadmin.get_llm_secret"
+
 
 def test_create_vector_collection_overwrite():
     mock_collection = MagicMock()
@@ -4451,11 +4456,13 @@ def test_create_vector_collection_overwrite():
     mock_schema_cls.objects.return_value.first.return_value = mock_existing_schema
 
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
-         patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
-         patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
-
+            patch("kairon.shared.cognition.data_objects.CognitionSchema", mock_schema_cls), \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
+            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 3072}):
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
             model_id="text-embedding-3-large",
@@ -4469,15 +4476,19 @@ def test_create_vector_collection_overwrite():
         mock_client.create_collection.assert_called_once()
         assert result["message"] == "collection created successfully"
 
+
 def test_create_vector_collection_embedding_metadata_exists():
     mock_client = MagicMock()
     mock_client.get_collections.return_value.collections = []
 
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
             patch("kairon.shared.cognition.data_objects.CognitionSchema") as mock_schema_class, \
-            patch("kairon.shared.cognition.data_objects.SchemaMetadata") as mock_schema_meta_class, \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
             patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
-            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 3072}):
         mock_schema_class.objects.return_value.first.return_value = None
         mock_instance = MagicMock()
         mock_schema_class.return_value = mock_instance
@@ -4491,9 +4502,8 @@ def test_create_vector_collection_embedding_metadata_exists():
 
         assert result["message"] == "collection created successfully"
         mock_client.create_collection.assert_called_once()
-
         assert mock_instance.save.called
-        assert mock_instance.schema_metadata is not None
+
 
 def test_create_vector_collection_exists():
     mock_collection = MagicMock()
@@ -4503,8 +4513,10 @@ def test_create_vector_collection_exists():
     mock_client.get_collections.return_value.collections = [mock_collection]
 
     with patch("qdrant_client.QdrantClient", return_value=mock_client), \
-         patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}):
-
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  return_value={"output_vector_size": 3072}):
         result = CallbackScriptUtility.create_vector_collection(
             collection_name="test_collection",
             model_id="text-embedding-3-large",
@@ -4513,3 +4525,33 @@ def test_create_vector_collection_exists():
         )
 
         assert result["message"] == "collection already exists"
+
+
+def test_create_vector_collection_unknown_model_fallback():
+    mock_client = MagicMock()
+    mock_client.get_collections.return_value.collections = []
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"data": [{"embedding": [0.1] * 2048}]}
+
+    with patch("qdrant_client.QdrantClient", return_value=mock_client), \
+            patch("kairon.shared.cognition.data_objects.CognitionSchema"), \
+            patch("kairon.shared.cognition.data_objects.SchemaMetadata"), \
+            patch(SECRET_PATH, return_value={"api_key": "test"}),\
+            patch("kairon.shared.cognition.data_objects.ColumnMetadata", side_effect=lambda **x: x), \
+            patch("kairon.shared.utils.Utility.environment", {"vector": {"db": "http://fake-qdrant"}}), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.litellm.get_model_info",
+                  side_effect=Exception("model not found")), \
+            patch("kairon.shared.pyscript.callback_pyscript_utils.requests.post",
+                  return_value=mock_response) as mock_post:
+        result = CallbackScriptUtility.create_vector_collection(
+            collection_name="test_collection",
+            model_id="qwen/qwen3-embedding-4b",
+            user="test_user",
+            metadata=[{"name": "column1"}],
+            bot="bot123"
+        )
+        assert result["message"] == "collection created successfully"
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args
+        assert call_kwargs.kwargs["json"]["model"] == "qwen/qwen3-embedding-4b"

@@ -6,6 +6,8 @@ from email.mime.text import MIMEText
 from smtplib import SMTP
 from typing import Text, Dict, Callable, List
 import base64
+import litellm
+import requests
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
 from mongoengine import DoesNotExist
@@ -25,6 +27,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
@@ -571,7 +574,7 @@ class CallbackScriptUtility:
 
 
     @staticmethod
-    def create_vector_collection(collection_name, model_id: str, user: str, emb_size: int = 3072,
+    def create_vector_collection(collection_name, model_id: str, user: str,
                                  overwrite: bool = False, metadata: list = None, bot: str = None):
         from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, SchemaMetadata
         from qdrant_client.models import VectorParams, Distance
@@ -589,6 +592,28 @@ class CallbackScriptUtility:
 
         collections = client.get_collections().collections
         exists = any(c.name == collection_name for c in collections)
+        llm_secret = Sysadmin.get_llm_secret("openrouter", bot)
+        OPENROUTER_EMBEDDING_URL = "https://openrouter.ai/api/v1/embeddings"
+        headers = {
+            "Authorization": f"Bearer {llm_secret['api_key']}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model_id,
+            "input": "This is the text to get embedding size",
+        }
+        try:
+            emb_size = litellm.get_model_info(model_id).get("output_vector_size")
+        except Exception:
+            emb_size = None
+        if not emb_size:
+            response = requests.post(
+                OPENROUTER_EMBEDDING_URL,
+                json=payload,
+                headers=headers,
+                timeout=30,
+            )
+            emb_size = len(response.json()["data"][0]["embedding"])
         embed_config = {
             "size": emb_size,
             "distance": Distance.COSINE
