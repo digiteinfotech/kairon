@@ -7452,6 +7452,35 @@ class TestMongoProcessor:
         file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
 
+    def test_download_files_excludes_non_trainable_schema(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        CognitionSchema(
+            bot="tests",
+            user="user@integration.com",
+            collection_name="normal_table",
+            schema_metadata=SchemaMetadata(training_needed=True)
+        ).save()
+
+        CognitionSchema(
+            bot="tests",
+            user="user@integration.com",
+            collection_name="analytics_pipeline",
+            schema_metadata=SchemaMetadata(training_needed=False)
+        ).save()
+
+        processor = MongoProcessor()
+        exported_data = processor._MongoProcessor__prepare_cognition_data_for_bot("tests")
+        collections = [item["collection"] for item in exported_data]
+
+        assert "normal_table" in collections
+        assert "analytics_pipeline" not in collections
+
     def test_download_data_files_multiflow_stories(self, monkeypatch):
         from zipfile import ZipFile
         def _mock_bot_info(*args, **kwargs):
