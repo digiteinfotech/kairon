@@ -4,7 +4,6 @@ import json
 import traceback
 from functools import partial
 import os
-
 import bs4
 import requests
 from mongoengine import connect, disconnect

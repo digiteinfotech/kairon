@@ -571,7 +571,7 @@ class CallbackScriptUtility:
 
 
     @staticmethod
-    def create_vector_collection(collection_name, model_id: str, user: str, emb_size: int = 3072,
+    def create_vector_collection(collection_name, model_id: str, user: str,
                                  overwrite: bool = False, metadata: list = None, bot: str = None):
         from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, SchemaMetadata
         from qdrant_client.models import VectorParams, Distance
@@ -594,6 +594,9 @@ class CallbackScriptUtility:
 
         collections = client.get_collections().collections
         exists = any(c.name == collection_name for c in collections)
+        embeddings = CallbackScriptUtility.process_instruction(["This is a text to get embedding size"],
+                                                               "This is test prompt", "embedding", model_id, "openrouter", bot, "admin")
+        emb_size = len(embeddings["embeddings"][0])
         embed_config = {
             "size": emb_size,
             "distance": Distance.COSINE
