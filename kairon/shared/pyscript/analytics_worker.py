@@ -75,14 +75,6 @@ def main():
         result = {k: v for k, v in local_vars.items() if not k.startswith("__")}
         print(json.dumps({"success": True, "data": result}, default=str), flush=True)
 
-    # except Exception as e:
-    #     exit_code = 1
-    #     print(json.dumps({
-    #         "success": False,
-    #         "error": str(e),
-    #         "trace": traceback.format_exc()
-    #     }), flush=True)
-
     except Exception as e:
         exit_code = 1
 
