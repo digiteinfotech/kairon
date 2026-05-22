@@ -4558,7 +4558,7 @@ def test_create_vector_collection_llm_disabled():
                 bot="bot123"
             )
 
-        assert "LLM is disabled, Please enable it" in str(exc.value)
+        assert "LLM is disabled, please enable it" in str(exc.value)
 
 
 def test_create_vector_collection_embedding_size_from_process_instruction():

@@ -581,7 +581,7 @@ class CallbackScriptUtility:
 
         bot_settings = ActionUtility.get_bot_settings(bot=bot)
         if not bot_settings.get("llm_settings", {}).get("enable_faq", False):
-            raise AppException("LLM is disabled, Please enable it")
+            raise AppException("LLM is disabled, please enable it")
 
         knowledge_vault_name = collection_name
         collection_name = f"{bot}_{collection_name}_faq_embd"
