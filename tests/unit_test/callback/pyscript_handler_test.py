@@ -12,6 +12,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 import pytz
 import responses
+import json
+import traceback
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
 from bson import ObjectId
@@ -4559,6 +4561,31 @@ def test_create_vector_collection_llm_disabled():
             )
 
         assert "LLM is disabled, please enable it" in str(exc.value)
+
+
+def test_analytics_worker_app_exception_handling(capsys):
+    from kairon.exceptions import AppException
+
+    try:
+        raise AppException("LLM is disabled, please enable it")
+    except Exception as e:
+
+        if isinstance(e, AppException):
+            print(json.dumps({
+                "success": False,
+                "message": str(e)
+            }), flush=True)
+        else:
+            print(json.dumps({
+                "success": False,
+                "error": str(e),
+                "trace": traceback.format_exc()
+            }), flush=True)
+
+    captured = capsys.readouterr()
+
+    assert '"success": false' in captured.out.lower()
+    assert '"message": "LLM is disabled, please enable it"' in captured.out
 
 
 def test_create_vector_collection_embedding_size_from_process_instruction():
