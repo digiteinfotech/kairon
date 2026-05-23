@@ -4563,25 +4563,22 @@ def test_create_vector_collection_llm_disabled():
         assert "LLM is disabled, please enable it" in str(exc.value)
 
 
-def test_analytics_worker_app_exception_handling(capsys):
+def test_analytics_worker_handles_app_exception(monkeypatch, capsys):
+    import io
     from kairon.exceptions import AppException
+    from kairon.shared.pyscript import analytics_worker
 
-    try:
+    monkeypatch.setattr("sys.stdin", io.StringIO("{}"))
+
+    def mock_exec(*args, **kwargs):
         raise AppException("LLM is disabled, please enable it")
-    except Exception as e:
 
-        if isinstance(e, AppException):
-            print(json.dumps({
-                "success": False,
-                "message": str(e)
-            }), flush=True)
-        else:
-            print(json.dumps({
-                "success": False,
-                "error": str(e),
-                "trace": traceback.format_exc()
-            }), flush=True)
+    def mock_cleanup(*args, **kwargs):
+        return
 
+    monkeypatch.setattr("builtins.exec", mock_exec)
+    monkeypatch.setattr(analytics_worker, "_cleanup_and_exit", mock_cleanup)
+    analytics_worker.main()
     captured = capsys.readouterr()
 
     assert '"success": false' in captured.out.lower()
