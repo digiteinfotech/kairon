@@ -22,6 +22,7 @@ from pymongo import MongoClient
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
+from kairon.shared.pyscript import analytics_worker
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
@@ -4558,7 +4559,25 @@ def test_create_vector_collection_llm_disabled():
                 bot="bot123"
             )
 
-        assert "LLM is disabled, Please enable it" in str(exc.value)
+        assert "LLM is disabled, please enable it" in str(exc.value)
+
+
+def test_analytics_worker_handles_app_exception(monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", io.StringIO("{}"))
+
+    def mock_exec(*args, **kwargs):
+        raise AppException("LLM is disabled, please enable it")
+
+    def mock_cleanup(*args, **kwargs):
+        return
+
+    monkeypatch.setattr("builtins.exec", mock_exec)
+    monkeypatch.setattr(analytics_worker, "_cleanup_and_exit", mock_cleanup)
+    analytics_worker.main()
+    captured = capsys.readouterr()
+
+    assert '"success": false' in captured.out.lower()
+    assert '"message": "LLM is disabled, please enable it"' in captured.out
 
 
 def test_create_vector_collection_embedding_size_from_process_instruction():

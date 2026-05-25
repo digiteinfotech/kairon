@@ -9,6 +9,7 @@ import requests
 from mongoengine import connect, disconnect
 
 from kairon import Utility
+from kairon.exceptions import AppException
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.pyscript.shared_pyscript_utils import PyscriptSharedUtility
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
@@ -76,11 +77,18 @@ def main():
 
     except Exception as e:
         exit_code = 1
-        print(json.dumps({
-            "success": False,
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), flush=True)
+
+        if isinstance(e, AppException):
+            print(json.dumps({
+                "success": False,
+                "message": str(e)
+            }), flush=True)
+        else:
+            print(json.dumps({
+                "success": False,
+                "error": str(e),
+                "trace": traceback.format_exc()
+            }), flush=True)
 
     finally:
         _cleanup_and_exit(exit_code)
