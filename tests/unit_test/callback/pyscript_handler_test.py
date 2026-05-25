@@ -12,8 +12,6 @@ from unittest.mock import patch, MagicMock
 import pytest
 import pytz
 import responses
-import json
-import traceback
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
 from bson import ObjectId
@@ -24,6 +22,7 @@ from pymongo import MongoClient
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
+from kairon.shared.pyscript import analytics_worker
 from kairon.shared.actions.data_objects import EmailActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
@@ -4564,10 +4563,6 @@ def test_create_vector_collection_llm_disabled():
 
 
 def test_analytics_worker_handles_app_exception(monkeypatch, capsys):
-    import io
-    from kairon.exceptions import AppException
-    from kairon.shared.pyscript import analytics_worker
-
     monkeypatch.setattr("sys.stdin", io.StringIO("{}"))
 
     def mock_exec(*args, **kwargs):
