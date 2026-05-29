@@ -1,7 +1,7 @@
 from datetime import datetime
 from mongoengine import (
     StringField,
-    DateTimeField, ValidationError, ListField
+    DateTimeField, ValidationError, ListField, DictField
 )
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -27,6 +27,24 @@ class BotSecrets(Auditlog):
 
 
 signals.pre_save_post_validation.connect(BotSecrets.pre_save_post_validation, sender=BotSecrets)
+
+@auditlogger.log
+@push_notification.apply
+class LLMMetadata(Auditlog):
+    provider = StringField(required=True, unique=True)
+    schema = StringField(db_field="schema")
+    type = StringField()
+    description = StringField()
+    properties = DictField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "collection": "l_l_m_metadata",
+        "indexes": [
+            {"fields": ["provider"]}
+        ]
+    }
 
 
 @auditlogger.log

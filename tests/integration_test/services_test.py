@@ -34,7 +34,7 @@ from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
 from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
-from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType, CallbackConfig
 from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
 from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
@@ -3651,6 +3651,40 @@ def test_get_llm_metadata():
         },
     ]
 
+    metadata = [
+        {
+            "provider": "openai",
+            "schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "description": "Open AI Models for Prompt",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "enum": []
+                }
+            },
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "provider": "anthropic",
+            "schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "description": "Anthropic AI Models for Prompt",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "enum": ["claude-3-7-sonnet-20250219"]
+                }
+            },
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+
+    for item in metadata:
+        LLMMetadata(**item).save()
+
     for secret in secrets:
         LLMSecret(**secret).save()
 
@@ -3675,6 +3709,8 @@ def test_get_llm_metadata():
 
 def test_get_llm_metadata_bot_specific_model_exists():
 
+    LLMMetadata.objects(provider__in=["openai", "anthropic"]).delete()
+
     secrets = [
         {
             "llm_type": "openai",
@@ -3693,8 +3729,43 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "timestamp": datetime.utcnow()
         }
     ]
+
+    metadata = [
+        {
+            "provider": "openai",
+            "schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "description": "Open AI Models for Prompt",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "enum": []
+                }
+            },
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+        {
+            "provider": "anthropic",
+            "schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "description": "Anthropic AI Models for Prompt",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "enum": []
+                }
+            },
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
+    ]
+
     for secret in secrets:
         LLMSecret(**secret).save()
+
+    for item in metadata:
+        LLMMetadata(**item).save()
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/metadata/llm",

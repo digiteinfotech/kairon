@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -513,17 +513,24 @@ class LLMProcessor(LLMBase):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
-        :return: dictionary where each key is a llm_type and the value is a list of models.
+        :return: dictionary where each key is a llm_type and the value is metadata.
         """
-        metadata = Utility.llm_metadata
-        llm_types = metadata.keys()
+        metadata_docs = LLMMetadata.objects()
         final_metadata = {}
-        for llm_type in llm_types:
+        for metadata in metadata_docs:
+            llm_type = metadata.provider
             models = LLMProcessor.get_llm_metadata(bot, llm_type)
 
             if models:
-                metadata[llm_type]['properties']['model']['enum'] = models
-                final_metadata[llm_type] = metadata[llm_type]
+                metadata_dict = {
+                    "$schema": metadata.schema,
+                    "type": metadata.type,
+                    "description": metadata.description,
+                    "properties": metadata.properties
+                }
+
+                metadata_dict['properties']['model']['enum'] = models
+                final_metadata[llm_type] = metadata_dict
 
         return final_metadata
 
