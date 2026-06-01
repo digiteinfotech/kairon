@@ -273,6 +273,14 @@ class Utility:
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
         Utility.load_system_metadata()
+
+    @staticmethod
+    def load_metadata_from_mongo():
+        """
+        Loads LLM metadata after MongoDB initialization.
+        This is executed post database connection as metadata is
+        fetched from the l_l_m_metadata collection.
+        """
         llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
         Utility.load_llm_metadata(file_path=llm_metadata_file)
 
@@ -292,13 +300,25 @@ class Utility:
                 )
 
     @staticmethod
-    def load_llm_metadata(file_path: str = llm_metadata_file_path):
+    def load_llm_metadata(file_path=None):
         """
-        Loads the metadata for LLM from the llm_metadata.yml file.
+        Loads the metadata for LLM from l_l_m_metadata collection.
 
         :return: None
         """
-        Utility.llm_metadata = Utility.load_yaml(file_path)
+        from kairon.shared.admin.data_objects import LLMMetadata
+        metadata_docs = LLMMetadata.objects()
+        metadata = {}
+
+        for item in metadata_docs:
+            metadata[item.provider] = {
+                "$schema": item.schema,
+                "type": item.type,
+                "description": item.description,
+                "properties": item.properties
+            }
+
+        Utility.llm_metadata = metadata
 
 
     @staticmethod

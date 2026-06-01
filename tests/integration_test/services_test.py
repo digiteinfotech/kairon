@@ -3685,6 +3685,8 @@ def test_get_llm_metadata():
     for item in metadata:
         LLMMetadata(**item).save()
 
+    Utility.load_llm_metadata()
+
     for secret in secrets:
         LLMSecret(**secret).save()
 
@@ -3766,6 +3768,8 @@ def test_get_llm_metadata_bot_specific_model_exists():
 
     for item in metadata:
         LLMMetadata(**item).save()
+
+    Utility.load_llm_metadata()
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/metadata/llm",
