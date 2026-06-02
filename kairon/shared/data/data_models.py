@@ -1012,6 +1012,14 @@ class EmailActionRequest(BaseModel):
     tls: bool = False
 
 
+class VoiceCallActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    to_phone_number: CustomActionParameter
+    telephony_provider: str = "twilio"
+    response: str = None
+    dispatch_bot_response: bool = True
+
+
 class JiraActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     url: str

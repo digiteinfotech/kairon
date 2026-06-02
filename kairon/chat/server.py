@@ -32,7 +32,7 @@ from contextlib import asynccontextmanager
 Utility.load_environment()
 
 
-from kairon.chat.routers import web_client, channels
+from kairon.chat.routers import web_client, channels, voice
 from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -280,8 +280,7 @@ def healthcheck():
 
 app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
 app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])
-from kairon.chat.routers import voice as voice_router
-app.include_router(voice_router.router, prefix="/api/bot", tags=["Voice"])
+app.include_router(voice.router, prefix="/api/bot", tags=["Voice"])
 
 
 async def main(scope, receive, send):

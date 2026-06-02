@@ -53,6 +53,27 @@ async def list_channel_config(
     return Response(data=config)
 
 
+@router.get("/voice/params", response_model=Response)
+async def voice_channel_params(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns metadata for voice channel providers.
+    """
+    return Response(data=Utility.system_metadata.get('voice_channels', {}))
+
+
+@router.get("/voice/list", response_model=Response)
+async def list_voice_channel_config(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Returns list of voice channel configs for bot.
+    """
+    config = list(ChatDataProcessor.list_voice_channel_config(current_user.get_bot()))
+    return Response(data=config)
+
+
 @router.get("/{name}/endpoint", response_model=Response)
 async def get_channel_endpoint(
         name: str = Path(description="channel name", examples=["slack"]),

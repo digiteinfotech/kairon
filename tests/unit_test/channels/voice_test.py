@@ -54,8 +54,6 @@ class TestTwilioVoiceProvider:
             "phone_number": "+12025551234",
             "telephony_provider": "twilio",
             "voice_type": "Polly.Amy",
-            "voice_types": ["Polly.Amy", "Polly.Matthew"],
-            "process_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/process/TOKEN",
             "call_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/call/TOKEN",
             "status_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/call/status/TOKEN",
         }
@@ -73,7 +71,8 @@ class TestTwilioVoiceProvider:
         assert provider.auth_token == "test_auth_token"
         assert provider.phone_number == "+12025551234"
         assert provider.voice_type == "Polly.Amy"
-        assert "Polly.Amy" in provider.voice_types
+        assert provider.speech_model == "default"
+        assert provider.enhanced == "false"
 
     def test_validate_signature_valid(self):
         provider = self._make_provider()
@@ -104,48 +103,72 @@ class TestTwilioVoiceProvider:
             provider.validate_signature(request, "https://example.com/call", {})
         mock_validate.assert_called_once_with("https://example.com/call", {}, "")
 
-    @pytest.mark.asyncio
-    async def test_handle_incoming_call_returns_twiml_with_gather(self):
+    def test_build_voice_response_single_message(self):
         provider = self._make_provider()
-        request = MagicMock()
-        twiml = await provider.handle_incoming_call(request)
+        call_url = "https://example.com/api/bot/testbot/channel/voice/twilio/call/TOKEN"
+        twiml = provider.build_voice_response(["Hello there"], call_url)
         assert "<Gather" in twiml
         assert "action=" in twiml
-        assert provider.process_url in twiml
+        assert call_url in twiml
+        assert "Hello there" in twiml
         assert "<Say" in twiml
-        assert "Hello" in twiml
 
-    @pytest.mark.asyncio
-    async def test_handle_incoming_call_uses_custom_welcome_message(self):
-        provider = self._make_provider(extra={"welcomeMessage": "Howdy partner!"})
-        request = MagicMock()
-        twiml = await provider.handle_incoming_call(request)
-        assert "Howdy partner!" in twiml
-
-    @pytest.mark.asyncio
-    async def test_handle_incoming_call_uses_voice_type(self):
-        provider = self._make_provider(extra={"voice_type": "Polly.Matthew"})
-        request = MagicMock()
-        twiml = await provider.handle_incoming_call(request)
-        assert "Polly.Matthew" in twiml
-
-    @pytest.mark.asyncio
-    async def test_handle_call_processing_with_rasa_response(self):
+    def test_build_voice_response_action_on_empty_result(self):
         provider = self._make_provider()
-        request = MagicMock()
-        twiml = await provider.handle_call_processing(request, "testbot", "Your order is confirmed.")
-        assert "<Say" in twiml
-        assert "Your order is confirmed." in twiml
-        assert "<Gather" in twiml
-        assert provider.process_url in twiml
+        twiml = provider.build_voice_response(["Hi"], "https://example.com/call")
+        assert "actionOnEmptyResult" in twiml
 
-    @pytest.mark.asyncio
-    async def test_handle_call_processing_empty_response_still_valid(self):
+    def test_build_voice_response_empty_messages_still_has_gather(self):
         provider = self._make_provider()
-        request = MagicMock()
-        twiml = await provider.handle_call_processing(request, "testbot", "")
-        assert "<Response>" in twiml or "<?xml" in twiml
+        twiml = provider.build_voice_response([], "https://example.com/call")
         assert "<Gather" in twiml
+        assert "<Say" not in twiml
+
+    def test_build_voice_response_multiple_messages_adds_pause(self):
+        provider = self._make_provider()
+        twiml = provider.build_voice_response(
+            ["First message", "Second message", "Third message"],
+            "https://example.com/call",
+        )
+        assert "First message" in twiml
+        assert "Second message" in twiml
+        assert "Third message" in twiml
+        assert "<Pause" in twiml
+        assert "<Gather" in twiml
+
+    def test_build_voice_response_uses_voice_type(self):
+        provider = self._make_provider(extra={"voice_type": "Polly.Kajal"})
+        twiml = provider.build_voice_response(["Namaste"], "https://example.com/call")
+        assert "Polly.Kajal" in twiml
+
+    def test_build_voice_response_last_message_inside_gather(self):
+        provider = self._make_provider()
+        twiml = provider.build_voice_response(
+            ["Early message", "Last message"], "https://example.com/call"
+        )
+        gather_start = twiml.index("<Gather")
+        gather_end = twiml.index("</Gather>")
+        assert twiml.index("Last message") > gather_start
+        assert twiml.index("Last message") < gather_end
+        assert twiml.index("Early message") < gather_start
+
+    def test_build_voice_response_single_message_inside_gather(self):
+        provider = self._make_provider()
+        twiml = provider.build_voice_response(["Only message"], "https://example.com/call")
+        gather_start = twiml.index("<Gather")
+        gather_end = twiml.index("</Gather>")
+        assert twiml.index("Only message") > gather_start
+        assert twiml.index("Only message") < gather_end
+
+    def test_build_voice_response_uses_language_config(self):
+        provider = self._make_provider(extra={"language": "en-IN"})
+        twiml = provider.build_voice_response(["Hello"], "https://example.com/call")
+        assert "en-IN" in twiml
+
+    def test_build_voice_response_default_language_is_en_us(self):
+        provider = self._make_provider()
+        twiml = provider.build_voice_response(["Hello"], "https://example.com/call")
+        assert "en-US" in twiml
 
     @pytest.mark.asyncio
     async def test_handle_call_status_saves_channel_log(self):
@@ -181,7 +204,6 @@ class TestTwilioVoiceProvider:
         assert call_kwargs["message_id"] == "unknown"
 
     def test_validate_config_passes_with_all_required_fields(self):
-        from kairon.chat.handlers.channels.clients.voice.twilio import TwilioVoiceProvider
         provider = self._make_provider()
         provider.validate_config({
             "account_sid": "ACxx",
@@ -229,7 +251,7 @@ class TestVoiceOutput:
         assert out.get_accumulated_text() == ""
 
     @pytest.mark.asyncio
-    async def test_send_text_with_buttons_appends_options(self):
+    async def test_send_text_with_buttons_appends_text_and_titles(self):
         from kairon.chat.handlers.channels.voice import VoiceOutput
         out = VoiceOutput()
         buttons = [{"title": "Yes"}, {"title": "No"}, {"title": "Maybe"}]
@@ -239,7 +261,31 @@ class TestVoiceOutput:
         assert "Yes" in text
         assert "No" in text
         assert "Maybe" in text
-        assert "Options:" in text
+
+    @pytest.mark.asyncio
+    async def test_send_text_with_buttons_separate_messages(self):
+        from kairon.chat.handlers.channels.voice import VoiceOutput
+        out = VoiceOutput()
+        buttons = [{"title": "Yes"}, {"title": "No"}]
+        await out.send_text_with_buttons("user1", "Choose one:", buttons)
+        msgs = out.get_messages()
+        assert msgs == ["Choose one:", "Yes", "No"]
+
+    @pytest.mark.asyncio
+    async def test_get_messages_returns_copy(self):
+        from kairon.chat.handlers.channels.voice import VoiceOutput
+        out = VoiceOutput()
+        await out.send_text_message("u", "Hello")
+        msgs = out.get_messages()
+        assert msgs == ["Hello"]
+        msgs.append("tampered")
+        assert out.get_messages() == ["Hello"]
+
+    @pytest.mark.asyncio
+    async def test_get_messages_empty(self):
+        from kairon.chat.handlers.channels.voice import VoiceOutput
+        out = VoiceOutput()
+        assert out.get_messages() == []
 
     @pytest.mark.asyncio
     async def test_send_image_url_is_noop(self):
@@ -302,7 +348,6 @@ class TestVoiceHandler:
                 "phone_number": "+12025551234",
                 "telephony_provider": "twilio",
                 "voice_type": "Polly.Amy",
-                "process_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/process/TOKEN",
                 "call_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/call/TOKEN",
                 "status_url": "https://agent.kairon.io/api/bot/testbot/channel/voice/twilio/call/status/TOKEN",
             },
@@ -361,62 +406,32 @@ class TestVoiceHandler:
         from kairon.chat.handlers.channels.voice import VoiceHandler
         from kairon.shared.chat.processor import ChatDataProcessor
 
-        request = self._make_request({"CallSid": "CA123", "From": "+1"})
+        request = self._make_request({"CallSid": "CA123", "CallStatus": "ringing"})
         handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        async def _inject(bot, user_msg):
+            await user_msg.output_channel.send_text_message(user_msg.sender_id, "Hello!")
 
         with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
             with patch(
                 "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
                 return_value=True,
             ):
-                result = await handler.handle_incoming_call()
+                with patch(
+                    "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                    side_effect=_inject,
+                ):
+                    result = await handler.handle_incoming_call()
 
         assert "<Gather" in result
         assert "<Say" in result
 
     @pytest.mark.asyncio
-    async def test_handle_call_processing_invalid_signature_returns_403(self):
-        from fastapi import HTTPException
+    async def test_handle_incoming_call_ringing_sends_welcome_to_rasa(self):
         from kairon.chat.handlers.channels.voice import VoiceHandler
         from kairon.shared.chat.processor import ChatDataProcessor
 
-        request = self._make_request({"SpeechResult": "hello", "CallSid": "CA123"})
-        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
-
-        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
-            with patch(
-                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                return_value=False,
-            ):
-                with pytest.raises(HTTPException) as exc_info:
-                    await handler.handle_call_processing()
-        assert exc_info.value.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_handle_call_processing_empty_speech_skips_rasa(self):
-        from kairon.chat.handlers.channels.voice import VoiceHandler
-        from kairon.shared.chat.processor import ChatDataProcessor
-
-        request = self._make_request({"SpeechResult": "", "CallSid": "CA123"})
-        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
-
-        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
-            with patch(
-                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                return_value=True,
-            ):
-                with patch("kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message") as mock_agent:
-                    result = await handler.handle_call_processing()
-
-        mock_agent.assert_not_called()
-        assert "<Gather" in result
-
-    @pytest.mark.asyncio
-    async def test_handle_call_processing_with_speech_calls_rasa(self):
-        from kairon.chat.handlers.channels.voice import VoiceHandler
-        from kairon.shared.chat.processor import ChatDataProcessor
-
-        request = self._make_request({"SpeechResult": "book a meeting", "CallSid": "CA123"})
+        request = self._make_request({"CallSid": "CA123", "CallStatus": "ringing"})
         handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
 
         with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
@@ -428,23 +443,69 @@ class TestVoiceHandler:
                     "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
                     new_callable=AsyncMock,
                 ) as mock_agent:
-                    result = await handler.handle_call_processing()
+                    await handler.handle_incoming_call()
 
         mock_agent.assert_called_once()
-        call_args = mock_agent.call_args[0]
-        assert call_args[0] == "testbot"
-        user_msg = call_args[1]
+        user_msg = mock_agent.call_args[0][1]
+        assert user_msg.text == "Hello! How can I help you?"
+        assert user_msg.sender_id == "CA123"
+
+    @pytest.mark.asyncio
+    async def test_handle_incoming_call_ringing_uses_custom_welcome_message(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        config = self._make_channel_config()
+        config["config"]["welcomeMessage"] = "Welcome to Kairon!"
+        request = self._make_request({"CallSid": "CA123", "CallStatus": "ringing"})
+        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        with patch.object(ChatDataProcessor, "get_channel_config", return_value=config):
+            with patch(
+                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                return_value=True,
+            ):
+                with patch(
+                    "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                    new_callable=AsyncMock,
+                ) as mock_agent:
+                    await handler.handle_incoming_call()
+
+        user_msg = mock_agent.call_args[0][1]
+        assert user_msg.text == "Welcome to Kairon!"
+
+    @pytest.mark.asyncio
+    async def test_handle_incoming_call_speech_result_goes_to_rasa(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        request = self._make_request({"CallSid": "CA123", "SpeechResult": "book a meeting"})
+        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
+            with patch(
+                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                return_value=True,
+            ):
+                with patch(
+                    "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                    new_callable=AsyncMock,
+                ) as mock_agent:
+                    result = await handler.handle_incoming_call()
+
+        mock_agent.assert_called_once()
+        user_msg = mock_agent.call_args[0][1]
         assert user_msg.text == "book a meeting"
         assert user_msg.sender_id == "CA123"
         assert "<Gather" in result
 
     @pytest.mark.asyncio
-    async def test_handle_call_processing_uses_call_sid_as_sender_id(self):
+    async def test_handle_incoming_call_speech_uses_call_sid_as_sender_id(self):
         from kairon.chat.handlers.channels.voice import VoiceHandler
         from kairon.shared.chat.processor import ChatDataProcessor
 
-        call_sid = "CAuniqueid99"
-        request = self._make_request({"SpeechResult": "hello", "CallSid": call_sid})
+        call_sid = "CAunique9988"
+        request = self._make_request({"CallSid": call_sid, "SpeechResult": "hello"})
         handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
 
         with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
@@ -456,10 +517,97 @@ class TestVoiceHandler:
                     "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
                     new_callable=AsyncMock,
                 ) as mock_agent:
-                    await handler.handle_call_processing()
+                    await handler.handle_incoming_call()
 
         user_msg = mock_agent.call_args[0][1]
         assert user_msg.sender_id == call_sid
+
+    @pytest.mark.asyncio
+    async def test_handle_incoming_call_reprompt_on_empty_speech(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        request = self._make_request({"CallSid": "CA123", "CallStatus": "in-progress"})
+        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
+            with patch(
+                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                return_value=True,
+            ):
+                with patch(
+                    "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+                    side_effect=Exception("no agent"),
+                ):
+                    result = await handler.handle_incoming_call()
+
+        assert "<Gather" in result
+        assert "sorry" in result.lower() or "repeat" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_reprompt_returns_fallback_when_no_agent(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+
+        handler = VoiceHandler("testbot", self._make_user(), MagicMock(), "twilio")
+        with patch(
+            "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+            side_effect=Exception("no agent"),
+        ):
+            result = await handler._get_reprompt("CA1", {"reprompt_fallback_phrase": "Try again."})
+
+        assert result == ["Try again."]
+
+    @pytest.mark.asyncio
+    async def test_get_reprompt_returns_default_fallback_when_no_config(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+
+        handler = VoiceHandler("testbot", self._make_user(), MagicMock(), "twilio")
+        with patch(
+            "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+            side_effect=Exception("no agent"),
+        ):
+            result = await handler._get_reprompt("CA1", {})
+
+        assert len(result) == 1
+        assert "sorry" in result[0].lower() or "repeat" in result[0].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_reprompt_uses_last_bot_utterance(self):
+        from rasa.shared.core.events import BotUttered
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+
+        handler = VoiceHandler("testbot", self._make_user(), MagicMock(), "twilio")
+
+        mock_event = MagicMock(spec=BotUttered)
+        mock_event.text = "Your order is confirmed."
+        mock_tracker = MagicMock()
+        mock_tracker.events = [mock_event]
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=mock_tracker)
+
+        with patch(
+            "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+            return_value=mock_agent,
+        ):
+            result = await handler._get_reprompt("CA1", {})
+
+        assert result == ["Your order is confirmed."]
+
+    @pytest.mark.asyncio
+    async def test_get_reprompt_falls_back_when_tracker_empty(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+
+        handler = VoiceHandler("testbot", self._make_user(), MagicMock(), "twilio")
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=None)
+
+        with patch(
+            "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+            return_value=mock_agent,
+        ):
+            result = await handler._get_reprompt("CA1", {"reprompt_fallback_phrase": "Fallback."})
+
+        assert result == ["Fallback."]
 
     @pytest.mark.asyncio
     async def test_handle_call_status_invalid_signature_returns_403(self):
@@ -520,7 +668,7 @@ class TestVoiceChannelConfigSave:
         Utility.load_system_metadata()
         connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
 
-    def test_get_voice_channel_endpoints_returns_three_urls(self):
+    def test_get_voice_channel_endpoints_returns_two_urls(self):
         from kairon.shared.data.utils import DataUtility
 
         channel_config = {
@@ -537,8 +685,9 @@ class TestVoiceChannelConfigSave:
             endpoints = DataUtility.get_voice_channel_endpoints(channel_config)
 
         assert "call_url" in endpoints
-        assert "process_url" in endpoints
         assert "status_url" in endpoints
+        assert "process_url" not in endpoints
+        assert len(endpoints) == 2
 
     def test_get_voice_channel_endpoints_url_structure(self):
         from kairon.shared.data.utils import DataUtility
@@ -557,7 +706,6 @@ class TestVoiceChannelConfigSave:
             endpoints = DataUtility.get_voice_channel_endpoints(channel_config)
 
         assert "/mybot/channel/voice/twilio/call/MYTOKEN" in endpoints["call_url"]
-        assert "/mybot/channel/voice/twilio/process/MYTOKEN" in endpoints["process_url"]
         assert "/mybot/channel/voice/twilio/call/status/MYTOKEN" in endpoints["status_url"]
 
     def test_get_voice_channel_endpoints_access_limit_covers_all_paths(self):
@@ -581,9 +729,7 @@ class TestVoiceChannelConfigSave:
         assert any("/mybot/channel/voice/twilio" in a for a in access_limit), \
             "access_limit must cover voice endpoints"
 
-
     def test_save_channel_config_voice_returns_call_and_status_urls(self):
-        """save_channel_config for voice returns {call_url, status_url} — process_url stored internally only."""
         from kairon.shared.chat.processor import ChatDataProcessor
 
         config = {
@@ -603,7 +749,6 @@ class TestVoiceChannelConfigSave:
 
         fake_endpoints = {
             "call_url": "https://agent/api/bot/testbot/channel/voice/twilio/call/T",
-            "process_url": "https://agent/api/bot/testbot/channel/voice/twilio/process/T",
             "status_url": "https://agent/api/bot/testbot/channel/voice/twilio/call/status/T",
         }
 
@@ -625,11 +770,6 @@ class TestVoiceChannelConfigSave:
 
 
 class TestSaveChannelConfigVoiceBranch:
-    """
-    Tests for the voice branch added to ChatDataProcessor.save_channel_config.
-    Covers the code path that calls get_voice_channel_endpoints instead of
-    get_channel_endpoint for voice connector_type.
-    """
 
     @pytest.fixture(autouse=True, scope="class")
     def setup(self):
@@ -652,7 +792,6 @@ class TestSaveChannelConfigVoiceBranch:
     def _fake_endpoints(self):
         return {
             "call_url": "https://agent/api/bot/bot1/channel/voice/twilio/call/TOK",
-            "process_url": "https://agent/api/bot/bot1/channel/voice/twilio/process/TOK",
             "status_url": "https://agent/api/bot/bot1/channel/voice/twilio/call/status/TOK",
         }
 
@@ -687,7 +826,6 @@ class TestSaveChannelConfigVoiceBranch:
 
         mock_channel = MagicMock()
         mock_channel.connector_type = "voice"
-        # Keep config as MagicMock so .update can be asserted
 
         endpoints = self._fake_endpoints()
 
@@ -734,7 +872,6 @@ class TestSaveChannelConfigVoiceBranch:
         mock_chan_ep.assert_not_called()
 
     def test_save_non_voice_config_calls_get_channel_endpoint_not_voice(self):
-        """Regression: non-voice channels must still use the old single-URL flow."""
         from kairon.shared.chat.processor import ChatDataProcessor
         from kairon.shared.data.utils import DataUtility
 
@@ -752,7 +889,6 @@ class TestSaveChannelConfigVoiceBranch:
 
         mock_channel = MagicMock()
         mock_channel.connector_type = "slack"
-        # Keep config as MagicMock; routing uses configuration dict not channel.config
 
         mock_channels_cls = MagicMock()
         mock_channels_cls.objects.return_value.get.side_effect = DoesNotExist
@@ -780,7 +916,6 @@ class TestSaveChannelConfigVoiceBranch:
         bad_config = {
             "connector_type": "voice",
             "config": {
-                # missing account_sid, auth_token
                 "phone_number": "+1234567890",
             },
         }
@@ -794,7 +929,6 @@ class TestSaveChannelConfigVoiceBranch:
                 ChatDataProcessor.save_channel_config(bad_config, "bot1", "user@test.com")
 
     def test_save_voice_config_update_existing_merges_config(self):
-        """When voice channel already exists, config merge path is taken."""
         from kairon.shared.chat.processor import ChatDataProcessor
 
         existing_channel = MagicMock()
@@ -823,13 +957,27 @@ class TestSaveChannelConfigVoiceBranch:
         assert "status_url" in result
         assert "process_url" not in result
 
+    def test_save_voice_config_voice_disabled_raises(self):
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.data.processor import MongoProcessor
+
+        mock_channel = MagicMock()
+        mock_channel.connector_type = "voice"
+
+        mock_channels_cls = MagicMock()
+        mock_channels_cls.objects.return_value.get.side_effect = DoesNotExist
+        mock_channels_cls.return_value = mock_channel
+
+        with patch("kairon.shared.chat.processor.Channels", mock_channels_cls):
+            with patch("kairon.shared.chat.processor.Utility.validate_channel"):
+                with patch.object(MongoProcessor, "is_voice_enabled", return_value=False):
+                    with pytest.raises(AppException, match="Voice is not enabled for this bot"):
+                        ChatDataProcessor.save_channel_config(
+                            self._voice_config(), "bot1", "user@test.com"
+                        )
+
 
 class TestVoiceServiceEndpoints:
-    """
-    Service-level tests for voice endpoints using TestClient.
-    Uses app.dependency_overrides for auth (correct FastAPI pattern).
-    Error assertions check response body (kairon returns 200 JSON for all errors).
-    """
 
     @pytest.fixture(autouse=True, scope="class")
     def setup(self):
@@ -851,7 +999,6 @@ class TestVoiceServiceEndpoints:
                 "telephony_provider": "twilio",
                 "voice_type": "Polly.Amy",
                 "call_url": f"https://agent/api/bot/{bot}/channel/voice/twilio/call/TOKEN",
-                "process_url": f"https://agent/api/bot/{bot}/channel/voice/twilio/process/TOKEN",
                 "status_url": f"https://agent/api/bot/{bot}/channel/voice/twilio/call/status/TOKEN",
             },
         }
@@ -883,7 +1030,6 @@ class TestVoiceServiceEndpoints:
             "/api/bot/svcbot/channel/voice/twilio/call/INVALIDTOKEN",
             data={"CallSid": "CA1", "From": "+1"},
         )
-        # kairon converts all errors to 200 JSON with success=False
         assert response.status_code == 200
         assert response.json().get("success") is False
 
@@ -920,85 +1066,15 @@ class TestVoiceServiceEndpoints:
                     )
         finally:
             self._clear_overrides()
-        # 403 converted to 200 JSON by exception handler
         assert response.status_code == 200
         assert response.json().get("success") is False
 
-    def test_call_endpoint_valid_returns_xml(self):
+    def test_call_endpoint_ringing_returns_xml(self):
         self._override_auth()
-        try:
-            with patch(
-                "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
-                return_value=self._channel_config(),
-            ):
-                with patch(
-                    "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                    return_value=True,
-                ):
-                    response = self.__class__.client.post(
-                        "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
-                        data={"CallSid": "CA1", "From": "+1"},
-                    )
-        finally:
-            self._clear_overrides()
 
-        assert response.status_code == 200
-        assert "xml" in response.headers.get("content-type", "").lower()
-        assert "<Gather" in response.text
-        assert "<Say" in response.text
+        async def _inject(bot, user_msg):
+            await user_msg.output_channel.send_text_message(user_msg.sender_id, "Hello!")
 
-    def test_call_endpoint_response_contains_process_url(self):
-        self._override_auth()
-        try:
-            with patch(
-                "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
-                return_value=self._channel_config(),
-            ):
-                with patch(
-                    "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                    return_value=True,
-                ):
-                    response = self.__class__.client.post(
-                        "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
-                        data={"CallSid": "CA1"},
-                    )
-        finally:
-            self._clear_overrides()
-
-        assert "process" in response.text
-
-    # ── /process endpoint ───────────────────────────────────────────
-
-    def test_process_endpoint_invalid_token_returns_error(self):
-        response = self.__class__.client.post(
-            "/api/bot/svcbot/channel/voice/twilio/process/BADTOKEN",
-            data={"SpeechResult": "hi", "CallSid": "CA2"},
-        )
-        assert response.status_code == 200
-        assert response.json().get("success") is False
-
-    def test_process_endpoint_invalid_twilio_signature_returns_403(self):
-        self._override_auth()
-        try:
-            with patch(
-                "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
-                return_value=self._channel_config(),
-            ):
-                with patch(
-                    "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                    return_value=False,
-                ):
-                    response = self.__class__.client.post(
-                        "/api/bot/svcbot/channel/voice/twilio/process/TOKEN",
-                        data={"SpeechResult": "hello", "CallSid": "CA2"},
-                    )
-        finally:
-            self._clear_overrides()
-        assert response.status_code == 200
-        assert response.json().get("success") is False
-
-    def test_process_endpoint_empty_speech_skips_rasa_returns_xml(self):
-        self._override_auth()
         try:
             with patch(
                 "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
@@ -1009,20 +1085,22 @@ class TestVoiceServiceEndpoints:
                     return_value=True,
                 ):
                     with patch(
-                        "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message"
-                    ) as mock_agent:
+                        "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                        side_effect=_inject,
+                    ):
                         response = self.__class__.client.post(
-                            "/api/bot/svcbot/channel/voice/twilio/process/TOKEN",
-                            data={"SpeechResult": "", "CallSid": "CA2"},
+                            "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
+                            data={"CallSid": "CA1", "CallStatus": "ringing"},
                         )
         finally:
             self._clear_overrides()
 
         assert response.status_code == 200
         assert "xml" in response.headers.get("content-type", "").lower()
-        mock_agent.assert_not_called()
+        assert "<Gather" in response.text
+        assert "<Say" in response.text
 
-    def test_process_endpoint_valid_speech_calls_rasa_returns_xml(self):
+    def test_call_endpoint_speech_result_calls_rasa_returns_xml(self):
         self._override_auth()
         try:
             with patch(
@@ -1038,7 +1116,7 @@ class TestVoiceServiceEndpoints:
                         new_callable=AsyncMock,
                     ) as mock_agent:
                         response = self.__class__.client.post(
-                            "/api/bot/svcbot/channel/voice/twilio/process/TOKEN",
+                            "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
                             data={"SpeechResult": "what are your hours", "CallSid": "CA3"},
                         )
         finally:
@@ -1052,7 +1130,7 @@ class TestVoiceServiceEndpoints:
         assert user_msg.text == "what are your hours"
         assert user_msg.sender_id == "CA3"
 
-    def test_process_endpoint_rasa_response_appears_in_twiml(self):
+    def test_call_endpoint_rasa_response_appears_in_twiml(self):
         self._override_auth()
         try:
             async def _inject_response(bot, user_msg):
@@ -1073,7 +1151,7 @@ class TestVoiceServiceEndpoints:
                         side_effect=_inject_response,
                     ):
                         response = self.__class__.client.post(
-                            "/api/bot/svcbot/channel/voice/twilio/process/TOKEN",
+                            "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
                             data={"SpeechResult": "what are your hours", "CallSid": "CA4"},
                         )
         finally:
@@ -1082,21 +1160,31 @@ class TestVoiceServiceEndpoints:
         assert response.status_code == 200
         assert "Monday to Friday" in response.text
 
-    def test_process_endpoint_channel_not_configured_returns_error(self):
+    def test_call_endpoint_reprompt_on_empty_speech_returns_xml(self):
         self._override_auth()
         try:
             with patch(
                 "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
-                side_effect=DoesNotExist("Channels matching query does not exist."),
+                return_value=self._channel_config(),
             ):
-                response = self.__class__.client.post(
-                    "/api/bot/svcbot/channel/voice/twilio/process/TOKEN",
-                    data={"SpeechResult": "hello", "CallSid": "CA5"},
-                )
+                with patch(
+                    "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                    return_value=True,
+                ):
+                    with patch(
+                        "kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+                        side_effect=Exception("no agent"),
+                    ):
+                        response = self.__class__.client.post(
+                            "/api/bot/svcbot/channel/voice/twilio/call/TOKEN",
+                            data={"CallSid": "CA5", "CallStatus": "in-progress"},
+                        )
         finally:
             self._clear_overrides()
+
         assert response.status_code == 200
-        assert response.json().get("success") is False
+        assert "xml" in response.headers.get("content-type", "").lower()
+        assert "<Gather" in response.text
 
     # ── /status endpoint ────────────────────────────────────────────
 
@@ -1197,29 +1285,3 @@ class TestVoiceServiceEndpoints:
             self._clear_overrides()
         assert response.status_code == 200
         assert response.json().get("success") is False
-
-    def test_status_endpoint_all_call_statuses_accepted(self):
-        """Twilio sends multiple status values — all should be logged without error."""
-        for call_status in ["queued", "ringing", "in-progress", "completed", "failed", "busy", "no-answer"]:
-            self._override_auth()
-            try:
-                with patch(
-                    "kairon.chat.handlers.channels.voice.ChatDataProcessor.get_channel_config",
-                    return_value=self._channel_config(),
-                ):
-                    with patch(
-                        "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
-                        return_value=True,
-                    ):
-                        with patch(
-                            "kairon.chat.handlers.channels.clients.voice.twilio.ChannelLogs"
-                        ) as mock_logs:
-                            mock_logs.return_value = MagicMock()
-                            response = self.__class__.client.post(
-                                "/api/bot/svcbot/channel/voice/twilio/call/status/TOKEN",
-                                data={"CallStatus": call_status, "CallSid": "CA99"},
-                            )
-            finally:
-                self._clear_overrides()
-            assert response.status_code == 200, f"Failed for status: {call_status}"
-            assert "xml" in response.headers.get("content-type", "").lower(), f"Wrong content-type for status: {call_status}"

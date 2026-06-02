@@ -1,11 +1,12 @@
 import logging
+from typing import List
 
 from starlette.requests import Request
 from twilio.request_validator import RequestValidator
-from twilio.twiml.voice_response import VoiceResponse
+from twilio.twiml.voice_response import Gather, VoiceResponse
 
-from kairon.exceptions import AppException
 from kairon.chat.handlers.channels.clients.voice.base import VoiceProviderBase
+from kairon.exceptions import AppException
 from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.utils import Utility
 
@@ -20,41 +21,35 @@ class TwilioVoiceProvider(VoiceProviderBase):
         self.auth_token = Utility.decrypt_message(config["auth_token"])
         self.phone_number = config["phone_number"]
         self.voice_type = config.get("voice_type", "Polly.Amy")
-        self.voice_types = config.get("voice_types", [self.voice_type])
-        self.process_url = config.get("process_url", "")
+        self.speech_model = "default"
+        self.enhanced = "false"
         self._validator = RequestValidator(self.auth_token)
 
     def validate_signature(self, request: Request, url: str, form_params: dict) -> bool:
         signature = request.headers.get("X-Twilio-Signature", "")
         return self._validator.validate(url, form_params, signature)
 
-    async def handle_incoming_call(self, request: Request) -> str:
-        welcome = self.config.get("welcomeMessage", "Hello! How are you?")
-        response = VoiceResponse()
-
-        gather = response.gather(
+    def build_voice_response(self, messages: List[str], call_url: str) -> str:
+        voice_response = VoiceResponse()
+        gather = Gather(
             input="speech",
-            action=self.process_url,
-            method="POST",
-            speech_timeout="auto",
+            action=call_url,
+            actionOnEmptyResult=True,
+            speechTimeout=self.config.get("speech_timeout", "auto"),
+            speechModel=self.speech_model,
+            enhanced=self.enhanced,
             language=self.config.get("language", "en-US"),
         )
-        gather.say(welcome, voice=self.voice_type)
-        return str(response)
-
-    async def handle_call_processing(self, request: Request, bot: str, rasa_response: str) -> str:
-        response = VoiceResponse()
-        if rasa_response:
-            response.say(rasa_response, voice=self.voice_type)
-        gather = response.gather(
-            input="speech",
-            action=self.process_url,
-            method="POST",
-            speech_timeout="auto",
-            language=self.config.get("language", "en-US"),
-        )
-        gather.say("Is there anything else I can help you with?", voice=self.voice_type)
-        return str(response)
+        for i, msg in enumerate(messages):
+            if i + 1 == len(messages):
+                gather.say(msg, voice=self.voice_type)
+                voice_response.append(gather)
+            else:
+                voice_response.say(msg, voice=self.voice_type)
+                voice_response.pause(length=1)
+        if not messages:
+            voice_response.append(gather)
+        return str(voice_response)
 
     async def handle_call_status(self, request: Request, bot: str) -> None:
         form = dict(await request.form())

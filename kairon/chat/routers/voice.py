@@ -27,18 +27,6 @@ async def handle_incoming_voice_call(
     return XMLResponse(content=voice_response, media_type="application/xml", headers=_HEADERS)
 
 
-@router.post("/{bot}/channel/voice/{provider}/process/{token}")
-async def handle_voice_call_processing(
-        request: Request,
-        bot: Text = Path(description="Bot id"),
-        provider: Text = Path(description="Voice provider name (e.g. twilio)"),
-        token: Text = Path(description="Channel integration token"),
-        current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS),
-):
-    voice_response = await VoiceHandler(bot, current_user, request, provider).handle_call_processing()
-    return XMLResponse(content=voice_response, media_type="application/xml", headers=_HEADERS)
-
-
 @router.post("/{bot}/channel/voice/{provider}/call/status/{token}")
 async def handle_voice_call_status(
         request: Request,
