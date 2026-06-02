@@ -2189,9 +2189,11 @@ class Utility:
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from kairon.shared.llm.processor import LLMProcessor
 
-        schema = Utility.llm_metadata[llm_type]
-        models_list = LLMProcessor.get_llm_metadata(bot, llm_type)
-        schema["properties"]["model"]["enum"] = models_list
+        schema = LLMProcessor.fetch_llms_metadata(bot).get(llm_type)
+
+        if not schema:
+            raise exception_class(f"Metadata not found for llm_type: {llm_type}")
+
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)

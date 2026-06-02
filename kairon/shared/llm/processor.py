@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
+from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -518,7 +518,6 @@ class LLMProcessor(LLMBase):
         """
         metadata = Utility.llm_metadata
         final_metadata = {}
-
         for llm_type, llm_metadata in metadata.items():
             models = LLMProcessor.get_llm_metadata(bot, llm_type)
 
