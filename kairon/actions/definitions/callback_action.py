@@ -7,6 +7,7 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, CallbackActionConfig, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -128,7 +129,8 @@ class ActionCallback(ActionsBase):
                 callback_url_slot=dynamic_url_slot_name,
                 identifier=identifier,
                 metadata=metadata_log,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         return filled_slots
 

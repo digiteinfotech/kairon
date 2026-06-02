@@ -8,6 +8,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.actions.definitions.base import ActionsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
@@ -151,7 +152,8 @@ class ActionPrompt(ActionsBase):
                 media_ids=media_ids,
                 time_elapsed=total_time_elapsed,
                 trigger_info=trigger_info_obj,
-                llm_call_id = litellm_call_id
+                llm_call_id = litellm_call_id,
+                request_id=get_request_id()
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)

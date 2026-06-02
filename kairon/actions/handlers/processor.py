@@ -7,6 +7,7 @@ from rasa_sdk.interfaces import Tracker
 
 from ..definitions.factory import ActionFactory
 from ...shared.actions.data_objects import ActionServerLogs
+from ...shared.request_context import get_request_id
 from ...shared.actions.exception import ActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
@@ -47,5 +48,6 @@ class ActionProcessor:
                 sender=tracker.sender_id,
                 exception=str(e),
                 bot=tracker.get_slot("bot"),
-                status=STATUSES.FAIL.value
+                status=STATUSES.FAIL.value,
+                request_id=get_request_id()
             ).save()
