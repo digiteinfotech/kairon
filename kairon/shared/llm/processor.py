@@ -13,6 +13,7 @@ from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
@@ -215,6 +216,9 @@ class LLMProcessor(LLMBase):
             'media_ids': media_ids,
             'should_process_media': should_process_media
         }
+        rid = get_request_id()
+        if rid:
+            body['request_id'] = rid
 
         timeout = Utility.environment['llm'].get('request_timeout', 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
