@@ -32,6 +32,7 @@ from contextlib import asynccontextmanager
 Utility.load_environment()
 
 
+from kairon.shared.middleware import register_request_id_middleware
 from kairon.chat.routers import web_client, channels, voice
 from kairon.shared.otel import instrument_fastapi
 
@@ -93,6 +94,7 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware)
 instrument_fastapi(app)
+register_request_id_middleware(app)
 
 
 @app.middleware("http")
