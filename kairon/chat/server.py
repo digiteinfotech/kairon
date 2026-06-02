@@ -33,6 +33,7 @@ Utility.load_environment()
 
 
 from kairon.chat.routers import web_client, channels
+from kairon.shared.middleware import register_request_id_middleware
 from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -92,6 +93,7 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware)
 instrument_fastapi(app)
+register_request_id_middleware(app)
 
 
 @app.middleware("http")
