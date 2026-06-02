@@ -12,6 +12,7 @@ from rasa.shared.core.trackers import DialogueStateTracker, EventVerbosity
 from uuid6 import uuid7
 
 from kairon.shared.constants import FLATTENED_CONVERSATIONS
+from kairon.shared.request_context import get_request_id
 from kairon.shared.utils import Utility
 
 
@@ -121,6 +122,9 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             "data": {},
             "tag": "tracker_store",
         }
+        rid = get_request_id()
+        if rid:
+            flattened_conversation["request_id"] = rid
 
         actions_predicted = []
         bot_responses = []
