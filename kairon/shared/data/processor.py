@@ -88,7 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
-    ParallelActionConfig, AnalyticsPipelineConfig,
+    ParallelActionConfig, AnalyticsPipelineConfig, VoiceCallAction,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -7241,6 +7241,64 @@ class MongoProcessor:
             action.pop("status")
             yield action
 
+    def add_voice_call_action(self, action: Dict, bot: str, user: str):
+        if not MongoProcessor.is_voice_enabled(bot):
+            raise AppException("Voice is not enabled for this bot")
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        Utility.is_valid_action_name(action.get("name"), bot, VoiceCallAction)
+        doc = VoiceCallAction(
+            name=action["name"],
+            to_phone_number=CustomActionParameters(**action["to_phone_number"]),
+            telephony_provider=action.get("telephony_provider", "twilio"),
+            response=action.get("response"),
+            dispatch_bot_response=action.get("dispatch_bot_response", True),
+            bot=bot,
+            user=user,
+        ).save()
+        self.add_action(action["name"], bot, user,
+                        action_type=ActionType.voice_call_action.value, raise_exception=False)
+        return doc.id.__str__()
+
+    def edit_voice_call_action(self, action: Dict, bot: str, user: str):
+        if not MongoProcessor.is_voice_enabled(bot):
+            raise AppException("Voice is not enabled for this bot")
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if not Utility.is_exist(VoiceCallAction, raise_error=False,
+                                name=action.get("name"), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        voice_action = VoiceCallAction.objects(
+            name=action["name"], bot=bot, status=True
+        ).get()
+        voice_action.to_phone_number = CustomActionParameters(**action["to_phone_number"])
+        voice_action.telephony_provider = action.get("telephony_provider", "twilio")
+        voice_action.response = action.get("response")
+        voice_action.dispatch_bot_response = action.get("dispatch_bot_response", True)
+        voice_action.user = user
+        voice_action.timestamp = datetime.utcnow()
+        voice_action.save()
+
+    def list_voice_call_action(self, bot: Text, with_doc_id: bool = True):
+        for action in VoiceCallAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def delete_voice_call_action(self, action_name: str, bot: str, user: str):
+        if not Utility.is_exist(VoiceCallAction, raise_error=False,
+                                name=action_name, bot=bot, status=True):
+            raise AppException(f'Action with name "{action_name}" not found')
+        VoiceCallAction.objects(name=action_name, bot=bot, status=True).get().delete()
+        self.delete_action(action_name, user, bot)
+
     def add_jira_action(self, action: Dict, bot: str, user: str):
         """
         Add a new Jira Action
@@ -8557,6 +8615,10 @@ class MongoProcessor:
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
         return bot_setting.get("pos_enabled")
 
+    @staticmethod
+    def is_voice_enabled(bot: str):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        return bot_setting.get("enable_voice", False)
 
     def add_callback(self, request_data: dict, bot: Text):
         """

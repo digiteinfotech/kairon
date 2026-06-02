@@ -415,7 +415,6 @@ class DataUtility:
         base = Utility.environment['model']['agent']['url']
         return {
             "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}"),
-            "process_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/process/{token}"),
             "status_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}"),
         }
 

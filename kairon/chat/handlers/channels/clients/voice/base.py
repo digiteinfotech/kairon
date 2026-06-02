@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import List
 
 from starlette.requests import Request
 
@@ -10,11 +11,7 @@ class VoiceProviderBase(ABC):
         self.config = config
 
     @abstractmethod
-    async def handle_incoming_call(self, request: Request) -> str:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def handle_call_processing(self, request: Request, bot: str, rasa_response: str) -> str:
+    def build_voice_response(self, messages: List[str], call_url: str) -> str:
         raise NotImplementedError
 
     @abstractmethod

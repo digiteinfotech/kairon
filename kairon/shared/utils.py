@@ -1586,11 +1586,11 @@ class Utility:
 
     @staticmethod
     def validate_voice_provider(config, error, encrypt=True):
-        provider = config.get("provider", "twilio")
-        telephony_providers = Utility.system_metadata["channels"]["voice"].get("telephony_provider", {})
-        if provider not in telephony_providers:
+        provider = config.get("telephony_provider", "twilio")
+        voice_providers = Utility.system_metadata.get("voice_channels", {})
+        if provider not in voice_providers:
             raise error(f"Invalid telephony provider {provider}")
-        provider_params = telephony_providers[provider]
+        provider_params = voice_providers[provider]
         _secret_fields = {"account_sid", "auth_token"}
         for required_field in provider_params["required_fields"]:
             if required_field not in config:
@@ -1601,20 +1601,18 @@ class Utility:
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
-        if channel in list(Utility.system_metadata["channels"].keys()):
-            for required_field in Utility.system_metadata["channels"][channel][
-                "required_fields"
-            ]:
-                err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
-                if required_field not in config:
-                    raise error(err_msg)
-                else:
-                    if encrypt:
-                        config[required_field] = Utility.encrypt_message(
-                            config[required_field]
-                        )
-        else:
+        if channel == ChannelTypes.VOICE.value:
+            Utility.validate_voice_provider(config, error, encrypt)
+            return
+        if channel not in list(Utility.system_metadata["channels"].keys()):
             raise error(f"Invalid channel type {channel}")
+        for required_field in Utility.system_metadata["channels"][channel]["required_fields"]:
+            err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
+            if required_field not in config:
+                raise error(err_msg)
+            else:
+                if encrypt:
+                    config[required_field] = Utility.encrypt_message(config[required_field])
 
     @staticmethod
     def validate_whatsapp_bsp(channel, config, error, encrypt=True):
@@ -1642,10 +1640,12 @@ class Utility:
 
     @staticmethod
     def get_channels():
+        result = []
         if Utility.system_metadata.get("channels"):
-            return list(Utility.system_metadata["channels"].keys())
-        else:
-            return []
+            result.extend(list(Utility.system_metadata["channels"].keys()))
+        if Utility.system_metadata.get("voice_channels"):
+            result.append(ChannelTypes.VOICE.value)
+        return result
 
     @staticmethod
     def get_live_agents():

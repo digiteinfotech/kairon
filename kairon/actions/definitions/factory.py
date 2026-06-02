@@ -23,6 +23,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.actions.definitions.schedule import ActionSchedule
+from kairon.actions.definitions.voice_call import ActionVoiceCall
 
 
 class ActionFactory:
@@ -47,7 +48,8 @@ class ActionFactory:
         ActionType.live_agent_action.value: ActionLiveAgent,
         ActionType.callback_action.value: ActionCallback,
         ActionType.schedule_action.value: ActionSchedule,
-        ActionType.parallel_action.value: ActionParallel
+        ActionType.parallel_action.value: ActionParallel,
+        ActionType.voice_call_action.value: ActionVoiceCall,
     }
 
     @staticmethod
