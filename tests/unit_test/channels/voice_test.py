@@ -762,7 +762,8 @@ class TestVoiceChannelConfigSave:
                 return_value=fake_endpoints,
             ):
                 with patch("kairon.shared.chat.processor.Utility.validate_channel"):
-                    result = ChatDataProcessor.save_channel_config(config, "testbot", "testuser")
+                    with patch("kairon.shared.data.processor.MongoProcessor.is_voice_enabled", return_value=True):
+                        result = ChatDataProcessor.save_channel_config(config, "testbot", "testuser")
 
         assert set(result.keys()) == {"call_url", "status_url"}
         assert result["call_url"] == fake_endpoints["call_url"]
@@ -814,9 +815,10 @@ class TestSaveChannelConfigVoiceBranch:
                 return_value=self._fake_endpoints(),
             ):
                 with patch("kairon.shared.chat.processor.Utility.validate_channel"):
-                    result = ChatDataProcessor.save_channel_config(
-                        self._voice_config(), "bot1", "user@test.com"
-                    )
+                    with patch("kairon.shared.data.processor.MongoProcessor.is_voice_enabled", return_value=True):
+                        result = ChatDataProcessor.save_channel_config(
+                            self._voice_config(), "bot1", "user@test.com"
+                        )
 
         assert isinstance(result, dict)
         assert set(result.keys()) == {"call_url", "status_url"}
@@ -839,9 +841,10 @@ class TestSaveChannelConfigVoiceBranch:
                 return_value=endpoints,
             ):
                 with patch("kairon.shared.chat.processor.Utility.validate_channel"):
-                    ChatDataProcessor.save_channel_config(
-                        self._voice_config(), "bot1", "user@test.com"
-                    )
+                    with patch("kairon.shared.data.processor.MongoProcessor.is_voice_enabled", return_value=True):
+                        ChatDataProcessor.save_channel_config(
+                            self._voice_config(), "bot1", "user@test.com"
+                        )
 
         mock_channel.config.update.assert_called_once_with(endpoints)
         assert mock_channel.save.call_count == 2
@@ -864,9 +867,10 @@ class TestSaveChannelConfigVoiceBranch:
             ) as mock_voice_ep:
                 with patch.object(DataUtility, "get_channel_endpoint") as mock_chan_ep:
                     with patch("kairon.shared.chat.processor.Utility.validate_channel"):
-                        ChatDataProcessor.save_channel_config(
-                            self._voice_config(), "bot1", "user@test.com"
-                        )
+                        with patch("kairon.shared.data.processor.MongoProcessor.is_voice_enabled", return_value=True):
+                            ChatDataProcessor.save_channel_config(
+                                self._voice_config(), "bot1", "user@test.com"
+                            )
 
         mock_voice_ep.assert_called_once()
         mock_chan_ep.assert_not_called()
@@ -949,9 +953,10 @@ class TestSaveChannelConfigVoiceBranch:
                     return_value=self._fake_endpoints(),
                 ):
                     with patch("kairon.shared.chat.processor.Utility.validate_channel"):
-                        result = ChatDataProcessor.save_channel_config(
-                            self._voice_config(), "bot1", "user@test.com"
-                        )
+                        with patch("kairon.shared.data.processor.MongoProcessor.is_voice_enabled", return_value=True):
+                            result = ChatDataProcessor.save_channel_config(
+                                self._voice_config(), "bot1", "user@test.com"
+                            )
 
         assert "call_url" in result
         assert "status_url" in result

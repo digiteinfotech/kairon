@@ -8617,8 +8617,8 @@ class MongoProcessor:
 
     @staticmethod
     def is_voice_enabled(bot: str):
-        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        return bot_setting.get("enable_voice", False)
+        settings = MongoProcessor.get_bot_settings(bot, "")
+        return settings.enable_voice or False
 
     def add_callback(self, request_data: dict, bot: Text):
         """
