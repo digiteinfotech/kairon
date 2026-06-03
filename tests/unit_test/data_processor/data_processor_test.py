@@ -15948,7 +15948,7 @@ class TestMongoProcessor:
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [],'parallel_action': []
+            'callback_action': [], 'schedule_action': [], 'parallel_action': [], 'voice_call_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -15972,7 +15972,7 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'parallel_action': []
+            'parallel_action': [], 'voice_call_action': []
         }
 
     def test_add_complex_story(self):
@@ -15998,7 +15998,8 @@ class TestMongoProcessor:
                                       'kairon_bot_response': [],
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                      'callback_action': [], 'schedule_action': [],'parallel_action': [],
+                                      'callback_action': [], 'schedule_action': [], 'parallel_action': [],
+                                      'voice_call_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -17886,8 +17887,9 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
+            'parallel_action': [], 'voice_call_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
-                           'utter_please_rephrase'], 'web_search_action': [], 'parallel_action': []}, ignore_order=True)
+                           'utter_please_rephrase']}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -17995,7 +17997,7 @@ class TestMongoProcessor:
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [], 'parallel_action': [],
+            'callback_action': [], 'schedule_action': [], 'parallel_action': [], 'voice_call_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -21801,22 +21803,21 @@ class TestModelProcessor:
 class TestVoiceEnabledFlag:
 
     def test_is_voice_enabled_true(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {
-                "enable_voice": True
-            }
+        mock_settings = MagicMock()
+        mock_settings.enable_voice = True
+        with patch.object(MongoProcessor, "get_bot_settings", return_value=mock_settings):
             assert MongoProcessor.is_voice_enabled("test_bot") is True
 
     def test_is_voice_enabled_false(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {
-                "enable_voice": False
-            }
+        mock_settings = MagicMock()
+        mock_settings.enable_voice = False
+        with patch.object(MongoProcessor, "get_bot_settings", return_value=mock_settings):
             assert MongoProcessor.is_voice_enabled("test_bot") is False
 
     def test_is_voice_enabled_missing_key_defaults_false(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {}
+        mock_settings = MagicMock()
+        mock_settings.enable_voice = None
+        with patch.object(MongoProcessor, "get_bot_settings", return_value=mock_settings):
             assert MongoProcessor.is_voice_enabled("test_bot") is False
 
     def test_add_voice_call_action_voice_disabled_raises(self):

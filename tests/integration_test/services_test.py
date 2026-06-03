@@ -27216,7 +27216,7 @@ def test_list_actions():
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                         'parallel_action':[]}, ignore_order=True)
+                              'parallel_action': [], 'voice_call_action': []}, ignore_order=True)
 
     assert actual["success"]
 
