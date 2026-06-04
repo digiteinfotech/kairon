@@ -22,6 +22,7 @@ class VoiceOutput(OutputChannel):
         return ChannelTypes.VOICE.value
 
     def __init__(self):
+        """Initialise empty message accumulator for the voice turn."""
         self._messages: list = []
 
     async def send_text_message(self, recipient_id: Text, text: Text, **kwargs):
@@ -53,6 +54,14 @@ class VoiceOutput(OutputChannel):
 class VoiceHandler(InputChannel, ChannelHandlerBase):
 
     def __init__(self, bot: Text, user: User, request: Request, provider: Text):
+        """
+        Initialise the voice call handler for a single inbound request.
+
+        :param bot: bot ID
+        :param user: authenticated User object from JWT
+        :param request: incoming Starlette HTTP request from the telephony webhook
+        :param provider: telephony provider name (e.g. "twilio")
+        """
         self.bot = bot
         self.user = user
         self.request = request

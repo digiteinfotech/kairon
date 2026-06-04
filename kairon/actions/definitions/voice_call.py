@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 class ActionVoiceCall(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
+        """
+        Initialise the voice call action handler.
+
+        :param bot: bot ID
+        :param name: voice call action name used to look up VoiceCallAction config
+        """
         self.bot = bot
         self.name = name
 

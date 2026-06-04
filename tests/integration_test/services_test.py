@@ -27216,7 +27216,7 @@ def test_list_actions():
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                         'parallel_action':[]}, ignore_order=True)
+                                         'parallel_action':[], 'voice_call_action':[]}, ignore_order=True)
 
     assert actual["success"]
 
@@ -34077,7 +34077,8 @@ def test_add_bot_with_template_name(monkeypatch):
             "live_agent_action": [],
             "callback_action": [],
             "schedule_action": [],
-            "parallel_action": []
+            "parallel_action": [],
+            "voice_call_action": []
         },
         ignore_order=True,
     )
@@ -40843,7 +40844,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 18
+    assert len(actual["data"]) == 19
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(

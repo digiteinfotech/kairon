@@ -23,20 +23,20 @@ class TestVoiceEnabledFlag:
         connect(**Utility.mongoengine_connection())
 
     def test_is_voice_enabled_true(self):
-        bot = 'test_bot'
-        user = 'test_user'
+        bot = 'voice_test_bot'
+        user = 'voice_test_user'
         settings = BotSettings(bot=bot, user=user).save()
         settings.enable_voice = True
         settings.save()
-        assert MongoProcessor.is_voice_enabled("test_bot") is True
+        assert MongoProcessor.is_voice_enabled("voice_test_bot") is True
 
     def test_is_voice_enabled_false(self):
-        bot = 'test_bot'
-        user = 'test_user'
+        bot = 'voice_test_bot'
+        user = 'voice_test_user'
         settings = BotSettings.objects(bot=bot, user=user).get()
         settings.enable_voice = False
         settings.save()
-        assert MongoProcessor.is_voice_enabled("test_bot") is False
+        assert MongoProcessor.is_voice_enabled("voice_test_bot") is False
 
     def test_add_voice_call_action_voice_disabled_raises(self):
         processor = MongoProcessor()
@@ -47,7 +47,7 @@ class TestVoiceEnabledFlag:
                         "name": "test_action",
                         "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
                     },
-                    "test_bot", "test_user",
+                    "voice_test_bot", "voice_test_user",
                 )
 
     def test_add_voice_call_action_voice_enabled_proceeds(self):
@@ -64,7 +64,7 @@ class TestVoiceEnabledFlag:
                                 "name": "test_action",
                                 "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
                             },
-                            "test_bot", "test_user",
+                            "voice_test_bot", "voice_test_user",
                         )
             mock_doc.assert_called_once()
 
@@ -77,5 +77,5 @@ class TestVoiceEnabledFlag:
                         "name": "test_action",
                         "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
                     },
-                    "test_bot", "test_user",
+                    "voice_test_bot", "voice_test_user",
                 )

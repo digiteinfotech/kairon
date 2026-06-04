@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 class TwilioVoiceProvider(VoiceProviderBase):
 
     def __init__(self, bot: str, config: dict):
+        """
+        Decrypt Twilio credentials from config and initialise the request validator.
+
+        :param bot: bot ID this provider is serving
+        :param config: channel config dict containing account_sid, auth_token, phone_number,
+                       and optional voice_type, speech_timeout, language
+        """
         super().__init__(bot, config)
         self.account_sid = Utility.decrypt_message(config["account_sid"])
         self.auth_token = Utility.decrypt_message(config["auth_token"])
