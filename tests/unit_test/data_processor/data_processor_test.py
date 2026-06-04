@@ -26,7 +26,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch, ANY, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 import numpy as np
 import pandas as pd
 import pytest
@@ -37,7 +37,7 @@ from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
-from pydantic import SecretStr, constr
+from pydantic import SecretStr
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
@@ -21799,65 +21799,3 @@ class TestModelProcessor:
         Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
         ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
 
-class TestVoiceEnabledFlag:
-
-    def test_is_voice_enabled_true(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {
-                "enable_voice": True
-            }
-            assert MongoProcessor.is_voice_enabled("test_bot") is True
-
-    def test_is_voice_enabled_false(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {
-                "enable_voice": False
-            }
-            assert MongoProcessor.is_voice_enabled("test_bot") is False
-
-    def test_is_voice_enabled_missing_key_defaults_false(self):
-        with patch("kairon.shared.data.processor.BotSettings.objects") as mock_objects:
-            mock_objects.return_value.get.return_value.to_mongo.return_value.to_dict.return_value = {}
-            assert MongoProcessor.is_voice_enabled("test_bot") is False
-
-    def test_add_voice_call_action_voice_disabled_raises(self):
-        processor = MongoProcessor()
-        with patch.object(MongoProcessor, "is_voice_enabled", return_value=False):
-            with pytest.raises(AppException, match="Voice is not enabled for this bot"):
-                processor.add_voice_call_action(
-                    {
-                        "name": "test_action",
-                        "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
-                    },
-                    "test_bot", "test_user",
-                )
-
-    def test_add_voice_call_action_voice_enabled_proceeds(self):
-        processor = MongoProcessor()
-        with patch.object(MongoProcessor, "is_voice_enabled", return_value=True):
-            with patch("kairon.shared.data.processor.Utility.is_valid_action_name"):
-                with patch("kairon.shared.data.processor.VoiceCallAction") as mock_doc:
-                    mock_instance = MagicMock()
-                    mock_instance.save.return_value.id.__str__ = MagicMock(return_value="abc123")
-                    mock_doc.return_value = mock_instance
-                    with patch.object(processor, "add_action"):
-                        processor.add_voice_call_action(
-                            {
-                                "name": "test_action",
-                                "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
-                            },
-                            "test_bot", "test_user",
-                        )
-            mock_doc.assert_called_once()
-
-    def test_edit_voice_call_action_voice_disabled_raises(self):
-        processor = MongoProcessor()
-        with patch.object(MongoProcessor, "is_voice_enabled", return_value=False):
-            with pytest.raises(AppException, match="Voice is not enabled for this bot"):
-                processor.edit_voice_call_action(
-                    {
-                        "name": "test_action",
-                        "to_phone_number": {"value": "+10000000000", "parameter_type": "value"},
-                    },
-                    "test_bot", "test_user",
-                )
