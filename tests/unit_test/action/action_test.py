@@ -5158,3 +5158,62 @@ def test_format_custom_bot_reply_indirect():
     result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
     expected = '<a target="_blank" href="http://example.com/video">http://example.com/video</a>'
     assert result == expected
+
+
+# ============================================================
+# Request ID — ActionServerLogs
+# ============================================================
+import kairon.shared.request_context as _rc_action
+
+
+class TestActionServerLogsRequestId:
+    def setup_method(self):
+        _rc_action._request_id.set(None)
+
+    def test_field_exists_on_model(self):
+        from mongoengine import StringField
+        field = ActionServerLogs._fields.get("request_id")
+        assert field is not None
+        assert isinstance(field, StringField)
+
+    def test_field_is_optional(self):
+        log = ActionServerLogs(bot="b", status="success")
+        assert log.request_id is None
+
+    def test_field_accepts_string(self):
+        log = ActionServerLogs(bot="b", request_id="req-abc")
+        assert log.request_id == "req-abc"
+
+    def test_none_not_stored_in_db(self):
+        from mongomock import MongoClient
+        from mongoengine import connect, disconnect
+        connect("testdb_rid", host="mongodb://localhost", mongo_client_class=MongoClient)
+        log = ActionServerLogs(bot="b", status="success", request_id=None)
+        log.save()
+        raw = ActionServerLogs._get_collection().find_one({"_id": log.id})
+        assert "request_id" not in raw
+        ActionServerLogs._get_collection().drop()
+        disconnect()
+
+    def test_value_stored_when_set(self):
+        from mongomock import MongoClient
+        from mongoengine import connect, disconnect
+        connect("testdb_rid2", host="mongodb://localhost", mongo_client_class=MongoClient)
+        log = ActionServerLogs(bot="b", status="success", request_id="stored-id")
+        log.save()
+        raw = ActionServerLogs._get_collection().find_one({"_id": log.id})
+        assert raw["request_id"] == "stored-id"
+        ActionServerLogs._get_collection().drop()
+        disconnect()
+
+    def test_all_write_sites_inject_request_id(self):
+        import glob
+        import ast
+        files = glob.glob("kairon/actions/definitions/*.py") + ["kairon/actions/handlers/processor.py"]
+        for path in files:
+            with open(path) as f:
+                src = f.read()
+            if "ActionServerLogs" not in src:
+                continue
+            assert "get_request_id" in src, f"Missing get_request_id in {path}"
+            ast.parse(src)

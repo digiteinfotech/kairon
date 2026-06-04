@@ -12,3 +12,4 @@ class LLMLogs(Document):
     model_params = DictField()
     metadata = DictField()
     llm_usage = DictField()
+    request_id = StringField()

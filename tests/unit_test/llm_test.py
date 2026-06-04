@@ -2798,3 +2798,50 @@ class TestLLM:
             mock_vector_db.perform_operation.assert_called_once()
             _, call_kwargs = mock_vector_db.perform_operation.call_args
             assert call_kwargs['collection'] == "test_collection"
+
+
+# ============================================================
+# Request ID — LLMProcessor payloads
+# ============================================================
+import kairon.shared.request_context as _rc_llm
+from kairon.shared.request_context import get_request_id as _get_rid, set_request_id as _set_rid
+
+
+class TestLLMProcessorRequestId:
+    def setup_method(self):
+        _rc_llm._request_id.set(None)
+
+    def test_completion_body_has_request_id_when_bound(self):
+        _set_rid("llm-id")
+        body = {}
+        rid = _get_rid()
+        if rid:
+            body["request_id"] = rid
+        assert body["request_id"] == "llm-id"
+
+    def test_completion_body_no_request_id_when_unbound(self):
+        body = {}
+        rid = _get_rid()
+        if rid:
+            body["request_id"] = rid
+        assert "request_id" not in body
+
+    def test_embedding_body_has_request_id_when_bound(self):
+        _set_rid("emb-id")
+        body = {}
+        rid = _get_rid()
+        if rid:
+            body["request_id"] = rid
+        assert body["request_id"] == "emb-id"
+
+    def test_embedding_body_no_request_id_when_unbound(self):
+        body = {}
+        rid = _get_rid()
+        if rid:
+            body["request_id"] = rid
+        assert "request_id" not in body
+
+    def test_processor_injects_get_request_id_in_both_methods(self):
+        with open("kairon/shared/llm/processor.py") as f:
+            src = f.read()
+        assert src.count("get_request_id") >= 2

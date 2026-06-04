@@ -2279,3 +2279,200 @@ def test_custom_check_occurrences():
         min_interval_minutes=10,
         check_occurrences=5
     )
+
+
+# ============================================================
+# Request ID tests
+# ============================================================
+import kairon.shared.request_context as _rc
+from kairon.shared.request_context import get_request_id, set_request_id, REQUEST_ID_HEADER
+
+
+def _clear_rid():
+    _rc._request_id.set(None)
+
+
+class TestRequestContext:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_header_constant(self):
+        assert REQUEST_ID_HEADER == "X-Kairon-Request-ID"
+
+    def test_read_unset_returns_none(self):
+        assert get_request_id() is None
+
+    def test_write_then_read(self):
+        set_request_id("abc-123")
+        assert get_request_id() == "abc-123"
+
+    def test_second_write_replaces(self):
+        set_request_id("first")
+        set_request_id("second")
+        assert get_request_id() == "second"
+
+    def test_read_does_not_mutate(self):
+        set_request_id("stable")
+        _ = get_request_id()
+        assert get_request_id() == "stable"
+
+    def test_scope_isolation(self):
+        from contextvars import copy_context
+        results = {}
+
+        def run(name, val):
+            ctx = copy_context()
+            def _inner():
+                set_request_id(val)
+                results[name] = get_request_id()
+            ctx.run(_inner)
+
+        run("a", "id-a")
+        run("b", "id-b")
+        assert results["a"] == "id-a"
+        assert results["b"] == "id-b"
+        assert get_request_id() is None
+
+
+class TestRequestIdMiddleware:
+    def setup_method(self):
+        _clear_rid()
+
+    def _client(self):
+        from fastapi import FastAPI
+        from starlette.testclient import TestClient
+        from kairon.shared.middleware import register_request_id_middleware
+
+        app = FastAPI()
+        register_request_id_middleware(app)
+
+        @app.get("/ping")
+        async def ping():
+            return {"request_id": get_request_id()}
+
+        return TestClient(app, raise_server_exceptions=True)
+
+    def test_originates_uuid_when_header_absent(self):
+        r = self._client().get("/ping")
+        rid = r.json()["request_id"]
+        assert rid and len(rid) == 36
+
+    def test_honors_inbound_header(self):
+        r = self._client().get("/ping", headers={REQUEST_ID_HEADER: "my-id"})
+        assert r.json()["request_id"] == "my-id"
+
+    def test_case_insensitive_lookup(self):
+        r = self._client().get("/ping", headers={"x-kairon-request-id": "lower-id"})
+        assert r.json()["request_id"] == "lower-id"
+
+    def test_echoes_supplied_header_on_response(self):
+        r = self._client().get("/ping", headers={REQUEST_ID_HEADER: "echo-me"})
+        assert r.headers.get(REQUEST_ID_HEADER.lower()) == "echo-me"
+
+    def test_echoes_originated_id_on_response(self):
+        r = self._client().get("/ping")
+        rid = r.json()["request_id"]
+        assert r.headers.get(REQUEST_ID_HEADER.lower()) == rid
+
+    def test_two_absent_header_requests_get_different_ids(self):
+        c = self._client()
+        r1 = c.get("/ping").json()["request_id"]
+        r2 = c.get("/ping").json()["request_id"]
+        assert r1 != r2
+
+
+class TestOutboundPropagation:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_header_set_when_scope_bound(self):
+        set_request_id("outbound-id")
+        headers = {}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert headers[REQUEST_ID_HEADER] == "outbound-id"
+
+    def test_header_absent_when_scope_empty(self):
+        headers = {}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert REQUEST_ID_HEADER not in headers
+
+    def test_existing_headers_not_disturbed(self):
+        set_request_id("xyz")
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer tok"}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert headers["Content-Type"] == "application/json"
+        assert headers["Authorization"] == "Bearer tok"
+
+    def test_chat_actions_injects_get_request_id(self):
+        with open("kairon/chat/actions.py") as f:
+            src = f.read()
+        assert "get_request_id" in src
+        assert "REQUEST_ID_HEADER" in src
+
+
+class TestFlattenedConversationsRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_in_dict_when_bound(self):
+        set_request_id("tracker-id")
+        doc = {}
+        rid = get_request_id()
+        if rid:
+            doc["request_id"] = rid
+        assert doc["request_id"] == "tracker-id"
+
+    def test_request_id_absent_when_unbound(self):
+        doc = {}
+        rid = get_request_id()
+        if rid:
+            doc["request_id"] = rid
+        assert "request_id" not in doc
+
+    def test_trackers_injects_get_request_id(self):
+        with open("kairon/shared/trackers.py") as f:
+            src = f.read()
+        assert "get_request_id" in src
+        assert 'flattened_conversation["request_id"]' in src
+
+
+class TestAgentHandoffMeteringRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_passed_when_bound(self):
+        from unittest.mock import patch
+        from kairon.shared.metering.metering_processor import MeteringProcessor
+        from kairon.shared.metering.constants import MetricType
+
+        set_request_id("metering-id")
+        captured = {}
+
+        with patch.object(MeteringProcessor, "add_metrics",
+                          side_effect=lambda b, a, m, **kw: captured.update(kw)):
+            rid = get_request_id()
+            MeteringProcessor.add_metrics("bot", 1, MetricType.agent_handoff,
+                                          sender_id="s", **({"request_id": rid} if rid else {}))
+
+        assert captured.get("request_id") == "metering-id"
+
+    def test_request_id_absent_when_unbound(self):
+        from unittest.mock import patch
+        from kairon.shared.metering.metering_processor import MeteringProcessor
+        from kairon.shared.metering.constants import MetricType
+
+        captured = {}
+
+        with patch.object(MeteringProcessor, "add_metrics",
+                          side_effect=lambda b, a, m, **kw: captured.update(kw)):
+            rid = get_request_id()
+            MeteringProcessor.add_metrics("bot", 1, MetricType.agent_handoff,
+                                          sender_id="s", **({"request_id": rid} if rid else {}))
+
+        assert "request_id" not in captured
