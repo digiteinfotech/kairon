@@ -2205,11 +2205,15 @@ class Utility:
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from kairon.shared.llm.processor import LLMProcessor
+        import json
 
         schema = LLMProcessor.fetch_llms_metadata(bot).get(llm_type)
 
         if not schema:
             raise exception_class(f"Metadata not found for llm_type: {llm_type}")
+
+        # Convert MongoEngine BaseDict/BaseList to native Python dict/list
+        schema = json.loads(json.dumps(schema))
 
         try:
             validator = JSONSchema(schema)
