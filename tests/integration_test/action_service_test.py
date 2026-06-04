@@ -202,6 +202,7 @@ def test_callback_action_execution(aioresponses):
     log.pop('timestamp')
     log.pop('callback_url')
     log.pop('identifier')
+    log.pop('request_id', None)
     assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
                    'action': 'callback_action1', 'sender': 'default',
                    'headers': {}, 'bot_response': 'Hello',
@@ -317,6 +318,7 @@ def test_callback_action_execution_fail_no_callback_config(aioresponses):
     log.pop('timestamp')
     log.pop('callback_url')
     log.pop('identifier')
+    log.pop('request_id', None)
     assert log == {'type': 'callback_action', 'intent': 'live_agent_action',
                    'action': 'callback_action2', 'sender': 'default',
                    'headers': {}, 'bot_response': 'Hello',
@@ -437,6 +439,7 @@ def test_live_agent_action_execution(aioresponses):
     log = ActionServerLogs.objects(action="live_agent_action").get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('request_id', None)
     assert log == {'type': 'live_agent_action', 'intent': 'live_agent_action', 'action': 'live_agent_action',
                    'sender': 'default', 'headers': {}, 'bot_response': 'Connecting to live agent', 'messages': [],
                    'trigger_info': {'trigger_id':'','trigger_name': '','trigger_type': 'implicit'},
@@ -836,6 +839,7 @@ def test_parallel_action_execution(aioresponses):
     log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('request_id', None)
     assert log == {
         "type": "parallel_action",
         "intent": "parallel_action",
@@ -977,6 +981,7 @@ def test_parallel_action_execution_dispatch_response_false(aioresponses):
     log = ActionServerLogs.objects(action="test_parallel_action_execution").get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('request_id', None)
     assert log == {
         "type": "parallel_action",
         "intent": "pyscript_action",
@@ -1106,6 +1111,7 @@ def test_parallel_action_execution_failure(aioresponses):
     print(log)
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('request_id', None)
     assert log == {
         "type": "parallel_action",
         "intent": "pyscript_action",
@@ -2196,6 +2202,7 @@ def test_http_action_execution(aioresponses):
                                          'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
                                          "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_execution',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
                    'bot_response': "The value of 2 in red is ['red', 'buggy', 'bumpers']",
@@ -2696,6 +2703,7 @@ def test_http_action_execution_no_response_dispatch(aioresponses):
                                          'evaluation_type: expression', 'expression: ${data.a.b.d.0}',
                                          "data: {'data': {'a': {'b': {'3': 2, '43': 30, 'c': [], 'd': ['red', 'buggy', 'bumpers']}}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}",
                                          'response: red']}]
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'trigger_info': {'trigger_id': '','trigger_name': '','trigger_type': 'implicit'},
                    'action': 'test_http_action_execution_no_response_dispatch', 'sender': 'default', 'headers': {},
@@ -2813,6 +2821,7 @@ def test_http_action_execution_script_evaluation(aioresponses):
             'Content-Type': 'application/json'}},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}},
                       {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation', 'sender': 'default', 'headers': {},
                    'url': 'http://localhost:8081/mock', 'request_method': 'GET', 'bot_response': 'Mayank',
@@ -2991,6 +3000,7 @@ def test_http_action_with_media_ids_parallel(
                                                                                         'raise_err_on_failure: True']},
         {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
     print(log)
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_http_action_with_media_ids_parallel',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
                    'bot_response': 'success', 'bot': '5f50fd0a56b698ca10d35d2e', 'status': 'Success',
@@ -3120,6 +3130,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_post(aiores
             del event['time_elapsed']
     print(events)
     assert events == [{'type': 'response', 'dispatch_bot_response': True, 'dispatch_type': 'text', 'data': "bot_response = data['b']['name']", 'evaluation_type': 'script', 'response': 'Mayank', 'bot_response_log': ['evaluation_type: script', "script: bot_response = data['b']['name']", "data: {'data': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}", 'raise_err_on_failure: True']}, {'type': 'api_call', 'headers': {'botid': '5f50fd0a56b698ca10d35d2e', 'userid': '****', 'tag': '******ot'}, 'method': 'POST', 'url': 'http://localhost:8081/mock', 'payload': {}, 'response': {'a': 10, 'b': {'name': 'Mayank', 'arr': ['red', 'green', 'hotpink']}}, 'status_code': 200, 'response_headers': {'Content-Type': 'application/json'}}, {'type': 'dynamic_params', 'data': "body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", 'response': {}, 'slots': {}, 'request_params': ['evaluation_type: script', "script: body = {'sender_id': sender_id, 'user_message': user_message, 'intent': intent}", "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}", 'raise_err_on_failure: True']}, {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_post',
                    'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
@@ -3270,6 +3281,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params(aioresponse
                                                        "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
                                                        'raise_err_on_failure: True']},
                       {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run',
                    'action': 'test_http_action_execution_script_evaluation_with_dynamic_params', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'GET',
@@ -3417,6 +3429,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_returns_cus
                                 "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
                                 'raise_err_on_failure: True']},
             {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+        log.pop('request_id', None)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_returns_custom_json',
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
@@ -3584,6 +3597,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_no_response
                                                            "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
                                                            'raise_err_on_failure: True']},
                           {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+        log.pop('request_id', None)
         assert log == {'type': 'http_action', 'intent': 'test_run',
                        'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_no_response_dispatch',
                        'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock', 'request_method': 'POST',
@@ -3937,6 +3951,7 @@ def test_http_action_execution_script_evaluation_with_dynamic_params_and_params_
                                                        "data: {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}",
                                                        'raise_err_on_failure: True']},
                       {'type': 'filled_slots', 'data': {}, 'slot_eval_log': ['initiating slot evaluation']}]
+    log.pop('request_id', None)
     assert not DeepDiff(log, {'type': 'http_action', 'intent': 'test_run',
                               'action': 'test_http_action_execution_script_evaluation_with_dynamic_params_and_params_list',
                               'sender': 'default', 'headers': {}, 'url': 'http://localhost:8081/mock',
@@ -4320,6 +4335,7 @@ def test_http_action_failed_execution(mock_trigger_request, mock_action_config, 
                        'exception': "Got non-200 status code:408 http_response:{'data': None, 'context': {'sender_id': 'default', 'user_message': 'get intents', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'test_run', 'chat_log': [], 'key_vault': {'EMAIL': 'uditpandey@digite.com', 'FIRSTNAME': 'udit'}, 'latest_message': {'text': 'get intents', 'intent_ranking': [{'name': 'test_run'}]}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 408, 'response_headers': None}"},
                       {'type': 'params_list', 'request_body': {}, 'request_params': {}}, {'type': 'filled_slots'}]
     print(log)
+    log.pop('request_id', None)
     assert log == {'type': 'http_action', 'intent': 'test_run', 'action': 'test_run_with_get', 'sender': 'default',
                    'headers': {}, 'url': 'http://localhost:8800/mock', 'request_method': 'GET',
                    'bot_response': 'I have failed to process your request', 'bot': '5f50fd0a56b698ca10d35d2e',
@@ -12954,7 +12970,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
             'user': user,
             'invocation': "prompt_action",
             'media_ids': [],
-            'should_process_media': False
+            'should_process_media': False,
+            'request_id': mock.ANY
         },
         timeout=Utility.environment['llm'].get('request_timeout', 30)
     )
@@ -15809,6 +15826,7 @@ def test_schedule_action_invalid_date():
     log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
     log.pop('_id')
     log.pop('timestamp')
+    log.pop('request_id', None)
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
@@ -15884,6 +15902,7 @@ def test_schedule_action_invalid_callback():
     log.pop('timestamp')
     log.pop('data')
     log.pop('schedule_time')
+    log.pop('request_id', None)
     assert log == {'type': 'schedule_action', 'intent': 'test_run',
                    'action': action_name, 'sender': 'default', 'headers': {},
                    'bot_response': 'Sorry, I am unable to process your request at the moment.', 'messages': [],
@@ -15973,6 +15992,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        log.pop('request_id', None)
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution', 'sender': 'default', 'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
@@ -16075,6 +16095,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        log.pop('request_id', None)
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution_schedule_empty_data', 'sender': 'default',
                        'headers': {},
@@ -16183,6 +16204,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        log.pop('request_id', None)
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution_slot', 'sender': 'default', 'headers': {},
                        'bot_response': 'Action schedule', 'messages': [], 'bot': bot,
@@ -16280,6 +16302,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
         log = ActionServerLogs.objects(action=action_name).get().to_mongo().to_dict()
         log.pop('_id')
         log.pop('timestamp')
+        log.pop('request_id', None)
         assert log == {'type': 'schedule_action', 'intent': 'test_run',
                        'action': 'test_schedule_action_execution_flow',
                        'sender': 'default', 'headers': {},
