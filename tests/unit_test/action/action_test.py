@@ -5280,26 +5280,14 @@ class TestActionServerLogsRequestId:
         assert log.request_id == "req-abc"
 
     def test_none_not_stored_in_db(self):
-        from mongomock import MongoClient
-        from mongoengine import connect, disconnect
-        connect("testdb_rid", host="mongodb://localhost", mongo_client_class=MongoClient)
         log = ActionServerLogs(bot="b", status="success", request_id=None)
-        log.save()
-        raw = ActionServerLogs._get_collection().find_one({"_id": log.id})
-        assert "request_id" not in raw
-        ActionServerLogs._get_collection().drop()
-        disconnect()
+        doc = log.to_mongo()
+        assert "request_id" not in doc
 
     def test_value_stored_when_set(self):
-        from mongomock import MongoClient
-        from mongoengine import connect, disconnect
-        connect("testdb_rid2", host="mongodb://localhost", mongo_client_class=MongoClient)
         log = ActionServerLogs(bot="b", status="success", request_id="stored-id")
-        log.save()
-        raw = ActionServerLogs._get_collection().find_one({"_id": log.id})
-        assert raw["request_id"] == "stored-id"
-        ActionServerLogs._get_collection().drop()
-        disconnect()
+        doc = log.to_mongo()
+        assert doc["request_id"] == "stored-id"
 
     def test_all_write_sites_inject_request_id(self):
         import glob
