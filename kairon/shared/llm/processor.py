@@ -174,6 +174,9 @@ class LLMProcessor(LLMBase):
         truncated_texts = self.truncate_text(texts)
         kwargs["truncated_texts"] = truncated_texts
         kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
+        rid = get_request_id()
+        if rid:
+            kwargs['request_id'] = rid
         body = {
             "text": texts,
             "user": user,
