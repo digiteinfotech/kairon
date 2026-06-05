@@ -37584,6 +37584,154 @@ def test_missing_valid_config_instagram_channel():
     assert actual["data"] is None
     assert "verify_token" in actual["message"][0]["msg"]
 
+def test_voice_channel_params():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/voice/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "twilio" in actual["data"]
+
+
+def test_list_voice_channel_config_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/voice/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_voice_call_action_voice_not_enabled():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Voice is not enabled" in actual["message"]
+
+
+def test_add_voice_call_action(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_voice_call_action_duplicate(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Action exists!" in actual["message"]
+
+
+def test_add_voice_call_action_missing_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+
+
+def test_list_voice_call_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert len(actual["data"]) >= 1
+    assert any(a["name"] == "test_voice_call_action" for a in actual["data"])
+
+
+def test_edit_voice_call_action_voice_not_enabled():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+19999999999", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Voice is not enabled" in actual["message"]
+
+
+def test_edit_voice_call_action_not_found(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "nonexistent_voice_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "not found" in actual["message"]
+
+
+def test_edit_voice_call_action(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+19999999999", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):
         return "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"
