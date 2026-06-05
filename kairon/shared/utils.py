@@ -315,7 +315,7 @@ class Utility:
                 "$schema": item.schema,
                 "type": item.type,
                 "description": item.description,
-                "properties": item.properties
+                "properties": json.loads(json.dumps(item.properties))
             }
 
         Utility.llm_metadata = metadata

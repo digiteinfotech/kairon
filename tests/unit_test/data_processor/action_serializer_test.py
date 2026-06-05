@@ -974,6 +974,9 @@ def test_prompt_action_validation_missing_model():
     errors =  DataValidation.validate_prompt_action(bot, data)
     assert errors == ['model is required in hyperparameters!']
 
+    LLMSecret.objects.delete()
+    LLMMetadata.objects.delete()
+
 def test_get_model_llm_type_map_dynamic():
     result = DataValidation.get_model_llm_type_map()
     expected_categories = {
@@ -1094,7 +1097,7 @@ def test_add_llm_type_based_on_model():
                 "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or even to encourage generation of tokens that you do want."
             }
         },
-        user=user
+        user='user'
     ).save()
     Utility.load_metadata_from_mongo()
 
