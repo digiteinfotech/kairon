@@ -784,6 +784,9 @@ class TestTrainingDataValidator:
         from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
         bot = "my_test_bot"
 
+        LLMSecret.objects(llm_type="openai", bot=bot).delete()
+        LLMMetadata.objects(provider="openai").delete()
+
         with open(
             "tests/testing_data/actions/validation_action_data.json", "r"
         ) as file:
@@ -941,6 +944,9 @@ class TestTrainingDataValidator:
                                    'email_actions': 5, 'google_search_actions': 5, 'jira_actions': 6,
                                    'zendesk_actions': 4, 'pipedrive_leads_actions': 5, 'prompt_actions': 8,
                                    'razorpay_actions': 5, 'pyscript_actions': 5, 'database_actions': 7}
+
+        LLMSecret.objects(llm_type="openai", bot=bot).delete()
+        LLMMetadata.objects(provider="openai").delete()
 
     def test_validate_multiflow_stories(self):
         with open(
