@@ -43,6 +43,7 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, ActionParameterType, DispatchType, DbActionOperationType, \
     DbQueryValueType
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.request_context import REQUEST_ID_HEADER
 from kairon.shared.admin.constants import BotSecretType
 from kairon.shared.admin.data_objects import BotSecrets, LLMSecret, LLMMetadata
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY, FORM_SLOT_SET_TYPE, EventClass, EventExecutor
@@ -13160,8 +13161,8 @@ def test_prompt_action_response_action_with_prompt_question_from_slot_perplexity
             'invocation': "prompt_action",
             'media_ids': [],
             'should_process_media': False,
-            'request_id': mock.ANY
         },
+        headers={REQUEST_ID_HEADER: mock.ANY},
         timeout=Utility.environment['llm'].get('request_timeout', 30)
     )
     called_args = mock_execute_request_async.call_args
