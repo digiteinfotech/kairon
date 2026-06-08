@@ -16531,3 +16531,30 @@ def test_retrieve_config_does_not_exist(mock_schedule_action):
 
     assert "No Schedule action found" in str(exc_info.value)
     mock_schedule_action.objects.return_value.get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_action_server_lifespan_loads_metadata():
+    from kairon.actions.server import lifespan
+
+    with patch(
+        "kairon.actions.server.Utility.mongoengine_connection"
+    ) as mock_config, patch(
+        "kairon.actions.server.connect"
+    ) as mock_connect, patch(
+        "kairon.actions.server.Utility.load_metadata_from_mongo"
+    ) as mock_load, patch(
+        "kairon.actions.server.AccountProcessor.load_system_properties"
+    ) as mock_system_properties, patch(
+        "kairon.actions.server.disconnect"
+    ) as mock_disconnect:
+
+        mock_config.return_value = {}
+
+        async with lifespan(None):
+            pass
+
+        mock_connect.assert_called_once()
+        mock_load.assert_called_once()
+        mock_system_properties.assert_called_once()
+        mock_disconnect.assert_called_once()

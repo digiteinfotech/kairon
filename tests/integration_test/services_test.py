@@ -41277,3 +41277,34 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
+
+
+@pytest.mark.asyncio
+async def test_api_main_lifespan_loads_metadata():
+    from kairon.api.app.main import lifespan
+
+    with patch(
+        "kairon.api.app.main.Utility.mongoengine_connection"
+    ) as mock_config, patch(
+        "kairon.api.app.main.connect"
+    ) as mock_connect, patch(
+        "kairon.api.app.main.Utility.load_metadata_from_mongo"
+    ) as mock_load, patch(
+        "kairon.api.app.main.AccountProcessor.default_account_setup",
+        new_callable=AsyncMock,
+    ) as mock_setup, patch(
+        "kairon.api.app.main.AccountProcessor.load_system_properties"
+    ) as mock_system_properties, patch(
+        "kairon.api.app.main.disconnect"
+    ) as mock_disconnect:
+
+        mock_config.return_value = {}
+
+        async with lifespan(None):
+            pass
+
+        mock_connect.assert_called_once()
+        mock_load.assert_called_once()
+        mock_setup.assert_awaited_once()
+        mock_system_properties.assert_called_once()
+        mock_disconnect.assert_called_once()
