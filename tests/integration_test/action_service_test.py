@@ -16531,3 +16531,11 @@ def test_retrieve_config_does_not_exist(mock_schedule_action):
 
     assert "No Schedule action found" in str(exc_info.value)
     mock_schedule_action.objects.return_value.get.assert_called_once()
+
+
+@patch("kairon.shared.utils.Utility.load_metadata_from_mongo")
+def test_action_server_lifespan_coverage(mock_load):
+    from kairon.actions.server import action
+    with TestClient(action):
+        pass
+    mock_load.assert_called_once()
