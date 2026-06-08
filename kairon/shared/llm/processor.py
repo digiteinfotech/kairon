@@ -13,7 +13,7 @@ from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
-from kairon.shared.request_context import get_request_id
+from kairon.shared.request_context import get_request_id, REQUEST_ID_HEADER
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.data_objects import LLMSecret
 from kairon.shared.admin.processor import Sysadmin
@@ -173,19 +173,19 @@ class LLMProcessor(LLMBase):
         truncated_texts = self.truncate_text(texts)
         kwargs["truncated_texts"] = truncated_texts
         kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
-        rid = get_request_id()
-        if rid:
-            kwargs['request_id'] = rid
         body = {
             "text": texts,
             "user": user,
             "kwargs": kwargs,
         }
+        rid = get_request_id()
+        headers = {REQUEST_ID_HEADER: rid} if rid else None
         timeout = Utility.environment["llm"].get("request_timeout", 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
             http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/aembedding/{self.llm_type}",
             request_method="POST",
             request_body=body,
+            headers=headers,
             timeout=timeout,
         )
         logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
@@ -220,13 +220,12 @@ class LLMProcessor(LLMBase):
             'should_process_media': should_process_media
         }
         rid = get_request_id()
-        if rid:
-            body['request_id'] = rid
-
+        headers = {REQUEST_ID_HEADER: rid} if rid else None
         timeout = Utility.environment['llm'].get('request_timeout', 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
                                                                      request_method="POST",
                                                                      request_body=body,
+                                                                     headers=headers,
                                                                      timeout=timeout)
         logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:
