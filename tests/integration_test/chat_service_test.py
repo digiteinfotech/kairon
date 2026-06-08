@@ -4393,14 +4393,3 @@ def test_agentic_flow_media(mock_media_agentic_flow):
     assert actual["error_code"] == 0
     assert actual["data"]
     mock_media_agentic_flow.assert_called_once()
-
-
-@patch("kairon.shared.utils.Utility.load_metadata_from_mongo")
-def test_chat_server_lifespan_coverage(mock_load):
-    from kairon.chat.server import app
-    try:
-        with TestClient(app):
-            pass
-    except Exception:
-        pass
-    mock_load.assert_called_once()

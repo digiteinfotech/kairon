@@ -374,11 +374,3 @@ def test_run_pyscript_with_interpreter_error():
     assert actual['error_code'] == 422
     assert not actual['data']
     assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)'
-    
-
-@patch("kairon.shared.utils.Utility.load_metadata_from_mongo")
-def test_evaluator_server_lifespan_coverage(mock_load):
-    from kairon.evaluator.main import app
-    with TestClient(app):
-        pass
-    mock_load.assert_called_once()

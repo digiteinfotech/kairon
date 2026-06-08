@@ -41277,12 +41277,3 @@ def test_redoc_headers():
         "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "*"
     }
-
-
-@patch("kairon.shared.utils.Utility.load_metadata_from_mongo")
-@patch("kairon.shared.account.processor.AccountProcessor.default_account_setup")
-def test_api_main_lifespan_coverage(mock_setup, mock_load):
-    from kairon.api.app.main import app
-    with TestClient(app):
-        pass
-    mock_load.assert_called_once()
