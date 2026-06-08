@@ -606,5 +606,13 @@ def test_request_epoch(mock_epoch):
     assert resp['data'] is None
     assert resp['success']
 
+
+@patch("kairon.shared.utils.Utility.load_metadata_from_mongo")
+def test_events_server_lifespan_coverage(mock_load):
+    from kairon.events.server import app
+    with TestClient(app):
+        pass
+    mock_load.assert_called_once()
+
 os_patch.stop()
 
