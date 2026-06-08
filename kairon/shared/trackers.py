@@ -137,15 +137,16 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 event["metadata"] = {}
             event["metadata"].update(metadata)
 
-            rasa_events.append(
-                {
-                    "sender_id": sender_id,
-                    "conversation_id": conversation_id,
-                    "event": event,
-                    "tag": "tracker_store",
-                    "type": "bot",
-                }
-            )
+            raw_event = {
+                "sender_id": sender_id,
+                "conversation_id": conversation_id,
+                "event": event,
+                "tag": "tracker_store",
+                "type": "bot",
+            }
+            if rid:
+                raw_event["request_id"] = rid
+            rasa_events.append(raw_event)
 
             if event["event"] == "user":
                 flattened_conversation["timestamp"] = event.get("timestamp")

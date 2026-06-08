@@ -2442,6 +2442,75 @@ class TestFlattenedConversationsRequestId:
         assert 'flattened_conversation["request_id"]' in src
 
 
+class TestRawConversationEventRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_in_raw_event_when_bound(self):
+        set_request_id("raw-event-id")
+        rid = get_request_id()
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        if rid:
+            raw_event["request_id"] = rid
+        assert raw_event["request_id"] == "raw-event-id"
+
+    def test_request_id_absent_from_raw_event_when_unbound(self):
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        rid = get_request_id()
+        if rid:
+            raw_event["request_id"] = rid
+        assert "request_id" not in raw_event
+
+    def test_request_id_is_top_level_not_in_event_subdict(self):
+        set_request_id("top-level-id")
+        rid = get_request_id()
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        if rid:
+            raw_event["request_id"] = rid
+        assert "request_id" in raw_event
+        assert "request_id" not in raw_event["event"]
+
+    def test_all_raw_events_in_batch_carry_same_request_id(self):
+        set_request_id("batch-id")
+        rid = get_request_id()
+        events = []
+        for _ in range(3):
+            e = {
+                "sender_id": "s",
+                "conversation_id": "c",
+                "event": {"event": "user"},
+                "tag": "tracker_store",
+                "type": "bot",
+            }
+            if rid:
+                e["request_id"] = rid
+            events.append(e)
+        assert all(e.get("request_id") == "batch-id" for e in events)
+
+    def test_trackers_stamps_raw_events(self):
+        with open("kairon/shared/trackers.py") as f:
+            src = f.read()
+        assert 'raw_event["request_id"]' in src
+
+
 class TestAgentHandoffMeteringRequestId:
     def setup_method(self):
         _clear_rid()
