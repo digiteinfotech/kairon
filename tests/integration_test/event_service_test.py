@@ -605,5 +605,32 @@ def test_request_epoch(mock_epoch):
     resp = response.json()
     assert resp['data'] is None
     assert resp['success']
+
+
+import pytest
+
+@pytest.mark.asyncio
+async def test_events_server_lifespan_loads_metadata():
+    from kairon.events.server import lifespan
+
+    with patch(
+        "kairon.events.server.Utility.mongoengine_connection"
+    ) as mock_config, patch(
+        "kairon.events.server.connect"
+    ) as mock_connect, patch(
+        "kairon.events.server.Utility.load_metadata_from_mongo"
+    ) as mock_load, patch(
+        "kairon.events.server.disconnect"
+    ) as mock_disconnect:
+
+        mock_config.return_value = {}
+
+        async with lifespan(None):
+            pass
+
+        mock_connect.assert_called_once()
+        mock_load.assert_called_once()
+        mock_disconnect.assert_called_once()
+
 os_patch.stop()
 
