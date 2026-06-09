@@ -7,7 +7,7 @@ mock==5.1.0
 moto[all]==5.0.26
 mongomock==4.1.2
 black==24.10.0
-packaging==21.3
+packaging>=20.0,<21.0
 locust==2.31.5.dev3
 deepdiff==8.6.1
 pytest-cov==5.0.0
