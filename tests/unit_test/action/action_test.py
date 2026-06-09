@@ -3601,6 +3601,9 @@ class TestActions:
                                 'max_instagram_user_posts': 5,
                                 'media_size_limit': 10}
 
+        LLMSecret.objects.delete()
+        LLMMetadata.objects.delete()
+
     def test_prompt_action_not_exists(self):
         with pytest.raises(ActionFailure, match="Faq feature is disabled for the bot! Please contact support."):
             ActionPrompt('test_kairon_faq_action_not_exists', 'testing_kairon_faq').retrieve_config()
