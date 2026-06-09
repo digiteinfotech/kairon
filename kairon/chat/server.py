@@ -32,7 +32,7 @@ from contextlib import asynccontextmanager
 Utility.load_environment()
 
 
-from kairon.chat.routers import web_client, channels
+from kairon.chat.routers import web_client, channels, voice
 from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -108,7 +108,10 @@ async def add_secure_headers(request: Request, call_next):
     requested_origin = request.headers.get("origin")
     response.headers["Access-Control-Allow-Origin"] = requested_origin if requested_origin else allowed_origins[0]
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
-    response.headers['Content-Type'] = 'application/json'
+
+    if "content-type" not in response.headers:
+        response.headers["Content-Type"] = "application/json"
+
     formatted_process_time = "{0:.2f}".format(process_time)
     logger.info(
         f"request path={request.url.path} completed_in={formatted_process_time}ms status_code={response.status_code}"
@@ -277,6 +280,7 @@ def healthcheck():
 
 app.include_router(web_client.router, prefix="/api/bot/{bot}", tags=["Web client"])
 app.include_router(channels.router, prefix="/api/bot", tags=["Channels"])
+app.include_router(voice.router, prefix="/api/bot", tags=["Voice"])
 
 
 async def main(scope, receive, send):

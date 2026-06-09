@@ -10,7 +10,7 @@ from kairon.api.models import (
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
     WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
-    ScheduleActionRequest
+    ScheduleActionRequest, VoiceCallActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -824,3 +824,38 @@ async def list_parallel_actions(current_user: User = Security(Authentication.get
     """
     actions = list(mongo_processor.list_parallel_action(current_user.get_bot()))
     return Response(data=actions)
+
+
+@router.post("/voicecall", response_model=Response)
+async def add_voice_call_action(
+        request_data: VoiceCallActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the voice call action config.
+    """
+    mongo_processor.add_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/voicecall", response_model=Response)
+async def list_voice_call_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of voice call actions for bot.
+    """
+    actions = list(mongo_processor.list_voice_call_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/voicecall", response_model=Response)
+async def edit_voice_call_action(
+        request_data: VoiceCallActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the voice call action config.
+    """
+    mongo_processor.edit_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')

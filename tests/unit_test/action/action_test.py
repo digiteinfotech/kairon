@@ -3484,6 +3484,7 @@ class TestActions:
                                 'chat_token_expiry': 30,
                                 'data_generation_limit_per_day': 3,
                                 'data_importer_limit_per_day': 5,
+                                'enable_voice': False,
                                 'force_import': False,
                                 'ignore_utterances': False,
                                 'llm_settings': {'enable_faq': True, 'provider': 'openai'},
@@ -4815,7 +4816,8 @@ class TestActions:
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
                                 'max_instagram_user_posts': 5,
-                                'media_size_limit': 10}
+                                'media_size_limit': 10,
+                                'enable_voice': False}
 
 
     def test_get_prompt_action_config_2(self):

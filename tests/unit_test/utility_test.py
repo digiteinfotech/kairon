@@ -3034,7 +3034,8 @@ class TestUtility:
             "instagram",
             "whatsapp",
             "line",
-            "mail"
+            "mail",
+            "voice"
         ]
         channels = Utility.get_channels()
         assert channels == expected_channels
@@ -3042,6 +3043,7 @@ class TestUtility:
     def test_get_channels_with_no_channels(self, monkeypatch):
         expected_channels = []
         monkeypatch.setitem(Utility.system_metadata, "channels", [])
+        monkeypatch.setitem(Utility.system_metadata, "voice_channels", [])
         channels = Utility.get_channels()
         assert channels == expected_channels
 

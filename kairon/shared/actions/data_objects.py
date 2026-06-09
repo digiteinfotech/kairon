@@ -31,7 +31,7 @@ from kairon.shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType
 )
-from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, VoiceProviderTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
@@ -498,6 +498,35 @@ class EmailActionConfig(Auditlog):
             self.smtp_password.key = "smtp_password"
         if self.custom_text:
             self.custom_text.key = "custom_text"
+
+
+@auditlogger.log
+@push_notification.apply
+class VoiceCallAction(Auditlog):
+    name = StringField(required=True)
+    to_phone_number = EmbeddedDocumentField(CustomActionParameters, required=True)
+    telephony_provider = StringField(default="twilio", choices=[voice.value for voice in VoiceProviderTypes])
+    response = StringField(default=None)
+    dispatch_bot_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        if ActionUtility.is_empty(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if ActionUtility.is_empty(self.telephony_provider):
+            raise ValidationError("Telephony provider cannot be empty")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 @auditlogger.log
