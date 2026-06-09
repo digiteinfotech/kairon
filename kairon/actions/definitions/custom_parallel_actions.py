@@ -11,7 +11,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, ParallelActionConfig, TriggerInfo
-from kairon.shared.request_context import get_request_id
+from kairon.shared.request_context import REQUEST_ID_HEADER, get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -155,8 +155,13 @@ class ActionParallel(ActionsBase):
 
         url = Utility.environment["action"].get("url")
 
+        headers = {}
+        request_id = get_request_id()
+        if request_id:
+            headers[REQUEST_ID_HEADER] = request_id
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=request_json) as response:
+            async with session.post(url, json=request_json, headers=headers) as response:
                 response_json = await response.json()
 
         return response_json
