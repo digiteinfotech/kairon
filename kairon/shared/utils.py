@@ -281,8 +281,7 @@ class Utility:
         This is executed post database connection as metadata is
         fetched from the l_l_m_metadata collection.
         """
-        llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
-        Utility.load_llm_metadata(file_path=llm_metadata_file)
+        Utility.load_llm_metadata()
 
     @staticmethod
     def load_system_metadata():
@@ -300,7 +299,7 @@ class Utility:
                 )
 
     @staticmethod
-    def load_llm_metadata(file_path=None):
+    def load_llm_metadata():
         """
         Loads the metadata for LLM from l_l_m_metadata collection.
 

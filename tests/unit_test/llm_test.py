@@ -720,6 +720,9 @@ class TestLLM:
 
             assert isinstance(time_elapsed, float) and time_elapsed > 0.0
 
+            LLMSecret.objects.delete()
+            LLMMetadata.objects.delete()
+
 
     @pytest.mark.asyncio
     @mock.patch(
