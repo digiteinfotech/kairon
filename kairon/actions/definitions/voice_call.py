@@ -13,6 +13,7 @@ from kairon.shared.actions.models import ActionType, ActionParameterType
 from kairon.shared.data.constant import STATUSES
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, KaironSystemSlots
+from kairon.shared.request_context import get_request_id
 from kairon.shared.voice.factory import VoiceOutboundFactory
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ class ActionVoiceCall(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
                 trigger_info=trigger_info_obj,
+                request_id=get_request_id(),
             ).save()
 
         return {KaironSystemSlots.kairon_action_response.value: bot_response}
