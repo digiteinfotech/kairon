@@ -95,10 +95,9 @@ secure_headers = Secure(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """MongoDB is connected on the bot trainer startup"""
-    config: dict = Utility.mongoengine_connection(
-        Utility.environment["database"]["url"]
-    )
+    config: dict = Utility.mongoengine_connection(Utility.environment["database"]["url"])
     connect(**config)
+    Utility.load_metadata_from_mongo()
     AccountProcessor.load_system_properties()
     yield
     disconnect()

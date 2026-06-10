@@ -273,8 +273,15 @@ class Utility:
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
         Utility.load_system_metadata()
-        llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
-        Utility.load_llm_metadata(file_path=llm_metadata_file)
+
+    @staticmethod
+    def load_metadata_from_mongo():
+        """
+        Loads LLM metadata after MongoDB initialization.
+        This is executed post database connection as metadata is
+        fetched from the l_l_m_metadata collection.
+        """
+        Utility.load_llm_metadata()
 
     @staticmethod
     def load_system_metadata():
@@ -292,13 +299,25 @@ class Utility:
                 )
 
     @staticmethod
-    def load_llm_metadata(file_path: str = llm_metadata_file_path):
+    def load_llm_metadata():
         """
-        Loads the metadata for LLM from the llm_metadata.yml file.
+        Loads the metadata for LLM from l_l_m_metadata collection.
 
         :return: None
         """
-        Utility.llm_metadata = Utility.load_yaml(file_path)
+        from kairon.shared.admin.data_objects import LLMMetadata
+        metadata_docs = LLMMetadata.objects()
+        metadata = {}
+
+        for item in metadata_docs:
+            metadata[item.provider] = {
+                "$schema": item.schema,
+                "type": item.type,
+                "description": item.description,
+                "properties": json.loads(json.dumps(item.properties))
+            }
+
+        Utility.llm_metadata = metadata
 
 
     @staticmethod
@@ -2185,10 +2204,16 @@ class Utility:
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from kairon.shared.llm.processor import LLMProcessor
+        import json
 
-        schema = Utility.llm_metadata[llm_type]
-        models_list = LLMProcessor.get_llm_metadata(bot, llm_type)
-        schema["properties"]["model"]["enum"] = models_list
+        schema = LLMProcessor.fetch_llms_metadata(bot).get(llm_type)
+
+        if not schema:
+            raise exception_class(f"Metadata not found for llm_type: {llm_type}")
+
+        # Convert MongoEngine BaseDict/BaseList to native Python dict/list
+        schema = json.loads(json.dumps(schema))
+
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)

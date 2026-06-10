@@ -2,6 +2,7 @@ import os
 import time
 import urllib.parse
 import asyncio
+from copy import deepcopy
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
@@ -516,14 +517,14 @@ class LLMProcessor(LLMBase):
         :return: dictionary where each key is a llm_type and the value is a list of models.
         """
         metadata = Utility.llm_metadata
-        llm_types = metadata.keys()
         final_metadata = {}
-        for llm_type in llm_types:
+        for llm_type, llm_metadata in metadata.items():
             models = LLMProcessor.get_llm_metadata(bot, llm_type)
 
             if models:
-                metadata[llm_type]['properties']['model']['enum'] = models
-                final_metadata[llm_type] = metadata[llm_type]
+                metadata_copy = deepcopy(llm_metadata)
+                metadata_copy["properties"]["model"]["enum"] = models
+                final_metadata[llm_type] = metadata_copy
 
         return final_metadata
 
