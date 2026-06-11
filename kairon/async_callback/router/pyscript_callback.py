@@ -84,8 +84,10 @@ async def execute_async_action_standalone(request: Request, token: str) -> BSRes
     return await process_router_message(token, None, request.method, request)
 
 @router.post("/main_pyscript/execute-python")
-async def trigger_restricted_python(payload: PyscriptPayload):
+async def trigger_restricted_python(request: Request):
     try:
+        data = await request.json()
+        payload = PyscriptPayload(**data)
         result = CallbackUtility.main_pyscript_handler({
             "source_code": payload.source_code,
             "predefined_objects": payload.predefined_objects or {}
@@ -95,11 +97,10 @@ async def trigger_restricted_python(payload: PyscriptPayload):
         return json({"success": False, "error": str(e)}, status=422)
 
 @router.post("/callback/handle_event")
-async def handle_callback(
-    request: Request,
-    body: CallbackRequest
-):
+async def handle_callback(request: Request):
     await CallbackAuthenticator.verify(request)
+    data = await request.json()
+    body = CallbackRequest(**data)
     payload = body.data
     try:
         result = CallbackUtility.execute_script(
