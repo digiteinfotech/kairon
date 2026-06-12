@@ -22,6 +22,7 @@ from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
+from ..shared.request_context import get_request_id
 
 
 class ChatUtils:
@@ -171,6 +172,7 @@ class ChatUtils:
             metadata["initiate"] = False
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
+                rid = get_request_id()
                 MeteringProcessor.add_metrics(
                     bot,
                     account,
@@ -179,6 +181,7 @@ class ChatUtils:
                     agent_type=metadata.get("type"),
                     bot_predictions=bot_predictions,
                     exception=exception,
+                    **({"request_id": rid} if rid else {}),
                 )
 
         bot_predictions["agent_handoff"] = metadata

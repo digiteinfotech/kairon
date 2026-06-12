@@ -11,6 +11,7 @@ from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 
@@ -94,7 +95,8 @@ class ActionKaironBotResponse(ActionsBase):
                 is_rephrased=is_rephrased,
                 raw_gpt_response=raw_resp,
                 user_msg=tracker.latest_message.get('text'),
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         dispatcher.utter_message(**bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

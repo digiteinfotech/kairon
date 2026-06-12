@@ -9,6 +9,7 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType, EvaluationType
 from kairon.shared.actions.utils import ActionUtility
@@ -189,7 +190,8 @@ class ActionHTTP(ActionsBase):
                 user_msg=tracker.latest_message.get('text'),
                 time_elapsed=total_time_elapsed,
                 http_status_code=resp_status_code,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
             filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response, "http_status_code": resp_status_code})
             filled_slots.update(slot_values)

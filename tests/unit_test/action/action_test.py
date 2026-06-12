@@ -1499,6 +1499,116 @@ class TestActions:
         assert expected['response_text'] == actual['response_text']
         assert actual['status']
 
+    @pytest.mark.asyncio
+    async def test_execute_webhook_propagates_request_id_header(self):
+        from aioresponses import aioresponses as aior
+        from kairon.shared.request_context import REQUEST_ID_HEADER, set_request_id
+
+        action = ActionParallel(bot="test_bot", name="test_parallel")
+        action_call = {"next_action": "some_action", "sender_id": "s1"}
+        action_url = Utility.environment["action"]["url"]
+
+        set_request_id("test-rid-propagate-123")
+        try:
+            with aior() as mock:
+                mock.post(action_url, payload={"events": [], "responses": []}, status=200)
+                await action.execute_webhook("sub_action", action_call, "trigger_id_1")
+                req_key = list(mock.requests.keys())[0]
+                req_call = mock.requests[req_key][0]
+                sent_headers = req_call.kwargs.get("headers", {})
+                assert sent_headers.get(REQUEST_ID_HEADER) == "test-rid-propagate-123"
+        finally:
+            set_request_id(None)
+
+    @pytest.mark.asyncio
+    async def test_execute_webhook_omits_request_id_header_when_unbound(self):
+        from aioresponses import aioresponses as aior
+        from kairon.shared.request_context import REQUEST_ID_HEADER, set_request_id
+
+        action = ActionParallel(bot="test_bot", name="test_parallel")
+        action_call = {"next_action": "some_action", "sender_id": "s1"}
+        action_url = Utility.environment["action"]["url"]
+
+        set_request_id(None)
+        with aior() as mock:
+            mock.post(action_url, payload={"events": [], "responses": []}, status=200)
+            await action.execute_webhook("sub_action", action_call, "trigger_id_2")
+            req_key = list(mock.requests.keys())[0]
+            req_call = mock.requests[req_key][0]
+            sent_headers = req_call.kwargs.get("headers", {})
+            assert REQUEST_ID_HEADER not in sent_headers
+
+    @responses.activate
+    @pytest.mark.asyncio
+    @mock.patch('kairon.shared.actions.utils.ActionUtility.get_action', autospec=True)
+    async def test_parallel_action_sub_action_inherits_parent_request_id(self, mock_get_action, aioresponses):
+        from kairon.shared.request_context import REQUEST_ID_HEADER, set_request_id
+
+        corr_id = "corr-id-T013-end-to-end"
+        slots = {"bot": "5f50fd0a56b698ca10d35d21", "param2": "param2value"}
+        events = []
+        latest_message = {'text': 'test msg', 'intent_ranking': [{'name': 'parallel_action'}]}
+        action_name = "test_parallel_inherits_request_id"
+        sub_action_name = "sub_action_for_T013"
+        action_url = Utility.environment["action"]["url"]
+
+        ParallelActionConfig(
+            name=action_name,
+            bot="5f50fd0a56b698ca10d35d21",
+            user="user",
+            actions=[sub_action_name],
+            response_text="",
+            dispatch_response_text=False
+        ).save()
+
+        def _get_action(bot, name):
+            if name == action_name:
+                return {"type": ActionType.parallel_action.value}
+            return {"type": ActionType.pyscript_action.value}
+
+        mock_get_action.side_effect = _get_action
+
+        aioresponses.add(
+            method="POST",
+            url=action_url,
+            payload={"events": [], "responses": []},
+            status=200
+        )
+
+        set_request_id(corr_id)
+        try:
+            dispatcher = CollectingDispatcher()
+            tracker = Tracker(sender_id="sender_T013", slots=slots, events=events, paused=False,
+                              latest_message=latest_message, followup_action=None,
+                              active_loop=None, latest_action_name=None)
+            action_call = {
+                "next_action": action_name,
+                "sender_id": "sender_T013",
+                "tracker": tracker,
+                "version": "3.6.21",
+                "domain": None
+            }
+            await ActionProcessor.process_action(dispatcher, tracker, None, action_name, action_call=action_call)
+        finally:
+            set_request_id(None)
+
+        # AC1+AC2: sub-action outbound call carried corr_id (not a fresh UUID)
+        req_key = list(aioresponses.requests.keys())[0]
+        req_call = aioresponses.requests[req_key][0]
+        sent_headers = req_call.kwargs.get("headers", {})
+        assert sent_headers.get(REQUEST_ID_HEADER) == corr_id
+
+        # AC1 (container side): container log record has same request_id
+        log = ActionServerLogs.objects(
+            sender="sender_T013",
+            action=action_name,
+            bot="5f50fd0a56b698ca10d35d21"
+        ).first()
+        assert log is not None
+        assert log.request_id == corr_id
+
+        ParallelActionConfig.objects(name=action_name).delete()
+
     def test_get_pyscript_action_config_bot_empty(self):
         with pytest.raises(ActionFailure, match="No pyscript action found for given action and bot"):
             ActionPyscript(' ', 'test_get_pyscript_action_config_bot_empty').retrieve_config()
@@ -5253,3 +5363,50 @@ def test_format_custom_bot_reply_indirect():
     result = ActionUtility._ActionUtility__format_custom_bot_reply(data)
     expected = '<a target="_blank" href="http://example.com/video">http://example.com/video</a>'
     assert result == expected
+
+
+# ============================================================
+# Request ID — ActionServerLogs
+# ============================================================
+import kairon.shared.request_context as _rc_action
+
+
+class TestActionServerLogsRequestId:
+    def setup_method(self):
+        _rc_action._request_id.set(None)
+
+    def test_field_exists_on_model(self):
+        from mongoengine import StringField
+        field = ActionServerLogs._fields.get("request_id")
+        assert field is not None
+        assert isinstance(field, StringField)
+
+    def test_field_is_optional(self):
+        log = ActionServerLogs(bot="b", status="success")
+        assert log.request_id is None
+
+    def test_field_accepts_string(self):
+        log = ActionServerLogs(bot="b", request_id="req-abc")
+        assert log.request_id == "req-abc"
+
+    def test_none_not_stored_in_db(self):
+        log = ActionServerLogs(bot="b", status="success", request_id=None)
+        doc = log.to_mongo()
+        assert "request_id" not in doc
+
+    def test_value_stored_when_set(self):
+        log = ActionServerLogs(bot="b", status="success", request_id="stored-id")
+        doc = log.to_mongo()
+        assert doc["request_id"] == "stored-id"
+
+    def test_all_write_sites_inject_request_id(self):
+        import glob
+        import ast
+        files = glob.glob("kairon/actions/definitions/*.py") + ["kairon/actions/handlers/processor.py"]
+        for path in files:
+            with open(path) as f:
+                src = f.read()
+            if "ActionServerLogs" not in src:
+                continue
+            assert "get_request_id" in src, f"Missing get_request_id in {path}"
+            ast.parse(src)

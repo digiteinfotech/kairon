@@ -277,6 +277,7 @@ class ActionServerLogs(DynamicDocument):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = StringField(default=STATUSES.SUCCESS.value)
     trigger_info = EmbeddedDocumentField(TriggerInfo, default = TriggerInfo)
+    request_id = StringField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 

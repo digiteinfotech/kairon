@@ -7,6 +7,7 @@ from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -101,7 +102,8 @@ class ActionFormValidation(ActionsBase):
                 bot=tracker.get_slot("bot"),
                 messages=msg,
                 status=status,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
 
         return {slot: slot_value}

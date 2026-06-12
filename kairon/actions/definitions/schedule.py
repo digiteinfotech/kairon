@@ -22,6 +22,7 @@ from kairon.actions.definitions.base import ActionsBase
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, ScheduleActionType, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
@@ -158,7 +159,8 @@ class ActionSchedule(ActionsBase):
                 timezone=timezone,
                 execution_info=execution_info,
                 data=schedule_data_log,
-                trigger_info=trigger_info_obj
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         return {}
 

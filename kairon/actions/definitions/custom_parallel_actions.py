@@ -11,6 +11,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon import Utility
 from kairon.actions.definitions.base import ActionsBase
 from kairon.shared.actions.data_objects import ActionServerLogs, ParallelActionConfig, TriggerInfo
+from kairon.shared.request_context import REQUEST_ID_HEADER, get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
@@ -72,7 +73,7 @@ class ActionParallel(ActionsBase):
             action_names = action_config['actions']
             dispatch_bot_response = action_config['dispatch_response_text']
             response_text = action_config['response_text']
-            log_entry = ActionServerLogs()
+            log_entry = ActionServerLogs(request_id=get_request_id())
             log_entry.save()
             trigger_id = str(log_entry.id)
             results = await asyncio.gather(
@@ -99,7 +100,7 @@ class ActionParallel(ActionsBase):
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)
             if not trigger_id:
-                log_entry = ActionServerLogs()
+                log_entry = ActionServerLogs(request_id=get_request_id())
                 log_entry.save()
                 trigger_id = str(log_entry.id)
             action_server_log_obj=ActionServerLogs.objects(_id=ObjectId(trigger_id)).get()
@@ -113,6 +114,7 @@ class ActionParallel(ActionsBase):
             action_server_log_obj.status = status
             action_server_log_obj.user_msg = tracker.latest_message.get('text')
             action_server_log_obj.trigger_info = trigger_info_obj
+            action_server_log_obj.request_id = get_request_id()
             action_server_log_obj.save()
 
         return filled_slots
@@ -153,8 +155,13 @@ class ActionParallel(ActionsBase):
 
         url = Utility.environment["action"].get("url")
 
+        headers = {}
+        request_id = get_request_id()
+        if request_id:
+            headers[REQUEST_ID_HEADER] = request_id
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=request_json) as response:
+            async with session.post(url, json=request_json, headers=headers) as response:
                 response_json = await response.json()
 
         return response_json

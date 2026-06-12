@@ -5,6 +5,7 @@ from rasa.core.channels import UserMessage
 
 from kairon import Utility
 from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.request_context import get_request_id
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,9 @@ class LiveAgentHandler:
             "sender_id": sender_id,
             "channel": channel,
         }
+        rid = get_request_id()
+        if rid:
+            data['request_id'] = rid
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f"Bearer {auth_token}"
