@@ -150,6 +150,7 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+    bsp_gupshup = "gupshup"
 
 
 class GPT3ResourceTypes(str, Enum):

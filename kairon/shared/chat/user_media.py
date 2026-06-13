@@ -19,6 +19,7 @@ from kairon.shared.actions.data_objects import Actions, PromptAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.data_objects import UserMediaData, Rules, Intents
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
@@ -126,6 +127,7 @@ class UserMedia:
                                                        output_filename=output_filename,
                                                        filesize=filesize)
             logger.info(f"saved {media_id} successfully")
+            return url
         except ClientError as e:
             logger.exception(e)
             UserMedia.mark_user_media_data_upload_failed(media_id=media_id, reason=str(e))
@@ -551,6 +553,20 @@ class UserMedia:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
+    def get_media_handle_id(bot: str, media_id: str):
+        try:
+            obj = UserMediaData.objects.get(
+                bot=bot,
+                media_id=media_id
+            )
+            media_data = obj.to_mongo().to_dict()
+            handle_id = media_data.get('external_upload_info', {}).get('handle_id')
+
+            return handle_id
+        except Exception as e:
+            raise AppException(f"Failed to get media handle_id:{str(e)}")
+
+    @staticmethod
     def delete_media(bot, media_id: str, bucket: str = None):
         """
         Deletes a media file from the database and S3.
@@ -580,6 +596,7 @@ class UserMedia:
             filename: str,
             extension: str,
             filesize: int,
+            bsp_type: str = WhatsappBSPTypes.bsp_360dialog.value,
     ) -> UserMediaData:
         """
         Create a media document in pending state, return the instance so it can be updated later.
@@ -598,7 +615,7 @@ class UserMedia:
             sender_id=sender_id,
             bot=bot,
             external_upload_info={
-                "bsp": "360dialog",
+                "bsp": bsp_type,
                 "external_media_id": "",
                 "error": "",
             },
