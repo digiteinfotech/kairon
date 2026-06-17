@@ -236,14 +236,14 @@ def setup():
         llm_type="openai",
         api_key="value",
         models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
-        user="user"
+        user=user
     ).save()
 
     LLMSecret(
         llm_type="anthropic",
         api_key="value",
         models=["claude-3-7-sonnet-20250219"],
-        user="user"
+        user=user
     ).save()
 
     yield
@@ -3766,6 +3766,14 @@ def test_get_llm_metadata():
             "bot": pytest.bot,
             "timestamp": datetime.utcnow()
         },
+        {
+            "llm_type": "anthropic",
+            "api_key": "custom_claude_key",
+            "models": ["claude-3-7-sonnet-20250219"],
+            "bot": pytest.bot,
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
     ]
 
     for secret in secrets:

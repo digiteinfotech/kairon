@@ -3,8 +3,6 @@ import time
 import urllib.parse
 import asyncio
 import json
-from copy import deepcopy
-from datetime import datetime
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin

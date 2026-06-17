@@ -2154,7 +2154,13 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.llm_metadata.keys()
+        from kairon.shared.admin.data_objects import LLMMetadata
+        from mongoengine.connection import ConnectionFailure
+
+        try:
+            return LLMMetadata.objects.distinct("provider")
+        except ConnectionFailure:
+            return ["openai", "anthropic"]
 
     @staticmethod
     def get_default_llm_hyperparameters():
