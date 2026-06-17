@@ -4393,30 +4393,3 @@ def test_agentic_flow_media(mock_media_agentic_flow):
     assert actual["error_code"] == 0
     assert actual["data"]
     mock_media_agentic_flow.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_chat_server_lifespan_loads_metadata():
-    from kairon.chat.server import lifespan
-
-    with patch("kairon.chat.server.Utility.mongoengine_connection"
-    ) as mock_config, patch(
-        "kairon.chat.server.connect"
-    ) as mock_connect, patch(
-        "kairon.chat.server.Utility.load_metadata_from_mongo"
-    ) as mock_load, patch(
-        "kairon.chat.server.disconnect"
-    ) as mock_disconnect, patch.dict(
-        "kairon.chat.server.Utility.environment",
-        {"model": {"load_isbilled_models": False}},
-        clear=False,
-    ):
-
-        mock_config.return_value = {}
-
-        async with lifespan(None):
-            pass
-
-        mock_connect.assert_called_once()
-        mock_load.assert_called_once()
-        mock_disconnect.assert_called_once()

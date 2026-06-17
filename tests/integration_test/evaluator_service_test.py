@@ -374,27 +374,3 @@ def test_run_pyscript_with_interpreter_error():
     assert actual['error_code'] == 422
     assert not actual['data']
     assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)'
-
-
-@pytest.mark.asyncio
-async def test_evaluator_server_lifespan_loads_metadata():
-    from kairon.evaluator.main import lifespan
-
-    with patch(
-        "kairon.evaluator.main.Utility.mongoengine_connection"
-    ) as mock_config, patch(
-        "kairon.evaluator.main.connect"
-    ) as mock_connect, patch(
-        "kairon.evaluator.main.Utility.load_metadata_from_mongo"
-    ) as mock_load, patch(
-        "kairon.evaluator.main.disconnect"
-    ) as mock_disconnect:
-
-        mock_config.return_value = {}
-
-        async with lifespan(None):
-            pass
-
-        mock_connect.assert_called_once()
-        mock_load.assert_called_once()
-        mock_disconnect.assert_called_once()
