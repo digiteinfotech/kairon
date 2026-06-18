@@ -111,8 +111,6 @@ class TestMongoProcessor:
     def init_connection(self):
         connect(**Utility.mongoengine_connection())
 
-        user = "integration@demo.ai"
-
         LLMMetadata.objects.delete()
 
         LLMMetadata(
@@ -200,7 +198,7 @@ class TestMongoProcessor:
                     "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
                 }
             },
-            user=user
+            user="user"
         ).save()
 
         LLMMetadata(
@@ -225,7 +223,7 @@ class TestMongoProcessor:
                     "description": "The model hyperparameter is the ID of the Anthropic model."
                 }
             },
-            user=user
+            user="user"
         ).save()
 
         yield

@@ -137,9 +137,6 @@ invalid_callback_config_missing_field = {
 def setup():
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-
-    user = "integration@demo.ai"
-
     LLMMetadata.objects.delete()
 
     LLMMetadata(
@@ -227,7 +224,7 @@ def setup():
                 "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     LLMMetadata(
@@ -295,7 +292,7 @@ def setup():
                 "description": "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     yield

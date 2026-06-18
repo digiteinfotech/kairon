@@ -115,8 +115,7 @@ def setup():
     connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
     AccountProcessor.load_system_properties()
 
-    user = "integration@demo.ai"
-
+    LLMSecret.objects.delete()
     LLMMetadata.objects.delete()
 
     LLMMetadata(
@@ -204,7 +203,7 @@ def setup():
                 "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     LLMMetadata(
@@ -229,21 +228,21 @@ def setup():
                 "description": "The model hyperparameter is the ID of the Anthropic model."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     LLMSecret(
         llm_type="openai",
         api_key="value",
         models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
-        user=user
+        user="user"
     ).save()
 
     LLMSecret(
         llm_type="anthropic",
         api_key="value",
         models=["claude-3-7-sonnet-20250219"],
-        user=user
+        user="user"
     ).save()
 
     yield

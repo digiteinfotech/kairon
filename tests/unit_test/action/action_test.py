@@ -65,8 +65,6 @@ class TestActions:
         Utility.load_email_configuration()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-        user = "integration@demo.ai"
-
         LLMMetadata.objects.delete()
 
         LLMMetadata(
@@ -154,7 +152,7 @@ class TestActions:
                     "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
                 }
             },
-            user=user
+            user="user"
         ).save()
 
         yield

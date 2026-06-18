@@ -2158,7 +2158,8 @@ class Utility:
         from mongoengine.connection import ConnectionFailure
 
         try:
-            return LLMMetadata.objects.distinct("provider")
+            providers = LLMMetadata.objects.distinct("provider")
+            return providers or ["openai", "anthropic"]
         except ConnectionFailure:
             return ["openai", "anthropic"]
 

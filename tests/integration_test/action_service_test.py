@@ -69,8 +69,6 @@ def setup():
     Utility.load_environment()
     connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
 
-    user = "integration@demo.ai"
-
     LLMMetadata.objects.delete()
 
     LLMMetadata(
@@ -158,7 +156,7 @@ def setup():
                 "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     LLMMetadata(
@@ -183,7 +181,7 @@ def setup():
                 "description": "The model hyperparameter is the ID of the Anthropic model."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     LLMMetadata(
@@ -281,7 +279,7 @@ def setup():
                 "description": "The frequency_penalty hyperparameter penalizes the model for generating words that have already been generated in the current response."
             }
         },
-        user=user
+        user="user"
     ).save()
 
     yield
