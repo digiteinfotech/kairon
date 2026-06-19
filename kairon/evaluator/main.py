@@ -50,7 +50,6 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
-    Utility.load_metadata_from_mongo()
     yield
     disconnect()
 

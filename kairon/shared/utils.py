@@ -275,15 +275,6 @@ class Utility:
         Utility.load_system_metadata()
 
     @staticmethod
-    def load_metadata_from_mongo():
-        """
-        Loads LLM metadata after MongoDB initialization.
-        This is executed post database connection as metadata is
-        fetched from the l_l_m_metadata collection.
-        """
-        Utility.load_llm_metadata()
-
-    @staticmethod
     def load_system_metadata():
         """
         Loads the metadata for various actions including integrations
@@ -297,28 +288,6 @@ class Utility:
                 Utility.system_metadata.update(
                     Utility.load_yaml(file)
                 )
-
-    @staticmethod
-    def load_llm_metadata():
-        """
-        Loads the metadata for LLM from l_l_m_metadata collection.
-
-        :return: None
-        """
-        from kairon.shared.admin.data_objects import LLMMetadata
-        metadata_docs = LLMMetadata.objects()
-        metadata = {}
-
-        for item in metadata_docs:
-            metadata[item.provider] = {
-                "$schema": item.schema,
-                "type": item.type,
-                "description": item.description,
-                "properties": json.loads(json.dumps(item.properties))
-            }
-
-        Utility.llm_metadata = metadata
-
 
     @staticmethod
     def retrieve_field_values(document: Document, field: str, *args, **kwargs):
@@ -2185,7 +2154,14 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.llm_metadata.keys()
+        from kairon.shared.admin.data_objects import LLMMetadata
+        from mongoengine.connection import ConnectionFailure
+
+        try:
+            providers = LLMMetadata.objects.distinct("provider")
+            return providers or ["openai", "anthropic"]
+        except ConnectionFailure:
+            return ["openai", "anthropic"]
 
     @staticmethod
     def get_default_llm_hyperparameters():
@@ -2193,26 +2169,40 @@ class Utility:
 
     @staticmethod
     def get_llm_hyperparameters(llm_type):
+        from kairon.shared.admin.data_objects import LLMMetadata
+
+        metadata = LLMMetadata.objects(provider=llm_type).first()
+        if not metadata:
+            raise AppException(
+                f"Could not find any hyperparameters for {llm_type} LLM."
+            )
+
         hyperparameters = {}
-        if llm_type in Utility.llm_metadata.keys():
-            for key, value in Utility.llm_metadata[llm_type]['properties'].items():
-                hyperparameters[key] = value["default"]
-            return hyperparameters
-        raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
+        for key, value in metadata.properties.items():
+            hyperparameters[key] = value["default"]
+
+        return hyperparameters
 
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
         from kairon.shared.llm.processor import LLMProcessor
+        from kairon.shared.admin.data_objects import LLMMetadata
         import json
 
-        schema = LLMProcessor.fetch_llms_metadata(bot).get(llm_type)
+        metadata = LLMMetadata.objects(provider=llm_type).first()
+        if not metadata:
+            raise exception_class(f"LLM metadata not found for provider: {llm_type}")
 
-        if not schema:
-            raise exception_class(f"Metadata not found for llm_type: {llm_type}")
+        schema = {
+            "$schema": metadata.schema,
+            "type": metadata.type,
+            "description": metadata.description,
+            "properties": json.loads(json.dumps(metadata.properties)),
+        }
 
-        # Convert MongoEngine BaseDict/BaseList to native Python dict/list
-        schema = json.loads(json.dumps(schema))
+        models_list = LLMProcessor.get_llm_metadata(bot, llm_type)
+        schema["properties"]["model"]["enum"] = models_list
 
         try:
             validator = JSONSchema(schema)

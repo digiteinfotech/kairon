@@ -2,7 +2,7 @@ import os
 import time
 import urllib.parse
 import asyncio
-from copy import deepcopy
+import json
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
@@ -16,7 +16,7 @@ from tqdm import tqdm
 from kairon.exceptions import AppException
 from kairon.shared.request_context import get_request_id, REQUEST_ID_HEADER
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -520,17 +520,24 @@ class LLMProcessor(LLMBase):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
-        :return: dictionary where each key is a llm_type and the value is a list of models.
+        :return: dictionary where each key is a llm_type and the value is metadata.
         """
-        metadata = Utility.llm_metadata
+        metadata_docs = LLMMetadata.objects()
         final_metadata = {}
-        for llm_type, llm_metadata in metadata.items():
+        for metadata in metadata_docs:
+            llm_type = metadata.provider
             models = LLMProcessor.get_llm_metadata(bot, llm_type)
 
             if models:
-                metadata_copy = deepcopy(llm_metadata)
-                metadata_copy["properties"]["model"]["enum"] = models
-                final_metadata[llm_type] = metadata_copy
+                metadata_dict = {
+                    "$schema": metadata.schema,
+                    "type": metadata.type,
+                    "description": metadata.description,
+                    "properties": json.loads(json.dumps(metadata.properties))
+                }
+
+                metadata_dict['properties']['model']['enum'] = models
+                final_metadata[llm_type] = metadata_dict
 
         return final_metadata
 
