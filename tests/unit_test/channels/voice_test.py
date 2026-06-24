@@ -456,7 +456,6 @@ class TestVoiceHandler:
         from kairon.shared.chat.processor import ChatDataProcessor
 
         config = self._make_channel_config()
-        config["config"]["welcome_message"] = "Welcome to Kairon!"
         request = self._make_request({"CallSid": "CA123", "CallStatus": "ringing"})
         handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
 
@@ -472,7 +471,7 @@ class TestVoiceHandler:
                     await handler.handle_incoming_call()
 
         user_msg = mock_agent.call_args[0][1]
-        assert user_msg.text == "Welcome to Kairon!"
+        assert user_msg.text == "Hello! How can I help you?"
 
     @pytest.mark.asyncio
     async def test_handle_incoming_call_speech_result_goes_to_rasa(self):
