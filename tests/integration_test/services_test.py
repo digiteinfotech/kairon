@@ -19399,7 +19399,8 @@ def test_get_data_importer_logs():
                                                      {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                      {'type': 'callback_actions', 'count': 0, 'data': []},
                                                      {'type': 'schedule_actions', 'count': 0, 'data': []},
-                                                     {'type': 'parallel_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                     {'type': 'voice_call_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
@@ -19453,7 +19454,8 @@ def test_get_data_importer_logs():
                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
-                                                    {'type': 'parallel_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                    {'type': 'voice_call_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
@@ -20678,7 +20680,8 @@ def test_add_story_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -21354,7 +21357,8 @@ def test_add_multiflow_story_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
         }
@@ -21449,7 +21453,8 @@ def test_update_story_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -21947,7 +21952,8 @@ def test_update_multiflow_story_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
         }
@@ -27925,7 +27931,8 @@ def test_add_rule_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -28041,7 +28048,8 @@ def test_update_rule_invalid_event_type():
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
                     "SCHEDULE_ACTION",
-                    "PARALLEL_ACTION"
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
@@ -28340,7 +28348,8 @@ def test_upload_actions_and_config():
                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
-                                                    {'type': 'parallel_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                    {'type': 'voice_call_actions', 'count': 0, 'data': []}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
