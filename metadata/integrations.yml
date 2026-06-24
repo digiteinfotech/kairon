@@ -105,6 +105,8 @@ voice_channels:
       - voice_types
       - language
       - welcome_message
+      - speech_timeout
+      - reprompt_fallback_phrase
     disabled_fields:
       - call_url
       - status_url

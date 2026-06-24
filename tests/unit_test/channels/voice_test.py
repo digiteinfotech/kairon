@@ -49,8 +49,8 @@ class TestTwilioVoiceProvider:
 
     def _make_config(self, extra=None):
         config = {
-            "account_sid": Utility.encrypt_message("ACtest1234567890"),
-            "auth_token": Utility.encrypt_message("test_auth_token"),
+            "account_sid": "ACtest1234567890",
+            "auth_token": "test_auth_token",
             "phone_number": "+12025551234",
             "telephony_provider": "twilio",
             "voice_type": "Polly.Amy",
@@ -65,7 +65,7 @@ class TestTwilioVoiceProvider:
         from kairon.chat.handlers.channels.clients.voice.twilio import TwilioVoiceProvider
         return TwilioVoiceProvider("testbot", self._make_config(extra))
 
-    def test_init_decrypts_credentials(self):
+    def test_init_reads_credentials_from_plaintext_config(self):
         provider = self._make_provider()
         assert provider.account_sid == "ACtest1234567890"
         assert provider.auth_token == "test_auth_token"
@@ -343,8 +343,8 @@ class TestVoiceHandler:
         return {
             "connector_type": "voice",
             "config": {
-                "account_sid": Utility.encrypt_message("ACtest1234567890"),
-                "auth_token": Utility.encrypt_message("test_auth_token"),
+                "account_sid": "ACtest1234567890",
+                "auth_token": "test_auth_token",
                 "phone_number": "+12025551234",
                 "telephony_provider": "twilio",
                 "voice_type": "Polly.Amy",
@@ -456,7 +456,7 @@ class TestVoiceHandler:
         from kairon.shared.chat.processor import ChatDataProcessor
 
         config = self._make_channel_config()
-        config["config"]["welcomeMessage"] = "Welcome to Kairon!"
+        config["config"]["welcome_message"] = "Welcome to Kairon!"
         request = self._make_request({"CallSid": "CA123", "CallStatus": "ringing"})
         handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
 
@@ -998,8 +998,8 @@ class TestVoiceServiceEndpoints:
         return {
             "connector_type": "voice",
             "config": {
-                "account_sid": Utility.encrypt_message("ACtest"),
-                "auth_token": Utility.encrypt_message("authtest"),
+                "account_sid": "ACtest",
+                "auth_token": "authtest",
                 "phone_number": "+15550001234",
                 "telephony_provider": "twilio",
                 "voice_type": "Polly.Amy",

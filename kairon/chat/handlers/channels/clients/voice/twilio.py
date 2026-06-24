@@ -8,7 +8,6 @@ from twilio.twiml.voice_response import Gather, VoiceResponse
 from kairon.chat.handlers.channels.clients.voice.base import VoiceProviderBase
 from kairon.exceptions import AppException
 from kairon.shared.chat.data_objects import ChannelLogs
-from kairon.shared.utils import Utility
 
 logger = logging.getLogger(__name__)
 
@@ -17,15 +16,17 @@ class TwilioVoiceProvider(VoiceProviderBase):
 
     def __init__(self, bot: str, config: dict):
         """
-        Decrypt Twilio credentials from config and initialise the request validator.
+        Initialise provider from already-decrypted channel config.
+
+        config is supplied by get_channel_config(mask_characters=False) which decrypts
+        account_sid and auth_token before reaching this point. Do NOT decrypt here.
 
         :param bot: bot ID this provider is serving
-        :param config: channel config dict containing account_sid, auth_token, phone_number,
-                       and optional voice_type, speech_timeout, language
+        :param config: decrypted channel config dict
         """
         super().__init__(bot, config)
-        self.account_sid = Utility.decrypt_message(config["account_sid"])
-        self.auth_token = Utility.decrypt_message(config["auth_token"])
+        self.account_sid = config["account_sid"]
+        self.auth_token = config["auth_token"]
         self.phone_number = config["phone_number"]
         self.voice_type = config.get("voice_type", "Polly.Amy")
         self.speech_model = "default"
