@@ -1961,6 +1961,11 @@ class MongoProcessor:
                     "name", "id"
                 )
             ),
+            StoryStepType.voice_call_action.value: dict(
+                VoiceCallAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
         }
         return component_dict
 
@@ -3698,6 +3703,7 @@ class MongoProcessor:
         callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
         schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
         parallel_actions = set(ParallelActionConfig.objects(bot=bot, status=True).values_list('name'))
+        voice_call_actions = set(VoiceCallAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3771,6 +3777,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.parallel_action.value
                     elif event['name'] in schedule_action:
                         step["type"] = StoryStepType.schedule_action.value
+                    elif event['name'] in voice_call_actions:
+                        step["type"] = StoryStepType.voice_call_action.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'

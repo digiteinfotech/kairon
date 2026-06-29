@@ -10582,7 +10582,7 @@ class TestMongoProcessor:
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
                             'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
-                            'parallel_action': [],
+                            'parallel_action': [], 'voice_call_action': []
                         }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2

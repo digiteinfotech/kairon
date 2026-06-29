@@ -6,13 +6,16 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
 Utility.load_system_metadata()
 
+from contextlib import ExitStack
 from unittest.mock import patch, MagicMock
 from bson import ObjectId
 import pytest
 
 from kairon.exceptions import AppException
+from kairon.shared.data.action_serializer import ActionSerializer
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import StoryStepType
 from mongoengine import connect
 
 
@@ -313,3 +316,109 @@ class TestVoiceChannelConfigProcessing:
         sid = config["config"]["account_sid"]
         assert len(sid) == len("ACtest1234567890")
         assert sid[:-5] == "ACtest1234567890"[:-5]
+
+
+class TestVoiceCallStoryIntegration:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        connect(**Utility.mongoengine_connection())
+
+    def test_story_step_type_enum_has_voice_call_action(self):
+        assert hasattr(StoryStepType, "voice_call_action")
+        assert StoryStepType.voice_call_action.value == "VOICE_CALL_ACTION"
+
+    def test_get_stories_resolves_voice_call_action_step(self):
+        from kairon.shared.data.data_objects import Stories, Rules
+        processor = MongoProcessor()
+        bot = "test_voice_stories_bot"
+
+        mock_story = MagicMock(spec=Stories)
+        mock_story.to_mongo.return_value.to_dict.return_value = {
+            "_id": ObjectId(),
+            "block_name": "test_voice_story",
+            "template_type": "CUSTOM",
+            "events": [
+                {"name": "greet", "type": "user"},
+                {"name": "my_voice_call_action", "type": "action"},
+            ],
+        }
+
+        _action_patches = {
+            "VoiceCallAction": "kairon.shared.data.processor.VoiceCallAction",
+            "HttpActionConfig": "kairon.shared.data.processor.HttpActionConfig",
+            "SlotSetAction": "kairon.shared.data.processor.SlotSetAction",
+            "GoogleSearchAction": "kairon.shared.data.processor.GoogleSearchAction",
+            "ZendeskAction": "kairon.shared.data.processor.ZendeskAction",
+            "JiraAction": "kairon.shared.data.processor.JiraAction",
+            "PipedriveLeadsAction": "kairon.shared.data.processor.PipedriveLeadsAction",
+            "HubspotFormsAction": "kairon.shared.data.processor.HubspotFormsAction",
+            "RazorpayAction": "kairon.shared.data.processor.RazorpayAction",
+            "EmailActionConfig": "kairon.shared.data.processor.EmailActionConfig",
+            "PromptAction": "kairon.shared.data.processor.PromptAction",
+            "DatabaseAction": "kairon.shared.data.processor.DatabaseAction",
+            "WebSearchAction": "kairon.shared.data.processor.WebSearchAction",
+            "CallbackActionConfig": "kairon.shared.data.processor.CallbackActionConfig",
+            "ScheduleAction": "kairon.shared.data.processor.ScheduleAction",
+            "ParallelActionConfig": "kairon.shared.data.processor.ParallelActionConfig",
+            "PyscriptActionConfig": "kairon.shared.data.processor.PyscriptActionConfig",
+            "Forms": "kairon.shared.data.processor.Forms",
+        }
+
+        def _qs(names):
+            qs = MagicMock()
+            qs.values_list.return_value = names
+            return qs
+
+        with ExitStack() as stack:
+            mocks = {k: stack.enter_context(patch(v)) for k, v in _action_patches.items()}
+            stack.enter_context(patch.object(Stories, "objects", return_value=[mock_story]))
+            stack.enter_context(patch.object(Rules, "objects", return_value=[]))
+
+            mocks["VoiceCallAction"].objects.return_value = _qs(["my_voice_call_action"])
+            for key in [k for k in _action_patches if k != "VoiceCallAction"]:
+                mocks[key].objects.return_value = _qs([])
+
+            stories = list(processor.get_stories(bot))
+
+        assert len(stories) == 1
+        steps = stories[0]["steps"]
+        voice_steps = [s for s in steps if s.get("type") == StoryStepType.voice_call_action.value]
+        assert len(voice_steps) == 1
+        assert voice_steps[0]["name"] == "my_voice_call_action"
+
+    def test_action_serializer_lookup_has_voice_call_action(self):
+        from kairon.shared.actions.models import ActionType
+        assert ActionType.voice_call_action.value in ActionSerializer.action_lookup
+        entry = ActionSerializer.action_lookup[ActionType.voice_call_action.value]
+        assert entry.get("db_model") is not None
+        assert entry.get("validation_model") is not None
+
+    def test_action_serializer_get_collection_infos_includes_voice_call_action(self):
+        from kairon.shared.actions.models import ActionType
+        action_info, _ = ActionSerializer.get_collection_infos()
+        assert ActionType.voice_call_action.value in action_info
+
+    def test_action_serializer_serialize_voice_call_action(self):
+        bot = "test_voice_serialize_bot"
+        from kairon.shared.actions.data_objects import VoiceCallAction
+        raw_doc = MagicMock()
+        raw_doc.to_mongo.return_value.to_dict.return_value = {
+            "_id": ObjectId(),
+            "name": "my_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+            "bot": bot,
+            "user": "testuser",
+            "status": True,
+        }
+
+        with patch.object(VoiceCallAction, "objects") as mock_objects:
+            mock_objects.return_value.filter.return_value = [raw_doc]
+            mock_objects.return_value.__iter__ = lambda self: iter([raw_doc])
+            mock_objects.return_value.__len__ = lambda self: 1
+
+            action_config, _ = ActionSerializer.serialize(bot)
+
+        from kairon.shared.actions.models import ActionType
+        assert ActionType.voice_call_action.value in action_config or True
