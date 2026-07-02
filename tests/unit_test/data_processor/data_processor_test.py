@@ -13420,9 +13420,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_delete_typed'
         user = 'test'
-        action = {'name': 'action_slot_to_delete',
-                  'set_slots': [{'name': 'slot1', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '1'}]}
-        processor.add_slot_set_action(action, bot, user)
+        SlotSetAction(name='action_slot_to_delete', set_slots=[], bot=bot, user=user).save()
+        Actions(name='action_slot_to_delete', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
         assert SlotSetAction.objects(name='action_slot_to_delete', bot=bot, status=True).count() == 1
         processor.delete_action('action_slot_to_delete', bot, user)
         assert Actions.objects(name='action_slot_to_delete', bot=bot).count() == 0
