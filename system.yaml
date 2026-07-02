@@ -23,7 +23,7 @@ storage:
     allowed_extensions: ${BOT_ASSETS_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg"]}
   user_media:
     root_dir: ${USER_MEDIA_ROOT_DIRECTORY:"user_media"}
-    bucket: ${USER_MEDIA_BUCKET:}
+    bucket: ${USER_MEDIA_BUCKET:"prod-kairon-upload"}
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
   temp_media_url_expiry_time: ${S3_TEMP_URL_EXPIRY_TIME:900}
   whatsapp_media:
@@ -79,7 +79,7 @@ model:
   content_importer:
     limit_per_day: ${CONTENT_IMPORTING_LIMIT_PER_DAY:5}
   agent:
-    url: ${AGENT_URL}
+    url: ${AGENT_URL:"http://localhost:5000/"}
   config_properties:
     epoch_max_limit: ${EPOCH_MAX_LIMIT:200}
   pipeline:
@@ -149,7 +149,7 @@ events:
     data_generator: ${DATA_GENERATION_TASK_DEFINITION}
     message_broadcast: ${MESSAGE_BROADCAST_TASK_DEFINITION}
     web_search: ${WEB_SEARCH_TASK_DEFINITION}
-    pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
+    pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION:"prod-pyscript-executor"}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
     upload_file_handler: ${FILE_CONTENT_IMPORTER_TASK_DEFINITION}
@@ -191,7 +191,7 @@ multilingual:
 tracker:
   type: ${TRACKER_TYPE:"static"}
   url: ${TRACKER_URL:"mongodb://localhost:27017/test_conversations"}
-  collection: ${TRACKER_COLLECTION:"conversations"}
+  collection: ${TRACKER_COLLECTION:"698ac57e68904a21f6954f4e"}
   authentication:
     token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
 
@@ -216,6 +216,9 @@ cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
 channels:
+  gupshup:
+    partner_email: ${360_DIALOG_PARTNER_EMAIL:"mahesh.sattala@digite.com"}
+    partner_password: ${360DIALOG_PARTNER_PASSWORD:"yXIQrUlkNoES2yWrb_sSX3frcHMHGoQcpnWnfsvknvQdbzgnn5nM0N_9hKThJj9e"}
   360dialog:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
@@ -224,7 +227,7 @@ channels:
 llm:
   faq: ${LLM_FAQ_TYPE:GPT3_FAQ_EMBED}
   key: ${TEMPLATE_LLM_KEY}
-  url: ${LLM_SERVER_URL:http://localhost}
+  url: ${LLM_SERVER_URL:http://localhost:5057}
   request_timeout: ${LLM_REQUEST_TIMEOUT:30}
 
 llama_parse:
@@ -280,7 +283,7 @@ async_callback_action:
     aes_key: ${ASYNC_CALLBACK_AES_KEY:"3b1fbd562a0b5a29cc9a1b29b2c2d17a8a62b0d94f7637f1088e07fa1dbdcd14"}
     aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
-    trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
+    trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:true}
     url: ${TRIGGER_MAIN_PYSCRIPT_URL:"http://localhost:5059/main_pyscript/execute-python"}
 
 broadcast:
@@ -290,5 +293,5 @@ broadcast:
 pos:
   odoo:
     odoo_url: ${ODOO_URL:"http://localhost:8080"}
-    odoo_master_password: ${ODOO_MASTER_PASSWORD}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD:"kaironodoo@5432"}
     odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}

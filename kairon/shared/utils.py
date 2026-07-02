@@ -1348,11 +1348,51 @@ class Utility:
             )
 
     @staticmethod
-    def validate_create_template_request(data: Dict):
-        required_keys = ["name", "category", "components", "language"]
+    def validate_create_template_request(data: Dict, bsp_type: str = "360dialog"):
+        """
+        Validate template creation request for WhatsApp BSPs
+        """
+
+        if bsp_type == "360dialog":
+            required_keys = ["name", "category", "components", "language"]
+
+        elif bsp_type == "gupshup":
+            required_keys = [
+                "elementName",
+                "content",
+                "category",
+                "vertical",
+                "templateType",
+                "example"
+            ]
+
+            template_type = data.get("templateType")
+
+            if template_type in ["IMAGE", "VIDEO", "DOCUMENT"]:
+                if not data.get("exampleMedia"):
+                    raise AppException(
+                        f"exampleMedia (handleId) is required for {template_type} templates"
+                    )
+
+            elif template_type == "TEXT":
+                # If header has variables like {{1}}, exampleHeader is required
+                header = data.get("header")
+                if header and "{{" in header and not data.get("exampleHeader"):
+                    raise AppException(
+                        "exampleHeader is required when header contains variables"
+                    )
+            else:
+                raise AppException(f"Invalid templateType: {template_type}")
+
+        else:
+            raise AppException(f"Unsupported BSP type: {bsp_type}")
+
         missing_keys = [key for key in required_keys if key not in data]
+
         if missing_keys:
-            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+            raise AppException(
+                f'Missing {", ".join(missing_keys)} in request body!'
+            )
 
     @staticmethod
     def validate_edit_template_request(data: Dict):
