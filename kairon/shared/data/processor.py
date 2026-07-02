@@ -7055,6 +7055,13 @@ class MongoProcessor:
             )
 
     def delete_action(self, name: Text, bot: Text, user: Text):
+        """
+        soft delete an action
+        :param name: action name
+        :param bot: bot id
+        :param user: user id
+        :return:
+        """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
 
