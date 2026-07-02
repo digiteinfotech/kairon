@@ -88,7 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
-    ParallelActionConfig, AnalyticsPipelineConfig, VoiceCallAction,
+    ParallelActionConfig, AnalyticsPipelineConfig, VoiceCallAction, ACTION_TYPE_MODEL_MAP,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -5133,11 +5133,9 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([
-            HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
-            PyscriptActionConfig, RazorpayAction, DatabaseAction
-        ], bot=bot, user=user)
+        Utility.hard_delete_document(
+            [model_cls for model_cls, _ in ACTION_TYPE_MODEL_MAP.values()], bot=bot, user=user
+        )
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None, user=user)
 
     def __get_rules(self, bot: Text):
@@ -7034,13 +7032,6 @@ class MongoProcessor:
             )
 
     def delete_action(self, name: Text, bot: Text, user: Text):
-        """
-        soft delete an action
-        :param name: action name
-        :param bot: bot id
-        :param user: user id
-        :return:
-        """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
 
@@ -7055,95 +7046,11 @@ class MongoProcessor:
                 exp_message=f"Action with name {name} is attached with PromptAction!",
             )
 
-            if action.type == ActionType.slot_set_action.value:
+            entry = ACTION_TYPE_MODEL_MAP.get(action.type)
+            if entry:
+                model_cls, name_field = entry
                 Utility.hard_delete_document(
-                    [SlotSetAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.form_validation_action.value:
-                Utility.hard_delete_document(
-                    [FormValidationAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.email_action.value:
-                Utility.hard_delete_document(
-                    [EmailActionConfig],
-                    action_name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.google_search_action.value:
-                Utility.hard_delete_document(
-                    [GoogleSearchAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.jira_action.value:
-                Utility.hard_delete_document(
-                    [JiraAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.http_action.value:
-                Utility.hard_delete_document(
-                    [HttpActionConfig], action_name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.zendesk_action.value:
-                Utility.hard_delete_document(
-                    [ZendeskAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.pipedrive_leads_action.value:
-                Utility.hard_delete_document(
-                    [PipedriveLeadsAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.hubspot_forms_action.value:
-                Utility.hard_delete_document(
-                    [HubspotFormsAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.two_stage_fallback.value:
-                Utility.hard_delete_document(
-                    [KaironTwoStageFallbackAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.razorpay_action.value:
-                Utility.hard_delete_document(
-                    [RazorpayAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.database_action.value:
-                Utility.hard_delete_document(
-                    [DatabaseAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.web_search_action.value:
-                Utility.hard_delete_document(
-                    [WebSearchAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.prompt_action.value:
-                Utility.hard_delete_document([PromptAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.pyscript_action.value:
-                Utility.hard_delete_document(
-                    [PyscriptActionConfig], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.schedule_action.value:
-                Utility.hard_delete_document(
-                    [ScheduleAction], name__iexact=name, bot=bot
-                )
-            elif action.type == ActionType.parallel_action.value:
-                Utility.hard_delete_document(
-                    [ParallelActionConfig], name__iexact=name, bot=bot
+                    [model_cls], **{f"{name_field}__iexact": name}, bot=bot, user=user
                 )
             action.delete()
         except DoesNotExist:

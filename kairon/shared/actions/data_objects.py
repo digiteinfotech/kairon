@@ -1151,3 +1151,26 @@ class AnalyticsPipelineConfig(Auditlog):
         if self.scheduler_config:
             self.scheduler_config.validate()
 
+
+ACTION_TYPE_MODEL_MAP = {
+    ActionType.http_action.value:            (HttpActionConfig,             "action_name"),
+    ActionType.slot_set_action.value:        (SlotSetAction,                "name"),
+    ActionType.form_validation_action.value: (FormValidationAction,         "name"),
+    ActionType.email_action.value:           (EmailActionConfig,            "action_name"),
+    ActionType.google_search_action.value:   (GoogleSearchAction,           "name"),
+    ActionType.jira_action.value:            (JiraAction,                   "name"),
+    ActionType.zendesk_action.value:         (ZendeskAction,                "name"),
+    ActionType.pipedrive_leads_action.value: (PipedriveLeadsAction,         "name"),
+    ActionType.hubspot_forms_action.value:   (HubspotFormsAction,           "name"),
+    ActionType.two_stage_fallback.value:     (KaironTwoStageFallbackAction, "name"),
+    ActionType.razorpay_action.value:        (RazorpayAction,               "name"),
+    ActionType.database_action.value:        (DatabaseAction,               "name"),
+    ActionType.web_search_action.value:      (WebSearchAction,              "name"),
+    ActionType.prompt_action.value:          (PromptAction,                 "name"),
+    ActionType.pyscript_action.value:        (PyscriptActionConfig,         "name"),
+    ActionType.schedule_action.value:        (ScheduleAction,               "name"),
+    ActionType.parallel_action.value:        (ParallelActionConfig,         "name"),
+    ActionType.voice_call_action.value:      (VoiceCallAction,              "name"),
+    ActionType.callback_action.value:        (CallbackActionConfig,         "name"),
+}
+

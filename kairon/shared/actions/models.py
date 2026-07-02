@@ -1,5 +1,7 @@
 from enum import Enum
 
+from kairon.shared.actions.data_objects import HttpActionConfig
+
 
 class ParameterType(str, Enum):
     user = "user"

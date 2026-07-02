@@ -13416,6 +13416,34 @@ class TestMongoProcessor:
 
         LLMSecret.objects.delete()
 
+    def test_delete_action_removes_typed_config_name_field(self):
+        processor = MongoProcessor()
+        bot = 'test_delete_typed'
+        user = 'test'
+        action = {'name': 'action_slot_to_delete',
+                  'set_slots': [{'name': 'slot1', 'type': SLOT_SET_TYPE.FROM_VALUE.value, 'value': '1'}]}
+        processor.add_slot_set_action(action, bot, user)
+        assert SlotSetAction.objects(name='action_slot_to_delete', bot=bot, status=True).count() == 1
+        processor.delete_action('action_slot_to_delete', bot, user)
+        assert Actions.objects(name='action_slot_to_delete', bot=bot).count() == 0
+        assert SlotSetAction.objects(name='action_slot_to_delete', bot=bot).count() == 0
+
+    def test_delete_action_removes_typed_config_action_name_field(self):
+        processor = MongoProcessor()
+        bot = 'test_delete_typed'
+        user = 'test'
+        http_action_config = HttpActionConfigRequest(
+            action_name='action_http_to_delete',
+            response=ActionResponseEvaluation(value='json'),
+            http_url='http://www.example.com',
+            request_method='GET',
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        assert HttpActionConfig.objects(action_name='action_http_to_delete', bot=bot, status=True).count() == 1
+        processor.delete_action('action_http_to_delete', bot, user)
+        assert Actions.objects(name='action_http_to_delete', bot=bot).count() == 0
+        assert HttpActionConfig.objects(action_name='action_http_to_delete', bot=bot).count() == 0
+
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
         bot = 'test_notifications'
