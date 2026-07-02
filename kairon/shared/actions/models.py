@@ -1,6 +1,5 @@
 from enum import Enum
 
-
 class ParameterType(str, Enum):
     user = "user"
     action = "action"
