@@ -24,6 +24,7 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.actions.definitions.voice_call import ActionVoiceCall
+from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
 
 
 class ActionFactory:
@@ -50,6 +51,7 @@ class ActionFactory:
         ActionType.schedule_action.value: ActionSchedule,
         ActionType.parallel_action.value: ActionParallel,
         ActionType.voice_call_action.value: ActionVoiceCall,
+        ActionType.kairon_voice_disconnect.value: ActionVoiceDisconnect,
     }
 
     @staticmethod

@@ -28,7 +28,7 @@ class TwilioVoiceProvider(VoiceProviderBase):
         self.account_sid = config["account_sid"]
         self.auth_token = config["auth_token"]
         self.phone_number = config["phone_number"]
-        self.voice_type = config.get("voice_type", "Polly.Amy")
+        self.voice_type = config.get("voice_type", "Polly.Aditi")
         self.speech_model = "default"
         self.enhanced = "false"
         self._validator = RequestValidator(self.auth_token)
@@ -46,7 +46,7 @@ class TwilioVoiceProvider(VoiceProviderBase):
             speechTimeout=self.config.get("speech_timeout", "auto"),
             speechModel=self.speech_model,
             enhanced=self.enhanced,
-            language=self.config.get("language", "en-US"),
+            language=self.config.get("language", "en-IN"),
         )
         for i, msg in enumerate(messages):
             if i + 1 == len(messages):
@@ -72,6 +72,13 @@ class TwilioVoiceProvider(VoiceProviderBase):
             bot=bot,
             user=self.config.get("user", "system"),
         ).save()
+
+    def build_hangup_response(self, messages: List[str]) -> str:
+        voice_response = VoiceResponse()
+        for msg in messages:
+            voice_response.say(msg, voice=self.voice_type)
+        voice_response.hangup()
+        return str(voice_response)
 
     def validate_config(self, config: dict) -> None:
         for field in ["account_sid", "auth_token", "phone_number"]:

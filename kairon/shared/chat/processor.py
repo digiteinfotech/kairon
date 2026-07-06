@@ -39,11 +39,11 @@ class ChatDataProcessor:
                 raise AppException("Email configuration already exists for same email address and subject")
             input_interval = configuration["config"]["interval"]
             system_interval = int(Utility.environment['integrations']["email"]['interval'])
-            EventUtility.validate_cron(input_interval,system_interval)
+            EventUtility.validate_cron(input_interval, system_interval)
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
-            channel.config = ChatDataProcessor.__validate_config_for_update(channel,configuration["config"])
+            channel.config = ChatDataProcessor.__validate_config_for_update(channel, configuration["config"])
             primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
                 'is_primary') else False
         except DoesNotExist:
@@ -62,8 +62,7 @@ class ChatDataProcessor:
             if not MongoProcessor.is_voice_enabled(bot):
                 raise AppException("Voice is not enabled for this bot")
             endpoints = DataUtility.get_voice_channel_endpoints(channel)
-            channel.config.update(endpoints)
-            channel.save()
+            Channels.objects(id=channel.id).update_one(set__config={**channel.config, **endpoints})
             return {k: v for k, v in endpoints.items() if k in ("call_url", "status_url")}
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
@@ -91,6 +90,7 @@ class ChatDataProcessor:
             else:
                 merged[key] = val
         return merged
+
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
         filter_args = {"bot": bot, "connector_type": configuration['connector_type']}
