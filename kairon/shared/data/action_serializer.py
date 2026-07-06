@@ -306,6 +306,11 @@ class ActionSerializer:
             if actions:
                 action_config[action_type] = actions
 
+        if Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).count() > 0:
+            action_config[ActionType.kairon_voice_disconnect.value] = [
+                {"name": ActionType.kairon_voice_disconnect.value}
+            ]
+
         for other_type, other_info in other_collections.items():
             other_model = other_info.get("db_model")
             other_collections = ActionSerializer.get_action_config_data_list(bot, other_model)
@@ -372,6 +377,17 @@ class ActionSerializer:
             for action_type, data in filtered_actions.items():
                 if data:
                     ActionSerializer.save_collection_data_list(action_type, bot, user, data)
+
+            if ActionType.kairon_voice_disconnect.value in actions:
+                if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+                    Actions(
+                        name=ActionType.kairon_voice_disconnect.value,
+                        type=ActionType.kairon_voice_disconnect.value,
+                        bot=bot,
+                        user=user,
+                        status=True,
+                    ).save()
+
         if other_collections_data:
             ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
 

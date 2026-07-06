@@ -51,6 +51,7 @@ class ActionType(str, Enum):
     schedule_action = "schedule_action"
     parallel_action = "parallel_action"
     voice_call_action = "voice_call_action"
+    kairon_voice_disconnect = "kairon_voice_disconnect"
 
 
 class HttpRequestContentType(str, Enum):

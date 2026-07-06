@@ -508,7 +508,9 @@ class ActionUtility:
         @param bot: bot id
         @param name: action name
         """
-        if name.startswith(UTTER_PREFIX):
+        if name == ActionType.kairon_voice_disconnect.value:
+            action_type = ActionType.kairon_voice_disconnect
+        elif name.startswith(UTTER_PREFIX):
             action_type = ActionType.kairon_bot_response
         else:
             action = ActionUtility.get_action(bot=bot, name=name)
