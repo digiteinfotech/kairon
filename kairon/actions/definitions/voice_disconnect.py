@@ -19,6 +19,12 @@ class ActionVoiceDisconnect(ActionsBase):
     """
 
     def __init__(self, bot: Text, name: Text):
+        """
+        Initialize VoiceDisconnect action.
+
+        @param bot: bot id
+        @param name: action name
+        """
         self.bot = bot
         self.name = name
 
