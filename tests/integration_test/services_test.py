@@ -37865,6 +37865,40 @@ def test_edit_voice_call_action(monkeypatch):
     assert actual["message"] == "Action updated"
 
 
+def test_add_kairon_voice_disconnect():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_kairon_voice_disconnect_idempotent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_list_kairon_voice_disconnect():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert len(actual["data"]) >= 1
+
+
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):
         return "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"

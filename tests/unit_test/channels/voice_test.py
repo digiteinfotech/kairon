@@ -1441,3 +1441,73 @@ class TestVoiceServiceEndpoints:
             self._clear_overrides()
         assert response.status_code == 200
         assert response.json().get("success") is False
+
+
+class TestCountNoinput:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+
+    def _make_handler(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        user = MagicMock()
+        user.account = "test_account"
+        return VoiceHandler("testbot", user, MagicMock(), "twilio")
+
+    def _make_tracker(self, texts):
+        from rasa.shared.core.events import UserUttered
+        tracker = MagicMock()
+        tracker.events = [UserUttered(text=t) for t in texts]
+        return tracker
+
+    @pytest.mark.asyncio
+    async def test_count_noinput_all_trailing(self):
+        handler = self._make_handler()
+        tracker = self._make_tracker(["hello", "noinput", "noinput", "noinput"])
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=tracker)
+        with patch("kairon.chat.handlers.channels.voice.AgentProcessor.get_agent", return_value=mock_agent):
+            result = await handler._count_noinput("CA_test")
+        assert result == 3
+
+    @pytest.mark.asyncio
+    async def test_count_noinput_stops_at_real_speech(self):
+        handler = self._make_handler()
+        tracker = self._make_tracker(["noinput", "hello", "noinput"])
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=tracker)
+        with patch("kairon.chat.handlers.channels.voice.AgentProcessor.get_agent", return_value=mock_agent):
+            result = await handler._count_noinput("CA_test")
+        assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_count_noinput_no_noinput(self):
+        handler = self._make_handler()
+        tracker = self._make_tracker(["hello", "how are you"])
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=tracker)
+        with patch("kairon.chat.handlers.channels.voice.AgentProcessor.get_agent", return_value=mock_agent):
+            result = await handler._count_noinput("CA_test")
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_count_noinput_exception_returns_zero(self):
+        handler = self._make_handler()
+        with patch("kairon.chat.handlers.channels.voice.AgentProcessor.get_agent",
+                   side_effect=Exception("agent unavailable")):
+            result = await handler._count_noinput("CA_test")
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_count_noinput_empty_events(self):
+        handler = self._make_handler()
+        tracker = MagicMock()
+        tracker.events = []
+        mock_agent = MagicMock()
+        mock_agent.tracker_store.retrieve = AsyncMock(return_value=tracker)
+        with patch("kairon.chat.handlers.channels.voice.AgentProcessor.get_agent", return_value=mock_agent):
+            result = await handler._count_noinput("CA_test")
+        assert result == 0
