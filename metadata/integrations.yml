@@ -102,11 +102,11 @@ voice_channels:
       - phone_number
     optional_fields:
       - voice_type
-      - voice_types
       - language
       - welcome_message
       - speech_timeout
       - reprompt_fallback_phrase
+      - timeout_message
     disabled_fields:
       - call_url
       - status_url

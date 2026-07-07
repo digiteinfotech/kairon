@@ -422,3 +422,100 @@ class TestVoiceCallStoryIntegration:
 
         from kairon.shared.actions.models import ActionType
         assert ActionType.voice_call_action.value in action_config or True
+
+
+class TestKaironVoiceDisconnect:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def init_connection(self):
+        connect(**Utility.mongoengine_connection())
+
+    def test_story_step_type_enum_has_kairon_voice_disconnect(self):
+        assert hasattr(StoryStepType, "kairon_voice_disconnect")
+        assert StoryStepType.kairon_voice_disconnect.value == "KAIRON_VOICE_DISCONNECT"
+
+    def test_add_kairon_voice_disconnect_inserts_when_not_exists(self):
+        processor = MongoProcessor()
+        with patch("kairon.shared.data.processor.Actions") as mock_actions_cls:
+            mock_actions_cls.objects.return_value.first.return_value = None
+            mock_instance = MagicMock()
+            mock_actions_cls.return_value = mock_instance
+            processor.add_kairon_voice_disconnect("testbot", "testuser")
+        mock_instance.save.assert_called_once()
+
+    def test_add_kairon_voice_disconnect_skips_if_exists(self):
+        processor = MongoProcessor()
+        with patch("kairon.shared.data.processor.Actions") as mock_actions_cls:
+            mock_actions_cls.objects.return_value.first.return_value = MagicMock()
+            mock_instance = MagicMock()
+            mock_actions_cls.return_value = mock_instance
+            processor.add_kairon_voice_disconnect("testbot", "testuser")
+        mock_instance.save.assert_not_called()
+
+    def test_list_kairon_voice_disconnect_returns_names(self):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.models import ActionType
+        processor = MongoProcessor()
+        with patch("kairon.shared.data.processor.Actions") as mock_actions:
+            mock_actions.objects.return_value.values_list.return_value = ["kairon_voice_disconnect"]
+            result = processor.list_kairon_voice_disconnect("somebot")
+        assert result == ["kairon_voice_disconnect"]
+        mock_actions.objects.assert_called_once_with(
+            bot="somebot", status=True, type=ActionType.kairon_voice_disconnect.value
+        )
+
+    def test_list_kairon_voice_disconnect_empty(self):
+        processor = MongoProcessor()
+        with patch("kairon.shared.data.processor.Actions") as mock_actions:
+            mock_actions.objects.return_value.values_list.return_value = []
+            result = processor.list_kairon_voice_disconnect("emptybot")
+        assert result == []
+
+    def test_action_serializer_serialize_includes_voice_disconnect_when_present(self):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.models import ActionType
+        bot = "serialize_vd_bot"
+        with patch.object(Actions, "objects") as mock_objects:
+            mock_count = MagicMock()
+            mock_count.count.return_value = 1
+            mock_objects.return_value = mock_count
+            action_config, _ = ActionSerializer.serialize(bot)
+        from kairon.shared.actions.models import ActionType
+        assert ActionType.kairon_voice_disconnect.value in action_config
+        assert action_config[ActionType.kairon_voice_disconnect.value] == [
+            {"name": ActionType.kairon_voice_disconnect.value}
+        ]
+
+    def test_action_serializer_serialize_excludes_voice_disconnect_when_absent(self):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.models import ActionType
+        bot = "serialize_vd_absent_bot"
+        with patch.object(Actions, "objects") as mock_objects:
+            mock_count = MagicMock()
+            mock_count.count.return_value = 0
+            mock_objects.return_value = mock_count
+            action_config, _ = ActionSerializer.serialize(bot)
+        assert ActionType.kairon_voice_disconnect.value not in action_config
+
+    def test_action_serializer_deserialize_creates_actions_entry_when_key_present(self):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.models import ActionType
+        bot = "deserialize_vd_bot"
+        actions = {ActionType.kairon_voice_disconnect.value: [{"name": ActionType.kairon_voice_disconnect.value}]}
+        with patch.object(Actions, "objects") as mock_objects, \
+             patch.object(Actions, "save") as mock_save:
+            mock_objects.return_value.first.return_value = None
+            ActionSerializer.deserialize(bot, "user1", actions=actions)
+        mock_save.assert_called_once()
+
+    def test_action_serializer_deserialize_skips_if_already_exists(self):
+        from kairon.shared.actions.data_objects import Actions
+        from kairon.shared.actions.models import ActionType
+        bot = "deserialize_vd_existing_bot"
+        actions = {ActionType.kairon_voice_disconnect.value: [{"name": ActionType.kairon_voice_disconnect.value}]}
+        existing = MagicMock()
+        with patch.object(Actions, "objects") as mock_objects, \
+             patch.object(Actions, "save") as mock_save:
+            mock_objects.return_value.first.return_value = existing
+            ActionSerializer.deserialize(bot, "user1", actions=actions)
+        mock_save.assert_not_called()
