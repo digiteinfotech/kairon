@@ -434,22 +434,23 @@ class TestKaironVoiceDisconnect:
         assert hasattr(StoryStepType, "kairon_voice_disconnect")
         assert StoryStepType.kairon_voice_disconnect.value == "KAIRON_VOICE_DISCONNECT"
 
-    def test_add_kairon_voice_disconnect_calls_add_action(self):
+    def test_add_kairon_voice_disconnect_inserts_when_not_exists(self):
         processor = MongoProcessor()
-        with patch.object(processor, "add_action") as mock_add:
+        with patch("kairon.shared.data.processor.Actions") as mock_actions_cls:
+            mock_actions_cls.objects.return_value.first.return_value = None
+            mock_instance = MagicMock()
+            mock_actions_cls.return_value = mock_instance
             processor.add_kairon_voice_disconnect("testbot", "testuser")
-        mock_add.assert_called_once()
-        args = mock_add.call_args[0]
-        assert args[0] == "kairon_voice_disconnect"
-        assert args[1] == "testbot"
-        assert args[2] == "testuser"
+        mock_instance.save.assert_called_once()
 
-    def test_add_kairon_voice_disconnect_idempotent(self):
+    def test_add_kairon_voice_disconnect_skips_if_exists(self):
         processor = MongoProcessor()
-        with patch.object(processor, "add_action") as mock_add:
+        with patch("kairon.shared.data.processor.Actions") as mock_actions_cls:
+            mock_actions_cls.objects.return_value.first.return_value = MagicMock()
+            mock_instance = MagicMock()
+            mock_actions_cls.return_value = mock_instance
             processor.add_kairon_voice_disconnect("testbot", "testuser")
-            processor.add_kairon_voice_disconnect("testbot", "testuser")
-        assert mock_add.call_count == 2
+        mock_instance.save.assert_not_called()
 
     def test_list_kairon_voice_disconnect_returns_names(self):
         from kairon.shared.actions.data_objects import Actions

@@ -7062,6 +7062,13 @@ class MongoProcessor:
             )
 
     def delete_action(self, name: Text, bot: Text, user: Text):
+        """
+        soft delete an action
+        :param name: action name
+        :param bot: bot id
+        :param user: user id
+        :return:
+        """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
 
@@ -7246,13 +7253,14 @@ class MongoProcessor:
 
     def add_kairon_voice_disconnect(self, bot: Text, user: Text):
         """Register the kairon_voice_disconnect built-in action for this bot."""
-        self.add_action(
-            ActionType.kairon_voice_disconnect.value,
-            bot,
-            user,
-            action_type=ActionType.kairon_voice_disconnect.value,
-            raise_exception=False,
-        )
+        if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+            Actions(
+                name=ActionType.kairon_voice_disconnect.value,
+                type=ActionType.kairon_voice_disconnect.value,
+                bot=bot,
+                user=user,
+                status=True,
+            ).save()
 
     def list_kairon_voice_disconnect(self, bot: Text):
         return list(
