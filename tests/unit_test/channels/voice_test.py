@@ -766,6 +766,63 @@ class TestVoiceHandler:
         assert "<Gather" not in result
 
     @pytest.mark.asyncio
+    async def test_handle_incoming_call_noinput_disconnect_triggers_hangup(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        request = self._make_request({"CallSid": "CA123"})
+        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        async def _inject_disconnect(bot, user_msg):
+            await user_msg.output_channel.send_text_message(user_msg.sender_id, "Goodbye!")
+            await user_msg.output_channel.send_custom_json(user_msg.sender_id, {"disconnect": True})
+
+        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
+            with patch(
+                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                return_value=True,
+            ):
+                with patch.object(handler, "_has_prior_conversation", new=AsyncMock(return_value=True)):
+                    with patch.object(handler, "_count_noinput", new=AsyncMock(return_value=0)):
+                        with patch(
+                            "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                            side_effect=_inject_disconnect,
+                        ):
+                            result = await handler.handle_incoming_call()
+
+        assert "<Hangup" in result
+        assert "Goodbye!" in result
+        assert "<Gather" not in result
+
+    @pytest.mark.asyncio
+    async def test_handle_incoming_call_noinput_disconnect_without_message_uses_timeout_fallback(self):
+        from kairon.chat.handlers.channels.voice import VoiceHandler
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        request = self._make_request({"CallSid": "CA123"})
+        handler = VoiceHandler("testbot", self._make_user(), request, "twilio")
+
+        async def _inject_silent_disconnect(bot, user_msg):
+            await user_msg.output_channel.send_custom_json(user_msg.sender_id, {"disconnect": True})
+
+        with patch.object(ChatDataProcessor, "get_channel_config", return_value=self._make_channel_config()):
+            with patch(
+                "kairon.chat.handlers.channels.clients.voice.twilio.TwilioVoiceProvider.validate_signature",
+                return_value=True,
+            ):
+                with patch.object(handler, "_has_prior_conversation", new=AsyncMock(return_value=True)):
+                    with patch.object(handler, "_count_noinput", new=AsyncMock(return_value=0)):
+                        with patch(
+                            "kairon.chat.handlers.channels.voice.AgentProcessor.handle_channel_message",
+                            side_effect=_inject_silent_disconnect,
+                        ):
+                            result = await handler.handle_incoming_call()
+
+        assert "<Hangup" in result
+        assert "didn't hear" in result.lower() or "goodbye" in result.lower()
+        assert "<Gather" not in result
+
+    @pytest.mark.asyncio
     async def test_has_prior_conversation_false_when_no_channel_log(self):
         from kairon.chat.handlers.channels.voice import VoiceHandler
         from kairon.shared.chat.data_objects import ChannelLogs

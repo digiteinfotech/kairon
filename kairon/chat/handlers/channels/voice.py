@@ -137,6 +137,12 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
                 metadata=metadata,
             )
             await AgentProcessor.handle_channel_message(self.bot, noinput_msg)
+            if noinput_channel.should_hangup():
+                messages = noinput_channel.get_messages() or [config.get(
+                    "timeout_message",
+                    "We didn't hear from you. Thanks for your time. Goodbye."
+                )]
+                return provider_impl.build_hangup_response(messages)
             messages = await self._get_reprompt(sender_id, config)
             return provider_impl.build_voice_response(messages, config["call_url"])
 
