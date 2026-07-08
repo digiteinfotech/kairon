@@ -597,7 +597,7 @@ async def test_send_using_flow():
 
         broadcast._WhatsappBroadcast__send_using_flow(recipients)
 
-        mock_get_template.assert_called_once_with("template_1", "en")
+        mock_get_template.assert_called_once_with("template_1", "en", "360dialog")
         mock_initiate_broadcast.assert_called_once()
         mock_add_event_log.assert_called()
         mock_update_broadcast_logs_with_template.assert_called()

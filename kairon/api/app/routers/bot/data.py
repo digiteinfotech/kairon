@@ -638,3 +638,12 @@ async def fetch_media_url(
     media_url = CloudUtility.get_s3_media_url(filename, current_user.get_bot())
     return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
                                                                         "filename": f"{filename}"})
+
+
+@router.get("/fetch_handle_id/{media_id}")
+async def fetch_media_handle_id(
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_handle_id = UserMedia.get_media_handle_id(current_user.get_bot(), media_id)
+    return Response(message="Successfully fetched media details", data={"handle_id": media_handle_id})
