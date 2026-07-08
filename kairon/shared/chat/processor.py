@@ -253,6 +253,7 @@ class ChatDataProcessor:
             bot=bot,
             user=user,
             recipient=recipient,
+            user_id=status_data.get('recipient_user_id'),
             campaign_id=campaign_id
         ).save()
 

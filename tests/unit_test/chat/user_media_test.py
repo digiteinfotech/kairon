@@ -474,7 +474,8 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid
         media_id="uuid123",
         filename="whataspp_360_media123.jpg",
         sender_id=sender_id,
-        upload_type=UserMediaUploadType.user_uploaded.value
+        upload_type=UserMediaUploadType.user_uploaded.value,
+        user_id=None
     )
     assert len(created) == 1
 
@@ -838,7 +839,8 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
         filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"phone_number": "user1", "description": description}
+        additional_info={"phone_number": "user1", "description": description},
+        user_id=None
     )
 
 
@@ -915,7 +917,8 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
         filename="whatsapp_meta_media456.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"phone_number": "user2", "description": description}
+        additional_info={"phone_number": "user2", "description": description},
+        user_id=None
     )
 
 

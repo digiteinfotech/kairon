@@ -88,10 +88,13 @@ class WhatsappCloud(object):
         body = {
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number,
             "type": messaging_type,
             messaging_type: payload
         }
+        if ("." in to_phone_number):
+            body["recipient"] = to_phone_number
+        else:
+            body["to"] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -118,10 +121,13 @@ class WhatsappCloud(object):
         body = {
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number,
             "type": messaging_type,
             messaging_type: payload
         }
+        if ("." in to_phone_number):
+            body["recipient"] = to_phone_number
+        else:
+            body["to"] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -138,10 +144,11 @@ class WhatsappCloud(object):
                 timeout: request timeout
             @outputs: response json
         """
+        recipient_field = "recipient" if ("." in to_phone_number) else "to"
         payload.update({
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number
+            recipient_field: to_phone_number
         })
 
         return self.send_action(payload)
