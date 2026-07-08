@@ -216,6 +216,9 @@ cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
 channels:
+  gupshup:
+    partner_email: ${GUPSHUP_PARTNER_EMAIL}
+    partner_password: ${GUPSHUP_PARTNER_PASSWORD}
   360dialog:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}

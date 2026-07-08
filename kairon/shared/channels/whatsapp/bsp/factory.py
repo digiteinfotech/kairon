@@ -1,12 +1,14 @@
 from kairon.exceptions import AppException
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
 from kairon.shared.constants import WhatsappBSPTypes
 
 
 class BusinessServiceProviderFactory:
 
     __implementations = {
-        WhatsappBSPTypes.bsp_360dialog.value: BSP360Dialog
+        WhatsappBSPTypes.bsp_360dialog.value: BSP360Dialog,
+        WhatsappBSPTypes.bsp_gupshup.value: BSPGupshup,
     }
 
     @staticmethod

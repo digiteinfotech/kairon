@@ -212,13 +212,13 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
-        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp', 'bsp_type': '360dialog',
                              "broadcast_type": "dynamic", 'retry_count': 0, 'collection_config': {},
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
-                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {},
+                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {}, 'bsp_type': '360dialog',
                             'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -227,7 +227,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
         assert setting == {'name': 'second_scheduler', 'connector_type': 'slack', 'retry_count': 0,
-                           'collection_config': {},
+                           'collection_config': {}, 'bsp_type': '360dialog',
                            'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
                            'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                            'bot': 'test_achedule', 'user': 'test_user', 'status': True}
@@ -249,7 +249,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',
-                             "broadcast_type": "static", 'collection_config': {},
+                             "broadcast_type": "static", 'collection_config': {}, 'bsp_type': '360dialog',
                              'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -260,6 +260,7 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic", "template_config": [], 'collection_config': {},
+                             'bsp_type': '360dialog',
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", 'retry_count': 0,
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
@@ -301,6 +302,7 @@ class TestMessageBroadcastProcessor:
                 'connector_type': 'whatsapp',
                 "broadcast_type": "dynamic",
                 'collection_config': {},
+                'bsp_type': '360dialog',
                 'retry_count': 0,
                 'scheduler_config': {
                     'expression_type': 'cron',
@@ -323,6 +325,7 @@ class TestMessageBroadcastProcessor:
             'connector_type': 'whatsapp',
             "broadcast_type": "dynamic",
             'collection_config': {},
+            'bsp_type': '360dialog',
             'retry_count': 0,
             'scheduler_config': {
                 'expression_type': 'cron',
