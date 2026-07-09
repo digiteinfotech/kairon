@@ -9,7 +9,7 @@ class WhatsappBusinessServiceProviderBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def post_process(self, **kwargs):
+    def post_process(self):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
