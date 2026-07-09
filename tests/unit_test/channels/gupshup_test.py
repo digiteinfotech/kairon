@@ -1,5 +1,4 @@
-"""
-Tests for Gupshup WhatsApp BSP integration changes on branch meta_bsuid_change.
+"""Tests for Gupshup WhatsApp BSP integration changes on branch meta_bsuid_change.
 
 Covers:
 - WhatsappCloud BSUID recipient field routing ("." in phone → "recipient", else "to")

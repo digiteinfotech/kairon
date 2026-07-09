@@ -31,6 +31,10 @@ class TestMailChannel:
     @pytest.fixture(autouse=True, scope='class')
     def setup(self):
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        BotSettings.objects(user="mail_channel_test_user_acc").delete()
+        Bot.objects(user="mail_channel_test_user_acc").delete()
+        Account.objects(user="mail_channel_test_user_acc").delete()
+        Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
         a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
         bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True,
                                  account=a.id)

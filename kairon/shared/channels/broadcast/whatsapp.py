@@ -552,112 +552,84 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
     def __get_template_params_for_gupshup(self, raw_template, template_config):
         import json
-        import re
-
         if not isinstance(raw_template, dict):
             raw_template = {}
-
         template_id = template_config.get("template_id") or raw_template.get("id")
         template_type = raw_template.get("templateType")
         logger.debug(f"Gupshup template raw: {raw_template}")
-
-        # ✅ Parse containerMeta safely
         try:
             container_meta = json.loads(raw_template.get("containerMeta", "{}"))
         except Exception:
             container_meta = {}
+        body_params, media_id = WhatsappBroadcast.__resolve_gupshup_runtime_params(template_config, container_meta)
+        return WhatsappBroadcast.__build_gupshup_template_payload(
+            template_id, body_params, media_id, template_type, container_meta
+        )
 
-        # ✅ Parse runtime config safely
+    @staticmethod
+    def __resolve_gupshup_runtime_params(template_config, container_meta):
+        import json
         try:
             parsed_data = json.loads(template_config.get("data", "[]") or "[]")
         except Exception:
             parsed_data = []
-
-        body_params = []
-        media_id = None
-
         if isinstance(parsed_data, dict):
             body_params = [v for _, v in sorted(parsed_data.items(), key=lambda x: int(x[0]))]
-            components = []
+            media_id = None
         else:
             components = parsed_data[0] if parsed_data and isinstance(parsed_data[0], list) else []
+            body_params, media_id = WhatsappBroadcast.__extract_gupshup_components_params(components)
+        if not body_params:
+            body_params = WhatsappBroadcast.__extract_gupshup_sample_text_params(container_meta)
+        if not media_id:
+            media_id = container_meta.get("sampleMedia")
+        return body_params, media_id
 
-        # 🔍 Extract runtime params + media
+    @staticmethod
+    def __extract_gupshup_components_params(components):
+        body_params = []
+        media_id = None
         for comp in components:
-            if comp.get("type") == "body":
+            comp_type = comp.get("type")
+            if comp_type == "body":
                 for param in comp.get("parameters", []):
                     if param.get("type") == "text":
                         body_params.append(param.get("text"))
-
-            elif comp.get("type") == "header":
+            elif comp_type == "header":
                 for param in comp.get("parameters", []):
                     p_type = param.get("type")
-                    if p_type in ["image", "video", "document"]:
+                    if p_type in ("image", "video", "document"):
                         media_id = param.get(p_type, {}).get("id")
+        return body_params, media_id
 
-        # =========================================================
-        # ✅ FALLBACK: Extract params from sampleText (IMPORTANT FIX)
-        # =========================================================
-        if not body_params:
-            template_text = container_meta.get("data", "")
-            sample_text = container_meta.get("sampleText", "")
+    @staticmethod
+    def __extract_gupshup_sample_text_params(container_meta):
+        import re
+        template_text = container_meta.get("data", "")
+        sample_text = container_meta.get("sampleText", "")
+        placeholders = re.findall(r"\{\{(\d+)\}\}", template_text)
+        if not (placeholders and sample_text):
+            return []
+        static_parts = re.split(r"\{\{\d+\}\}", template_text)
+        temp_text = sample_text
+        for part in static_parts:
+            if part:
+                temp_text = temp_text.replace(part, "|")
+        extracted = [p.strip() for p in temp_text.split("|") if p.strip()]
+        return extracted[:len(placeholders)]
 
-            placeholders = re.findall(r"\{\{(\d+)\}\}", template_text)
-
-            if placeholders and sample_text:
-                static_parts = re.split(r"\{\{\d+\}\}", template_text)
-
-                temp_text = sample_text
-                for part in static_parts:
-                    if part:
-                        temp_text = temp_text.replace(part, "|")
-
-                extracted = [p.strip() for p in temp_text.split("|") if p.strip()]
-
-                # match placeholder count safely
-                body_params = extracted[:len(placeholders)]
-
-        # =========================================================
-        # ✅ FALLBACK: Media from sampleMedia
-        # =========================================================
-        if not media_id:
-            media_id = container_meta.get("sampleMedia")
-
-        # =========================================================
-        # ✅ TEMPLATE PAYLOAD
-        # =========================================================
-        template = {
-            "id": template_id,
-            "params": body_params
-        }
-
-        # =========================================================
-        # ✅ MESSAGE CREATION
-        # =========================================================
-        media_type_map = {
-            "IMAGE": "image",
-            "VIDEO": "video",
-            "DOCUMENT": "document"
-        }
-
+    @staticmethod
+    def __build_gupshup_template_payload(template_id, body_params, media_id, template_type, container_meta):
+        template = {"id": template_id, "params": body_params}
+        media_type_map = {"IMAGE": "image", "VIDEO": "video", "DOCUMENT": "document"}
         if media_id:
             m_type = media_type_map.get(template_type, "image")
-            message = {
-                "type": m_type,
-                m_type: {"id": media_id}
-            }
+            message = {"type": m_type, m_type: {"id": media_id}}
         else:
-            # ✅ Proper full text rendering
             text_template = container_meta.get("data", "")
-
             for i, val in enumerate(body_params, start=1):
                 text_template = text_template.replace(f"{{{{{i}}}}}", str(val))
-
-            message = {
-                "type": "text",
-                "text": text_template or " "
-            }
-
+            message = {"type": "text", "text": text_template or " "}
         return template, message
 
     @staticmethod
