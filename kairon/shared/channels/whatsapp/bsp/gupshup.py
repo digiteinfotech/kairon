@@ -1,5 +1,4 @@
 import asyncio
-import io
 import json
 import os
 from datetime import datetime, timedelta
@@ -15,17 +14,16 @@ from loguru import logger
 from mongoengine import DoesNotExist
 
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
-from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
-from kairon.shared.data.data_objects import UserMediaData
 from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
     def __init__(self, bot: Text, user: Text):
+        """Initialize BSPGupshup with bot and user identifiers."""
         self.bot = bot
         self.user = user
 
