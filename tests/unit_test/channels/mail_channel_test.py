@@ -28,7 +28,7 @@ from kairon.shared.constants import ChannelTypes
 
 
 class TestMailChannel:
-    @pytest.fixture(autouse=True, scope='class')
+    @pytest.fixture(autouse=True, scope='function')
     def setup(self):
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         BotSettings.objects(user="mail_channel_test_user_acc").delete()
