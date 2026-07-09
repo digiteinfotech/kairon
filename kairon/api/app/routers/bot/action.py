@@ -859,3 +859,26 @@ async def edit_voice_call_action(
     """
     mongo_processor.edit_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
+
+
+@router.post("/voice_disconnect", response_model=Response)
+async def add_kairon_voice_disconnect(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Registers the kairon_voice_disconnect built-in action for this bot.
+    Once registered, it can be added to flows to gracefully end a voice call.
+    """
+    mongo_processor.add_kairon_voice_disconnect(current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/voice_disconnect", response_model=Response)
+async def list_kairon_voice_disconnect(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns whether kairon_voice_disconnect action is registered for this bot.
+    """
+    actions = mongo_processor.list_kairon_voice_disconnect(current_user.get_bot())
+    return Response(data=actions)

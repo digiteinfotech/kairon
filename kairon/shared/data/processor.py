@@ -1989,6 +1989,11 @@ class MongoProcessor:
                     "name", "id"
                 )
             ),
+            StoryStepType.kairon_voice_disconnect.value: dict(
+                Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).values_list(
+                    "name", "id"
+                )
+            ),
         }
         return component_dict
 
@@ -3802,6 +3807,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.schedule_action.value
                     elif event['name'] in voice_call_actions:
                         step["type"] = StoryStepType.voice_call_action.value
+                    elif event['name'] == ActionType.kairon_voice_disconnect.value:
+                        step["type"] = StoryStepType.kairon_voice_disconnect.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'
@@ -7055,6 +7062,13 @@ class MongoProcessor:
             )
 
     def delete_action(self, name: Text, bot: Text, user: Text):
+        """
+        soft delete an action
+        :param name: action name
+        :param bot: bot id
+        :param user: user id
+        :return:
+        """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
 
@@ -7236,6 +7250,24 @@ class MongoProcessor:
             raise AppException(f'Action with name "{action_name}" not found')
         VoiceCallAction.objects(name=action_name, bot=bot, status=True).get().delete()
         self.delete_action(action_name, user, bot)
+
+    def add_kairon_voice_disconnect(self, bot: Text, user: Text):
+        """Register the kairon_voice_disconnect built-in action for this bot."""
+        if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+            Actions(
+                name=ActionType.kairon_voice_disconnect.value,
+                type=ActionType.kairon_voice_disconnect.value,
+                bot=bot,
+                user=user,
+                status=True,
+            ).save()
+
+    def list_kairon_voice_disconnect(self, bot: Text):
+        return list(
+            Actions.objects(
+                bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value
+            ).values_list("name")
+        )
 
     def add_jira_action(self, action: Dict, bot: str, user: str):
         """

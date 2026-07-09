@@ -3383,6 +3383,10 @@ class TestActions:
         action_type = ActionUtility.get_action_type(bot, 'utter_greet')
         assert action_type == "kairon_bot_response"
 
+    def test_get_action_type_kairon_voice_disconnect(self):
+        result = ActionUtility.get_action_type("any_bot", "kairon_voice_disconnect")
+        assert result == ActionType.kairon_voice_disconnect
+
     def test_get_action_config_slot_set_action(self):
         bot = 'test_actions'
         user = 'test'
