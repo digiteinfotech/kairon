@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from croniter.croniter import CroniterError
 from imap_tools import MailMessage
-from mongoengine import connect, disconnect
+from mongoengine import connect
 
 
 from kairon import Utility
@@ -28,7 +28,7 @@ from kairon.shared.constants import ChannelTypes
 
 
 class TestMailChannel:
-    @pytest.fixture(autouse=True, scope='function')
+    @pytest.fixture(autouse=True, scope='class')
     def setup(self):
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
         BotSettings.objects(user="mail_channel_test_user_acc").delete()
@@ -46,9 +46,6 @@ class TestMailChannel:
         Bot.objects(user="mail_channel_test_user_acc").delete()
         Account.objects(user="mail_channel_test_user_acc").delete()
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
-
-
-        disconnect()
 
 
 

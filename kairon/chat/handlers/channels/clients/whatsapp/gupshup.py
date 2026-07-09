@@ -15,6 +15,7 @@ class BSPGupshup(WhatsappCloud):
     WHATSAPP_REQUEST_TIMEOUT = 120.0
 
     def __init__(self, access_token, **kwargs):
+        """Initialize BSPGupshup chat client with access token and channel config."""
         super().__init__(access_token, **kwargs)
         self.access_token = access_token
         # config kwarg may be a full channel doc {"config": {...}, "connector_type": ...}
@@ -41,12 +42,11 @@ class BSPGupshup(WhatsappCloud):
         return self._auth_args
 
     def send_action(self, payload, timeout=None, **kwargs):
-        """
-            @required:
-                payload: message request payload
-            @optional:
-                timeout: request timeout
-            @outputs: response json
+        """Send a synchronous Gupshup message.
+
+        Args:
+            payload: message request payload
+            timeout: request timeout
         """
         messaging_type = payload.get("type")
         destination = payload.get("to") or payload.get("recipient")
@@ -67,12 +67,12 @@ class BSPGupshup(WhatsappCloud):
         return resp
 
     async def send_action_async(self, payload, timeout=None, attempts: int = 3, **kwargs):
-        """
-            @required:
-                payload: message request payload
-            @optional:
-                timeout: request timeout
-            @outputs: response json
+        """Send an asynchronous Gupshup message with exponential retry.
+
+        Args:
+            payload: message request payload
+            timeout: request timeout
+            attempts: max retry attempts
         """
         last_status_code = 500
         last_response = None
@@ -220,16 +220,15 @@ class BSPGupshup(WhatsappCloud):
     async def send_async(self, payload: dict, to_phone_number: str, messaging_type: str,
                          recipient_type: str = 'individual',
                          timeout: float = WHATSAPP_REQUEST_TIMEOUT, tag=None) -> (bool, int, any):
-        """
-            @required:
-                payload: message request payload
-                to_phone_number: receiver's phone number
-                messaging_type: text/document, etc
-            @optional:
-                recipient_type: recipient type
-                timeout: request timeout
-                tag
-            @outputs: response json
+        """Send an async Gupshup message via SMSGW form-encoded endpoint.
+
+        Args:
+            payload: message request payload
+            to_phone_number: receiver's phone number
+            messaging_type: text/document/image/etc
+            recipient_type: recipient type
+            timeout: request timeout
+            tag: optional tag
         """
         if messaging_type not in self.MESSAGING_TYPES:
             raise ValueError('`{}` is not a valid `messaging_type`'.format(messaging_type))
