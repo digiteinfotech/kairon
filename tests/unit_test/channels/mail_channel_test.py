@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from croniter.croniter import CroniterError
 from imap_tools import MailMessage
-from mongoengine import connect
+from mongoengine import connect, disconnect
 
 
 from kairon import Utility
@@ -28,25 +28,27 @@ from kairon.shared.constants import ChannelTypes
 
 
 class TestMailChannel:
-    @pytest.fixture(autouse=True, scope='class')
-    def setup(self):
+    bot_id = ""
+    user = "mail_channel_test_user"
+
+    @classmethod
+    def setup_class(cls):
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
-        BotSettings.objects(user="mail_channel_test_user_acc").delete()
-        Bot.objects(user="mail_channel_test_user_acc").delete()
-        Account.objects(user="mail_channel_test_user_acc").delete()
-        Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
-        a = Account.objects.create(name="mail_channel_test_user_acc", user="mail_channel_test_user_acc")
-        bot = Bot.objects.create(name="mail_channel_test_bot", user="mail_channel_test_user_acc", status=True,
-                                 account=a.id)
-        pytest.mail_test_bot = str(bot.id)
-        BotSettings(bot=pytest.mail_test_bot, user="mail_channel_test_user_acc").save()
-        yield
 
-        BotSettings.objects(user="mail_channel_test_user_acc").delete()
-        Bot.objects(user="mail_channel_test_user_acc").delete()
-        Account.objects(user="mail_channel_test_user_acc").delete()
+        a = Account(name="mail_channel_test_user_acc", user=cls.user).save()
+        bot = Bot(name="mail_channel_test_bot", user=cls.user, status=True,
+                                 account=a.id).save()
+        BotSettings(bot=str(bot.id), user=cls.user).save()
+        cls.bot_id = str(bot.id)
+
+    @classmethod
+    def teardown_class(cls):
+        BotSettings.objects(user=cls.user).delete()
+        Bot.objects(user=cls.user).delete()
+        Account.objects(user=cls.user).delete()
         Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
+        disconnect()
 
 
 
@@ -69,7 +71,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
         mp.login_imap()
 
@@ -99,7 +101,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
 
         mp.login_imap()
@@ -124,7 +126,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
 
         mp.login_smtp()
@@ -150,7 +152,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
 
         mp.login_smtp()
@@ -168,7 +170,7 @@ class TestMailChannel:
         mock_smtp_instance = MagicMock()
         mock_smtp.return_value = mock_smtp_instance
 
-        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+        mail_response_log = MailResponseLog(bot=self.bot_id,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
                                             uid=123
@@ -184,7 +186,7 @@ class TestMailChannel:
                 'smtp_port': 587
             }
         }
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
         mp.login_smtp()
 
@@ -205,7 +207,7 @@ class TestMailChannel:
         mock_smtp_instance = MagicMock()
         mock_smtp.return_value = mock_smtp_instance
 
-        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+        mail_response_log = MailResponseLog(bot=self.bot_id,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
                                             uid=123
@@ -221,7 +223,7 @@ class TestMailChannel:
             }
         }
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
         mp.login_smtp()
 
@@ -247,14 +249,14 @@ class TestMailChannel:
             }
         }
 
-        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+        mail_response_log = MailResponseLog(bot=self.bot_id,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
                                             uid=123
                                             )
         mail_response_log.save()
 
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mp = MailProcessor(bot=bot_id)
 
         rasa_chat_response = {
@@ -279,7 +281,7 @@ class TestMailChannel:
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
     @pytest.mark.asyncio
     async def test_generate_criteria(self, mock_get_channel_config):
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mock_get_channel_config.return_value = {
             'config': {
                 'email_account': "mail_channel_test_user_acc@testuser.com",
@@ -325,7 +327,7 @@ class TestMailChannel:
     def test_generate_criteria_with_last_email_uid_zero(self, mock_get_channel_config):
         import pytz
         from datetime import datetime
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -366,7 +368,7 @@ class TestMailChannel:
         """
         import pytz
         IST = pytz.timezone("Asia/Kolkata")
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mock_get_channel_config.return_value = {
             'config': {
                 'email_account': "mail_channel_test_user_acc@testuser.com",
@@ -397,7 +399,7 @@ class TestMailChannel:
     async def test_read_mails(self, mock_get_channel_config,
                                   mock_mailbox, mock_process_message_task,
                                  mock_logout_imap):
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -428,7 +430,7 @@ class TestMailChannel:
         assert mails[0]["mail_id"] == "test@example.com"
         assert mails[0]["date"] == "2023-10-10"
         assert mails[0]["body"] == "Test Body"
-        assert user == 'mail_channel_test_user_acc'
+        assert user == 'mail_channel_test_user'
 
 
 
@@ -441,7 +443,7 @@ class TestMailChannel:
     async def test_read_mails_no_messages(self, mock_get_channel_config,
                                               mock_mailbox, mock_process_message_task,
                                              mock_logout_imap):
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
 
         mock_get_channel_config.return_value = {
             'config': {
@@ -460,7 +462,7 @@ class TestMailChannel:
 
         mails, user = MailProcessor.read_mails(bot_id)
         assert len(mails) == 0
-        assert user == 'mail_channel_test_user_acc'
+        assert user == 'mail_channel_test_user'
 
         mock_logout_imap.assert_called_once()
 
@@ -474,7 +476,7 @@ class TestMailChannel:
     @pytest.mark.asyncio
     async def test_process_messages(self, mock_process_messages_via_bot, mock_send_mail, mock_logout_smtp, mock_login_smtp, mock_get_channel_config):
 
-        mail_response_log = MailResponseLog(bot=pytest.mail_test_bot,
+        mail_response_log = MailResponseLog(bot=self.bot_id,
                                             sender_id="recipient@test.com",
                                             user="mail_channel_test_user_acc",
                                             uid=123
@@ -490,7 +492,7 @@ class TestMailChannel:
             }
         }
 
-        bot = pytest.mail_test_bot
+        bot = self.bot_id
         batch = [{"mail_id": "test@example.com", "subject": "Test Subject", "date": "2023-10-10", "body": "Test Body", "log_id": str(mail_response_log.id)}]
 
         mock_process_messages_via_bot.return_value = [{"text": "hello world"}], []
@@ -566,7 +568,7 @@ class TestMailChannel:
         assert not result
 
     def test_get_mail_channel_state_data_existing_state(self):
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mock_state = MagicMock()
 
         with patch.object(MailChannelStateData, 'objects') as mock_objects:
@@ -577,7 +579,7 @@ class TestMailChannel:
             mock_objects.return_value.first.assert_called_once()
 
     def test_get_mail_channel_state_data_new_state(self):
-        bot_id = pytest.mail_test_bot
+        bot_id = self.bot_id
         mock_state = MagicMock()
         mock_state.bot = bot_id
         mock_state.state = "some_state"
@@ -644,11 +646,6 @@ class TestMailChannel:
                 MailProcessor.get_log(bot_id, offset, limit)
 
             assert str(excinfo.value) == "Test Exception"
-
-        BotSettings.objects(user="mail_channel_test_user_acc").delete()
-        Bot.objects(user="mail_channel_test_user_acc").delete()
-        Account.objects(user="mail_channel_test_user_acc").delete()
-        Channels.objects(connector_type=ChannelTypes.MAIL.value).delete()
 
 
 
