@@ -8,7 +8,9 @@ from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
+from sqlalchemy import false
 from starlette.requests import Request
+from twilio.rest.api.v2010 import account
 from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
 
@@ -27,6 +29,7 @@ from kairon.shared.account.data_objects import (
 
     BotMetaData,
     TrustedDevice, UserActivityLog,
+    UserSettings,
 )
 from kairon.shared.actions.data_objects import (
     FormValidationAction,
@@ -43,6 +46,7 @@ from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotM
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
 from kairon.shared.models import User as UserModel
+from kairon.shared.verification import email
 
 Utility.load_email_configuration()
 
@@ -218,24 +222,26 @@ class AccountProcessor:
             bot.pop("status")
             bot["role"] = ACCESS_ROLES.OWNER.value
             bot["_id"] = bot["_id"].__str__()
+            bot["is_fav"] = bot.get("is_fav", False)
             bot_setting_obj = BotSettings.objects(bot=bot["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot["pos_enabled"] = bot_setting.get("pos_enabled")
             yield bot
 
     @staticmethod
-    def update_bot(name: Text, bot: Text):
-        if Utility.check_empty_string(name):
+    def update_bot(data: Dict, bot: Text):
+        if Utility.check_empty_string(data.get('name')):
             raise AppException('Name cannot be empty')
 
-        if not Utility.special_match(name, RE_VALID_NAME):
+        if not Utility.special_match(data.get("name"), RE_VALID_NAME):
             raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
-        if not Utility.check_character_limit(name):
+        if not Utility.check_character_limit(data.get("name")):
             raise AppException("Bot Name cannot be more than 60 characters.")
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
-            bot_info.name = name
+            bot_info.name = data.get("name")
+            bot_info.is_fav = data.get("is_fav", False)
             bot_info.save()
         except DoesNotExist:
             raise AppException("Bot not found")
@@ -339,6 +345,7 @@ class AccountProcessor:
             bot_details = AccountProcessor.get_bot(bot["bot"])
             bot_details["_id"] = bot_details["_id"].__str__()
             bot_details["role"] = bot["role"]
+            bot_details["is_fav"] = Bot.is_fav
             bot_setting_obj = BotSettings.objects(bot=bot_details["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot_details["pos_enabled"] = bot_setting.get("pos_enabled")
@@ -847,8 +854,32 @@ class AccountProcessor:
         user_activity_log, show_updated_terms_and_policy = Utility.compare_terms_and_policy_version(user_activity_log)
         user_details["accepted_privacy_policy"] = user_activity_log["data"]["accepted_privacy_policy"]
         user_details["accepted_terms"] = user_activity_log["data"]["accepted_terms"]
+        user_details["user_settings"] = AccountProcessor.get_user_settings(email)
         user_details["show_updated_terms_and_policy"] = show_updated_terms_and_policy
         return user_details
+
+
+    @staticmethod
+    def get_user_settings(user : Text):
+        try:
+            user_settings = UserSettings.objects(user=user).get()
+        except DoesNotExist as e:
+            user_settings = UserSettings(user=user)
+            user_settings.save()
+
+        return user_settings
+
+    @staticmethod
+    def update_user_settings(user : Text, data: Dict):
+        try:
+            user_settings = UserSettings.objects(user=user).get()
+        except DoesNotExist as e:
+            user_settings = UserSettings(user=user)
+
+        user_settings.default_bot =  data.get("default_bot")
+        user_settings.save()
+
+        return user_settings
 
     @staticmethod
     def verify_and_log_user_consent(account_setup: dict):

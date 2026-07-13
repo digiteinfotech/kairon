@@ -12,7 +12,7 @@ from mongoengine import (
     EmbeddedDocumentField,
     EmbeddedDocument,
     ListField,
-    DynamicField,
+    DynamicField, ReferenceField,
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationError as ValidationFailure
@@ -71,6 +71,11 @@ class User(Auditlog):
         elif self.onboarding_status not in [status.value for status in ONBOARDING_STATUS]:
             raise ValidationError(f"{self.onboarding_status} is not a valid status")
 
+@auditlogger.log
+class UserSettings(Auditlog):
+    user = StringField(required=True)
+    default_bot = StringField()
+
 
 class BotMetaData(EmbeddedDocument):
     source_language = StringField(default=None)
@@ -86,6 +91,7 @@ class Bot(Auditlog):
     account = LongField(required=True)
     user = StringField(required=True)
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
+    is_fav = BooleanField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
@@ -198,5 +204,4 @@ class Organization(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     create_user = BooleanField(default=True)
     only_sso_login = BooleanField(default=False)
-
     meta = {"indexes": [{"fields": ["account", "name"]}]}
