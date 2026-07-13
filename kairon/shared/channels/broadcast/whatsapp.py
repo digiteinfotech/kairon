@@ -16,7 +16,6 @@ from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
-from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.data.collection_processor import DataProcessor
