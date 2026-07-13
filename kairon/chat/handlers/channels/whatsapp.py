@@ -139,7 +139,7 @@ class Whatsapp:
                 if not messages:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
-                    for status_data in statuses:
+                    for status_data in (statuses or []):
                         recipient = status_data.get('recipient_id') or status_data.get('recipient_user_id')
                         ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
                                                                   ChannelTypes.WHATSAPP.value)
@@ -197,23 +197,9 @@ class Whatsapp:
                 return msg
 
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
-        logger.debug(f"Gupshup native webhook: {payload}")
-        if provider == "gupshup" and payload.get("type") == "message-event":
-            actor.execute(self.handle_gupshup_native_payload, payload, bot)
-        else:
-            actor.execute(self.handle_meta_payload, payload, metadata, bot)
-        return msg
+        actor.execute(self.handle_meta_payload, payload, metadata, bot)
 
-    def handle_gupshup_native_payload(self, payload: Dict, bot: str) -> None:
-        native = payload.get("payload", {})
-        status_data = {
-            "id": native.get("gsId") or native.get("id"),
-            "status": native.get("type"),
-            "errors": [],
-        }
-        recipient = native.get("destination")
-        user = payload.get("phone")
-        ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient, ChannelTypes.WHATSAPP.value)
+        return msg
 
     def get_business_phone_number_id(self) -> Text:
         return self.last_message.get("value", {}).get("metadata", {}).get("phone_number_id", "")

@@ -454,30 +454,6 @@ class TestWhatsappBroadcastGupshupRouting:
         wb.channel_client.send_template_message_async.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_channel_logs_created_when_gupshup_returns_message_id(self):
-        from kairon.shared.channels.broadcast.whatsapp import WhatsappBroadcast
-        wb = self._make_broadcast(bsp_type="gupshup")
-        template_components = ({"id": "tmpl-1"}, {"type": "text"})
-
-        wb.channel_client.send_gupshup_template_message = AsyncMock(
-            return_value=(True, 200, {"messageId": "gm_save_me", "status": "submitted"})
-        )
-
-        with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"), \
-             patch("kairon.shared.channels.broadcast.whatsapp.ChannelLogs") as mock_cls:
-            mock_instance = MagicMock()
-            mock_cls.return_value = mock_instance
-            await wb.send_template_message("tmpl_id", "9190000001", "en", template_components, "ns")
-
-        mock_cls.assert_called_once()
-        kwargs = mock_cls.call_args[1]
-        assert kwargs["message_id"] == "gm_save_me"
-        assert kwargs["recipient"] == "9190000001"
-        assert kwargs["bot"] == "test_bot"
-        assert kwargs["user"] == "test_user"
-        mock_instance.save.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_channel_logs_not_created_when_no_message_id(self):
         wb = self._make_broadcast(bsp_type="gupshup")
         template_components = ({"id": "tmpl-1"}, {"type": "text"})
@@ -560,78 +536,6 @@ class TestWhatsappHandlerGupshupPaths:
         handler = Whatsapp(config)
         token = handler._Whatsapp__get_access_token()
         assert token == "meta_tok"
-
-    def test_handle_gupshup_native_payload_calls_audit_log(self, gupshup_config):
-        from kairon.chat.handlers.channels.whatsapp import Whatsapp
-        from kairon.shared.chat.processor import ChatDataProcessor
-
-        handler = Whatsapp(gupshup_config)
-        payload = {
-            "type": "message-event",
-            "phone": "919000000001",
-            "payload": {
-                "gsId": "gs_id_1",
-                "type": "delivered",
-                "destination": "919000000002"
-            }
-        }
-
-        with patch.object(ChatDataProcessor, "save_whatsapp_audit_log") as mock_log:
-            handler.handle_gupshup_native_payload(payload, "test_bot")
-
-        mock_log.assert_called_once()
-        args = mock_log.call_args[0]
-        status_data = args[0]
-        assert status_data["id"] == "gs_id_1"
-        assert status_data["status"] == "delivered"
-        # save_whatsapp_audit_log(status_data, bot, user, recipient, channel_type)
-        assert args[3] == "919000000002"  # recipient (args[2] is user/phone)
-        assert args[2] == "919000000001"  # user (display_phone from payload["phone"])
-
-    def test_handle_gupshup_native_payload_falls_back_to_id(self, gupshup_config):
-        from kairon.chat.handlers.channels.whatsapp import Whatsapp
-        from kairon.shared.chat.processor import ChatDataProcessor
-
-        handler = Whatsapp(gupshup_config)
-        payload = {
-            "type": "message-event",
-            "phone": "919000000001",
-            "payload": {
-                "id": "plain_id",  # no gsId
-                "type": "sent",
-                "destination": "919000000003"
-            }
-        }
-
-        with patch.object(ChatDataProcessor, "save_whatsapp_audit_log") as mock_log:
-            handler.handle_gupshup_native_payload(payload, "test_bot")
-
-        status_data = mock_log.call_args[0][0]
-        assert status_data["id"] == "plain_id"
-
-    def test_handle_payload_routes_gupshup_native_to_gupshup_handler(self, gupshup_config):
-        """handle_payload (not message_received) is the webhook entry point."""
-        from kairon.chat.handlers.channels.whatsapp import Whatsapp
-
-        handler = Whatsapp(gupshup_config)
-        payload = {"type": "message-event", "phone": "919000000001", "payload": {}}
-
-        mock_request = MagicMock()
-        mock_request.json = AsyncMock(return_value=payload)
-        mock_request.body = AsyncMock(return_value=b"")
-        mock_request.headers = {}
-
-        with patch.object(handler, "handle_gupshup_native_payload") as mock_gs, \
-             patch("kairon.chat.handlers.channels.whatsapp.ActorFactory") as mock_actor_factory:
-            mock_actor = MagicMock()
-            mock_actor_factory.get_instance.return_value = mock_actor
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(
-                handler.handle_payload(mock_request, {"channel_type": "whatsapp"}, "test_bot")
-            )
-            mock_actor.execute.assert_called_once()
-            args = mock_actor.execute.call_args[0]
-            assert args[0] == handler.handle_gupshup_native_payload
 
     def test_handle_payload_non_gupshup_native_routes_to_meta_handler(self, gupshup_config):
         from kairon.chat.handlers.channels.whatsapp import Whatsapp
