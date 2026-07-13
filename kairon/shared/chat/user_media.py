@@ -140,11 +140,11 @@ class UserMedia:
     @staticmethod
     def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict, user_id: str = None):
         """
-        Download media from 360 dialog or meta and save it to cloud storage via background task.
+        Download media from 360dialog, meta, or gupshup and save it to cloud storage via background task.
         :param bot: bot name
         :param sender_id: sender id
         :param whatsapp_media_id: whatsapp media id
-        :param config: configuration for 360 dialog or meta
+        :param config: channel config (bsp_type determines which provider path is used)
         :return: list of media ids
         """
         download_url = None
@@ -181,6 +181,14 @@ class UserMedia:
             mime_type = json_resp.get("mime_type")
             extension = mimetypes.guess_extension(mime_type) or ''
             file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
+        elif provider == 'gupshup':
+            from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+            access_token = config.get('partner_app_token')
+            client = WhatsappFactory.get_client(provider)
+            download_url, headers, file_path = client(
+                access_token=access_token,
+                config=config
+            ).get_media_info(whatsapp_media_id, config)
 
         media_resp = requests.get(
             download_url,
@@ -668,7 +676,12 @@ class UserMedia:
 
         file_path = None
         provider = config.get("bsp_type", "meta")
-        access_token = config.get("access_token") if provider == "meta" else config.get("api_key")
+        if provider == "meta":
+            access_token = config.get("access_token")
+        elif provider == "gupshup":
+            access_token = config.get("partner_app_token")
+        else:
+            access_token = config.get("api_key")
         from_phone_number_id = config.get("from_phone_number_id")
         client = WhatsappFactory.get_client(provider)
         download_url, headers, file_path = client(
