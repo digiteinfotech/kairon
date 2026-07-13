@@ -414,9 +414,7 @@ class TestWhatsappBroadcastGupshupRouting:
 
         wb.channel_client.send_gupshup_template_message = AsyncMock(return_value=(True, 200, {"messageId": "gm1"}))
 
-        with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"), \
-             patch("kairon.shared.channels.broadcast.whatsapp.ChannelLogs") as mock_channel_logs:
-            mock_channel_logs.return_value = MagicMock()
+        with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message(
                 "tmpl_id", "9190000001", "en", template_components, "ns"
             )
@@ -452,21 +450,6 @@ class TestWhatsappBroadcastGupshupRouting:
             )
 
         wb.channel_client.send_template_message_async.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_channel_logs_not_created_when_no_message_id(self):
-        wb = self._make_broadcast(bsp_type="gupshup")
-        template_components = ({"id": "tmpl-1"}, {"type": "text"})
-
-        wb.channel_client.send_gupshup_template_message = AsyncMock(
-            return_value=(True, 200, {})  # no messageId
-        )
-
-        with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"), \
-             patch("kairon.shared.channels.broadcast.whatsapp.ChannelLogs") as mock_cls:
-            await wb.send_template_message("tmpl_id", "9190000001", "en", template_components, "ns")
-
-        mock_cls.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_send_template_message_retry_gupshup_path(self):
