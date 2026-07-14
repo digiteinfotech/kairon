@@ -1,3 +1,0 @@
-order_id,order_priority,sales,profit,kairon_error_description
-45.09,Not Specified,,-329.49,order_id: Invalid DataType; sales: Required Field is Empty
-32,Medium,65.09,,profit: Required Field is Empty
