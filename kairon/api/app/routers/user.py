@@ -37,7 +37,7 @@ async def get_user_settings(current_user: User = Depends(Authentication.get_curr
 @router.post("/user/settings", response_model=Response)
 async def update_user_settings(request_data: DictData,
                                current_user: User = Depends(Authentication.get_current_user)):
-    return {"data":AccountProcessor.update_user_settings(current_user.email, request_data.data)}
+    return {"data": AccountProcessor.update_user_settings(current_user.email, request_data.data)}
 
 @router.post("/consent/details", response_model=Response)
 async def add_user_consent_details(

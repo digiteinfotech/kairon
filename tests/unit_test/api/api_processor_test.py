@@ -3143,10 +3143,6 @@ class TestAccountProcessor:
         assert user_details["onboarding_timestamp"]
         assert user_details["is_onboarded"] is True
 
-
-
-
-
     def test_add_bot_default_is_fav(self):
         bot_response = AccountProcessor.add_bot(
             name="fav test bot",

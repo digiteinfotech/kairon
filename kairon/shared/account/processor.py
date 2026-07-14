@@ -8,9 +8,7 @@ from mongoengine import Q
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
-from sqlalchemy import false
 from starlette.requests import Request
-from twilio.rest.api.v2010 import account
 from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
 
@@ -46,7 +44,6 @@ from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotM
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility
 from kairon.shared.models import User as UserModel
-from kairon.shared.verification import email
 
 Utility.load_email_configuration()
 
@@ -241,7 +238,8 @@ class AccountProcessor:
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
             bot_info.name = data.get("name")
-            bot_info.is_fav = data.get("is_fav", False)
+            if data.get('is_fav'):
+                bot_info.is_fav = data.get('is_fav')
             bot_info.save()
         except DoesNotExist:
             raise AppException("Bot not found")
@@ -345,7 +343,7 @@ class AccountProcessor:
             bot_details = AccountProcessor.get_bot(bot["bot"])
             bot_details["_id"] = bot_details["_id"].__str__()
             bot_details["role"] = bot["role"]
-            bot_details["is_fav"] = Bot.is_fav
+            bot_details["is_fav"] = bot.is_fav
             bot_setting_obj = BotSettings.objects(bot=bot_details["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot_details["pos_enabled"] = bot_setting.get("pos_enabled")
@@ -867,7 +865,9 @@ class AccountProcessor:
             user_settings = UserSettings(user=user)
             user_settings.save()
 
-        return user_settings
+        return {
+            "default_bot": user_settings.default_bot,
+        }
 
     @staticmethod
     def update_user_settings(user : Text, data: Dict):
@@ -879,7 +879,10 @@ class AccountProcessor:
         user_settings.default_bot =  data.get("default_bot")
         user_settings.save()
 
-        return user_settings
+        return {
+            "user": user_settings.user,
+            "default_bot": user_settings.default_bot,
+        }
 
     @staticmethod
     def verify_and_log_user_consent(account_setup: dict):

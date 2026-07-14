@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from cryptography.hazmat.asn1 import Null
 from mongoengine import (
     Document,
     StringField,
@@ -12,7 +13,7 @@ from mongoengine import (
     EmbeddedDocumentField,
     EmbeddedDocument,
     ListField,
-    DynamicField, ReferenceField,
+    DynamicField,
 )
 from mongoengine.errors import ValidationError
 from validators import email, ValidationError as ValidationFailure
@@ -74,7 +75,7 @@ class User(Auditlog):
 @auditlogger.log
 class UserSettings(Auditlog):
     user = StringField(required=True)
-    default_bot = StringField()
+    default_bot = StringField(default=None)
 
 
 class BotMetaData(EmbeddedDocument):
