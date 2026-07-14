@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from cryptography.hazmat.asn1 import Null
 from mongoengine import (
     Document,
     StringField,
