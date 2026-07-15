@@ -75,6 +75,7 @@ class User(Auditlog):
 class UserSettings(Auditlog):
     user = StringField(required=True)
     default_bot = StringField(default=None)
+    is_fav = ListField(default=[])
 
 
 class BotMetaData(EmbeddedDocument):
@@ -91,7 +92,6 @@ class Bot(Auditlog):
     account = LongField(required=True)
     user = StringField(required=True)
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
-    is_fav = BooleanField(default=False)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 

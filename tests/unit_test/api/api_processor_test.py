@@ -135,19 +135,19 @@ class TestAccountProcessor:
                 AppException,
                 match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "test?17"
-            AccountProcessor.update_bot(data={"name": name}, bot=bot)
+            AccountProcessor.update_bot(name=name, bot=bot)
 
         with pytest.raises(
                 AppException,
                 match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "test(7)"
-            AccountProcessor.update_bot(data={"name": name}, bot=bot)
+            AccountProcessor.update_bot(name=name, bot=bot)
 
         with pytest.raises(
                 AppException,
                 match=re.escape("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")):
             name = "<test>18"
-            AccountProcessor.update_bot(data={"name": name}, bot=bot)
+            AccountProcessor.update_bot(name=name, bot=bot)
 
     def test_add_bot(self):
         bot_response = AccountProcessor.add_bot("test", pytest.account, "fshaikh@digite.com", True)
@@ -167,7 +167,7 @@ class TestAccountProcessor:
     def test_update_bot_with_character_limit_exceeded(self):
         name = "supercalifragilisticexpialidociousalwaysworksmorethan60characters"
         with pytest.raises(AppException, match='Bot Name cannot be more than 60 characters.'):
-            AccountProcessor.update_bot(data={"name": name}, bot=pytest.bot)
+            AccountProcessor.update_bot(name=name, bot=pytest.bot)
 
     def test_list_bots(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
@@ -336,11 +336,6 @@ class TestAccountProcessor:
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
 
-
-        assert "is_fav" in account_bot_info
-        assert account_bot_info["is_fav"] is False
-
-
         assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
             bot_id, "udit.pandey@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
         )
@@ -498,22 +493,22 @@ class TestAccountProcessor:
         assert bot[1]['_id']
 
     def test_update_bot_name(self):
-        AccountProcessor.update_bot(data={"name":'test_bot'}, bot=pytest.bot)
+        AccountProcessor.update_bot(name='test_bot', bot=pytest.bot)
         bot = list(AccountProcessor.list_bots(pytest.account))
         assert bot[0]['name'] == 'test_bot'
         assert bot[0]['_id']
 
     def test_update_bot_not_exists(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot(data={"name": 'test_bot'}, bot='5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name='test_bot', bot='5f256412f98b97335c168ef0')
 
     def test_update_bot_empty_name(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot(data={"name":' '}, bot='5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name=' ', bot='5f256412f98b97335c168ef0')
 
     def test_update_bot_invalid_name(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot(data={"name": 'Test@bot'}, bot='5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name='Test@bot', bot='5f256412f98b97335c168ef0')
 
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
@@ -3142,32 +3137,3 @@ class TestAccountProcessor:
         assert user_details["onboarding_status"] == "Completed"
         assert user_details["onboarding_timestamp"]
         assert user_details["is_onboarded"] is True
-
-    def test_add_bot_default_is_fav(self):
-        bot_response = AccountProcessor.add_bot(
-            name="fav test bot",
-            account=pytest.account,
-            user="fshaikh@digite.com",
-            is_new_account=True
-        )
-
-        bot = Bot.objects(id=bot_response["_id"]).get().to_mongo().to_dict()
-
-        assert "is_fav" in bot
-        assert bot["is_fav"] is False
-
-
-    def test_list_bots_contains_is_fav(self):
-        bots = list(AccountProcessor.list_bots(pytest.account))
-
-        assert len(bots) > 0
-        assert "is_fav" in bots[0]
-
-    def test_get_accessible_bot_details_contains_is_fav(self):
-        result = AccountProcessor.get_accessible_bot_details(
-            pytest.account,
-            "fshaikh@digite.com"
-        )
-
-        if result["account_owned"]:
-            assert "is_fav" in result["account_owned"][0]

@@ -160,7 +160,7 @@ async def list_bots(current_user: User = Depends(Authentication.get_current_user
 
 @router.put("/bot/{bot}", response_model=Response)
 async def update_bot(
-        bot: str, request: DictData,
+        bot: str, request: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=OWNER_ACCESS)
 ):
     """

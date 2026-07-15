@@ -219,27 +219,24 @@ class AccountProcessor:
             bot.pop("status")
             bot["role"] = ACCESS_ROLES.OWNER.value
             bot["_id"] = bot["_id"].__str__()
-            bot["is_fav"] = bot.get("is_fav", False)
             bot_setting_obj = BotSettings.objects(bot=bot["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot["pos_enabled"] = bot_setting.get("pos_enabled")
             yield bot
 
     @staticmethod
-    def update_bot(data: Dict, bot: Text):
-        if Utility.check_empty_string(data.get('name')):
+    def update_bot(name: Text, bot: Text):
+        if Utility.check_empty_string(name):
             raise AppException('Name cannot be empty')
 
-        if not Utility.special_match(data.get("name"), RE_VALID_NAME):
+        if not Utility.special_match(name, RE_VALID_NAME):
             raise AppException("Invalid name! Use only letters, numbers, spaces, hyphens (-), and underscores (_).")
 
-        if not Utility.check_character_limit(data.get("name")):
+        if not Utility.check_character_limit(name):
             raise AppException("Bot Name cannot be more than 60 characters.")
         try:
             bot_info = Bot.objects(id=bot, status=True).get()
-            bot_info.name = data.get("name")
-            if data.get('is_fav'):
-                bot_info.is_fav = data.get('is_fav')
+            bot_info.name = name
             bot_info.save()
         except DoesNotExist:
             raise AppException("Bot not found")
@@ -343,7 +340,6 @@ class AccountProcessor:
             bot_details = AccountProcessor.get_bot(bot["bot"])
             bot_details["_id"] = bot_details["_id"].__str__()
             bot_details["role"] = bot["role"]
-            bot_details["is_fav"] = bot.is_fav
             bot_setting_obj = BotSettings.objects(bot=bot_details["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot_details["pos_enabled"] = bot_setting.get("pos_enabled")
@@ -866,7 +862,9 @@ class AccountProcessor:
             user_settings.save()
 
         return {
+            "user": user_settings.user,
             "default_bot": user_settings.default_bot,
+            "is_fav": user_settings.is_fav,
         }
 
     @staticmethod
@@ -876,12 +874,14 @@ class AccountProcessor:
         except DoesNotExist as e:
             user_settings = UserSettings(user=user)
 
-        user_settings.default_bot =  data.get("default_bot")
+        user_settings.default_bot =  data.get("default_bot", user_settings.default_bot)
+        user_settings.is_fav = data.get("is_fav", user_settings.is_fav)
         user_settings.save()
 
         return {
             "user": user_settings.user,
             "default_bot": user_settings.default_bot,
+            "is_fav": user_settings.is_fav,
         }
 
     @staticmethod
