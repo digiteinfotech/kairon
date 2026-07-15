@@ -18814,7 +18814,7 @@ def test_get_slot_actions(save_actions):
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
-        json={"data":{"name": "Hi-Hello-bot"}},
+        json={"data":"Hi-Hello-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert response["message"] == "Name updated"

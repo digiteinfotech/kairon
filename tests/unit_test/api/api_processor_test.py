@@ -8,12 +8,6 @@ from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
 
-from engineio import payload
-from moto.stepfunctions.parser.asl.component.state.state_pass import result
-from nltk.chat import bots
-from twilio.rest.api.v2010 import account
-
-from kairon.actions.definitions import bot_response
 from kairon.shared.utils import Utility, MailUtility
 Utility.load_system_metadata()
 
