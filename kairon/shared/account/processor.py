@@ -27,6 +27,7 @@ from kairon.shared.account.data_objects import (
 
     BotMetaData,
     TrustedDevice, UserActivityLog,
+    UserSettings,
 )
 from kairon.shared.actions.data_objects import (
     FormValidationAction,
@@ -847,8 +848,41 @@ class AccountProcessor:
         user_activity_log, show_updated_terms_and_policy = Utility.compare_terms_and_policy_version(user_activity_log)
         user_details["accepted_privacy_policy"] = user_activity_log["data"]["accepted_privacy_policy"]
         user_details["accepted_terms"] = user_activity_log["data"]["accepted_terms"]
+        user_details["user_settings"] = AccountProcessor.get_user_settings(email)
         user_details["show_updated_terms_and_policy"] = show_updated_terms_and_policy
         return user_details
+
+
+    @staticmethod
+    def get_user_settings(user : Text):
+        try:
+            user_settings = UserSettings.objects(user=user).get()
+        except DoesNotExist as e:
+            user_settings = UserSettings(user=user)
+            user_settings.save()
+
+        return {
+            "user": user_settings.user,
+            "default_bot": user_settings.default_bot,
+            "is_fav": user_settings.is_fav,
+        }
+
+    @staticmethod
+    def update_user_settings(user : Text, data: Dict):
+        try:
+            user_settings = UserSettings.objects(user=user).get()
+        except DoesNotExist as e:
+            user_settings = UserSettings(user=user)
+
+        user_settings.default_bot =  data.get("default_bot", user_settings.default_bot)
+        user_settings.is_fav = data.get("is_fav", user_settings.is_fav)
+        user_settings.save()
+
+        return {
+            "user": user_settings.user,
+            "default_bot": user_settings.default_bot,
+            "is_fav": user_settings.is_fav,
+        }
 
     @staticmethod
     def verify_and_log_user_consent(account_setup: dict):

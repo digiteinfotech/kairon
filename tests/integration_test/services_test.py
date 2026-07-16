@@ -18814,7 +18814,7 @@ def test_get_slot_actions(save_actions):
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
-        json={"data": "Hi-Hello-bot"},
+        json={"data":"Hi-Hello-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert response["message"] == "Name updated"
@@ -23603,10 +23603,65 @@ def test_update_user_details():
     )
 
     actual = response.json()
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Details updated!"
 
+def test_get_user_settings():
+    response = client.get(
+        url="/api/user/user/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    assert "user" in actual["data"]
+    assert "default_bot" in actual["data"]
+    assert "is_fav" in actual["data"]
+
+    assert Utility.check_empty_string(actual["message"])
+
+def test_update_user_settings():
+    response = client.post(
+        url="/api/user/user/settings",
+        json={
+            "data": {
+                "default_bot": pytest.bot,
+                "is_fav": [pytest.bot],
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    assert actual["data"]["default_bot"] == pytest.bot
+    assert actual["data"]["is_fav"] == [pytest.bot]
+
+def test_update_user_settings_without_is_fav():
+    response = client.post(
+        url="/api/user/user/settings",
+        json={
+            "data": {
+                "default_bot": pytest.bot,
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
 
 def test_download_data():
     response = client.get(

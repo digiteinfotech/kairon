@@ -7,6 +7,7 @@ import uuid
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
+
 from kairon.shared.utils import Utility, MailUtility
 Utility.load_system_metadata()
 
@@ -328,6 +329,7 @@ class TestAccountProcessor:
             AccountProcessor.get_accessible_bot_details(pytest.account, "fshaikh@digite.com")['account_owned'][1]
         assert account_bot_info['role'] == 'owner'
         bot_id = account_bot_info['_id']
+
         assert ('test_version_2', 'fshaikh@digite.com', 'Fahad Ali', 'udit') == AccountProcessor.update_bot_access(
             bot_id, "udit.pandey@digite.com", 'testAdmin', ACCESS_ROLES.ADMIN.value, ACTIVITY_STATUS.ACTIVE.value
         )
@@ -485,22 +487,22 @@ class TestAccountProcessor:
         assert bot[1]['_id']
 
     def test_update_bot_name(self):
-        AccountProcessor.update_bot('test_bot', pytest.bot)
+        AccountProcessor.update_bot(name='test_bot', bot=pytest.bot)
         bot = list(AccountProcessor.list_bots(pytest.account))
         assert bot[0]['name'] == 'test_bot'
         assert bot[0]['_id']
 
     def test_update_bot_not_exists(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot('test_bot', '5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name='test_bot', bot='5f256412f98b97335c168ef0')
 
     def test_update_bot_empty_name(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot(' ', '5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name=' ', bot='5f256412f98b97335c168ef0')
 
     def test_update_bot_invalid_name(self):
         with pytest.raises(AppException):
-            AccountProcessor.update_bot('Test@bot', '5f256412f98b97335c168ef0')
+            AccountProcessor.update_bot(name='Test@bot', bot='5f256412f98b97335c168ef0')
 
     def test_delete_bot(self):
         bot = list(AccountProcessor.list_bots(pytest.account))
