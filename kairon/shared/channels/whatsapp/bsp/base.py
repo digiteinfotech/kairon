@@ -5,11 +5,11 @@ from typing import Dict, Text
 class WhatsappBusinessServiceProviderBase(ABC):
 
     @abstractmethod
-    def get_account(self, account_id: Text):
+    def get_account(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def post_process(self):
+    def post_process(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
@@ -17,19 +17,19 @@ class WhatsappBusinessServiceProviderBase(ABC):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def add_template(self, data: Dict, bot: Text, user: Text):
+    def add_template(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def edit_template(self, data: Dict, template_id: str):
+    def edit_template(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def delete_template(self, template_name: str):
+    def delete_template(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
-    def get_template(self, template_id: Text):
+    def get_template(self, **kwargs):
         raise NotImplementedError("Provider not implemented")
 
     @abstractmethod
@@ -38,4 +38,16 @@ class WhatsappBusinessServiceProviderBase(ABC):
 
     @abstractmethod
     def validate(self, **kwargs):
+        raise NotImplementedError("Provider not implemented")
+
+    @abstractmethod
+    def validate_template_request(self, data: Dict):
+        raise NotImplementedError("Provider not implemented")
+
+    @staticmethod
+    def fetch_media_ids(bot: str):
+        raise NotImplementedError("Provider not implemented")
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: str):
         raise NotImplementedError("Provider not implemented")

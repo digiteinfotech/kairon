@@ -269,6 +269,20 @@ class TestGupshupClientSendActionAsync:
         assert ok is False
 
     @pytest.mark.asyncio
+    async def test_send_action_async_success_202(self, gupshup_client):
+        from aioresponses import aioresponses
+        url = "https://partner.gupshup.io/partner/app/app_001/msg"
+        with aioresponses() as m:
+            m.post(url, payload={"messageId": "gm2", "status": "submitted"}, status=202)
+            ok, status, resp = await gupshup_client.send_action_async(
+                {"source": "919000000001", "destination": "919000000002"},
+                url=url, use_form=True
+            )
+        assert ok is True
+        assert status == 202
+        assert resp["messageId"] == "gm2"
+
+    @pytest.mark.asyncio
     async def test_send_action_async_client_connection_error(self, gupshup_client):
         from aiohttp import ClientConnectionError
         with patch("kairon.chat.handlers.channels.clients.whatsapp.gupshup.RetryClient") as mock_retry:
@@ -341,6 +355,61 @@ class TestGupshupTemplateMessage:
         assert "message" in captured["payload"]
 
 
+class TestBSPGupshupSendBroadcastTemplateAsync:
+    """Unit tests for BSPGupshup.send_broadcast_template_async routing."""
+
+    @pytest.mark.asyncio
+    async def test_tuple_routes_to_gupshup_template(self, gupshup_client):
+        components = ({"id": "tmpl-1", "params": []}, {"type": "text"})
+        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock,
+                          return_value=(True, 202, {"messageId": "t1"})) as mock_gs, \
+             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock) as mock_std:
+            ok, code, resp = await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", components
+            )
+        mock_gs.assert_called_once_with("919000000002", components)
+        mock_std.assert_not_called()
+        assert ok is True
+
+    @pytest.mark.asyncio
+    async def test_list_of_two_dicts_routes_to_gupshup_template(self, gupshup_client):
+        # MongoDB round-trip converts tuple → list; must still hit Gupshup template endpoint
+        components = [{"id": "tmpl-1", "params": []}, {"type": "text"}]
+        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock,
+                          return_value=(True, 202, {"messageId": "t2"})) as mock_gs, \
+             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock) as mock_std:
+            ok, code, resp = await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", components
+            )
+        mock_gs.assert_called_once_with("919000000002", components)
+        mock_std.assert_not_called()
+        assert ok is True
+
+    @pytest.mark.asyncio
+    async def test_regular_component_list_routes_to_standard(self, gupshup_client):
+        # Standard Meta-style components list (not a 2-dict Gupshup pair)
+        components = [{"type": "body", "parameters": [{"type": "text", "text": "val"}]}]
+        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
+             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_std:
+            await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", components, "ns"
+            )
+        mock_gs.assert_not_called()
+        mock_std.assert_called_once_with("tmpl_id", "919000000002", "en", components, "ns")
+
+    @pytest.mark.asyncio
+    async def test_none_components_routes_to_standard(self, gupshup_client):
+        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
+             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_std:
+            await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", None
+            )
+        mock_gs.assert_not_called()
+        mock_std.assert_called_once()
+
+
 class TestGupshupClientV3Methods:
 
     def test_mark_as_read_posts_to_v3_url(self, gupshup_client):
@@ -372,14 +441,22 @@ class TestGupshupClientV3Methods:
 class TestGupshupGetMediaInfo:
 
     def test_get_media_info_success(self, gupshup_client):
-        # Returns (download_url, headers, file_path) tuple
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"url": "https://media.gupshup.io/file.jpg", "mime_type": "image/jpeg"}
+        mock_resp.json.return_value = {"url": "https://cdn.gupshup.io/media/abc.jpg", "mime_type": "image/jpeg"}
         with patch("requests.get", return_value=mock_resp):
             url, headers, file_path = gupshup_client.get_media_info("whatsapp_media_id_1", config={})
-        assert url == "https://media.gupshup.io/file.jpg"
+        assert url == "https://cdn.gupshup.io/media/abc.jpg"
         assert "whatsapp_media_id_1" in file_path
+        assert "Authorization" in headers
+
+    def test_get_media_info_with_media_data_skips_api_call(self, gupshup_client):
+        media_data = {"url": "https://cdn.gupshup.io/media/xyz.jpg", "mime_type": "image/jpeg"}
+        with patch("requests.get") as mock_get:
+            url, headers, file_path = gupshup_client.get_media_info("media_id_2", config={}, media_data=media_data)
+        mock_get.assert_not_called()
+        assert url == "https://cdn.gupshup.io/media/xyz.jpg"
+        assert "media_id_2" in file_path
 
     def test_get_media_info_non_200_raises(self, gupshup_client):
         from kairon.exceptions import AppException
@@ -412,14 +489,16 @@ class TestWhatsappBroadcastGupshupRouting:
         wb = self._make_broadcast(bsp_type="gupshup")
         template_components = ({"id": "tmpl-1"}, {"type": "text"})  # tuple signals Gupshup
 
-        wb.channel_client.send_gupshup_template_message = AsyncMock(return_value=(True, 200, {"messageId": "gm1"}))
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 200, {"messageId": "gm1"}))
 
         with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message(
                 "tmpl_id", "9190000001", "en", template_components, "ns"
             )
 
-        wb.channel_client.send_gupshup_template_message.assert_called_once_with("9190000001", template_components)
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", template_components, "ns"
+        )
         assert ok is True
 
     @pytest.mark.asyncio
@@ -427,36 +506,39 @@ class TestWhatsappBroadcastGupshupRouting:
         wb = self._make_broadcast(bsp_type="gupshup")
         components = [{"type": "body", "parameters": []}]  # list, not tuple
 
-        wb.channel_client.send_template_message_async = AsyncMock(return_value=(True, 200, {}))
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 200, {}))
 
         with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message(
                 "tmpl_id", "9190000001", "en", components, "ns"
             )
 
-        wb.channel_client.send_template_message_async.assert_called_once()
-        wb.channel_client.send_gupshup_template_message.assert_not_called() if hasattr(wb.channel_client, 'send_gupshup_template_message') else None
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", components, "ns"
+        )
 
     @pytest.mark.asyncio
     async def test_send_template_message_360dialog_uses_standard_path(self):
         wb = self._make_broadcast(bsp_type="360dialog")
         components = {"type": "body"}
 
-        wb.channel_client.send_template_message_async = AsyncMock(return_value=(True, 200, {}))
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 200, {}))
 
         with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message(
                 "tmpl_id", "9190000001", "en", components, "ns"
             )
 
-        wb.channel_client.send_template_message_async.assert_called_once()
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", components, "ns"
+        )
 
     @pytest.mark.asyncio
     async def test_send_template_message_retry_gupshup_path(self):
         wb = self._make_broadcast(bsp_type="gupshup")
         template_components = ({"id": "tmpl-1"}, {"type": "text"})
 
-        wb.channel_client.send_gupshup_template_message = AsyncMock(return_value=(True, 200, {}))
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 200, {}))
 
         with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message_retry(
@@ -464,14 +546,17 @@ class TestWhatsappBroadcastGupshupRouting:
                 language_code="en", components=template_components, namespace="ns"
             )
 
-        wb.channel_client.send_gupshup_template_message.assert_called_once_with("9190000001", template_components)
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", template_components, "ns"
+        )
 
     @pytest.mark.asyncio
-    async def test_send_template_message_retry_360dialog_path(self):
-        wb = self._make_broadcast(bsp_type="360dialog")
-        components = {"type": "body"}
+    async def test_send_template_message_retry_gupshup_list_components_resend(self):
+        # Simulates resend after MongoDB round-trip: tuple stored as list
+        wb = self._make_broadcast(bsp_type="gupshup")
+        components = [{"id": "tmpl-1", "params": []}, {"type": "text"}]  # list, not tuple
 
-        wb.channel_client.send_template_message_async = AsyncMock(return_value=(True, 200, {}))
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 202, {"messageId": "rs1"}))
 
         with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
             ok, code, resp = await wb.send_template_message_retry(
@@ -479,7 +564,28 @@ class TestWhatsappBroadcastGupshupRouting:
                 language_code="en", components=components, namespace="ns"
             )
 
-        wb.channel_client.send_template_message_async.assert_called_once()
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", components, "ns"
+        )
+        assert ok is True
+        assert code == 202
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_retry_360dialog_path(self):
+        wb = self._make_broadcast(bsp_type="360dialog")
+        components = {"type": "body"}
+
+        wb.channel_client.send_broadcast_template_async = AsyncMock(return_value=(True, 200, {}))
+
+        with patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
+            ok, code, resp = await wb.send_template_message_retry(
+                "tmpl_id", "9190000001", retry_count=1, template="t",
+                language_code="en", components=components, namespace="ns"
+            )
+
+        wb.channel_client.send_broadcast_template_async.assert_called_once_with(
+            "tmpl_id", "9190000001", "en", components, "ns"
+        )
 
 
 # ---------------------------------------------------------------------------

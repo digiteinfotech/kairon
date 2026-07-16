@@ -1,6 +1,6 @@
 import asyncio
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 from aiohttp import ClientConnectionError, ClientError
 from aioresponses import aioresponses
@@ -443,7 +443,7 @@ async def test_send_template_message():
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
          patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
-         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_broadcast_template_async', new=AsyncMock(side_effect=mock_send_template_message_async)) as mock_send_broadcast, \
          patch.object(whatsapp_broadcast, 'log_failed_messages') as mock_log_failed_messages:
 
         status_flag, status_code, response = await whatsapp_broadcast.send_template_message(template_id, recipient, language_code, components, namespace)
@@ -452,7 +452,7 @@ async def test_send_template_message():
         assert status_code == 200
         assert response == {}
 
-        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_send_broadcast.assert_called_once_with(template_id, recipient, language_code, components, namespace)
         mock_log_failed_messages.assert_not_called()
 
     del Utility.environment['notifications']
@@ -487,7 +487,7 @@ async def test_send_template_message_retry():
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
          patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
-         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_broadcast_template_async', new=AsyncMock(side_effect=mock_send_template_message_async)) as mock_send_broadcast, \
          patch.object(whatsapp_broadcast, 'log_failed_messages') as mock_log_failed_messages:
 
         status_flag, status_code, response = await whatsapp_broadcast.send_template_message_retry(template_id, recipient, retry_count, template, language_code, components, namespace)
@@ -496,7 +496,7 @@ async def test_send_template_message_retry():
         assert status_code == 200
         assert response == {}
 
-        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_send_broadcast.assert_called_once_with(template_id, recipient, language_code, components, namespace)
         mock_log_failed_messages.assert_not_called()
 
     del Utility.environment['notifications']
@@ -636,7 +636,7 @@ async def test_send_template_message_success_with_flow():
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
          patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
-         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_broadcast_template_async', new=AsyncMock(side_effect=mock_send_template_message_async)) as mock_send_broadcast, \
          patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
             patch.object(AgenticFlow, '__init__', return_value=None) as mock_init, \
             patch.object(AgenticFlow, 'execute_rule', side_effect=mock_execute_rule) as mock_execute_rule:
@@ -647,7 +647,7 @@ async def test_send_template_message_success_with_flow():
         assert status_code == 200
         assert response == {}
 
-        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_send_broadcast.assert_called_once_with(template_id, recipient, language_code, components, namespace)
         mock_add_event_log.assert_called_once()
 
 @pytest.mark.asyncio
@@ -678,9 +678,9 @@ async def test_send_template_message_success_with_flow():
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_client', return_value=MagicMock()) as mock_get_client, \
          patch.object(whatsapp_broadcast, 'channel_client', new_callable=MagicMock) as mock_channel_client, \
-         patch.object(whatsapp_broadcast.channel_client, 'send_template_message_async', side_effect=mock_send_template_message_async) as mock_send_template_message_async, \
+         patch.object(whatsapp_broadcast.channel_client, 'send_broadcast_template_async', new=AsyncMock(side_effect=mock_send_template_message_async)) as mock_send_broadcast, \
          patch.object(MessageBroadcastProcessor, 'add_event_log') as mock_add_event_log, \
-        patch.object(AgenticFlow, '__init__', return_value = None) as mock_init,\
+        patch.object(AgenticFlow, '__init__', return_value=None) as mock_init, \
          patch.object(AgenticFlow, 'execute_rule', side_effect=mock_execute_rule) as mock_execute_rule:
 
         status_flag, status_code, response = await whatsapp_broadcast.send_template_message(template_id, recipient, language_code, components, namespace, flowname)
@@ -689,7 +689,7 @@ async def test_send_template_message_success_with_flow():
         assert status_code == 500
         assert response == {"error": "Some error"}
 
-        mock_send_template_message_async.assert_called_once_with(template_id, recipient, language_code, components, namespace)
+        mock_send_broadcast.assert_called_once_with(template_id, recipient, language_code, components, namespace)
         mock_add_event_log.assert_not_called()
 
 @pytest.mark.parametrize("should_fail", [False, True])
