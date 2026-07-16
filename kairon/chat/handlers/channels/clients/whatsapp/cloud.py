@@ -58,6 +58,10 @@ class WhatsappCloud(object):
     def client_type(self):
         return "meta"
 
+    @staticmethod
+    def _recipient_field(to_phone_number: str) -> str:
+        return "recipient" if "." in to_phone_number else "to"
+
     @property
     def auth_args(self):
         if not hasattr(self, '_auth_args'):
@@ -91,10 +95,7 @@ class WhatsappCloud(object):
             "type": messaging_type,
             messaging_type: payload
         }
-        if ("." in to_phone_number):
-            body["recipient"] = to_phone_number
-        else:
-            body["to"] = to_phone_number
+        body[self._recipient_field(to_phone_number)] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -124,10 +125,7 @@ class WhatsappCloud(object):
             "type": messaging_type,
             messaging_type: payload
         }
-        if ("." in to_phone_number):
-            body["recipient"] = to_phone_number
-        else:
-            body["to"] = to_phone_number
+        body[self._recipient_field(to_phone_number)] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -144,11 +142,10 @@ class WhatsappCloud(object):
                 timeout: request timeout
             @outputs: response json
         """
-        recipient_field = "recipient" if ("." in to_phone_number) else "to"
         payload.update({
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            recipient_field: to_phone_number
+            self._recipient_field(to_phone_number): to_phone_number
         })
 
         return self.send_action(payload)
@@ -229,6 +226,10 @@ class WhatsappCloud(object):
         if components:
             payload.update({"components": components})
         return await self.send_async(payload, to_phone_number, messaging_type="template")
+
+    async def send_broadcast_template_async(self, template_id: str, recipient: str,
+                                            language_code: str, components, namespace: str = None):
+        return await self.send_template_message_async(template_id, recipient, language_code, components, namespace)
 
     async def send_action_async(self, payload: dict, timeout: float = WHATSAPP_REQUEST_TIMEOUT, attempts: int = 3,
                                 **kwargs) -> (bool, int, dict):

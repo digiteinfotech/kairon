@@ -14,7 +14,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.models import User
 
 logger = logging.getLogger(__name__)
@@ -154,7 +154,7 @@ class Whatsapp:
         from kairon.chat.converters.channels.response_factory import ConverterFactory
 
         bsp_type = self.config.get("bsp_type", "meta")
-        is_bps = bsp_type in ("360dialog", "gupshup")
+        is_bps = bsp_type in (WhatsappBSPTypes.bsp_360dialog.value, WhatsappBSPTypes.bsp_gupshup.value)
         client = WhatsappFactory.get_client(bsp_type)
         phone_number_id = self.config.get('phone_number_id')
         if not phone_number_id and not is_bps:
@@ -229,7 +229,7 @@ class Whatsapp:
         provider = self.config.get("bsp_type", "meta")
         if provider == "meta":
             return self.config.get('access_token')
-        elif provider == "gupshup":
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
             return self.config.get('partner_app_token')
         else:
             return self.config.get('api_key')

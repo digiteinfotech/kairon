@@ -96,7 +96,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     def add_template(self, data: Dict, bot: Text, user: Text):
         try:
-            Utility.validate_create_template_request(data)
+            self.validate_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             api_key = config.get("config", {}).get("api_key")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
@@ -174,6 +174,30 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         except Exception as e:
             logger.exception(e)
             raise AppException(str(e))
+
+    def get_template_for_broadcast(self, name: Text, language: Text):
+        """Fetch template components matching name+language for broadcast use."""
+        template_exception = None
+        template = []
+        try:
+            for t in self.list_templates(**{"business_templates.name": name}):
+                if t.get("language") == language:
+                    template = t.get("components")
+                    break
+        except Exception as e:
+            logger.exception(e)
+            template_exception = str(e)
+        return template, template_exception
+
+    def to_log_template(self, raw_template):
+        """360Dialog raw template is already in components format — return as-is."""
+        return raw_template
+
+    def validate_template_request(self, data: Dict):
+        required_keys = ["name", "category", "components", "language"]
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
 
     @staticmethod
     def get_partner_auth_token():
@@ -365,6 +389,54 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename, file_path,
                                          output_filename, bucket, False)
         return external_media_id
+
+    @staticmethod
+    def fetch_media_ids(bot: str):
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value,
+                timestamp__gte=thirty_days_ago,
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
+            return [
+                {
+                    "filename": doc.filename,
+                    "media_id": doc.media_id,
+                    "upload_status": doc.upload_status,
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                }
+                for doc in media_data
+            ]
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: str):
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value,
+                timestamp__gte=thirty_days_ago,
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
+            return [
+                {
+                    "filename": doc.filename,
+                    "media_id": doc.media_id,
+                    "upload_status": doc.upload_status,
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                }
+                for doc in media_data
+            ]
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
     def delete_media_file(media_id: str, channel_config):

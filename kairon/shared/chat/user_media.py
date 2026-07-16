@@ -138,7 +138,7 @@ class UserMedia:
             raise AppException(f"File upload for {media_id} failed")
 
     @staticmethod
-    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict, user_id: str = None):
+    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict, user_id: str = None, media_data: dict = None):
         """
         Download media from 360dialog, meta, or gupshup and save it to cloud storage via background task.
         :param bot: bot name
@@ -150,8 +150,9 @@ class UserMedia:
         download_url = None
         file_path = None
         headers = {}
+        content_bytes = None
         provider = config.get("bsp_type", "meta")
-        if provider == '360dialog':
+        if provider == WhatsappBSPTypes.bsp_360dialog.value:
             endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
             headers = {
                 'D360-API-KEY': config.get('api_key'),
@@ -181,14 +182,14 @@ class UserMedia:
             mime_type = json_resp.get("mime_type")
             extension = mimetypes.guess_extension(mime_type) or ''
             file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
-        elif provider == 'gupshup':
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
             from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
             access_token = config.get('partner_app_token')
             client = WhatsappFactory.get_client(provider)
             download_url, headers, file_path = client(
                 access_token=access_token,
                 config=config
-            ).get_media_info(whatsapp_media_id, config)
+            ).get_media_info(whatsapp_media_id, config, media_data=media_data)
 
         media_resp = requests.get(
             download_url,
@@ -678,7 +679,7 @@ class UserMedia:
         provider = config.get("bsp_type", "meta")
         if provider == "meta":
             access_token = config.get("access_token")
-        elif provider == "gupshup":
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
             access_token = config.get("partner_app_token")
         else:
             access_token = config.get("api_key")

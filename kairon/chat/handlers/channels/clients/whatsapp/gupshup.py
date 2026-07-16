@@ -56,7 +56,6 @@ class BSPGupshup(WhatsappCloud):
             data=form_data,
             timeout=timeout
         )
-        logger.info(form_data)
         resp = r.json()
         logger.debug(resp)
         return resp
@@ -79,7 +78,7 @@ class BSPGupshup(WhatsappCloud):
                 async with request as response:
                     last_status_code = response.status
 
-                    if response.status == 200:
+                    if response.status in (200, 202):
                         resp = await response.json()
                         logger.debug(f"Gupshup send success: {resp}")
                         return True, response.status, resp
@@ -112,37 +111,6 @@ class BSPGupshup(WhatsappCloud):
             payload.update({"components": components})
         return await self.send_async(payload, to_phone_number, messaging_type="template")
 
-    # async def send_gupshup_template_message(self, recipient, components):
-    #     import json
-    #
-    #     template, message = components
-    #
-    #     payload = {
-    #         "template": template,
-    #         "message": message
-    #     }
-    #
-    #     url = f"{self.partner_base_url}/partner/app/{self.app_id}/template/msg"
-    #
-    #     headers = {
-    #         "Authorization": self.access_token,
-    #         "Content-Type": "application/x-www-form-urlencoded",
-    #         "accept": "application/json"
-    #     }
-    #
-    #     data = {
-    #         "destination": recipient,
-    #         "source": self.app_name,
-    #         "src.name": self.app_name,
-    #         "template": json.dumps(template),
-    #         "message": json.dumps(message)
-    #     }
-    #
-    #     async with self.channel_client.post(url, headers=headers, data=data) as resp:
-    #         response = await resp.json()
-    #         status_flag = resp.status == 200
-    #
-    #     return status_flag, resp.status, response
     def get_url(self, api_type: str) -> str:
         if api_type == "message":
             # SMSGW apps use /msg (form-encoded); CAPI apps use /v3/message (JSON)
@@ -179,7 +147,6 @@ class BSPGupshup(WhatsappCloud):
     async def send_gupshup_template_message(self, recipient, components):
         template, message = components
 
-        # url = f"{self.partner_base_url}/partner/app/{self.app_id}/template/msg"
         url = self.get_url(api_type="template")
 
         headers = {
@@ -206,6 +173,12 @@ class BSPGupshup(WhatsappCloud):
             use_form=True
         )
 
+    async def send_broadcast_template_async(self, template_id: str, recipient: str,
+                                            language_code: str, components, namespace: str = None):
+        if isinstance(components, (tuple, list)) and len(components) == 2 and all(isinstance(c, dict) for c in components):
+            return await self.send_gupshup_template_message(recipient, components)
+        return await self.send_template_message_async(template_id, recipient, language_code, components, namespace)
+
     async def send_async(self, payload: dict, to_phone_number: str, messaging_type: str,
                          recipient_type: str = 'individual',
                          timeout: float = WHATSAPP_REQUEST_TIMEOUT, tag=None) -> (bool, int, any):
@@ -215,7 +188,6 @@ class BSPGupshup(WhatsappCloud):
 
         url = self.get_url(api_type="message")
 
-        # SMSGW requires form-encoded: src, destination, message (JSON string), APP_ID
         form_data = {
             "source": self.phone_number,
             "destination": to_phone_number,
@@ -238,28 +210,40 @@ class BSPGupshup(WhatsappCloud):
         # v3 endpoint uses Authorization header (not token)
         return {"Authorization": self.access_token, "Content-Type": "application/json"}
 
-    def mark_as_read(self, msg_id, timeout=None):
-        payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
+    def send_statuses(self, payload, timeout):
         r = requests.post(self._v3_url(), headers=self._v3_headers(), json=payload, timeout=timeout)
         resp = r.json()
-        logger.debug(resp)
         return resp
+
+    def mark_as_read(self, msg_id, timeout=None):
+        payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id}
+        return self.send_statuses(payload, timeout)
 
     def typing_indicator(self, msg_id, timeout=None):
         payload = {"messaging_product": "whatsapp", "status": "read", "message_id": msg_id,
                    "typing_indicator": {"type": "text"}}
-        r = requests.post(self._v3_url(), headers=self._v3_headers(), json=payload, timeout=timeout)
-        resp = r.json()
-        logger.debug(resp)
-        return resp
+        return self.send_statuses(payload, timeout)
 
-    def get_media_info(self, whatsapp_media_id, config):
+    def get_media_info(self, whatsapp_media_id, config, media_data=None):
         import mimetypes
 
-        endpoint = f"{self.partner_base_url}/partner/app/{self.app_id}/media/{whatsapp_media_id}"
         headers = {"Authorization": self.access_token}
+        logger.debug(media_data)
+
+        if media_data and media_data.get("url"):
+            download_url = media_data["url"]
+            mime_type = media_data.get("mime_type", "")
+            extension = mimetypes.guess_extension(mime_type) or ""
+            file_path = f"whatsapp_gupshup_{whatsapp_media_id}{extension}"
+            logger.info("inside if condition")
+            return download_url, headers, file_path
+
+        logger.info("after if condition")
+        endpoint = f"{self.partner_base_url}/partner/app/{self.app_id}/media/{whatsapp_media_id}"
+        logger.info(endpoint)
 
         resp = requests.get(endpoint, headers=headers, timeout=10)
+        logger.debug(resp.json())
 
         if resp.status_code != 200:
             raise AppException(
