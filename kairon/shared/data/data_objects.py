@@ -916,6 +916,7 @@ class BotSettings(Auditlog):
     )
     notification_scheduling_limit = IntField(default=4)
     retry_broadcasting_limit = IntField(default=3)
+    max_template_per_broadcast = IntField(default=5)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)

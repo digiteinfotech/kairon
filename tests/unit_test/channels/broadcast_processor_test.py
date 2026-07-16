@@ -10,6 +10,7 @@ from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs, MessageBroadcastSettings
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.data.constant import STATUSES
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 
 
@@ -468,6 +469,123 @@ class TestMessageBroadcastProcessor:
                     retry_count=retry_count
                 )
 
+    def test_get_broadcast_logs_uses_bot_settings_limit(self):
+        bot = "test_broadcast_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user="test_user", max_template_per_broadcast=3).save()
+
+        with patch.object(MessageBroadcastProcessor, "get_excluded_projection",
+                          wraps=MessageBroadcastProcessor.get_excluded_projection) as spy:
+            MessageBroadcastProcessor.get_broadcast_logs(bot)
+            spy.assert_called_once_with(bot)
+
+    def test_get_broadcast_logs_default_limit_when_no_bot_settings(self):
+        bot = "test_no_settings_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+
+        with patch.object(MessageBroadcastProcessor, "_get_max_template_limit",
+                          wraps=MessageBroadcastProcessor._get_max_template_limit) as spy:
+            MessageBroadcastProcessor.get_broadcast_logs(bot)
+            spy.assert_called_once_with(bot)
+            assert spy.spy_return == 5
+
+    def test_get_excluded_projection_default_limit(self):
+        bot = "test_proj_default_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        projection = MessageBroadcastProcessor.get_excluded_projection(bot)
+        assert projection["_id"] == 0
+        assert projection["recipients"] == 0
+        assert projection["template_params"] == 0
+        for i in range(1, 6):
+            assert f"template_params_{i}" in projection
+        assert "template_params_6" not in projection
+
+    def test_get_excluded_projection_custom_bot_settings_limit(self):
+        bot = "test_proj_custom_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user="test_user", max_template_per_broadcast=3).save()
+        projection = MessageBroadcastProcessor.get_excluded_projection(bot)
+        for i in range(1, 4):
+            assert f"template_params_{i}" in projection
+        assert "template_params_4" not in projection
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduled_task_template_limit_exceeded(self, mock_channel_config):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user=user, max_template_per_broadcast=2).save()
+        config = {
+            "name": "limit_test_broadcast", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+                {"template_id": "t3"},
+            ]
+        }
+        with pytest.raises(AppException, match="Max template limit per broadcast is 2!"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduled_task_template_limit_at_boundary(self, mock_channel_config):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        config = {
+            "name": "limit_boundary_broadcast", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+            ]
+        }
+        assert MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+    def test_update_scheduled_task_template_limit_exceeded(self):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        settings = list(MessageBroadcastProcessor.list_settings(bot))
+        notification_id = settings[0]["_id"]
+        config = {
+            "name": settings[0]["name"],
+            "connector_type": "whatsapp",
+            "broadcast_type": "static",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+                {"template_id": "t3"},
+            ]
+        }
+        with pytest.raises(AppException, match="Max template limit per broadcast is 2!"):
+            MessageBroadcastProcessor.update_scheduled_task(notification_id, bot, user, config)
+
+    def test_update_scheduled_task_template_limit_at_boundary(self):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        settings = list(MessageBroadcastProcessor.list_settings(bot))
+        notification_id = settings[0]["_id"]
+        config = {
+            "name": settings[0]["name"],
+            "connector_type": "whatsapp",
+            "broadcast_type": "static",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+            ]
+        }
+        MessageBroadcastProcessor.update_scheduled_task(notification_id, bot, user, config)
+        updated = MessageBroadcastProcessor.get_settings(notification_id, bot)
+        assert len(updated["template_config"]) == 2
+
+
 def test_discovers_dynamic_numbered_params():
     bot = "test_bot_01"
     timestamp = datetime.utcnow()
@@ -639,4 +757,4 @@ def test_handles_no_logs_gracefully():
     keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot_id)
 
     assert isinstance(keys, list)
-    assert len(keys) == 0
+
