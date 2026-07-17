@@ -100,7 +100,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             self.channel_client = self.__get_client()
 
         status_flag = status_code = response = None
-        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
 
         status_flag, status_code, response = await self.channel_client.send_broadcast_template_async(
             template_id, recipient, language_code, components, namespace
