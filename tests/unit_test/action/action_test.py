@@ -5028,6 +5028,7 @@ class TestActions:
                                 'retry_broadcasting_limit': 3,
                                 'catalog_sync_limit_per_day': 5,
                                 'max_instagram_user_posts': 5,
+                                'max_template_per_broadcast': 5,
                                 'media_size_limit': 10,
                                 'enable_voice': False}
 
