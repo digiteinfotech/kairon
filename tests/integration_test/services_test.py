@@ -35932,6 +35932,7 @@ def test_get_bot_settings():
                               'system_limits': {'file_upload_limit': 5},
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
+                              'max_template_per_broadcast': 5,
                               'catalog_sync_limit_per_day': 5,
                               'max_instagram_user_posts': 5,
                               'media_size_limit': 10}
@@ -36046,6 +36047,7 @@ def test_update_analytics_settings():
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
                               'retry_broadcasting_limit': 3,
+                              'max_template_per_broadcast': 5,
                               'catalog_sync_limit_per_day': 5,
                               'max_instagram_user_posts': 5,
                               'media_size_limit': 10}

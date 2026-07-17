@@ -15,6 +15,7 @@ from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, 
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
 from kairon.shared.constants import ChannelTypes, FLATTENED_CONVERSATIONS
 from kairon.shared.data.constant import EVENT_STATUS, STATUSES
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.log_system.base import BaseLogHandler
 
@@ -41,12 +42,21 @@ class MessageBroadcastProcessor:
             yield settings
 
     @staticmethod
+    def _get_max_template_limit(bot: Text) -> int:
+        bot_settings = BotSettings.objects(bot=bot).first()
+        return bot_settings.max_template_per_broadcast if bot_settings else 5
+
+    @staticmethod
     def add_scheduled_task(bot: Text, user: Text, config: Dict):
         channel = config.get("connector_type")
         Utility.is_exist(MessageBroadcastSettings, f"Schedule with name '{config['name']}' exists!", bot=bot,
                          name=config['name'], status=True)
         if not Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type=channel):
             raise AppException(f"Channel '{channel}' not configured!")
+        max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+        template_config = config.get("template_config") or []
+        if len(template_config) > max_template_limit:
+            raise AppException(f"Max template limit per broadcast is {max_template_limit}!")
         config["bot"] = bot
         config["user"] = user
         return MessageBroadcastSettings(**config).save().id.__str__()
@@ -75,7 +85,11 @@ class MessageBroadcastProcessor:
             settings.scheduler_config = scheduler_config
 
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
-            settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
+            template_config = config.get("template_config") or []
+            max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+            if len(template_config) > max_template_limit:
+                raise AppException(f"Max template limit per broadcast is {max_template_limit}!")
+            settings.template_config = [TemplateConfiguration(**template) for template in template_config]
             settings.pyscript = config.get("pyscript")
             settings.collection_config = config.get("collection_config", {})
             settings.user = user
@@ -120,17 +134,25 @@ class MessageBroadcastProcessor:
             if (force_update == key or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
-    @staticmethod
-    def get_all_dynamic_keys(bot_id):
-        pipeline = [
-            {"$match": {"bot": bot_id}},
-            {"$project": {"kv": {"$objectToArray": "$$ROOT"}}},
-            {"$unwind": "$kv"},
-            {"$group": {"_id": None, "keys": {"$addToSet": "$kv.k"}}}
-        ]
 
-        result = list(MessageBroadcastLogs.objects.aggregate(pipeline))
-        return result[0]['keys'] if result else []
+    @staticmethod
+    def get_excluded_projection(bot: Text):
+        max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+        projection = {
+            "_id": 0,
+            "recipients": 0,
+            "contacts": 0,
+            "messages_list": 0,
+            "recipients_list": 0,
+            "template_params": 0,
+        }
+
+        projection.update({
+            f"template_params_{i}": 0
+            for i in range(1, max_template_limit + 1)
+        })
+
+        return projection
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -139,16 +161,10 @@ class MessageBroadcastProcessor:
             kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
-        all_keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot)
 
-        exclude_prefixes = ('template_params',)
-        static_excludes = {'recipients', 'contacts', 'messages_list', 'recipients_list'}
-        projection = {
-            key: 0 for key in all_keys
-            if key.startswith(exclude_prefixes) or key in static_excludes
-        }
-        projection['_id'] = 0
-        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**projection)
+        excluded_projection_keys = MessageBroadcastProcessor.get_excluded_projection(bot)
+
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**excluded_projection_keys)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
         logs = query_objects.to_json()
         logs = json.loads(logs)
