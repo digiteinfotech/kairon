@@ -484,7 +484,6 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
     def get_broadcast_template_params(self, raw_template, template_config):
         """Return (template, message) tuple for Gupshup broadcast send."""
-        import json
         if not isinstance(raw_template, dict):
             raw_template = {}
         template_id = template_config.get("template_id") or raw_template.get("id")
