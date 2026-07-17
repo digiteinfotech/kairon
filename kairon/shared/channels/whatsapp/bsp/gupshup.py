@@ -459,7 +459,6 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
     def to_log_template(self, raw_template):
         """Convert Gupshup raw template dict to components list for broadcast logs."""
-        import json
         if not isinstance(raw_template, dict):
             return []
         components = []

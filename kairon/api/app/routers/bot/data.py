@@ -610,9 +610,7 @@ async def get_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     try:
-        from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
-        from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
-        from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes
+        from kairon.shared.constants import WhatsappBSPTypes
         bot = current_user.get_bot()
         user = current_user.get_user()
         channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)

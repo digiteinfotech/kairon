@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Text
+from typing import Dict
 
 
 class WhatsappBusinessServiceProviderBase(ABC):
