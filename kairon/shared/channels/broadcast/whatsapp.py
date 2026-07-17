@@ -11,9 +11,7 @@ from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
-from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
-from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
@@ -77,7 +75,6 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                     components = custom
 
         status_flag = status_code = response = None
-        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
 
         status_flag, status_code, response = await self.channel_client.send_broadcast_template_async(
             template_id, recipient, language_code, components, namespace

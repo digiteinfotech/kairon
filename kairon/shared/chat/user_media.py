@@ -150,7 +150,6 @@ class UserMedia:
         download_url = None
         file_path = None
         headers = {}
-        content_bytes = None
         provider = config.get("bsp_type", "meta")
         if provider == WhatsappBSPTypes.bsp_360dialog.value:
             endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
