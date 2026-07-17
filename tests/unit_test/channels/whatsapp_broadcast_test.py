@@ -13,6 +13,7 @@ from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.constant import EVENT_STATUS
 
 
@@ -756,5 +757,206 @@ def test_resend_broadcast_status_transition(should_fail):
         assert f"template_{retry_count}" in final_call_kwargs
         assert f"failure_count_{retry_count}" in final_call_kwargs
         assert final_call_kwargs[inprogress_key] == final_status
+
+
+# ─── Gupshup-specific branch coverage ────────────────────────────────────────
+
+
+def test_send_using_configuration_gupshup_non_dict_raw_template_reset():
+    """raw_template not a dict → reset to {} then use get_broadcast_template_params."""
+    gs_template = ({"id": "gs_tmpl", "params": []}, {"type": "text", "text": "Hello!"})
+    mock_bsp = MagicMock()
+    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "template_config": [{"template_id": "gs_tmpl_001", "namespace": "ns1", "language": "en"}]
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=(["not", "a", "dict"], None)) as mock_get_template, \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(1, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_configuration(["919999999999"])
+
+    # raw_template was a list → reset to {} → get_broadcast_template_params called with {}
+    mock_bsp.get_broadcast_template_params.assert_called_once_with({}, config["template_config"][0])
+    mock_initiate.assert_called_once()
+    message_list = mock_initiate.call_args[0][0]
+    assert len(message_list) == 1
+    # recipient branch: raw_template is now {} so namespace=None, languageCode=None
+    template_id, recipient, lang, t_params, namespace, _ = message_list[0]
+    assert template_id == "gs_tmpl_001"
+    assert recipient == "919999999999"
+    assert lang is None       # raw_template.get("languageCode") on {} → None
+    assert namespace is None  # raw_template.get("namespace") on {} → None
+    assert t_params == gs_template
+
+
+def test_send_using_configuration_gupshup_with_dict_raw_template():
+    """raw_template is a dict → use its languageCode/namespace in message_list."""
+    raw_template = {"id": "gs_tmpl_001", "languageCode": "hi", "namespace": "ns_gs"}
+    gs_template = ({"id": "gs_tmpl_001", "params": ["John"]}, {"type": "text", "text": "Hello John"})
+    mock_bsp = MagicMock()
+    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "template_config": [{"template_id": "gs_tmpl_001", "namespace": "ns1", "language": "en"}]
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=(raw_template, None)), \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(1, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_configuration(["919999999999"])
+
+    message_list = mock_initiate.call_args[0][0]
+    assert len(message_list) == 1
+    template_id, recipient, lang, t_params, namespace, _ = message_list[0]
+    assert lang == "hi"        # from raw_template["languageCode"]
+    assert namespace == "ns_gs"  # from raw_template["namespace"]
+    assert t_params == gs_template
+
+
+def test_send_using_configuration_gupshup_empty_recipient_skipped():
+    """Empty string recipient must be skipped even for gupshup bsp_type."""
+    mock_bsp = MagicMock()
+    mock_bsp.get_broadcast_template_params.return_value = ({"id": "t"}, {"type": "text", "text": "Hi"})
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "template_config": [{"template_id": "gs_tmpl_001", "namespace": "ns1", "language": "en"}]
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=({"id": "gs_tmpl_001"}, None)), \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(0, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_configuration(["", None, "  "])
+
+    message_list = mock_initiate.call_args[0][0]
+    assert message_list == []  # all recipients were empty/None/whitespace
+
+
+def test_send_using_flow_gupshup_branch():
+    """__send_using_flow with gupshup: uses get_broadcast_template_params and raw_template fields."""
+    raw_template = {"id": "gs_flow_tmpl", "languageCode": "hi", "namespace": "ns_flow"}
+    gs_template = ({"id": "gs_flow_tmpl", "params": []}, {"type": "text", "text": "Hi"})
+    mock_bsp = MagicMock()
+    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "flowname": "test_flow",
+        "template_config": [{"template_id": "gs_flow_tmpl", "namespace": "ns_orig", "language": "en"}]
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=(raw_template, None)) as mock_get_template, \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(1, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_flow(["919999999999"])
+
+    mock_bsp.get_broadcast_template_params.assert_called_once_with(raw_template, config["template_config"][0])
+    message_list = mock_initiate.call_args[0][0]
+    assert len(message_list) == 1
+    template_id, recipient, lang, t_params, namespace, flowname = message_list[0]
+    assert lang == "hi"          # raw_template.get("languageCode", lang)
+    assert namespace == "ns_flow"  # raw_template.get("namespace", namespace)
+    assert flowname == "test_flow"
+    assert t_params == gs_template
+
+
+def test_send_using_flow_gupshup_empty_recipient_skipped():
+    """Empty recipients skipped in gupshup flow path."""
+    mock_bsp = MagicMock()
+    mock_bsp.get_broadcast_template_params.return_value = ({"id": "t"}, {"type": "text", "text": "Hi"})
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "flowname": "flow1",
+        "template_config": [{"template_id": "gs_tmpl", "namespace": "ns", "language": "en"}]
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=({"id": "gs_tmpl"}, None)), \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(0, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_flow(["", None])
+
+    message_list = mock_initiate.call_args[0][0]
+    assert message_list == []
+
+
+def test_get_client_gupshup_uses_partner_app_token():
+    """__get_client with gupshup bsp_type picks partner_app_token as access_token."""
+    channel_config = {
+        "config": {
+            "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+            "partner_app_token": "gs_partner_tok_xyz",
+            "app_id": "gs_app_001"
+        }
+    }
+    mock_settings = MagicMock()
+    mock_settings.__getitem__ = lambda self, key: "gupshup" if key == "whatsapp" else None
+
+    captured = {}
+
+    def mock_client_factory(access_token, **kwargs):
+        captured["access_token"] = access_token
+        return MagicMock()
+
+    mock_client_class = MagicMock(side_effect=mock_client_factory)
+
+    config = {"broadcast_type": "static", "bsp_type": WhatsappBSPTypes.bsp_gupshup.value}
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch("kairon.shared.channels.broadcast.whatsapp.MongoProcessor.get_bot_settings",
+               return_value=mock_settings), \
+         patch("kairon.shared.channels.broadcast.whatsapp.ChatDataProcessor.get_channel_config",
+               return_value=channel_config), \
+         patch("kairon.shared.channels.broadcast.whatsapp.WhatsappFactory.get_client",
+               return_value=mock_client_class):
+
+        client = broadcast._WhatsappBroadcast__get_client()
+
+    assert captured["access_token"] == "gs_partner_tok_xyz"
 
 

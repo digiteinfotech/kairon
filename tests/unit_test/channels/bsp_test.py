@@ -1594,6 +1594,53 @@ def test_delete_media_file_not_exist_raises():
     mock_http.assert_called_once()
 
 
+def test_bsp_360dialog_fetch_media_ids_exception():
+    bot = "bsp360_fetch_exc_bot"
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        side_effect=Exception("db connection lost"),
+    ):
+        with pytest.raises(AppException) as exc_info:
+            BSP360Dialog.fetch_media_ids(bot)
+    assert f"Error while fetching media ids for bot '{bot}': db connection lost" in str(exc_info.value)
+
+
+def test_bsp_360dialog_fetch_broadcast_media_ids_success():
+    from unittest.mock import MagicMock
+    bot = "bsp360_broadcast_media_bot"
+    mock_doc = MagicMock()
+    mock_doc.filename = "promo.pdf"
+    mock_doc.media_id = "bcast_media_001"
+    mock_doc.upload_status = UserMediaUploadStatus.completed.value
+    mock_doc.sender_id = "sender@test.com"
+    mock_doc.timestamp = datetime.utcnow()
+
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = [mock_doc]
+
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        return_value=mock_qs,
+    ):
+        result = BSP360Dialog.fetch_broadcast_media_ids(bot)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["media_id"] == "bcast_media_001"
+    assert result[0]["filename"] == "promo.pdf"
+    assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
+
+
+def test_bsp_360dialog_fetch_broadcast_media_ids_exception():
+    bot = "bsp360_broadcast_exc_bot"
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        side_effect=Exception("timeout"),
+    ):
+        with pytest.raises(AppException) as exc_info:
+            BSP360Dialog.fetch_broadcast_media_ids(bot)
+    assert f"Error while fetching media ids for bot '{bot}': timeout" in str(exc_info.value)
+
+
 class TestBSPGupshup:
 
     @pytest.fixture(autouse=True, scope='class')
@@ -2331,3 +2378,80 @@ class TestBSPGupshup:
             )
         assert result == "ext_media_upload_001"
 
+
+class TestDataRouterMediaEndpoints:
+    BOT = "data_router_test_bot_001"
+    USER = "data_router_test_user_001"
+
+    def _make_user(self):
+        from unittest.mock import MagicMock
+        user = MagicMock()
+        user.get_bot.return_value = self.BOT
+        user.get_user.return_value = self.USER
+        return user
+
+    @pytest.mark.asyncio
+    async def test_get_media_ids_exception_case(self):
+        from kairon.api.app.routers.bot.data import get_media_ids
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
+            side_effect=Exception("channel not found"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await get_media_ids(current_user=user)
+        assert "Error while fetching media ids: channel not found" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_get_whatsapp_media_ids_success(self):
+        from unittest.mock import MagicMock
+        from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
+        user = self._make_user()
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = ["media_001", "media_002"]
+        with patch(
+            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": WhatsappBSPTypes.bsp_360dialog.value}},
+        ), patch(
+            "kairon.api.app.routers.bot.data.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda bot, user: mock_bsp,
+        ):
+            result = await get_whatsapp_media_ids(current_user=user)
+        assert result.data == ["media_001", "media_002"]
+        assert result.message == "List of media ids"
+
+    @pytest.mark.asyncio
+    async def test_get_whatsapp_media_ids_exception_case(self):
+        from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
+            side_effect=Exception("bsp config missing"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await get_whatsapp_media_ids(current_user=user)
+        assert "Error while fetching media ids: bsp config missing" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fetch_media_handle_id_success(self):
+        from kairon.api.app.routers.bot.data import fetch_media_handle_id
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.UserMedia.get_media_handle_id",
+            return_value="handle_xyz_001",
+        ):
+            result = await fetch_media_handle_id(media_id="media_doc_id_001", current_user=user)
+        assert result.data == {"handle_id": "handle_xyz_001"}
+        assert result.message == "Successfully fetched media details"
+
+    @pytest.mark.asyncio
+    async def test_fetch_media_handle_id_not_found(self):
+        from kairon.api.app.routers.bot.data import fetch_media_handle_id
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.UserMedia.get_media_handle_id",
+            side_effect=AppException("Media not found"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await fetch_media_handle_id(media_id="nonexistent_id", current_user=user)
+        assert "Media not found" in str(exc_info.value)
