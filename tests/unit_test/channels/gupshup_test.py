@@ -294,6 +294,190 @@ class TestGupshupClientSendActionAsync:
         assert ok is False
         assert "error" in resp
 
+    @pytest.mark.asyncio
+    async def test_send_action_async_else_branch_json_parse_fails_falls_back_to_text(self, gupshup_client):
+        """Non-200/202 response where .json() raises — should fall back to .text()."""
+        from aioresponses import aioresponses
+        url = "https://partner.gupshup.io/partner/app/app_001/msg"
+        with aioresponses() as m:
+            m.post(url, body=b"internal server error", status=500,
+                   headers={"Content-Type": "text/plain"})
+            m.post(url, body=b"internal server error", status=500,
+                   headers={"Content-Type": "text/plain"})
+            m.post(url, body=b"internal server error", status=500,
+                   headers={"Content-Type": "text/plain"})
+            ok, status, resp = await gupshup_client.send_action_async(
+                {"source": "919000000001", "destination": "919000000002"},
+                url=url, use_form=True, attempts=3
+            )
+        assert ok is False
+        assert status == 500
+
+    @pytest.mark.asyncio
+    async def test_send_action_async_client_response_error(self, gupshup_client):
+        from aiohttp import ClientResponseError
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.gupshup.RetryClient") as mock_retry:
+            mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
+            mock_inst.post.side_effect = ClientResponseError(
+                request_info=MagicMock(), history=(), status=503, message="service unavailable"
+            )
+            ok, status, resp = await gupshup_client.send_action_async(
+                {}, url="https://partner.gupshup.io/msg", use_form=True
+            )
+        assert ok is False
+        assert "error" in resp
+
+    @pytest.mark.asyncio
+    async def test_send_action_async_client_error(self, gupshup_client):
+        from aiohttp import ClientError
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.gupshup.RetryClient") as mock_retry:
+            mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
+            mock_inst.post.side_effect = ClientError("generic client error")
+            ok, status, resp = await gupshup_client.send_action_async(
+                {}, url="https://partner.gupshup.io/msg", use_form=True
+            )
+        assert ok is False
+        assert "error" in resp
+
+    @pytest.mark.asyncio
+    async def test_send_action_async_generic_exception(self, gupshup_client):
+        with patch("kairon.chat.handlers.channels.clients.whatsapp.gupshup.RetryClient") as mock_retry:
+            mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
+            mock_inst.post.side_effect = RuntimeError("unexpected failure")
+            ok, status, resp = await gupshup_client.send_action_async(
+                {}, url="https://partner.gupshup.io/msg", use_form=True
+            )
+        assert ok is False
+        assert "error" in resp
+
+
+class TestGupshupClientSendAsync:
+
+    @pytest.mark.asyncio
+    async def test_send_async_posts_form_encoded(self, gupshup_client):
+        """send_async builds form data from _build_gupshup_message and delegates to send_action_async."""
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = (True, 200, {"messageId": "sa1"})
+            ok, status, resp = await gupshup_client.send_async(
+                payload={"body": "hello"}, to_phone_number="919000000002", messaging_type="text"
+            )
+        assert ok is True
+        call_kwargs = mock_send.call_args[1]
+        assert call_kwargs["use_form"] is True
+        import json
+        msg = json.loads(mock_send.call_args[1]["payload"]["message"])
+        assert msg["type"] == "text"
+        assert msg["text"] == "hello"
+
+    @pytest.mark.asyncio
+    async def test_send_async_invalid_messaging_type_raises(self, gupshup_client):
+        with pytest.raises(ValueError, match="not a valid"):
+            await gupshup_client.send_async(
+                payload={}, to_phone_number="919000000002", messaging_type="unsupported_type"
+            )
+
+    @pytest.mark.asyncio
+    async def test_send_async_passes_phone_number_as_source(self, gupshup_client):
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = (True, 200, {})
+            await gupshup_client.send_async(
+                payload={"link": "http://img.png"}, to_phone_number="919000000002", messaging_type="image"
+            )
+        payload = mock_send.call_args[1]["payload"]
+        assert payload["source"] == gupshup_client.phone_number
+        assert payload["destination"] == "919000000002"
+
+
+class TestGupshupSendTemplateMsgAsync:
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_async_with_components(self, gupshup_client):
+        components = [{"type": "body", "parameters": [{"type": "text", "text": "val"}]}]
+        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = (True, 200, {"messageId": "tm1"})
+            ok, status, resp = await gupshup_client.send_template_message_async(
+                name="order_update", to_phone_number="919000000002",
+                language_code="en", components=components
+            )
+        assert ok is True
+        call_payload = mock_send.call_args[0][0]
+        assert call_payload["name"] == "order_update"
+        assert call_payload["language"]["code"] == "en"
+        assert call_payload["components"] == components
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_async_without_components(self, gupshup_client):
+        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = (True, 202, {"messageId": "tm2"})
+            ok, status, resp = await gupshup_client.send_template_message_async(
+                name="promo_msg", to_phone_number="919000000003", language_code="hi"
+            )
+        assert ok is True
+        call_payload = mock_send.call_args[0][0]
+        assert "components" not in call_payload
+        assert call_payload["name"] == "promo_msg"
+        assert call_payload["language"]["code"] == "hi"
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_async_routes_to_template_messaging_type(self, gupshup_client):
+        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
+            mock_send.return_value = (True, 200, {})
+            await gupshup_client.send_template_message_async(
+                name="tmpl", to_phone_number="919000000002"
+            )
+        assert mock_send.call_args[1]["messaging_type"] == "template"
+
+
+class TestGupshupGetTemplate:
+
+    @pytest.fixture
+    def client_with_bot(self):
+        from kairon.chat.handlers.channels.clients.whatsapp.gupshup import BSPGupshup as GupshupClient
+        cfg = {
+            "config": {
+                "app_id": "app_001",
+                "app_name": "TestApp",
+                "phone_number": "919000000001",
+                "partner_app_token": "tok_abc",
+            },
+            "connector_type": "whatsapp",
+        }
+        client = GupshupClient(access_token="tok_abc", config=cfg)
+        client.bot = "bot_001"
+        client.user = "user_001"
+        return client
+
+    def test_get_template_returns_matching_language(self, client_with_bot):
+        templates = [
+            {"elementName": "promo", "languageCode": "hi", "id": "t1"},
+            {"elementName": "promo", "languageCode": "en", "id": "t2"},
+        ]
+        with patch(
+            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
+        ) as mock_shared_cls:
+            mock_shared_cls.return_value.list_templates.return_value = iter(templates)
+            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
+        assert exc is None
+        assert template.get("languageCode") == "en"
+
+    def test_get_template_returns_empty_list_when_no_templates(self, client_with_bot):
+        with patch(
+            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
+        ) as mock_shared_cls:
+            mock_shared_cls.return_value.list_templates.return_value = iter([])
+            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
+        assert exc is None
+        assert template == []
+
+    def test_get_template_returns_exception_string_on_error(self, client_with_bot):
+        with patch(
+            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
+        ) as mock_shared_cls:
+            mock_shared_cls.return_value.list_templates.side_effect = Exception("API timeout")
+            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
+        assert exc == "API timeout"
+        assert template == []
+
 
 class TestGupshupTemplateMessage:
 
