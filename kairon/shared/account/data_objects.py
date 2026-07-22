@@ -162,6 +162,7 @@ class MailTemplates(EmbeddedDocument):
     button_template = StringField()
     leave_bot_owner_notification = StringField()
     catalog_sync_status = StringField()
+    password_reset_unverified = StringField()
 
 
 class SystemProperties(Document):
