@@ -154,7 +154,7 @@ class Whatsapp:
         from kairon.chat.converters.channels.response_factory import ConverterFactory
 
         bsp_type = self.config.get("bsp_type", "meta")
-        is_bps = bsp_type in (WhatsappBSPTypes.bsp_360dialog.value, WhatsappBSPTypes.bsp_gupshup.value)
+        is_bps = bsp_type in {t.value for t in WhatsappBSPTypes if t != WhatsappBSPTypes.meta}
         client = WhatsappFactory.get_client(bsp_type)
         phone_number_id = self.config.get('phone_number_id')
         if not phone_number_id and not is_bps:

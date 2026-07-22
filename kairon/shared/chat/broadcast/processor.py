@@ -361,3 +361,25 @@ class MessageBroadcastProcessor:
             logger.debug(e)
 
         return campaign_id
+
+    @staticmethod
+    def fetch_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_media_ids(bot)
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_broadcast_media_ids(bot)
+
+

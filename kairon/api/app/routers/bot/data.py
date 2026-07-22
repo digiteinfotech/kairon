@@ -4,7 +4,7 @@ from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException,
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
@@ -610,13 +610,7 @@ async def get_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     try:
-        from kairon.shared.constants import WhatsappBSPTypes
-        bot = current_user.get_bot()
-        user = current_user.get_user()
-        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
-        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
-        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
-        media_ids = bsp_class.fetch_media_ids(bot)
+        media_ids = MessageBroadcastProcessor.fetch_media_ids(current_user.get_bot(), current_user.get_user())
         return Response(message="List of media ids", data=media_ids)
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
@@ -627,13 +621,7 @@ async def get_whatsapp_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     try:
-        from kairon.shared.constants import WhatsappBSPTypes
-        bot = current_user.get_bot()
-        user = current_user.get_user()
-        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
-        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
-        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
-        media_ids = bsp_class.fetch_broadcast_media_ids(bot)
+        media_ids = MessageBroadcastProcessor.fetch_broadcast_media_ids(current_user.get_bot(), current_user.get_user())
         return Response(message="List of media ids", data=media_ids)
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")

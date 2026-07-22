@@ -147,48 +147,21 @@ class UserMedia:
         :param config: channel config (bsp_type determines which provider path is used)
         :return: list of media ids
         """
-        download_url = None
-        file_path = None
-        headers = {}
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+
         provider = config.get("bsp_type", "meta")
-        if provider == WhatsappBSPTypes.bsp_360dialog.value:
-            endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
-            headers = {
-                'D360-API-KEY': config.get('api_key'),
-            }
-            resp = requests.get(endpoint, headers=headers, stream=True)
-            if resp.status_code != 200:
-                raise AppException(f"Failed to download media from 360 dialog: {resp.status_code} - {resp.text}")
-            json_resp = resp.json()
-            download_url = json_resp.get("url")
-            download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
-        elif provider == 'meta':
-            endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
-            access_token = config.get('access_token')
-            headers = {'Authorization': f'Bearer {access_token}'}
-            media_info_resp = requests.get(
-                endpoint,
-                params={"fields": "url", "access_token": access_token},
-                timeout=10
-            )
-            if media_info_resp.status_code != 200:
-                raise AppException(f"Failed to get url from meta for media: {whatsapp_media_id}")
-            json_resp = media_info_resp.json()
-            download_url = json_resp.get("url")
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
-        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
-            from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
-            access_token = config.get('partner_app_token')
-            client = WhatsappFactory.get_client(provider)
-            download_url, headers, file_path = client(
-                access_token=access_token,
-                config=config
-            ).get_media_info(whatsapp_media_id, config, media_data=media_data)
+        access_token_key_map = {
+            "meta": "access_token",
+            WhatsappBSPTypes.bsp_360dialog.value: "api_key",
+            WhatsappBSPTypes.bsp_gupshup.value: "partner_app_token",
+        }
+        access_token = config.get(access_token_key_map.get(provider, "access_token"))
+        client = WhatsappFactory.get_client(provider)
+        download_url, headers, file_path = client(
+            access_token=access_token,
+            from_phone_number_id=config.get("from_phone_number_id"),
+            config=config
+        ).get_media_info(whatsapp_media_id, config, media_data=media_data)
 
         media_resp = requests.get(
             download_url,

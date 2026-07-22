@@ -272,7 +272,7 @@ class WhatsappCloud(object):
         except Exception as e:
             return False, last_status_code, {"error": str(e), "response": last_response}
 
-    def get_media_info(self, whatsapp_media_id, config):
+    def get_media_info(self, whatsapp_media_id, config, media_data=None):
         import mimetypes
 
         endpoint = f"{self.app}/{whatsapp_media_id}"

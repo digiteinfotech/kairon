@@ -164,7 +164,6 @@ class BSPGupshup(WhatsappCloud):
         if message.get("type") != "text":
             data["message"] = json.dumps(message)
 
-        logger.debug(data)
 
         return await self.send_action_async(
             payload=data,
@@ -175,7 +174,7 @@ class BSPGupshup(WhatsappCloud):
 
     async def send_broadcast_template_async(self, template_id: str, recipient: str,
                                             language_code: str, components, namespace: str = None):
-        if isinstance(components, (tuple, list)) and len(components) == 2 and all(isinstance(c, dict) for c in components):
+        if isinstance(components, tuple):
             return await self.send_gupshup_template_message(recipient, components)
         return await self.send_template_message_async(template_id, recipient, language_code, components, namespace)
 
@@ -235,15 +234,11 @@ class BSPGupshup(WhatsappCloud):
             mime_type = media_data.get("mime_type", "")
             extension = mimetypes.guess_extension(mime_type) or ""
             file_path = f"whatsapp_gupshup_{whatsapp_media_id}{extension}"
-            logger.info("inside if condition")
             return download_url, headers, file_path
 
-        logger.info("after if condition")
         endpoint = f"{self.partner_base_url}/partner/app/{self.app_id}/media/{whatsapp_media_id}"
-        logger.info(endpoint)
 
         resp = requests.get(endpoint, headers=headers, timeout=10)
-        logger.debug(resp.json())
 
         if resp.status_code != 200:
             raise AppException(
@@ -258,17 +253,3 @@ class BSPGupshup(WhatsappCloud):
 
         return download_url, headers, file_path
 
-    def __get_template(self, name, language):
-        from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup as BSPGupshupShared
-        template_exception = None
-        template = []
-        try:
-            for template in BSPGupshupShared(self.bot, self.user).list_templates(**{'elementName': name}):
-                if template.get("languageCode") == language:
-                    template = template
-                    break
-            return template, template_exception
-        except Exception as e:
-            logger.exception(e)
-            template_exception = str(e)
-            return template, template_exception

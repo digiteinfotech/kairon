@@ -482,6 +482,16 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             components.append({"type": "BUTTONS", "buttons": buttons})
         return components
 
+    def normalize_raw_template(self, raw_template):
+        return raw_template if isinstance(raw_template, dict) else {}
+
+    def get_template_params_for_broadcast(self, raw_template, template_config, recipients, default_params):
+        template, message = self.get_broadcast_template_params(raw_template, template_config)
+        return [(template, message) for _ in recipients]
+
+    def get_broadcast_namespace_and_language(self, raw_template, namespace, lang):
+        return raw_template.get("namespace", namespace), raw_template.get("languageCode", lang)
+
     def get_broadcast_template_params(self, raw_template, template_config):
         """Return (template, message) tuple for Gupshup broadcast send."""
         if not isinstance(raw_template, dict):

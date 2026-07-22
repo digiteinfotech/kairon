@@ -193,6 +193,16 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         """360Dialog raw template is already in components format — return as-is."""
         return raw_template
 
+    def normalize_raw_template(self, raw_template):
+        return raw_template
+
+    def get_template_params_for_broadcast(self, raw_template, template_config, recipients, default_params):
+        params = default_params if default_params else [default_params] * len(recipients)
+        return params
+
+    def get_broadcast_namespace_and_language(self, raw_template, namespace, lang):
+        return namespace, lang
+
     def validate_template_request(self, data: Dict):
         required_keys = ["name", "category", "components", "language"]
         missing_keys = [key for key in required_keys if key not in data]
