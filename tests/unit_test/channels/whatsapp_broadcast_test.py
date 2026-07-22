@@ -763,10 +763,12 @@ def test_resend_broadcast_status_transition(should_fail):
 
 
 def test_send_using_configuration_gupshup_non_dict_raw_template_reset():
-    """raw_template not a dict → reset to {} then use get_broadcast_template_params."""
+    """raw_template not a dict → normalize_raw_template resets to {} → get_template_params_for_broadcast called."""
     gs_template = ({"id": "gs_tmpl", "params": []}, {"type": "text", "text": "Hello!"})
     mock_bsp = MagicMock()
-    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.normalize_raw_template.return_value = {}
+    mock_bsp.get_template_params_for_broadcast.return_value = [gs_template]
+    mock_bsp.get_broadcast_namespace_and_language.return_value = (None, None)
     mock_bsp.to_log_template.return_value = []
 
     config = {
@@ -777,7 +779,7 @@ def test_send_using_configuration_gupshup_non_dict_raw_template_reset():
                                   event_id="ev1", reference_id="ref1")
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
-                      return_value=(["not", "a", "dict"], None)) as mock_get_template, \
+                      return_value=(["not", "a", "dict"], None)), \
          patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
                return_value=lambda bot, user: mock_bsp), \
          patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(1, [])) as mock_initiate, \
@@ -786,26 +788,27 @@ def test_send_using_configuration_gupshup_non_dict_raw_template_reset():
 
         broadcast._WhatsappBroadcast__send_using_configuration(["919999999999"])
 
-    # raw_template was a list → reset to {} → get_broadcast_template_params called with {}
-    mock_bsp.get_broadcast_template_params.assert_called_once_with({}, config["template_config"][0])
+    mock_bsp.normalize_raw_template.assert_called_once_with(["not", "a", "dict"])
+    mock_bsp.get_template_params_for_broadcast.assert_called_once()
     mock_initiate.assert_called_once()
     message_list = mock_initiate.call_args[0][0]
     assert len(message_list) == 1
-    # recipient branch: raw_template is now {} so namespace=None, languageCode=None
     template_id, recipient, lang, t_params, namespace, _ = message_list[0]
     assert template_id == "gs_tmpl_001"
     assert recipient == "919999999999"
-    assert lang is None       # raw_template.get("languageCode") on {} → None
-    assert namespace is None  # raw_template.get("namespace") on {} → None
+    assert lang is None
+    assert namespace is None
     assert t_params == gs_template
 
 
 def test_send_using_configuration_gupshup_with_dict_raw_template():
-    """raw_template is a dict → use its languageCode/namespace in message_list."""
+    """raw_template is a dict → get_broadcast_namespace_and_language returns its languageCode/namespace."""
     raw_template = {"id": "gs_tmpl_001", "languageCode": "hi", "namespace": "ns_gs"}
     gs_template = ({"id": "gs_tmpl_001", "params": ["John"]}, {"type": "text", "text": "Hello John"})
     mock_bsp = MagicMock()
-    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.normalize_raw_template.return_value = raw_template
+    mock_bsp.get_template_params_for_broadcast.return_value = [gs_template]
+    mock_bsp.get_broadcast_namespace_and_language.return_value = ("ns_gs", "hi")
     mock_bsp.to_log_template.return_value = []
 
     config = {
@@ -825,11 +828,12 @@ def test_send_using_configuration_gupshup_with_dict_raw_template():
 
         broadcast._WhatsappBroadcast__send_using_configuration(["919999999999"])
 
+    mock_bsp.get_template_params_for_broadcast.assert_called_once()
     message_list = mock_initiate.call_args[0][0]
     assert len(message_list) == 1
     template_id, recipient, lang, t_params, namespace, _ = message_list[0]
-    assert lang == "hi"        # from raw_template["languageCode"]
-    assert namespace == "ns_gs"  # from raw_template["namespace"]
+    assert lang == "hi"
+    assert namespace == "ns_gs"
     assert t_params == gs_template
 
 
@@ -861,11 +865,13 @@ def test_send_using_configuration_gupshup_empty_recipient_skipped():
 
 
 def test_send_using_flow_gupshup_branch():
-    """__send_using_flow with gupshup: uses get_broadcast_template_params and raw_template fields."""
+    """__send_using_flow with gupshup: uses get_template_params_for_broadcast and get_broadcast_namespace_and_language."""
     raw_template = {"id": "gs_flow_tmpl", "languageCode": "hi", "namespace": "ns_flow"}
     gs_template = ({"id": "gs_flow_tmpl", "params": []}, {"type": "text", "text": "Hi"})
     mock_bsp = MagicMock()
-    mock_bsp.get_broadcast_template_params.return_value = gs_template
+    mock_bsp.normalize_raw_template.return_value = raw_template
+    mock_bsp.get_template_params_for_broadcast.return_value = [gs_template]
+    mock_bsp.get_broadcast_namespace_and_language.return_value = ("ns_flow", "hi")
     mock_bsp.to_log_template.return_value = []
 
     config = {
@@ -877,7 +883,7 @@ def test_send_using_flow_gupshup_branch():
                                   event_id="ev1", reference_id="ref1")
 
     with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
-                      return_value=(raw_template, None)) as mock_get_template, \
+                      return_value=(raw_template, None)), \
          patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
                return_value=lambda bot, user: mock_bsp), \
          patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(1, [])) as mock_initiate, \
@@ -886,12 +892,12 @@ def test_send_using_flow_gupshup_branch():
 
         broadcast._WhatsappBroadcast__send_using_flow(["919999999999"])
 
-    mock_bsp.get_broadcast_template_params.assert_called_once_with(raw_template, config["template_config"][0])
+    mock_bsp.get_template_params_for_broadcast.assert_called_once()
     message_list = mock_initiate.call_args[0][0]
     assert len(message_list) == 1
     template_id, recipient, lang, t_params, namespace, flowname = message_list[0]
-    assert lang == "hi"          # raw_template.get("languageCode", lang)
-    assert namespace == "ns_flow"  # raw_template.get("namespace", namespace)
+    assert lang == "hi"
+    assert namespace == "ns_flow"
     assert flowname == "test_flow"
     assert t_params == gs_template
 

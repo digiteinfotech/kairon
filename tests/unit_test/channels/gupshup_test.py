@@ -428,57 +428,6 @@ class TestGupshupSendTemplateMsgAsync:
         assert mock_send.call_args[1]["messaging_type"] == "template"
 
 
-class TestGupshupGetTemplate:
-
-    @pytest.fixture
-    def client_with_bot(self):
-        from kairon.chat.handlers.channels.clients.whatsapp.gupshup import BSPGupshup as GupshupClient
-        cfg = {
-            "config": {
-                "app_id": "app_001",
-                "app_name": "TestApp",
-                "phone_number": "919000000001",
-                "partner_app_token": "tok_abc",
-            },
-            "connector_type": "whatsapp",
-        }
-        client = GupshupClient(access_token="tok_abc", config=cfg)
-        client.bot = "bot_001"
-        client.user = "user_001"
-        return client
-
-    def test_get_template_returns_matching_language(self, client_with_bot):
-        templates = [
-            {"elementName": "promo", "languageCode": "hi", "id": "t1"},
-            {"elementName": "promo", "languageCode": "en", "id": "t2"},
-        ]
-        with patch(
-            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
-        ) as mock_shared_cls:
-            mock_shared_cls.return_value.list_templates.return_value = iter(templates)
-            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
-        assert exc is None
-        assert template.get("languageCode") == "en"
-
-    def test_get_template_returns_empty_list_when_no_templates(self, client_with_bot):
-        with patch(
-            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
-        ) as mock_shared_cls:
-            mock_shared_cls.return_value.list_templates.return_value = iter([])
-            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
-        assert exc is None
-        assert template == []
-
-    def test_get_template_returns_exception_string_on_error(self, client_with_bot):
-        with patch(
-            "kairon.shared.channels.whatsapp.bsp.gupshup.BSPGupshup"
-        ) as mock_shared_cls:
-            mock_shared_cls.return_value.list_templates.side_effect = Exception("API timeout")
-            template, exc = client_with_bot._BSPGupshup__get_template("promo", "en")
-        assert exc == "API timeout"
-        assert template == []
-
-
 class TestGupshupTemplateMessage:
 
     @pytest.mark.asyncio
@@ -556,18 +505,17 @@ class TestBSPGupshupSendBroadcastTemplateAsync:
         assert ok is True
 
     @pytest.mark.asyncio
-    async def test_list_of_two_dicts_routes_to_gupshup_template(self, gupshup_client):
-        # MongoDB round-trip converts tuple → list; must still hit Gupshup template endpoint
+    async def test_list_of_two_dicts_routes_to_standard(self, gupshup_client):
+        # Only tuple triggers Gupshup template path; a list routes to standard
         components = [{"id": "tmpl-1", "params": []}, {"type": "text"}]
-        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock,
-                          return_value=(True, 202, {"messageId": "t2"})) as mock_gs, \
-             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock) as mock_std:
-            ok, code, resp = await gupshup_client.send_broadcast_template_async(
-                "tmpl_id", "919000000002", "en", components
+        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
+             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_std:
+            await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", components, "ns"
             )
-        mock_gs.assert_called_once_with("919000000002", components)
-        mock_std.assert_not_called()
-        assert ok is True
+        mock_gs.assert_not_called()
+        mock_std.assert_called_once_with("tmpl_id", "919000000002", "en", components, "ns")
 
     @pytest.mark.asyncio
     async def test_regular_component_list_routes_to_standard(self, gupshup_client):

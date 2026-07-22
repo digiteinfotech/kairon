@@ -2395,7 +2395,7 @@ class TestDataRouterMediaEndpoints:
         from kairon.api.app.routers.bot.data import get_media_ids
         user = self._make_user()
         with patch(
-            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_media_ids",
             side_effect=Exception("channel not found"),
         ):
             with pytest.raises(AppException) as exc_info:
@@ -2404,17 +2404,11 @@ class TestDataRouterMediaEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_whatsapp_media_ids_success(self):
-        from unittest.mock import MagicMock
         from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
         user = self._make_user()
-        mock_bsp = MagicMock()
-        mock_bsp.fetch_broadcast_media_ids.return_value = ["media_001", "media_002"]
         with patch(
-            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
-            return_value={"config": {"bsp_type": WhatsappBSPTypes.bsp_360dialog.value}},
-        ), patch(
-            "kairon.api.app.routers.bot.data.BusinessServiceProviderFactory.get_instance",
-            return_value=lambda bot, user: mock_bsp,
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_broadcast_media_ids",
+            return_value=["media_001", "media_002"],
         ):
             result = await get_whatsapp_media_ids(current_user=user)
         assert result.data == ["media_001", "media_002"]
@@ -2425,7 +2419,7 @@ class TestDataRouterMediaEndpoints:
         from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
         user = self._make_user()
         with patch(
-            "kairon.api.app.routers.bot.data.ChatDataProcessor.get_channel_config",
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_broadcast_media_ids",
             side_effect=Exception("bsp config missing"),
         ):
             with pytest.raises(AppException) as exc_info:

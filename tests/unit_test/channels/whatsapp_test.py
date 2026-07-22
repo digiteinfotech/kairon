@@ -778,7 +778,7 @@ class TestWhatsappHandler:
             body_bytes = file.read()
 
         responses.get(
-            url=f'https://graph.facebook.com/v22.0/{document_id}?fields=url',
+            url=f'https://graph.facebook.com/v19.0/{document_id}?fields=url',
             json={'url': 'https://test.com/download', 'mime_type': 'application/pdf'}
         )
         responses.get(
