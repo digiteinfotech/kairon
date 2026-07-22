@@ -105,10 +105,8 @@ async def password_link_generate(mail: RecaptchaVerifiedTextData, background_tas
     Used to send a password reset link when the user clicks on the "Forgot Password" link and enters his/her mail id
     """
     Utility.validate_enable_sso_only()
-    email = mail.data
-    mail, first_name, url = await AccountProcessor.send_reset_link(email.strip())
-    background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='password_reset', email=mail, first_name=first_name, url=url)
-    return {"message": "Success! A password reset link has been sent to your mail id"}
+    background_tasks.add_task(AccountProcessor.handle_password_reset_request, mail.data.strip())
+    return {"message": "If the email address is registered with us, you'll receive a password reset email shortly."}
 
 
 @router.post("/password/change", response_model=Response)

@@ -42,7 +42,7 @@ from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS, INTEGRATI
     RE_ALPHA_NUM, RE_VALID_NAME
 from kairon.shared.data.data_objects import BotSettings, ChatClientConfig, SlotMapping
 from kairon.shared.plugins.factory import PluginFactory
-from kairon.shared.utils import Utility
+from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.models import User as UserModel
 
 Utility.load_email_configuration()
@@ -1004,6 +1004,7 @@ class AccountProcessor:
                 button_template=open("template/emails/button.html", "r").read(),
                 leave_bot_owner_notification=open("template/emails/leaveBotOwnerNotification.html", "r").read(),
                 catalog_sync_status=open("template/emails/catalog_sync_status.html", "r").read(),
+                password_reset_unverified=open("template/emails/passwordResetUnverified.html", "r").read(),
             )
             system_properties = (
                 SystemProperties(mail_templates=mail_templates)
@@ -1060,6 +1061,15 @@ class AccountProcessor:
             "leave_bot_owner_notification"]
         Utility.email_conf["email"]["templates"]["catalog_sync_status"] = system_properties["mail_templates"][
             "catalog_sync_status"]
+        Utility.email_conf["email"]["templates"]["password_reset_unverified"] = system_properties[
+            "mail_templates"
+        ].get("password_reset_unverified")
+        if not Utility.email_conf["email"]["templates"].get("password_reset_unverified"):
+            template_html = open("template/emails/passwordResetUnverified.html", "r").read()
+            SystemProperties.objects().update_one(
+                set__mail_templates__password_reset_unverified=template_html
+            )
+            Utility.email_conf["email"]["templates"]["password_reset_unverified"] = template_html
 
     @staticmethod
     async def confirm_email(token: str):
@@ -1139,7 +1149,7 @@ class AccountProcessor:
                 raise_error=False,
                 check_base_fields=False,
             ):
-                raise AppException("Error! There is no user with the following mail id")
+                raise AppException("If the email address is registered with us, you'll receive a password reset email shortly.")
             if not Utility.is_exist(
                 UserEmailConfirmation, email__iexact=mail, raise_error=False
             ):
@@ -1171,6 +1181,42 @@ class AccountProcessor:
             return mail, user["first_name"], link
         else:
             raise AppException("Error! Email verification is not enabled")
+
+    @staticmethod
+    async def handle_password_reset_request(email: str):
+        if not Utility.email_conf["email"]["enable"]:
+            return
+        email = email.strip()
+        if isinstance(mail_check(email), ValidationFailure):
+            return
+        if not Utility.is_exist(User, email__iexact=email, status=True, raise_error=False, check_base_fields=False):
+            return
+        try:
+            UserActivityLogger.is_password_reset_within_cooldown_period(email)
+            UserActivityLogger.is_password_reset_request_limit_exceeded(email)
+        except AppException:
+            return
+        user = AccountProcessor.get_user(email)
+        if not Utility.is_exist(UserEmailConfirmation, email__iexact=email, raise_error=False):
+            token = Utility.generate_token(email)
+            link = Utility.email_conf["app"]["url"] + "/verify/" + token
+            await MailUtility.format_and_send_mail(
+                mail_type='password_reset_unverified', email=email,
+                first_name=user['first_name'], url=link
+            )
+            return
+        token_expiry = Utility.environment["user"]["reset_password_cooldown_period"] or 120
+        uuid_value = str(uuid.uuid1())
+        token = Utility.generate_token_payload({"mail_id": email, "uuid": uuid_value}, token_expiry * 60)
+        link = Utility.email_conf["app"]["url"] + '/reset_password/' + token
+        UserActivityLogger.add_log(a_type=UserActivityType.reset_password_request.value,
+                                   account=user['account'], email=email,
+                                   data={"status": "pending", "uuid": uuid_value})
+        UserActivityLogger.add_log(a_type=UserActivityType.link_usage.value, account=user['account'],
+                                   email=email, message=["Send Reset Link"],
+                                   data={"status": "pending", "uuid": uuid_value})
+        await MailUtility.format_and_send_mail(mail_type='password_reset', email=email,
+                                               first_name=user['first_name'], url=link)
 
     @staticmethod
     async def overwrite_password(token: str, password: str):
