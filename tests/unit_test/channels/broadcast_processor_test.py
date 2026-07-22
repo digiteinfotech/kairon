@@ -589,5 +589,67 @@ class TestMessageBroadcastProcessor:
         updated = MessageBroadcastProcessor.get_settings(notification_id, bot)
         assert len(updated["template_config"]) == 2
 
+    def test_fetch_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = ["media_001", "media_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "360dialog"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        assert result == ["media_001", "media_002"]
+        mock_bsp.fetch_media_ids.assert_called_once_with(bot)
+
+    def test_fetch_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
+
+    def test_fetch_broadcast_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_broadcast_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = ["bcast_001", "bcast_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "gupshup"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        assert result == ["bcast_001", "bcast_002"]
+        mock_bsp.fetch_broadcast_media_ids.assert_called_once_with(bot)
+
+    def test_fetch_broadcast_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_broadcast_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
+
 
 

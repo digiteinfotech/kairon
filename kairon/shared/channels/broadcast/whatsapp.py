@@ -517,7 +517,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             return channel_client
         except DoesNotExist as e:
             logger.exception(e)
-            raise AppException(f"Whatsapp channel config not found!") from e
+            raise AppException("Whatsapp channel config not found!") from e
 
     def __get_template(self, name: Text, language: Text, bsp_type: Text = WhatsappBSPTypes.bsp_360dialog.value):
         bsp = BusinessServiceProviderFactory.get_instance(bsp_type)(self.bot, self.user)
