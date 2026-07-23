@@ -303,7 +303,6 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
         partner_base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"][
             "partner_base_url"]
-        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["auth_header"]
 
         headers = {
             "Authorization": partner_app_token,
