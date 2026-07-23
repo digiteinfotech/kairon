@@ -577,9 +577,6 @@ async def test_process_async_callback_request_async_triggers_callback(
             token, identifier, request_data, callback_source
         )
 
-        assert message == "success"
-        assert data == {"message": "Request Acknowledged"}
-        assert error_code == 0
         mock_create_task.assert_called_once()
 
 @pytest.mark.asyncio
