@@ -158,7 +158,8 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
 
             payload = data.copy()
-            payload['buttons'] = json.dumps(payload.get('buttons'))
+            if payload.get('buttons'):
+                payload['buttons'] = json.dumps(payload.get('buttons'))
             headers = {
                 header: partner_app_token,
                 "Content-Type": "application/x-www-form-urlencoded",
