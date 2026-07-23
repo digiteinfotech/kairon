@@ -306,7 +306,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["auth_header"]
 
         headers = {
-            header: partner_app_token,
+            "Authorization": partner_app_token,
         }
         payload = {"file_type": extension}
         content_dir = os.path.join("media_upload_records", bot)

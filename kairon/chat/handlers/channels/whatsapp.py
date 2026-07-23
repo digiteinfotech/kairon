@@ -106,7 +106,8 @@ class Whatsapp:
                 sender_id=message.get("from") or message.get("from_user_id"),
                 whatsapp_media_id=message[message['type']]['id'],
                 config=self.config,
-                user_id=message.get("from_user_id")
+                user_id=message.get("from_user_id"),
+                media_data=message[message['type']]
             )
         elif message.get("type") == "location":
             logger.debug(message['location'])
