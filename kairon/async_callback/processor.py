@@ -157,7 +157,6 @@ class CallbackProcessor:
                                                          predefined_objects=predefined_objects,
                                                          callback=callback_function)
                 asyncio.create_task(execute_async_callback())
-                await asyncio.sleep(3)
                 return {"message": "Request Acknowledged"}, message, error_code, response_type
 
             elif execution_mode == CallbackExecutionMode.SYNC.value:
