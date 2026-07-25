@@ -3,6 +3,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicDocument, E
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
 from kairon import Utility
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
@@ -104,6 +105,7 @@ class TemplateConfiguration(EmbeddedDocument):
 class MessageBroadcastSettings(Auditlog):
     name = StringField(required=True)
     connector_type = StringField(required=True)
+    bsp_type = StringField(default=WhatsappBSPTypes.bsp_gupshup.value)
     broadcast_type = StringField(required=True, choices=[MessageBroadcastType.static.value, MessageBroadcastType.dynamic.value, MessageBroadcastType.flow.value])
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     recipients_config = EmbeddedDocumentField(RecipientsConfiguration)

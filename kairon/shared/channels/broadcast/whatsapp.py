@@ -12,11 +12,12 @@ from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFacto
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, MEDIA_TYPES, STATUSES
 from kairon.shared.data.processor import MongoProcessor
@@ -74,16 +75,23 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 elif custom := resp.get('custom'):
                     components = custom
 
+        status_flag = status_code = response = None
+        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
 
-        status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
-                                                                                              recipient,
-                                                                                              language_code,
-                                                                                              components,
-                                                                                              namespace)
+        if bsp_type == WhatsappBSPTypes.bsp_gupshup.value and isinstance(components, tuple) :
+            status_flag, status_code, response = await self.channel_client.send_gupshup_template_message(
+                recipient, components
+            )
+        else:
+            status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
+                                                                                                  recipient,
+                                                                                                  language_code,
+                                                                                                  components,
+                                                                                                  namespace)
         status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
-        if status == EVENT_STATUS.FAIL.value:
-            return status_flag, status_code, response
+        # if status == EVENT_STATUS.FAIL.value:
+        #     return status_flag, status_code, response
 
         MessageBroadcastProcessor.add_event_log(
             self.bot, MessageBroadcastLogType.send.value, self.reference_id, api_response=response,
@@ -99,11 +107,20 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                                     namespace: Text = None):
         if not self.channel_client:
             self.channel_client = self.__get_client()
-        status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
-                                                                                                   recipient,
-                                                                                                   language_code,
-                                                                                                   components,
-                                                                                                   namespace)
+
+        status_flag = status_code = response = None
+        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
+
+        if bsp_type == WhatsappBSPTypes.bsp_gupshup.value and isinstance(components, tuple):
+            status_flag, status_code, response = await self.channel_client.send_gupshup_template_message(
+                recipient, components
+            )
+        else:
+            status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
+                                                                                                       recipient,
+                                                                                                       language_code,
+                                                                                                       components,
+                                                                                                       namespace)
         status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
         MessageBroadcastProcessor.add_event_log(
@@ -337,6 +354,291 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         return template_params, recipients
 
+    # def __get_template_params_for_gupshup(self, raw_template, template_id):
+    #     import re
+    #
+    #     # 1. Extract template UUID (NOT name)
+    #     template_uuid = raw_template.get("id")
+    #
+    #     # 2. Extract variables from template text
+    #     template_text = raw_template.get("data", "")
+    #     variables = re.findall(r"{{\d+}}", template_text)
+    #
+    #     # 3. Prepare params (you should replace with actual values)
+    #     # For now dummy placeholders
+    #     params = [f"value{i + 1}" for i in range(len(variables))]
+    #
+    #     # 4. Prepare template payload
+    #     template_params = {
+    #         "id": template_uuid,
+    #         "params": params
+    #     }
+    #
+    #     # 5. Prepare message based on template type
+    #     template_type = raw_template.get("templateType")
+    #
+    #     if template_type == "IMAGE":
+    #         message = {
+    #             "type": "image",
+    #             "image": {
+    #                 # ⚠️ You need media_id here if sending media
+    #                 # OR use link if supported
+    #                 "link": "https://via.placeholder.com/150"
+    #             }
+    #         }
+    #     elif template_type == "VIDEO":
+    #         message = {
+    #             "type": "video",
+    #             "video": {
+    #                 "link": "https://example.com/video.mp4"
+    #             }
+    #         }
+    #     elif template_type == "DOCUMENT":
+    #         message = {
+    #             "type": "document",
+    #             "document": {
+    #                 "link": "https://example.com/file.pdf"
+    #             }
+    #         }
+    #     else:
+    #         # TEXT template
+    #         message = {
+    #             "type": "text",
+    #             "text": template_text
+    #         }
+    #
+    #     return template_params, message
+
+    # def __get_template_params_for_gupshup(self, raw_template, template_config):
+    #     import json
+    #
+    #     # 1. Parse data
+    #     template_uuid = raw_template.get('id')
+    #     template_type = raw_template.get('templateType')
+    #
+    #     parsed_data = json.loads(raw_template.get("data", "[]"))
+    #     components = parsed_data[0] if parsed_data else []
+    #
+    #     # 2. Resolve media (if exists)
+    #     media_id = None
+    #
+    #     for comp in components:
+    #         if comp.get("type") == "header":
+    #             for param in comp.get("parameters", []):
+    #                 if param.get("type") in ["image", "video", "document"]:
+    #                     media_obj = param.get(param["type"], {})
+    #
+    #                     media_id = media_obj.get("id")
+    #
+    #     template = {
+    #         "id": template_uuid,
+    #         "components": components
+    #     }
+    #
+    #     message = {}
+    #
+    #     if template_type == "IMAGE":
+    #         message = {
+    #             "type": "image",
+    #             "image": {
+    #                 "id": media_id
+    #             }
+    #         }
+    #
+    #     elif template_type == "VIDEO":
+    #         message = {
+    #             "type": "video",
+    #             "video": {
+    #                 "id": media_id
+    #             }
+    #         }
+    #
+    #     elif template_type == "DOCUMENT":
+    #         message = {
+    #             "type": "document",
+    #             "document": {
+    #                 "id": media_id
+    #             }
+    #         }
+    #
+    #     else:
+    #         body_text = ""
+    #         for comp in components:
+    #             if comp.get("type") == "body":
+    #                 for param in comp.get("parameters", []):
+    #                     if param.get("type") == "text":
+    #                         body_text = param.get("text")
+    #
+    #         message = {
+    #             "type": "text",
+    #             "text": body_text or " "
+    #         }
+    #
+    #     return template, message
+
+    # def __get_template_params_for_gupshup(self, raw_template, template_config):
+    #     import json
+    #
+    #     template_id = raw_template.get("id")
+    #     template_type = raw_template.get("templateType")
+    #
+    #     # ✅ Use template_config (runtime values)
+    #     parsed_data = json.loads(template_config.get("data", "[]"))
+    #     components = parsed_data[0] if parsed_data else []
+    #
+    #     body_params = []
+    #     media_id = None
+    #
+    #     # 🔍 Extract params + media in one pass
+    #     for comp in components:
+    #         comp_type = comp.get("type")
+    #
+    #         if comp_type == "body":
+    #             for param in comp.get("parameters", []):
+    #                 if param.get("type") == "text":
+    #                     body_params.append(param.get("text"))
+    #
+    #         elif comp_type == "header":
+    #             for param in comp.get("parameters", []):
+    #                 p_type = param.get("type")
+    #                 if p_type in ["image", "video", "document"]:
+    #                     media_obj = param.get(p_type, {})
+    #                     media_id = media_obj.get("id")
+    #
+    #     # ✅ Gupshup template format
+    #     template = {
+    #         "id": template_id,
+    #         "params": body_params
+    #     }
+    #
+    #     # ✅ Optimized media handling
+    #     media_type_map = {
+    #         "IMAGE": "image",
+    #         "VIDEO": "video",
+    #         "DOCUMENT": "document"
+    #     }
+    #
+    #     message = {}
+    #
+    #     if template_type in media_type_map and media_id:
+    #         m_type = media_type_map[template_type]
+    #         message = {
+    #             "type": m_type,
+    #             m_type: {"id": media_id}
+    #         }
+    #     else:
+    #         # fallback text message
+    #         text = body_params[0] if body_params else " "
+    #         message = {
+    #             "type": "text",
+    #             "text": text
+    #         }
+    #
+    #     return template, message
+
+    def __get_template_params_for_gupshup(self, raw_template, template_config):
+        import json
+        import re
+
+        template_id = raw_template.get("id")
+        template_type = raw_template.get("templateType")
+
+        # ✅ Parse containerMeta safely
+        try:
+            container_meta = json.loads(raw_template.get("containerMeta", "{}"))
+        except Exception:
+            container_meta = {}
+
+        # ✅ Parse runtime config safely
+        try:
+            parsed_data = json.loads(template_config.get("data", "[]") or "[]")
+        except Exception:
+            parsed_data = []
+
+        components = parsed_data[0] if parsed_data and isinstance(parsed_data[0], list) else []
+
+        body_params = []
+        media_id = None
+
+        # 🔍 Extract runtime params + media
+        for comp in components:
+            if comp.get("type") == "body":
+                for param in comp.get("parameters", []):
+                    if param.get("type") == "text":
+                        body_params.append(param.get("text"))
+
+            elif comp.get("type") == "header":
+                for param in comp.get("parameters", []):
+                    p_type = param.get("type")
+                    if p_type in ["image", "video", "document"]:
+                        media_id = param.get(p_type, {}).get("id")
+
+        # =========================================================
+        # ✅ FALLBACK: Extract params from sampleText (IMPORTANT FIX)
+        # =========================================================
+        if not body_params:
+            template_text = container_meta.get("data", "")
+            sample_text = container_meta.get("sampleText", "")
+
+            placeholders = re.findall(r"\{\{(\d+)\}\}", template_text)
+
+            if placeholders and sample_text:
+                static_parts = re.split(r"\{\{\d+\}\}", template_text)
+
+                temp_text = sample_text
+                for part in static_parts:
+                    if part:
+                        temp_text = temp_text.replace(part, "|")
+
+                extracted = [p.strip() for p in temp_text.split("|") if p.strip()]
+
+                # match placeholder count safely
+                body_params = extracted[:len(placeholders)]
+
+        # =========================================================
+        # ✅ FALLBACK: Media from sampleMedia
+        # =========================================================
+        if not media_id:
+            media_id = container_meta.get("sampleMedia")
+
+        # =========================================================
+        # ✅ TEMPLATE PAYLOAD
+        # =========================================================
+        template = {
+            "id": template_id,
+            "params": body_params
+        }
+
+        # =========================================================
+        # ✅ MESSAGE CREATION
+        # =========================================================
+        media_type_map = {
+            "IMAGE": "image",
+            "VIDEO": "video",
+            "DOCUMENT": "document"
+        }
+
+        if template_type in media_type_map and media_id:
+            m_type = media_type_map[template_type]
+            message = {
+                "type": m_type,
+                m_type: {"id": media_id}
+            }
+        else:
+            # ✅ Proper full text rendering
+            text_template = container_meta.get("data", "")
+
+            for i, val in enumerate(body_params, start=1):
+                text_template = text_template.replace(f"{{{{{i}}}}}", str(val))
+
+            message = {
+                "type": "text",
+                "text": text_template or " "
+            }
+
+        return template, message
+
+
     def __send_using_configuration(self, recipients: List):
 
         for i, template_config in enumerate(self.config['template_config']):
@@ -344,10 +646,17 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            raw_template, template_exception = self.__get_template(template_id, lang)
+            bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
+            # if not self.channel_client:
+            #     self.channel_client = self.__get_client()
+
+            raw_template, template_exception = self.__get_template(template_id, lang, bsp_type)
 
             if self.config.get('collection_config'):
                 template_params, recipients = self.__prepare_template_params(raw_template, template_id)
+            elif bsp_type == WhatsappBSPTypes.bsp_gupshup.value:
+                template, message = self.__get_template_params_for_gupshup(raw_template, template_config)
+                template_params = [(template, message) for _ in recipients]
             else:
                 template_params = self._get_template_parameters(template_config)
 
@@ -367,8 +676,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-
-                    message_list.append((template_id, recipient, lang, t_params, namespace, None))
+                    if bsp_type == WhatsappBSPTypes.bsp_gupshup.value:
+                        namespace = raw_template.get("namespace")
+                        lang = raw_template.get("languageCode")
+                        message_list.append((template_id, recipient, lang, t_params, namespace, None))
+                    else:
+                        message_list.append((template_id, recipient, lang, t_params, namespace, None))
 
             _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
@@ -495,7 +808,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         try:
             bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
             channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            access_token = channel_config["config"].get('api_key') or channel_config["config"].get('access_token')
+            access_token = channel_config["config"].get('api_key') or channel_config["config"].get('access_token') or channel_config["config"].get("partner_app_token")
             channel_client = WhatsappFactory.get_client(bot_settings["whatsapp"])
             channel_client = channel_client(access_token, config=channel_config)
             return channel_client
@@ -503,14 +816,20 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             logger.exception(e)
             raise AppException(f"Whatsapp channel config not found!")
 
-    def __get_template(self, name: Text, language: Text):
+    def __get_template(self, name: Text, language: Text, bsp_type: Text = '360dialog'):
         template_exception = None
         template = []
         try:
-            for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
-                if template.get("language") == language:
-                    template = template.get("components")
-                    break
+            if bsp_type == '360dialog':
+                for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
+                    if template.get("language") == language:
+                        template = template.get("components")
+                        break
+            elif bsp_type == "gupshup":
+                for template in BSPGupshup(self.bot, self.user).list_templates(**{'elementName': name}):
+                    if template.get("languageCode") == language:
+                        template = template
+                        break
             return template, template_exception
         except Exception as e:
             logger.exception(e)

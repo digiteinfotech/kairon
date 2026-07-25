@@ -177,11 +177,11 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def get_partner_auth_token():
-        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
-        partner_username = Utility.environment["channels"]["360dialog"]["partner_username"]
-        partner_password = Utility.environment["channels"]["360dialog"]["partner_password"]
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        partner_email = Utility.environment["channels"]["gupshup"]["partner_email"]
+        partner_password = Utility.environment["channels"]["gupshup"]["partner_password"]
         request_body = {
-            "username": partner_username,
+            "email": partner_email,
             "password": partner_password
         }
         token_url = f"{base_url}/api/v2/token"
