@@ -11,12 +11,12 @@ from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.from_config import MessageBroadcastFromConfig
-from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType, MessageBroadcastType
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.constant import EVENT_STATUS, MEDIA_TYPES, STATUSES
 from kairon.shared.data.processor import MongoProcessor
@@ -74,12 +74,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 elif custom := resp.get('custom'):
                     components = custom
 
+        status_flag = status_code = response = None
 
-        status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
-                                                                                              recipient,
-                                                                                              language_code,
-                                                                                              components,
-                                                                                              namespace)
+        status_flag, status_code, response = await self.channel_client.send_broadcast_template_async(
+            template_id, recipient, language_code, components, namespace
+        )
         status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
         if status == EVENT_STATUS.FAIL.value:
@@ -99,11 +98,12 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                                     namespace: Text = None):
         if not self.channel_client:
             self.channel_client = self.__get_client()
-        status_flag, status_code, response = await self.channel_client.send_template_message_async(template_id,
-                                                                                                   recipient,
-                                                                                                   language_code,
-                                                                                                   components,
-                                                                                                   namespace)
+
+        status_flag = status_code = response = None
+
+        status_flag, status_code, response = await self.channel_client.send_broadcast_template_async(
+            template_id, recipient, language_code, components, namespace
+        )
         status = EVENT_STATUS.FAIL.value if response.get("error") else STATUSES.SUCCESS.value
 
         MessageBroadcastProcessor.add_event_log(
@@ -239,8 +239,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         template_name = self.config['template_name']
         language_code = self.config['language_code']
+        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
 
-        raw_template, template_exception = self.__get_template(template_name, language_code)
+        raw_template, template_exception = self.__get_template(template_name, language_code, bsp_type)
         raw_template = raw_template if raw_template else []
         MessageBroadcastProcessor.update_broadcast_logs_with_template(
             self.reference_id, self.event_id, raw_template=raw_template, template_name=template_name,
@@ -344,14 +345,17 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            raw_template, template_exception = self.__get_template(template_id, lang)
+            bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
+            bsp = BusinessServiceProviderFactory.get_instance(bsp_type)(self.bot, self.user)
+
+            raw_template, template_exception = self.__get_template(template_id, lang, bsp_type)
+            raw_template = bsp.normalize_raw_template(raw_template)
 
             if self.config.get('collection_config'):
                 template_params, recipients = self.__prepare_template_params(raw_template, template_id)
             else:
-                template_params = self._get_template_parameters(template_config)
-
-                template_params = template_params if template_params else [template_params] * len(recipients)
+                default_params = self._get_template_parameters(template_config)
+                template_params = bsp.get_template_params_for_broadcast(raw_template, template_config, recipients, default_params)
 
             total = len(recipients)
             num_msg = len(list(zip(recipients, template_params)))
@@ -367,8 +371,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-
-                    message_list.append((template_id, recipient, lang, t_params, namespace, None))
+                    entry_namespace, entry_lang = bsp.get_broadcast_namespace_and_language(raw_template, namespace, lang)
+                    message_list.append((template_id, recipient, entry_lang, t_params, entry_namespace, None))
 
             _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
@@ -379,8 +383,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 recipients=recipients, **evaluation_log
             )
 
+            log_template = bsp.to_log_template(raw_template)
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
+                self.reference_id, self.event_id, raw_template=log_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
@@ -388,13 +393,19 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
     def __send_using_flow(self, recipients: List, **kwargs):
         total = len(recipients)
         flowname = self.config.get("flowname")
+        bsp_type = self.config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
         for i, template_config in enumerate(self.config['template_config']):
             template_id = template_config["template_id"]
             namespace = template_config.get("namespace")
             lang = template_config["language"]
-            template_params = self._get_template_parameters(template_config)
-            raw_template, template_exception = self.__get_template(template_id, lang)
-            template_params = template_params if template_params else [template_params] * len(recipients)
+            bsp = BusinessServiceProviderFactory.get_instance(bsp_type)(self.bot, self.user)
+
+            raw_template, template_exception = self.__get_template(template_id, lang, bsp_type)
+            raw_template = bsp.normalize_raw_template(raw_template)
+
+            default_params = self._get_template_parameters(template_config)
+            template_params = bsp.get_template_params_for_broadcast(raw_template, template_config, recipients, default_params)
+
             num_msg = len(list(zip(recipients, template_params)))
             no_of_recipients = "one recipient" if total == 1 else f"{total} recipients"
             evaluation_log = {
@@ -409,9 +420,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             for recipient, t_params in zip(recipients, template_params):
                 recipient = str(recipient) if recipient else ""
                 if not Utility.check_empty_string(recipient):
-
-
-                    message_list.append((template_id, recipient, lang, t_params, namespace, flowname))
+                    entry_namespace, entry_lang = bsp.get_broadcast_namespace_and_language(raw_template, namespace, lang)
+                    message_list.append((template_id, recipient, entry_lang, t_params, entry_namespace, flowname))
 
             _, non_sent_recipients = self.initiate_broadcast(message_list)
             failure_cnt = len(non_sent_recipients)
@@ -421,8 +431,9 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
                 event_id=self.event_id, nonsent_recipients=non_sent_recipients, **evaluation_log
             )
 
+            log_template = bsp.to_log_template(raw_template)
             MessageBroadcastProcessor.update_broadcast_logs_with_template(
-                self.reference_id, self.event_id, raw_template=raw_template, template_name=template_id,
+                self.reference_id, self.event_id, raw_template=log_template, template_name=template_id,
                 log_type=MessageBroadcastLogType.send.value, retry_count=0,
                 template_exception=template_exception
             )
@@ -447,7 +458,8 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         skipped_count = len(broadcast_logs) - total
         template_name = required_logs[0]["template_name"]
         language_code = required_logs[0]["language_code"]
-        template, template_exception = self.__get_template(template_name, language_code)
+        bsp_type = config.get('bsp_type', WhatsappBSPTypes.bsp_360dialog.value)
+        template, template_exception = self.__get_template(template_name, language_code, bsp_type)
 
         message_list = []
 
@@ -495,24 +507,18 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         try:
             bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
             channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
-            access_token = channel_config["config"].get('api_key') or channel_config["config"].get('access_token')
+            bsp_type = channel_config["config"].get("bsp_type")
+            if bsp_type == WhatsappBSPTypes.bsp_gupshup.value:
+                access_token = channel_config["config"].get("partner_app_token")
+            else:
+                access_token = channel_config["config"].get('api_key') or channel_config["config"].get('access_token') or channel_config["config"].get("partner_app_token")
             channel_client = WhatsappFactory.get_client(bot_settings["whatsapp"])
             channel_client = channel_client(access_token, config=channel_config)
             return channel_client
         except DoesNotExist as e:
             logger.exception(e)
-            raise AppException(f"Whatsapp channel config not found!")
+            raise AppException("Whatsapp channel config not found!") from e
 
-    def __get_template(self, name: Text, language: Text):
-        template_exception = None
-        template = []
-        try:
-            for template in BSP360Dialog(self.bot, self.user).list_templates(**{"business_templates.name": name}):
-                if template.get("language") == language:
-                    template = template.get("components")
-                    break
-            return template, template_exception
-        except Exception as e:
-            logger.exception(e)
-            template_exception = str(e)
-            return template, template_exception
+    def __get_template(self, name: Text, language: Text, bsp_type: Text = WhatsappBSPTypes.bsp_360dialog.value):
+        bsp = BusinessServiceProviderFactory.get_instance(bsp_type)(self.bot, self.user)
+        return bsp.get_template_for_broadcast(name, language)

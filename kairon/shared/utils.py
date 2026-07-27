@@ -1348,13 +1348,6 @@ class Utility:
             )
 
     @staticmethod
-    def validate_create_template_request(data: Dict):
-        required_keys = ["name", "category", "components", "language"]
-        missing_keys = [key for key in required_keys if key not in data]
-        if missing_keys:
-            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
-
-    @staticmethod
     def validate_edit_template_request(data: Dict):
         non_editable_keys = ["name", "category", "language"]
         if any(key in data for key in non_editable_keys):

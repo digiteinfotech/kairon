@@ -912,7 +912,7 @@ class BotSettings(Auditlog):
     refresh_token_expiry = IntField(default=60)
     media_size_limit = IntField(default=10)
     whatsapp = StringField(
-        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
+        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value, WhatsappBSPTypes.bsp_gupshup.value]
     )
     notification_scheduling_limit = IntField(default=4)
     retry_broadcasting_limit = IntField(default=3)
@@ -1092,6 +1092,7 @@ class UserMediaData(Auditlog):
     filesize = IntField(default=0)
     additional_info = DictField()
     sender_id = StringField(required=True)
+    user_id = StringField(default=None)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     external_upload_info = DictField()
@@ -1103,6 +1104,7 @@ class UserMediaData(Auditlog):
                 "bot",
                 ("bot", "media_id"),
                 ("bot", "sender_id"),
+                ("bot", "user_id"),
                 "media_id"
             ]
         }

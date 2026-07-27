@@ -236,7 +236,7 @@ class ChatDataProcessor:
         """
         campaign_id = None
         status = status_data.get('status')
-        msg_id = status_data.get('id')
+        msg_id = status_data.get('gs_id') or status_data.get('id')
 
         if msg_id and status in {"delivered", "read"}:
             campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
@@ -253,6 +253,7 @@ class ChatDataProcessor:
             bot=bot,
             user=user,
             recipient=recipient,
+            user_id=status_data.get('recipient_user_id'),
             campaign_id=campaign_id
         ).save()
 

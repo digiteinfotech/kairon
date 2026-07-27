@@ -213,13 +213,13 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
-        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp', 'bsp_type': '360dialog',
                              "broadcast_type": "dynamic", 'retry_count': 0, 'collection_config': {},
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
-                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {},
+                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {}, 'bsp_type': '360dialog',
                             'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -228,7 +228,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
         assert setting == {'name': 'second_scheduler', 'connector_type': 'slack', 'retry_count': 0,
-                           'collection_config': {},
+                           'collection_config': {}, 'bsp_type': '360dialog',
                            'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
                            'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                            'bot': 'test_achedule', 'user': 'test_user', 'status': True}
@@ -250,7 +250,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',
-                             "broadcast_type": "static", 'collection_config': {},
+                             "broadcast_type": "static", 'collection_config': {}, 'bsp_type': '360dialog',
                              'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -261,6 +261,7 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic", "template_config": [], 'collection_config': {},
+                             'bsp_type': '360dialog',
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", 'retry_count': 0,
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
@@ -302,6 +303,7 @@ class TestMessageBroadcastProcessor:
                 'connector_type': 'whatsapp',
                 "broadcast_type": "dynamic",
                 'collection_config': {},
+                'bsp_type': '360dialog',
                 'retry_count': 0,
                 'scheduler_config': {
                     'expression_type': 'cron',
@@ -324,6 +326,7 @@ class TestMessageBroadcastProcessor:
             'connector_type': 'whatsapp',
             "broadcast_type": "dynamic",
             'collection_config': {},
+            'bsp_type': '360dialog',
             'retry_count': 0,
             'scheduler_config': {
                 'expression_type': 'cron',
@@ -585,6 +588,68 @@ class TestMessageBroadcastProcessor:
         MessageBroadcastProcessor.update_scheduled_task(notification_id, bot, user, config)
         updated = MessageBroadcastProcessor.get_settings(notification_id, bot)
         assert len(updated["template_config"]) == 2
+
+    def test_fetch_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = ["media_001", "media_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "360dialog"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        assert result == ["media_001", "media_002"]
+        mock_bsp.fetch_media_ids.assert_called_once_with(bot)
+
+    def test_fetch_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
+
+    def test_fetch_broadcast_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_broadcast_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = ["bcast_001", "bcast_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "gupshup"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        assert result == ["bcast_001", "bcast_002"]
+        mock_bsp.fetch_broadcast_media_ids.assert_called_once_with(bot)
+
+    def test_fetch_broadcast_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_broadcast_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
 
 
 

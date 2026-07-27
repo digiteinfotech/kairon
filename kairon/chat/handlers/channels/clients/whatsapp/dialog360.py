@@ -88,7 +88,7 @@ class BSP360Dialog(WhatsappCloud):
         return self.send_action(payload)
 
 
-    def get_media_info(self, whatsapp_media_id, config):
+    def get_media_info(self, whatsapp_media_id, config, media_data=None):
         import mimetypes
         import requests
 

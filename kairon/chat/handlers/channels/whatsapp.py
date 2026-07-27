@@ -14,7 +14,7 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ChannelTypes, ActorType
+from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.models import User
 
 logger = logging.getLogger(__name__)
@@ -56,9 +56,10 @@ class Whatsapp:
                         media_id = doc["id"]
                         ids = UserMedia.save_whatsapp_media_content(
                             bot=bot,
-                            sender_id=message["from"],
+                            sender_id=message.get("from") or message.get("from_user_id"),
                             whatsapp_media_id=media_id,
-                            config=self.config
+                            config=self.config,
+                            user_id=message.get("from_user_id")
                         )
                         media_id_list.append(media_id)
                         temp_media_ids.extend(ids)
@@ -73,10 +74,11 @@ class Whatsapp:
 
                         ids = UserMedia.save_whatsapp_media_and_get_url(
                             bot=bot,
-                            sender_id=message["from"],
+                            sender_id=message.get("from") or message.get("from_user_id"),
                             whatsapp_media_id=whatsapp_media_id,
                             config=self.config,
-                            description=description
+                            description=description,
+                            user_id=message.get("from_user_id")
                         )
 
                         media_id_list.append(whatsapp_media_id)
@@ -101,9 +103,11 @@ class Whatsapp:
             text = f"/k_multimedia_msg{{\"{message['type']}\": \"{message[message['type']]['id']}\"}}"
             media_ids = UserMedia.save_whatsapp_media_content(
                 bot=bot,
-                sender_id=message["from"],
+                sender_id=message.get("from") or message.get("from_user_id"),
                 whatsapp_media_id=message[message['type']]['id'],
-                config=self.config
+                config=self.config,
+                user_id=message.get("from_user_id"),
+                media_data=message[message['type']]
             )
         elif message.get("type") == "location":
             logger.debug(message['location'])
@@ -120,7 +124,7 @@ class Whatsapp:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
         message.update(metadata)
-        await self._handle_user_message(text, message["from"], message, bot, media_ids)
+        await self._handle_user_message(text, message.get("from") or message.get("from_user_id"), message, bot, media_ids)
 
     async def handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         provider = self.config.get("bsp_type", "meta")
@@ -129,15 +133,15 @@ class Whatsapp:
             for changes in entry["changes"]:
                 self.last_message = changes
                 client = WhatsappFactory.get_client(provider)
-                self.client = client(access_token, from_phone_number_id=self.get_business_phone_number_id())
+                self.client = client(access_token, from_phone_number_id=self.get_business_phone_number_id(), config=self.config)
                 msg_metadata = changes.get("value", {}).get("metadata", {})
                 metadata.update(msg_metadata)
                 messages = changes.get("value", {}).get("messages")
                 if not messages:
                     statuses = changes.get("value", {}).get("statuses")
                     user = metadata.get('display_phone_number')
-                    for status_data in statuses:
-                        recipient = status_data.get('recipient_id')
+                    for status_data in (statuses or []):
+                        recipient = status_data.get('recipient_id') or status_data.get('recipient_user_id')
                         ChatDataProcessor.save_whatsapp_audit_log(status_data, bot, user, recipient,
                                                                   ChannelTypes.WHATSAPP.value)
                         if status_data.get('type') == "payment":
@@ -150,13 +154,14 @@ class Whatsapp:
         """Send a message to the user."""
         from kairon.chat.converters.channels.response_factory import ConverterFactory
 
-        is_bps = self.config.get("bsp_type", "meta") == "360dialog"
-        client = WhatsappFactory.get_client(self.config.get("bsp_type", "meta"))
+        bsp_type = self.config.get("bsp_type", "meta")
+        is_bps = bsp_type in {t.value for t in WhatsappBSPTypes if t != WhatsappBSPTypes.meta}
+        client = WhatsappFactory.get_client(bsp_type)
         phone_number_id = self.config.get('phone_number_id')
         if not phone_number_id and not is_bps:
             raise ValueError("Phone number not found in channel config")
         access_token = self.__get_access_token()
-        c = client(access_token, from_phone_number_id=phone_number_id)
+        c = client(access_token, from_phone_number_id=phone_number_id, config=self.config)
         message_type = "text"
         if isinstance(message, str):
             message = {
@@ -194,6 +199,7 @@ class Whatsapp:
 
         actor = ActorFactory.get_instance(ActorType.callable_runner.value)
         actor.execute(self.handle_meta_payload, payload, metadata, bot)
+
         return msg
 
     def get_business_phone_number_id(self) -> Text:
@@ -224,6 +230,8 @@ class Whatsapp:
         provider = self.config.get("bsp_type", "meta")
         if provider == "meta":
             return self.config.get('access_token')
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
+            return self.config.get('partner_app_token')
         else:
             return self.config.get('api_key')
 

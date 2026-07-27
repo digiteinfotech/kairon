@@ -53,6 +53,10 @@ class MessageBroadcastProcessor:
                          name=config['name'], status=True)
         if not Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type=channel):
             raise AppException(f"Channel '{channel}' not configured!")
+        if channel == ChannelTypes.WHATSAPP.value and "bsp_type" not in config:
+            channel_doc = Channels.objects(bot=bot, connector_type=channel).first()
+            if channel_doc and channel_doc.config.get("bsp_type"):
+                config["bsp_type"] = channel_doc.config["bsp_type"]
         max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
         template_config = config.get("template_config") or []
         if len(template_config) > max_template_limit:
@@ -211,13 +215,17 @@ class MessageBroadcastProcessor:
                                                               log_type=log_type,
                                                               retry_count=retry_count)
 
-        broadcast_logs = {
-            message['id']: log
-            for log in message_broadcast_logs
-            if log.api_response and log.api_response.get('messages', [])
-            for message in log.api_response['messages']
-            if message['id']
-        }
+        broadcast_logs = {}
+        for log in message_broadcast_logs:
+            if not log.api_response:
+                continue
+            messages = log.api_response.get('messages', [])
+            if messages:
+                for message in messages:
+                    if message.get('id'):
+                        broadcast_logs[message['id']] = log
+            elif log.api_response.get('messageId'):
+                broadcast_logs[log.api_response['messageId']] = log
         return broadcast_logs
 
     @staticmethod
@@ -345,9 +353,33 @@ class MessageBroadcastProcessor:
         campaign_id = None
         try:
             log = MessageBroadcastLogs.objects(api_response__messages__id=message_id, log_type=MessageBroadcastLogType.send.value)
+            if not log:
+                log = MessageBroadcastLogs.objects(api_response__messageId=message_id, log_type=MessageBroadcastLogType.send.value)
             if log:
                 campaign_id = log[0].reference_id
         except Exception as e:
             logger.debug(e)
 
         return campaign_id
+
+    @staticmethod
+    def fetch_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_media_ids(bot)
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_broadcast_media_ids(bot)
+
+
