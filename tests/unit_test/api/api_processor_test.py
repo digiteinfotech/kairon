@@ -3237,6 +3237,7 @@ class TestAccountProcessor:
         call_kwargs = mock_logger.add_log.call_args
         assert call_kwargs.kwargs.get('a_type') == UserActivityType.reset_password_request.value
         assert call_kwargs.kwargs.get('email') == 'unverified@example.com'
+        assert '/verify/' in mail_sent[0]['url']
         Utility.email_conf["email"]["enable"] = False
 
     def test_handle_password_reset_request_unverified_user_rate_limited(self, monkeypatch):
@@ -3303,3 +3304,62 @@ class TestAccountProcessor:
                 response = client.post('/api/account/password/reset', json={"data": email})
                 assert response.status_code == 200
                 assert "If the email address is registered" in response.json()["message"]
+
+    def test_handle_password_reset_request_email_disabled(self):
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        Utility.email_conf["email"]["enable"] = False
+        with patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('any@example.com'))
+        assert len(mail_sent) == 0
+        mock_logger.add_log.assert_not_called()
+
+    def test_handle_password_reset_request_invalid_email(self):
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        Utility.email_conf["email"]["enable"] = True
+        with patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('not-an-email'))
+        assert len(mail_sent) == 0
+        mock_logger.add_log.assert_not_called()
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_load_system_properties_missing_unverified_template(self):
+        from unittest.mock import MagicMock, mock_open
+        fake_templates = {
+            "verification": "v", "verification_confirmation": "vc",
+            "password_reset": "pr", "password_reset_confirmation": "prc",
+            "add_member_invitation": "ami", "add_member_confirmation": "amc",
+            "password_generated": "pg", "conversation": "conv",
+            "custom_text_mail": "ctm", "bot_msg_conversation": "bmc",
+            "user_msg_conversation": "umc", "update_role": "ur",
+            "untrusted_login": "ul", "add_trusted_device": "atd",
+            "button_template": "bt", "leave_bot_owner_notification": "lbon",
+            "catalog_sync_status": "css",
+            "password_reset_unverified": None,
+        }
+        fake_sp_dict = {"mail_templates": fake_templates}
+
+        mock_qs = MagicMock()
+        mock_qs.get.return_value.to_mongo.return_value.to_dict.return_value = fake_sp_dict
+
+        expected_html = "<html>FIRST_NAME reset unverified</html>"
+        with patch('kairon.shared.account.processor.SystemProperties') as mock_sp, \
+             mock.patch('builtins.open', mock_open(read_data=expected_html)):
+            mock_sp.objects.return_value = mock_qs
+            AccountProcessor.load_system_properties()
+
+        mock_qs.update_one.assert_called_once_with(
+            set__mail_templates__password_reset_unverified=expected_html
+        )
+        assert Utility.email_conf["email"]["templates"]["password_reset_unverified"] == expected_html
