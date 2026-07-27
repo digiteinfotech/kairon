@@ -1198,6 +1198,10 @@ class AccountProcessor:
             return
         user = AccountProcessor.get_user(email)
         if not Utility.is_exist(UserEmailConfirmation, email__iexact=email, raise_error=False):
+            UserActivityLogger.add_log(
+                a_type=UserActivityType.reset_password_request.value,
+                account=user['account'], email=email
+            )
             token = Utility.generate_token(email)
             link = Utility.email_conf["app"]["url"] + "/verify/" + token
             await MailUtility.format_and_send_mail(

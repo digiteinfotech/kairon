@@ -25139,7 +25139,7 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual["error_code"] == 0
     assert (
             actual["message"]
-            == "If the email address is registered with us, you'll receive a password reset email shortly"
+            == "If the email address is registered with us, you'll receive a password reset email shortly."
     )
     assert actual["data"] is None
 
@@ -25165,9 +25165,9 @@ def test_reset_password_for_invalid_id():
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "If the email address is registered with us, you'll receive a password reset email shortly"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "If the email address is registered with us, you'll receive a password reset email shortly."
     assert actual["data"] is None
 
 

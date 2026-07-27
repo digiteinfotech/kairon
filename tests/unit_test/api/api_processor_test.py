@@ -3227,11 +3227,44 @@ class TestAccountProcessor:
              patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
             mock_logger.is_password_reset_within_cooldown_period.return_value = None
             mock_logger.is_password_reset_request_limit_exceeded.return_value = None
+            mock_logger.add_log.return_value = None
             loop = asyncio.new_event_loop()
             loop.run_until_complete(AccountProcessor.handle_password_reset_request('unverified@example.com'))
         assert len(mail_sent) == 1
         assert mail_sent[0]['mail_type'] == 'password_reset_unverified'
         assert mail_sent[0]['email'] == 'unverified@example.com'
+        mock_logger.add_log.assert_called_once()
+        call_kwargs = mock_logger.add_log.call_args
+        assert call_kwargs.kwargs.get('a_type') == UserActivityType.reset_password_request.value
+        assert call_kwargs.kwargs.get('email') == 'unverified@example.com'
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_handle_password_reset_request_unverified_user_rate_limited(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        fake_user = {'first_name': 'Test', 'account': 1}
+
+        def _is_exist(doc, **kwargs):
+            from kairon.shared.account.data_objects import UserEmailConfirmation
+            if doc == UserEmailConfirmation:
+                return False
+            return True
+
+        with patch.object(Utility, 'is_exist', side_effect=_is_exist), \
+             patch.object(AccountProcessor, 'get_user', return_value=fake_user), \
+             patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            mock_logger.is_password_reset_within_cooldown_period.return_value = None
+            mock_logger.is_password_reset_request_limit_exceeded.side_effect = AppException(
+                'Password reset limit exhausted for today.'
+            )
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('unverified@example.com'))
+        assert len(mail_sent) == 0
         Utility.email_conf["email"]["enable"] = False
 
     def test_handle_password_reset_request_verified_user(self, monkeypatch):
