@@ -13,6 +13,7 @@ from kairon.shared.auth import Authentication
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
@@ -1592,3 +1593,859 @@ def test_delete_media_file_not_exist_raises():
 
     mock_http.assert_called_once()
 
+
+def test_bsp_360dialog_fetch_media_ids_exception():
+    bot = "bsp360_fetch_exc_bot"
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        side_effect=Exception("db connection lost"),
+    ):
+        with pytest.raises(AppException) as exc_info:
+            BSP360Dialog.fetch_media_ids(bot)
+    assert f"Error while fetching media ids for bot '{bot}': db connection lost" in str(exc_info.value)
+
+
+def test_bsp_360dialog_fetch_broadcast_media_ids_success():
+    from unittest.mock import MagicMock
+    bot = "bsp360_broadcast_media_bot"
+    mock_doc = MagicMock()
+    mock_doc.filename = "promo.pdf"
+    mock_doc.media_id = "bcast_media_001"
+    mock_doc.upload_status = UserMediaUploadStatus.completed.value
+    mock_doc.sender_id = "sender@test.com"
+    mock_doc.timestamp = datetime.utcnow()
+
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = [mock_doc]
+
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        return_value=mock_qs,
+    ):
+        result = BSP360Dialog.fetch_broadcast_media_ids(bot)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["media_id"] == "bcast_media_001"
+    assert result[0]["filename"] == "promo.pdf"
+    assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
+
+
+def test_bsp_360dialog_fetch_broadcast_media_ids_exception():
+    bot = "bsp360_broadcast_exc_bot"
+    with patch(
+        "kairon.shared.channels.whatsapp.bsp.dialog360.UserMediaData.objects",
+        side_effect=Exception("timeout"),
+    ):
+        with pytest.raises(AppException) as exc_info:
+            BSP360Dialog.fetch_broadcast_media_ids(bot)
+    assert f"Error while fetching media ids for bot '{bot}': timeout" in str(exc_info.value)
+
+
+class TestBSPGupshup:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        Utility.load_system_metadata()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    GS_BOT = "gs_bsp_test_bot_001"
+    GS_USER = "gs_bsp_test_user@test.com"
+
+    @pytest.fixture
+    def gupshup_channel(self):
+        encrypted_name = Utility.encrypt_message("gs_app_name")
+        Channels.objects(bot=self.GS_BOT).delete()
+        BotSettings.objects(bot=self.GS_BOT).delete()
+        BotSettings(
+            bot=self.GS_BOT, user=self.GS_USER,
+            whatsapp=WhatsappBSPTypes.bsp_gupshup.value
+        ).save()
+        Channels(
+            bot=self.GS_BOT,
+            connector_type=ChannelTypes.WHATSAPP.value,
+            config={
+                "client_name": encrypted_name,
+                "app_id": "gs_app_001",
+                "app_name": "gs_app_name",
+                "partner_app_token": "gs_partner_token_xyz",
+                "bsp_type": WhatsappBSPTypes.bsp_gupshup.value
+            },
+            user=self.GS_USER,
+            timestamp=datetime.utcnow()
+        ).save()
+        yield
+        Channels.objects(bot=self.GS_BOT).delete()
+        BotSettings.objects(bot=self.GS_BOT).delete()
+
+    # ─── validate ─────────────────────────────────────────────────────
+
+    def test_validate_success(self, monkeypatch):
+        def _get_bot_settings(*a, **kw):
+            return BotSettings(whatsapp="gupshup", bot=self.GS_BOT, user=self.GS_USER)
+        monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _get_bot_settings)
+        BSPGupshup(self.GS_BOT, self.GS_USER).validate()
+
+    def test_validate_bsp_disabled(self, monkeypatch):
+        def _get_bot_settings(*a, **kw):
+            return BotSettings(whatsapp="360dialog", bot=self.GS_BOT, user=self.GS_USER)
+        monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _get_bot_settings)
+        with pytest.raises(AppException, match="Feature disabled for this account"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).validate()
+
+    # ─── get_account ──────────────────────────────────────────────────
+
+    def test_get_account_returns_app_id(self):
+        assert BSPGupshup(self.GS_BOT, self.GS_USER).get_account("my_app_001") == "my_app_001"
+
+    # ─── save_channel_config ──────────────────────────────────────────
+
+    def test_save_channel_config_success(self, monkeypatch):
+        captured = {}
+
+        def _save_channel_config(conf, bot, user):
+            captured['conf'] = conf
+            return "http://kairon-api.kairon.com/api/bot/whatsapp/gs_bsp_test_bot_001/token"
+
+        monkeypatch.setattr(ChatDataProcessor, 'save_channel_config', _save_channel_config)
+        BSPGupshup(self.GS_BOT, self.GS_USER).save_channel_config(
+            app_id="app_001", app_name="MyApp", partner_app_token="tok_abc"
+        )
+        assert captured['conf']['config']['app_id'] == 'app_001'
+        assert captured['conf']['config']['bsp_type'] == WhatsappBSPTypes.bsp_gupshup.value
+        assert captured['conf']['config']['partner_app_token'] == 'tok_abc'
+        assert captured['conf']['connector_type'] == ChannelTypes.WHATSAPP.value
+
+    def test_save_channel_config_defaults_app_name_to_app_id(self, monkeypatch):
+        captured = {}
+
+        def _save_channel_config(conf, bot, user):
+            captured['conf'] = conf
+            return "url"
+
+        monkeypatch.setattr(ChatDataProcessor, 'save_channel_config', _save_channel_config)
+        BSPGupshup(self.GS_BOT, self.GS_USER).save_channel_config(
+            app_id="app_002", partner_app_token="tok_xyz"
+        )
+        assert captured['conf']['config']['app_name'] == 'app_002'
+
+    def test_save_channel_config_missing_app_id(self):
+        with pytest.raises(AppException, match="app_id is required"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).save_channel_config(partner_app_token="tok")
+
+    def test_save_channel_config_missing_partner_app_token(self):
+        with pytest.raises(AppException, match="partner_app_token is required"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).save_channel_config(app_id="app_001")
+
+    # ─── validate_template_request ────────────────────────────────────
+
+    def test_validate_template_request_text_success(self):
+        data = {
+            "elementName": "tmpl1", "content": "Hello!", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "TEXT", "example": "Hello!"
+        }
+        BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_text_header_with_variable_and_example_header(self):
+        data = {
+            "elementName": "t1", "content": "Hi", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "TEXT", "example": "Hi",
+            "header": "Hello {{1}}", "exampleHeader": "Hello John"
+        }
+        BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_image_with_example_media(self):
+        data = {
+            "elementName": "t2", "content": "See image", "category": "MARKETING",
+            "vertical": "Retail", "templateType": "IMAGE", "example": "sample",
+            "exampleMedia": "handle_123"
+        }
+        BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_missing_keys(self):
+        data = {"elementName": "t1", "category": "UTILITY"}
+        with pytest.raises(AppException, match="Missing"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_image_missing_example_media(self):
+        data = {
+            "elementName": "t2", "content": "See image", "category": "MARKETING",
+            "vertical": "Retail", "templateType": "IMAGE", "example": "sample"
+        }
+        with pytest.raises(AppException, match="exampleMedia"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_text_header_variable_missing_example_header(self):
+        data = {
+            "elementName": "t3", "content": "Hi", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "TEXT", "example": "Hi",
+            "header": "Hello {{1}}"
+        }
+        with pytest.raises(AppException, match="exampleHeader is required"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_text_header_no_variable_ok(self):
+        data = {
+            "elementName": "t4", "content": "Hi", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "TEXT", "example": "Hi",
+            "header": "Hello World"
+        }
+        BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    def test_validate_template_request_invalid_type(self):
+        data = {
+            "elementName": "t5", "content": "Hi", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "AUDIO", "example": "sample"
+        }
+        with pytest.raises(AppException, match="Invalid templateType"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).validate_template_request(data)
+
+    # ─── add_template ─────────────────────────────────────────────────
+
+    @responses.activate
+    def test_add_template_success(self, gupshup_channel):
+        data = {
+            "elementName": "promo_tmpl", "content": "Hello {{1}}!", "category": "MARKETING",
+            "vertical": "Retail", "templateType": "TEXT", "example": "Hello John!", "buttons": []
+        }
+        api_resp = {"id": "gs_tmpl_001", "status": "PENDING"}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("POST", url=f"{base_url}/partner/app/gs_app_001/templates", json=api_resp, status=201)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).add_template(data, self.GS_BOT, self.GS_USER)
+        assert result == api_resp
+
+    @responses.activate
+    def test_add_template_api_failure(self, gupshup_channel):
+        data = {
+            "elementName": "promo_tmpl", "content": "Hello!", "category": "MARKETING",
+            "vertical": "Retail", "templateType": "TEXT", "example": "Hello!", "buttons": []
+        }
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("POST", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json={"error": "bad request"}, status=400)
+        with pytest.raises(AppException, match="Failed to add gupshup template"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).add_template(data, self.GS_BOT, self.GS_USER)
+
+    def test_add_template_channel_not_found(self):
+        data = {
+            "elementName": "t1", "content": "Hi", "category": "UTILITY",
+            "vertical": "Tech", "templateType": "TEXT", "example": "Hi", "buttons": []
+        }
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSPGupshup("no_such_bot_gs_xyz", self.GS_USER).add_template(data, "no_such_bot_gs_xyz", self.GS_USER)
+
+    def test_add_template_missing_required_keys(self, gupshup_channel):
+        data = {"elementName": "t1", "category": "UTILITY"}
+        with pytest.raises(AppException, match="Missing"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).add_template(data, self.GS_BOT, self.GS_USER)
+
+    # ─── edit_template ────────────────────────────────────────────────
+
+    @responses.activate
+    def test_edit_template_success(self, gupshup_channel):
+        template_id = "gs_tmpl_edit_001"
+        data = {"content": "Updated content {{1}}"}
+        api_resp = {"id": template_id, "status": "APPROVED"}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("PUT", url=f"{base_url}/partner/app/gs_app_001/templates/{template_id}",
+                      json=api_resp, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).edit_template(data, template_id)
+        assert result == api_resp
+
+    @responses.activate
+    def test_edit_template_api_failure(self, gupshup_channel):
+        template_id = "gs_tmpl_edit_002"
+        data = {"content": "Updated content"}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("PUT", url=f"{base_url}/partner/app/gs_app_001/templates/{template_id}",
+                      json={"error": "not allowed"}, status=403)
+        with pytest.raises(AppException, match="Failed to edit gupshup template"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).edit_template(data, template_id)
+
+    def test_edit_template_channel_not_found(self):
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSPGupshup("no_such_bot_gs_xyz", self.GS_USER).edit_template({"content": "x"}, "tmpl_id")
+
+    # ─── delete_template ──────────────────────────────────────────────
+
+    @responses.activate
+    def test_delete_template_success(self, gupshup_channel):
+        template_name = "promo_tmpl_del"
+        api_resp = {"success": True}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("DELETE", url=f"{base_url}/partner/app/gs_app_001/template/{template_name}",
+                      json=api_resp, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).delete_template(template_name)
+        assert result == api_resp
+
+    @responses.activate
+    def test_delete_template_api_failure(self, gupshup_channel):
+        template_name = "bad_tmpl"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("DELETE", url=f"{base_url}/partner/app/gs_app_001/template/{template_name}",
+                      json={"error": "not found"}, status=404)
+        with pytest.raises(AppException, match="Failed to delete gupshup template"):
+            BSPGupshup(self.GS_BOT, self.GS_USER).delete_template(template_name)
+
+    def test_delete_template_channel_not_found(self):
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSPGupshup("no_such_bot_gs_xyz", self.GS_USER).delete_template("some_tmpl")
+
+    # ─── list_templates ───────────────────────────────────────────────
+
+    @responses.activate
+    def test_list_templates_returns_waba_templates(self, gupshup_channel):
+        api_resp = {"waba_templates": [{"id": "t1", "elementName": "promo"}]}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).list_templates()
+        assert result == [{"id": "t1", "elementName": "promo"}]
+
+    @responses.activate
+    def test_list_templates_returns_templates_key_fallback(self, gupshup_channel):
+        api_resp = {"templates": [{"id": "t2", "elementName": "info"}]}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).list_templates()
+        assert result == [{"id": "t2", "elementName": "info"}]
+
+    @responses.activate
+    def test_list_templates_empty_response(self, gupshup_channel):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json={}, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).list_templates()
+        assert result == []
+
+    def test_list_templates_channel_not_found(self):
+        with pytest.raises(AppException, match="Channel not found!"):
+            BSPGupshup("no_such_bot_gs_xyz", self.GS_USER).list_templates()
+
+    # ─── get_template ─────────────────────────────────────────────────
+
+    @responses.activate
+    def test_get_template_delegates_to_list_templates(self, gupshup_channel):
+        template_id = "tmpl_specific_001"
+        api_resp = {"waba_templates": [{"id": template_id, "status": "APPROVED"}]}
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).get_template(template_id)
+        assert {"id": template_id, "status": "APPROVED"} in result
+
+    # ─── __get_partner_token ──────────────────────────────────────────
+
+    @responses.activate
+    def test_get_partner_token_success(self, monkeypatch):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        monkeypatch.setitem(Utility.system_metadata["channels"], "gupshup",
+                            {"partner_email": "gs@test.io", "partner_password": "gs_pass"})
+        responses.add("POST", url=f"{base_url}/partner/account/login",
+                      json={"token": "partner_tok_abc"}, status=200)
+        token = BSPGupshup._BSPGupshup__get_partner_token(base_url)
+        assert token == "partner_tok_abc"
+
+    @responses.activate
+    def test_get_partner_token_login_non_200(self, monkeypatch):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        monkeypatch.setitem(Utility.system_metadata["channels"], "gupshup",
+                            {"partner_email": "gs@test.io", "partner_password": "bad_pass"})
+        responses.add("POST", url=f"{base_url}/partner/account/login",
+                      json={"error": "invalid credentials"}, status=401)
+        with pytest.raises(AppException, match="Gupshup partner login failed"):
+            BSPGupshup._BSPGupshup__get_partner_token(base_url)
+
+    @responses.activate
+    def test_get_partner_token_no_token_in_response(self, monkeypatch):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        monkeypatch.setitem(Utility.system_metadata["channels"], "gupshup",
+                            {"partner_email": "gs@test.io", "partner_password": "gs_pass"})
+        responses.add("POST", url=f"{base_url}/partner/account/login",
+                      json={"message": "ok"}, status=200)
+        with pytest.raises(AppException, match="returned no token"):
+            BSPGupshup._BSPGupshup__get_partner_token(base_url)
+
+    def test_get_partner_token_missing_credentials(self, monkeypatch):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        monkeypatch.setitem(Utility.system_metadata["channels"], "gupshup",
+                            {"partner_email": "", "partner_password": ""})
+        with pytest.raises(AppException, match="partner_email / partner_password not configured"):
+            BSPGupshup._BSPGupshup__get_partner_token(base_url)
+
+    # ─── post_process ─────────────────────────────────────────────────
+
+    @responses.activate
+    def test_post_process_success(self, monkeypatch, gupshup_channel):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        monkeypatch.setitem(Utility.system_metadata["channels"], "gupshup",
+                            {"partner_email": "gs@test.io", "partner_password": "gs_pass"})
+        monkeypatch.setitem(Utility.environment['model']['agent'], 'url', "http://kairon-api.kairon.com/")
+        responses.add("POST", url=f"{base_url}/partner/account/login",
+                      json={"token": "partner_tok_xyz"}, status=200)
+        webhook_url = f"http://kairon-api.kairon.com/api/bot/whatsapp/{self.GS_BOT}/token"
+        with patch("kairon.shared.chat.processor.ChatDataProcessor.save_channel_config",
+                   return_value=webhook_url) as mock_save, \
+             patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
+            mock_http.return_value = {"success": True}
+            result = BSPGupshup(self.GS_BOT, self.GS_USER).post_process()
+        assert result == webhook_url
+        assert "whatsapp" in result
+
+    def test_post_process_channel_not_found(self):
+        with pytest.raises(AppException):
+            BSPGupshup("no_such_bot_gs_xyz", self.GS_USER).post_process()
+
+    # ─── get_template_for_broadcast ───────────────────────────────────
+
+    @responses.activate
+    def test_get_template_for_broadcast_found(self, gupshup_channel):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        api_resp = {"waba_templates": [{"id": "promo_tmpl", "language": "en", "status": "APPROVED"}]}
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        template, exc = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_for_broadcast("promo_tmpl", "en")
+        assert template == {"id": "promo_tmpl", "language": "en", "status": "APPROVED"}
+        assert exc is None
+
+    @responses.activate
+    def test_get_template_for_broadcast_not_found(self, gupshup_channel):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        api_resp = {"waba_templates": [{"id": "other_tmpl", "language": "en"}]}
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        template, exc = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_for_broadcast("promo_tmpl", "en")
+        assert template == {}
+        assert exc is None
+
+    def test_get_template_for_broadcast_list_error(self, gupshup_channel):
+        with patch.object(BSPGupshup, 'list_templates', side_effect=Exception("API down")):
+            template, exc = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_for_broadcast("promo_tmpl", "en")
+        assert template == {}
+        assert exc is not None
+
+    # ─── to_log_template ──────────────────────────────────────────────
+
+    def test_to_log_template_text_with_header_body_footer(self):
+        import json as _json
+        raw = {
+            "templateType": "TEXT",
+            "containerMeta": _json.dumps({
+                "header": "Hello Header", "data": "Body text {{1}}", "footer": "Footer text"
+            })
+        }
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        types = [c["type"] for c in result]
+        assert "HEADER" in types and "BODY" in types and "FOOTER" in types
+
+    def test_to_log_template_image_header(self):
+        import json as _json
+        raw = {"templateType": "IMAGE", "containerMeta": _json.dumps({"data": "Caption"})}
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        assert result[0] == {"type": "HEADER", "format": "IMAGE"}
+
+    def test_to_log_template_video_header(self):
+        import json as _json
+        raw = {"templateType": "VIDEO", "containerMeta": _json.dumps({})}
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        assert result[0] == {"type": "HEADER", "format": "VIDEO"}
+
+    def test_to_log_template_document_header(self):
+        import json as _json
+        raw = {"templateType": "DOCUMENT", "containerMeta": _json.dumps({})}
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        assert result[0] == {"type": "HEADER", "format": "DOCUMENT"}
+
+    def test_to_log_template_with_buttons(self):
+        import json as _json
+        raw = {
+            "templateType": "TEXT",
+            "containerMeta": _json.dumps({
+                "data": "Hello",
+                "buttons": [{"type": "QUICK_REPLY", "text": "Yes"}, {"type": "QUICK_REPLY", "text": "No"}]
+            })
+        }
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        assert any(c["type"] == "BUTTONS" for c in result)
+
+    def test_to_log_template_not_a_dict(self):
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template("not a dict")
+        assert result == []
+
+    def test_to_log_template_invalid_container_meta_json(self):
+        raw = {"templateType": "TEXT", "containerMeta": "not-json"}
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).to_log_template(raw)
+        assert isinstance(result, list)
+
+    # ─── _resolve_runtime_params ──────────────────────────────────────
+
+    def test_resolve_runtime_params_dict_data(self):
+        import json as _json
+        template_config = {"data": _json.dumps({"1": "John", "2": "Acme Corp"})}
+        body_params, media_id = BSPGupshup._resolve_runtime_params(template_config, {})
+        assert body_params == ["John", "Acme Corp"]
+        assert media_id is None
+
+    def test_resolve_runtime_params_components_list(self):
+        import json as _json
+        components = [
+            {"type": "body", "parameters": [{"type": "text", "text": "Alice"}, {"type": "text", "text": "Corp"}]}
+        ]
+        template_config = {"data": _json.dumps([components])}
+        body_params, media_id = BSPGupshup._resolve_runtime_params(template_config, {})
+        assert "Alice" in body_params and "Corp" in body_params
+
+    def test_resolve_runtime_params_falls_back_to_sample_text(self):
+        template_config = {"data": "[]"}
+        container_meta = {
+            "data": "Hi {{1}}, welcome to {{2}}!",
+            "sampleText": "Hi John, welcome to Acme!"
+        }
+        body_params, media_id = BSPGupshup._resolve_runtime_params(template_config, container_meta)
+        assert len(body_params) == 2
+
+    def test_resolve_runtime_params_falls_back_to_sample_media(self):
+        template_config = {"data": "[]"}
+        container_meta = {"sampleMedia": "handle_media_001"}
+        body_params, media_id = BSPGupshup._resolve_runtime_params(template_config, container_meta)
+        assert media_id == "handle_media_001"
+
+    # ─── _extract_components_params ───────────────────────────────────
+
+    def test_extract_components_params_body_text_and_image_header(self):
+        components = [
+            {"type": "body", "parameters": [{"type": "text", "text": "Alice"}]},
+            {"type": "header", "parameters": [{"type": "image", "image": {"id": "img_handle_001"}}]}
+        ]
+        body_params, media_id = BSPGupshup._extract_components_params(components)
+        assert body_params == ["Alice"]
+        assert media_id == "img_handle_001"
+
+    def test_extract_components_params_video_header(self):
+        components = [
+            {"type": "header", "parameters": [{"type": "video", "video": {"id": "vid_handle_001"}}]}
+        ]
+        body_params, media_id = BSPGupshup._extract_components_params(components)
+        assert media_id == "vid_handle_001"
+
+    def test_extract_components_params_empty(self):
+        body_params, media_id = BSPGupshup._extract_components_params([])
+        assert body_params == [] and media_id is None
+
+    # ─── _extract_sample_text_params ──────────────────────────────────
+
+    def test_extract_sample_text_params_two_placeholders(self):
+        container_meta = {
+            "data": "Hi {{1}}, your order {{2}} is confirmed.",
+            "sampleText": "Hi John, your order ORD123 is confirmed."
+        }
+        result = BSPGupshup._extract_sample_text_params(container_meta)
+        assert len(result) == 2
+
+    def test_extract_sample_text_params_no_placeholders(self):
+        container_meta = {"data": "Hello World!", "sampleText": "Hello World!"}
+        result = BSPGupshup._extract_sample_text_params(container_meta)
+        assert result == []
+
+    def test_extract_sample_text_params_empty_sample_text(self):
+        container_meta = {"data": "Hello {{1}}!", "sampleText": ""}
+        result = BSPGupshup._extract_sample_text_params(container_meta)
+        assert result == []
+
+    # ─── _build_template_payload ──────────────────────────────────────
+
+    def test_build_template_payload_text_substitutes_params(self):
+        template, message = BSPGupshup._build_template_payload(
+            "tmpl_001", ["John", "Acme"], None, "TEXT", {"data": "Hi {{1}} from {{2}}!"}
+        )
+        assert template == {"id": "tmpl_001", "params": ["John", "Acme"]}
+        assert message["type"] == "text"
+        assert "John" in message["text"] and "Acme" in message["text"]
+
+    def test_build_template_payload_image_with_media(self):
+        template, message = BSPGupshup._build_template_payload(
+            "tmpl_002", [], "img_handle_001", "IMAGE", {}
+        )
+        assert message["type"] == "image"
+        assert message["image"]["id"] == "img_handle_001"
+
+    def test_build_template_payload_video_with_media(self):
+        template, message = BSPGupshup._build_template_payload(
+            "tmpl_003", [], "vid_handle_001", "VIDEO", {}
+        )
+        assert message["type"] == "video"
+        assert message["video"]["id"] == "vid_handle_001"
+
+    def test_build_template_payload_document_with_media(self):
+        template, message = BSPGupshup._build_template_payload(
+            "tmpl_004", [], "doc_handle_001", "DOCUMENT", {}
+        )
+        assert message["type"] == "document"
+        assert message["document"]["id"] == "doc_handle_001"
+
+    def test_build_template_payload_text_no_params(self):
+        template, message = BSPGupshup._build_template_payload(
+            "tmpl_005", [], None, "TEXT", {"data": "Hello World!"}
+        )
+        assert message["type"] == "text"
+        assert message["text"] == "Hello World!"
+
+    # ─── get_broadcast_template_params ────────────────────────────────
+
+    def test_get_broadcast_template_params_text_with_sample_text(self):
+        import json as _json
+        raw_template = {
+            "id": "bc_tmpl_001", "templateType": "TEXT",
+            "containerMeta": _json.dumps({
+                "data": "Hi {{1}}, your code is {{2}}.",
+                "sampleText": "Hi John, your code is ABC123."
+            })
+        }
+        template_config = {"template_id": "bc_tmpl_001", "data": "[]"}
+        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+            raw_template, template_config)
+        assert template["id"] == "bc_tmpl_001"
+        assert message["type"] == "text"
+
+    def test_get_broadcast_template_params_image_uses_sample_media(self):
+        import json as _json
+        raw_template = {
+            "id": "bc_tmpl_002", "templateType": "IMAGE",
+            "containerMeta": _json.dumps({"data": "Check image", "sampleMedia": "img_handle_bc"})
+        }
+        template_config = {"template_id": "bc_tmpl_002", "data": "[]"}
+        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+            raw_template, template_config)
+        assert message["type"] == "image"
+        assert message["image"]["id"] == "img_handle_bc"
+
+    def test_get_broadcast_template_params_non_dict_raw_template(self):
+        template_config = {"template_id": "bc_tmpl_003", "data": "[]"}
+        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+            None, template_config)
+        assert template["id"] == "bc_tmpl_003"
+
+    # ─── fetch_media_ids ──────────────────────────────────────────────
+
+    def test_fetch_media_ids_returns_completed_broadcast_media(self):
+        bot = "gs_fetch_media_ids_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="handle_001", filename="promo.pdf", extension="application/pdf",
+            sender_id="user_a", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            external_upload_info={"handle_id": "ext_handle_abc"},
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_media_ids(bot)
+        assert len(result) == 1
+        assert result[0]["handle_id"] == "ext_handle_abc"
+        assert result[0]["filename"] == "promo.pdf"
+        UserMediaData.objects(bot=bot).delete()
+
+    def test_fetch_media_ids_excludes_failed_uploads(self):
+        bot = "gs_fetch_media_ids_excl_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="failed_001", filename="fail.pdf", extension="application/pdf",
+            sender_id="user_b", upload_status=UserMediaUploadStatus.failed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_media_ids(bot)
+        assert result == []
+        UserMediaData.objects(bot=bot).delete()
+
+    def test_fetch_media_ids_empty_returns_empty_list(self):
+        result = BSPGupshup.fetch_media_ids("bot_with_zero_media_gs_xyz")
+        assert result == []
+
+    # ─── fetch_broadcast_media_ids ────────────────────────────────────
+
+    def test_fetch_broadcast_media_ids_success(self):
+        bot = "gs_fetch_bc_media_ids_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="ext_media_001", filename="video.mp4", extension="video/mp4",
+            sender_id="user_c", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_broadcast_media_ids(bot)
+        assert len(result) == 1
+        assert result[0]["media_id"] == "ext_media_001"
+        UserMediaData.objects(bot=bot).delete()
+
+    def test_fetch_broadcast_media_ids_excludes_empty_media_id(self):
+        bot = "gs_fetch_bc_media_excl_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="", filename="img.png", extension="image/png",
+            sender_id="user_d", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_broadcast_media_ids(bot)
+        assert result == []
+        UserMediaData.objects(bot=bot).delete()
+
+    # ─── delete_media_file ────────────────────────────────────────────
+
+    def test_delete_media_file_gupshup_success(self):
+        channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
+        with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
+            mock_http.return_value = None
+            result = BSPGupshup.delete_media_file("gs_media_001", channel_config)
+        assert result == "Media file deleted successfully"
+        mock_http.assert_called_once()
+
+    def test_delete_media_file_gupshup_raises_on_failure(self):
+        channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
+        with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
+            mock_http.side_effect = AppException("media file does not exist for this media id.")
+            with pytest.raises(AppException, match="media file does not exist"):
+                BSPGupshup.delete_media_file("bad_media_id", channel_config)
+
+    # ─── upload_media_file ────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_upload_media_file_missing_partner_token(self):
+        channel_config = {"config": {"app_id": "gs_app_001"}}
+        with pytest.raises(AppException, match="partner app token not found"):
+            await BSPGupshup.upload_media_file(
+                bot="gs_upload_bot", channel_config=channel_config, sender_id="user",
+                filename="test.pdf", extension="application/pdf"
+            )
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_upload_request_fails(self):
+        from unittest.mock import MagicMock
+        bot = "gs_upload_fail_bot_002"
+        filename = "fail.pdf"
+        extension = "application/pdf"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+
+        os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
+        with open(f"media_upload_records/{bot}/{filename}", "wb") as f:
+            f.write(b"%PDF dummy")
+
+        channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_partner_tok"}}
+        responses.add("POST", url=f"{base_url}/partner/app/gs_app_001/upload/media",
+                      json={"error": "upload failed"}, status=400)
+
+        with patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.create_media_doc") as mock_doc:
+            mock_doc_inst = MagicMock()
+            mock_doc.return_value = mock_doc_inst
+            with pytest.raises(AppException):
+                await BSPGupshup.upload_media_file(
+                    bot=bot, channel_config=channel_config, sender_id="user",
+                    filename=filename, extension=extension, filesize=50
+                )
+            mock_doc_inst.update.assert_called()
+
+    @pytest.mark.asyncio
+    @responses.activate
+    async def test_upload_media_file_success(self):
+        from unittest.mock import MagicMock
+        bot = "gs_upload_success_bot_003"
+        filename = "promo.pdf"
+        extension = "application/pdf"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+
+        os.makedirs(f"media_upload_records/{bot}", exist_ok=True)
+        with open(f"media_upload_records/{bot}/{filename}", "wb") as f:
+            f.write(b"%PDF-1.4 dummy content")
+
+        channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_partner_tok"}}
+        responses.add("POST", url=f"{base_url}/partner/app/gs_app_001/upload/media",
+                      json={"handleId": "handle_upload_001"}, status=200)
+        responses.add("POST", url=f"{base_url}/partner/app/gs_app_001/media",
+                      json={"mediaId": "ext_media_upload_001"}, status=200)
+
+        storage_env = {"storage": {"whatsapp_media": {"bucket": "test-bucket"}}}
+        with patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.create_media_doc") as mock_doc, \
+             patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.save_media_content") as mock_save, \
+             mock.patch.dict(Utility.environment, storage_env):
+            mock_doc_inst = MagicMock()
+            mock_doc.return_value = mock_doc_inst
+            mock_save.return_value = "https://s3.aws/test/promo.pdf"
+            result = await BSPGupshup.upload_media_file(
+                bot=bot, channel_config=channel_config, sender_id="user",
+                filename=filename, extension=extension, filesize=100
+            )
+        assert result == "ext_media_upload_001"
+
+
+class TestDataRouterMediaEndpoints:
+    BOT = "data_router_test_bot_001"
+    USER = "data_router_test_user_001"
+
+    def _make_user(self):
+        from unittest.mock import MagicMock
+        user = MagicMock()
+        user.get_bot.return_value = self.BOT
+        user.get_user.return_value = self.USER
+        return user
+
+    @pytest.mark.asyncio
+    async def test_get_media_ids_exception_case(self):
+        from kairon.api.app.routers.bot.data import get_media_ids
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_media_ids",
+            side_effect=Exception("channel not found"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await get_media_ids(current_user=user)
+        assert "Error while fetching media ids: channel not found" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_get_whatsapp_media_ids_success(self):
+        from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_broadcast_media_ids",
+            return_value=["media_001", "media_002"],
+        ):
+            result = await get_whatsapp_media_ids(current_user=user)
+        assert result.data == ["media_001", "media_002"]
+        assert result.message == "List of media ids"
+
+    @pytest.mark.asyncio
+    async def test_get_whatsapp_media_ids_exception_case(self):
+        from kairon.api.app.routers.bot.data import get_whatsapp_media_ids
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.MessageBroadcastProcessor.fetch_broadcast_media_ids",
+            side_effect=Exception("bsp config missing"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await get_whatsapp_media_ids(current_user=user)
+        assert "Error while fetching media ids: bsp config missing" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fetch_media_handle_id_success(self):
+        from kairon.api.app.routers.bot.data import fetch_media_handle_id
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.UserMedia.get_media_handle_id",
+            return_value="handle_xyz_001",
+        ):
+            result = await fetch_media_handle_id(media_id="media_doc_id_001", current_user=user)
+        assert result.data == {"handle_id": "handle_xyz_001"}
+        assert result.message == "Successfully fetched media details"
+
+    @pytest.mark.asyncio
+    async def test_fetch_media_handle_id_not_found(self):
+        from kairon.api.app.routers.bot.data import fetch_media_handle_id
+        user = self._make_user()
+        with patch(
+            "kairon.api.app.routers.bot.data.UserMedia.get_media_handle_id",
+            side_effect=AppException("Media not found"),
+        ):
+            with pytest.raises(AppException) as exc_info:
+                await fetch_media_handle_id(media_id="nonexistent_id", current_user=user)
+        assert "Media not found" in str(exc_info.value)

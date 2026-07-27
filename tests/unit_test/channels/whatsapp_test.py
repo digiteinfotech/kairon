@@ -326,7 +326,7 @@ class TestWhatsappHandler:
         monkeypatch.setattr(
             UserMedia,
             "save_whatsapp_media_content",
-            lambda bot, sender_id, whatsapp_media_id, config: [whatsapp_media_id]
+            lambda bot, sender_id, whatsapp_media_id, config, user_id=None: [whatsapp_media_id]
         )
 
         # Spy on _handle_user_message
@@ -417,7 +417,7 @@ class TestWhatsappHandler:
         monkeypatch.setattr(
             UserMedia,
             "save_whatsapp_media_and_get_url",
-            lambda bot, sender_id, whatsapp_media_id, description, config: [whatsapp_media_id]
+            lambda bot, sender_id, whatsapp_media_id, config, description=None, user_id=None: [whatsapp_media_id]
         )
 
         handler._handle_user_message = AsyncMock()
@@ -778,7 +778,7 @@ class TestWhatsappHandler:
             body_bytes = file.read()
 
         responses.get(
-            url=f'https://graph.facebook.com/v22.0/{document_id}?fields=url',
+            url=f'https://graph.facebook.com/v19.0/{document_id}?fields=url',
             json={'url': 'https://test.com/download', 'mime_type': 'application/pdf'}
         )
         responses.get(

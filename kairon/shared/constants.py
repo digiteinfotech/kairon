@@ -151,6 +151,8 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+    bsp_gupshup = "gupshup"
+    meta = "meta"
 
 
 class VoiceProviderTypes(str, Enum):

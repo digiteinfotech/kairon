@@ -1010,6 +1010,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"}, 'retry_count': 0,
@@ -1057,6 +1058,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '57 22 * * *', "timezone": "Asia/Kolkata"},
                           'recipients_config': {'recipients': "918958030541,"}, 'retry_count': 0,
@@ -1103,6 +1105,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
@@ -1144,6 +1147,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
@@ -1166,6 +1170,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,
@@ -1195,6 +1200,7 @@ class TestEventDefinitions:
         config.pop("status")
         config.pop("user")
         config.pop("bot")
+        config.pop("bsp_type", None)
         assert config == {'name': 'first_scheduler', 'connector_type': 'whatsapp', "broadcast_type": "static",
                           'scheduler_config': {'expression_type': 'cron', 'schedule': '11 11 * * *', "timezone": "GMT"},
                           'recipients_config': {'recipients': "919756653433,918958030541,"}, 'retry_count': 0,

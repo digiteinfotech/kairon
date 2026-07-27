@@ -14466,6 +14466,7 @@ def test_list_broadcast():
                 'name': 'broadcast_without_filters_list',
                 'connector_type': 'whatsapp',
                 'broadcast_type': 'static',
+                'bsp_type': '360dialog',
                 'recipients_config': {'recipients': ''},
                 'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
                 'collection_config': {
@@ -14488,6 +14489,7 @@ def test_list_broadcast():
                 'name': 'broadcast_with_collection_config',
                 'connector_type': 'whatsapp',
                 'broadcast_type': 'static',
+                'bsp_type': '360dialog',
                 'recipients_config': {'recipients': ''},
                 'template_config': [
                     {'template_id': 'brochure_pdf', 'language': 'hi'}
@@ -14611,6 +14613,7 @@ def test_list_broadcast_after_update():
                 'name': 'broadcast_without_filters_list',
                 'connector_type': 'whatsapp',
                 'broadcast_type': 'static',
+                'bsp_type': '360dialog',
                 'recipients_config': {'recipients': ''},
                 'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
                 'collection_config': {
@@ -14633,6 +14636,7 @@ def test_list_broadcast_after_update():
                 'name': 'update_broadcast_with_collection_config',
                 'connector_type': 'whatsapp',
                 'broadcast_type': 'static',
+                'bsp_type': '360dialog',
                 'recipients_config': {'recipients': ''},
                 "scheduler_config": {
                     "expression_type": "cron",
@@ -35465,6 +35469,7 @@ def test_list_broadcast_config_after_update():
 
     print(actual["data"])
     assert actual["data"]["schedules"][2] == {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'bsp_type': '360dialog',
          'scheduler_config': {'expression_type': 'epoch', 'schedule': 2524608000, 'timezone': 'Asia/Calcutta'},
          'recipients_config': {'recipients': '916200035185,'},
          'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
@@ -35692,6 +35697,7 @@ def test_list_broadcast_config():
                 "name": "first_scheduler_dynamic",
                 "connector_type": "whatsapp",
                 "broadcast_type": "dynamic",
+                "bsp_type": "360dialog",
                 "collection_config": {},
                 "scheduler_config": {
                     "expression_type": "cron",
@@ -35707,6 +35713,7 @@ def test_list_broadcast_config():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "bsp_type": "360dialog",
                 "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,
@@ -35717,6 +35724,7 @@ def test_list_broadcast_config():
                 "name": "one_time_schedule_broadcast",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "bsp_type": "360dialog",
                 "collection_config": {},
                 "recipients_config": {"recipients": "916200035185,"},
                 "retry_count": 0,
@@ -35777,6 +35785,7 @@ def test_list_broadcast_():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "bsp_type": "360dialog",
                 "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,

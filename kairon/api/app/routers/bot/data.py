@@ -3,6 +3,8 @@ from typing import List, Optional
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
+
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
@@ -608,7 +610,18 @@ async def get_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     try:
-        media_ids = UserMedia.get_media_ids(current_user.get_bot())
+        media_ids = MessageBroadcastProcessor.fetch_media_ids(current_user.get_bot(), current_user.get_user())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")
+
+
+@router.get("/broadcast/media/ids", response_model=Response)
+async def get_whatsapp_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = MessageBroadcastProcessor.fetch_broadcast_media_ids(current_user.get_bot(), current_user.get_user())
         return Response(message="List of media ids", data=media_ids)
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
@@ -638,3 +651,12 @@ async def fetch_media_url(
     media_url = CloudUtility.get_s3_media_url(filename, current_user.get_bot())
     return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
                                                                         "filename": f"{filename}"})
+
+
+@router.get("/fetch_handle_id/{media_id}")
+async def fetch_media_handle_id(
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_handle_id = UserMedia.get_media_handle_id(current_user.get_bot(), media_id)
+    return Response(message="Successfully fetched media details", data={"handle_id": media_handle_id})
