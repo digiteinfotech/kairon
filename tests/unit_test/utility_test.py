@@ -877,6 +877,35 @@ class TestUtility:
 
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_password_reset_unverified(self, validate_and_send_mail_mock):
+        mail_type = "password_reset_unverified"
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        url = "http://localhost/verify/testtoken123"
+
+        Utility.email_conf["email"]["templates"]["password_reset_unverified"] = (
+            open("template/emails/passwordResetUnverified.html", "rb").read().decode()
+        )
+        expected_body = Utility.email_conf["email"]["templates"]["password_reset_unverified"]
+        base_url = Utility.environment["app"]["frontend_url"]
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name.capitalize())
+            .replace("FIRST_NAME", first_name)
+            .replace("USER_EMAIL", email)
+            .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
+        )
+        expected_subject = Utility.email_conf["email"]["templates"]["password_reset_unverified_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type, email=email, first_name=first_name, url=url
+        )
+        validate_and_send_mail_mock.assert_called_once_with(
+            email, expected_subject, expected_body
+        )
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_password_reset_confirmation(
         self, validate_and_send_mail_mock
     ):

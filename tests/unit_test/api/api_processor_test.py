@@ -3131,3 +3131,235 @@ class TestAccountProcessor:
         assert user_details["onboarding_status"] == "Completed"
         assert user_details["onboarding_timestamp"]
         assert user_details["is_onboarded"] is True
+
+    def test_login_token_has_jti(self):
+        from kairon.shared.authorization.data_objects import UserSessions
+        token = Authentication.create_access_token(data={"sub": "nupur.khare@digite.com", "account": pytest.account})
+        payload = Utility.decode_limited_access_token(token)
+        assert payload.get("jti") is not None
+        assert payload.get("type") == TOKEN_TYPE.LOGIN.value
+
+    def test_integration_token_has_no_jti(self):
+        token = Authentication.create_access_token(
+            data={"sub": "test_user", "bot": "test", "account": 1000, "type": TOKEN_TYPE.INTEGRATION.value},
+            token_type=TOKEN_TYPE.INTEGRATION.value
+        )
+        payload = Utility.decode_limited_access_token(token)
+        assert payload.get("jti") is None
+        assert payload.get("type") == TOKEN_TYPE.INTEGRATION.value
+
+    def test_logout_saves_user_session(self):
+        from kairon.shared.authorization.data_objects import UserSessions
+        token = Authentication.create_access_token(data={"sub": "nupur.khare@digite.com", "account": pytest.account})
+        payload = Utility.decode_limited_access_token(token)
+        jti = payload.get("jti")
+        assert jti is not None
+
+        Authentication.logout(token, "nupur.khare@digite.com")
+
+        session = UserSessions.objects(jti=jti).first()
+        assert session is not None
+        assert session.user == "nupur.khare@digite.com"
+        assert session.jti == jti
+        assert session.expires_at is not None
+        assert session.invalidated_at is not None
+
+    @pytest.mark.asyncio
+    async def test_token_rejected_after_logout(self):
+        from kairon.shared.authorization.data_objects import UserSessions
+        token = Authentication.create_access_token(data={"sub": "nupur.khare@digite.com", "account": pytest.account})
+
+        request = Request({
+            'type': 'http', 'headers': Headers({}).raw,
+            'path_params': {}, 'path': '/api/user/details', 'query_string': b''
+        })
+        user = await Authentication.get_current_user(request, token)
+        assert user.email == "nupur.khare@digite.com"
+
+        Authentication.logout(token, "nupur.khare@digite.com")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await Authentication.get_current_user(request, token)
+        assert exc_info.value.status_code == 401
+
+    def test_logout_without_jti_does_not_save_session(self):
+        from kairon.shared.authorization.data_objects import UserSessions
+        from unittest.mock import patch
+        count_before = UserSessions.objects().count()
+        with patch.object(Utility, 'decode_limited_access_token', return_value={
+            "sub": "nupur.khare@digite.com", "type": "login", "exp": 9999999999
+        }):
+            Authentication.logout("dummy_token", "nupur.khare@digite.com")
+        assert UserSessions.objects().count() == count_before
+
+    def test_handle_password_reset_request_user_not_found(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        with patch.object(Utility, 'is_exist', return_value=False), \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('no_such_user@example.com'))
+        assert len(mail_sent) == 0
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_handle_password_reset_request_unverified_user(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        fake_user = {'first_name': 'Test', 'account': 1}
+
+        def _is_exist(doc, **kwargs):
+            from kairon.shared.account.data_objects import UserEmailConfirmation
+            if doc == UserEmailConfirmation:
+                return False
+            return True
+
+        with patch.object(Utility, 'is_exist', side_effect=_is_exist), \
+             patch.object(AccountProcessor, 'get_user', return_value=fake_user), \
+             patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            mock_logger.is_password_reset_within_cooldown_period.return_value = None
+            mock_logger.is_password_reset_request_limit_exceeded.return_value = None
+            mock_logger.add_log.return_value = None
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('unverified@example.com'))
+        assert len(mail_sent) == 1
+        assert mail_sent[0]['mail_type'] == 'password_reset_unverified'
+        assert mail_sent[0]['email'] == 'unverified@example.com'
+        mock_logger.add_log.assert_called_once()
+        call_kwargs = mock_logger.add_log.call_args
+        assert call_kwargs.kwargs.get('a_type') == UserActivityType.reset_password_request.value
+        assert call_kwargs.kwargs.get('email') == 'unverified@example.com'
+        assert '/verify/' in mail_sent[0]['url']
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_handle_password_reset_request_unverified_user_rate_limited(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        fake_user = {'first_name': 'Test', 'account': 1}
+
+        def _is_exist(doc, **kwargs):
+            from kairon.shared.account.data_objects import UserEmailConfirmation
+            if doc == UserEmailConfirmation:
+                return False
+            return True
+
+        with patch.object(Utility, 'is_exist', side_effect=_is_exist), \
+             patch.object(AccountProcessor, 'get_user', return_value=fake_user), \
+             patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            mock_logger.is_password_reset_within_cooldown_period.return_value = None
+            mock_logger.is_password_reset_request_limit_exceeded.side_effect = AppException(
+                'Password reset limit exhausted for today.'
+            )
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('unverified@example.com'))
+        assert len(mail_sent) == 0
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_handle_password_reset_request_verified_user(self, monkeypatch):
+        Utility.email_conf["email"]["enable"] = True
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        fake_user = {'first_name': 'Test', 'account': 1}
+
+        with patch.object(Utility, 'is_exist', return_value=True), \
+             patch.object(AccountProcessor, 'get_user', return_value=fake_user), \
+             patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            mock_logger.is_password_reset_within_cooldown_period.return_value = None
+            mock_logger.is_password_reset_request_limit_exceeded.return_value = None
+            mock_logger.add_log.return_value = None
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('verified@example.com'))
+        assert len(mail_sent) == 1
+        assert mail_sent[0]['mail_type'] == 'password_reset'
+        assert mail_sent[0]['email'] == 'verified@example.com'
+        assert 'reset_password' in mail_sent[0]['url']
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_password_reset_endpoint_returns_generic_message(self, monkeypatch):
+        async def _mock_handle(email):
+            pass
+
+        with patch.object(AccountProcessor, 'handle_password_reset_request', side_effect=_mock_handle):
+            from starlette.testclient import TestClient
+            from kairon.api.app.main import app
+            client = TestClient(app)
+            for email in ['no_such@example.com', 'unverified@example.com', 'verified@example.com']:
+                response = client.post('/api/account/password/reset', json={"data": email})
+                assert response.status_code == 200
+                assert "If the email address is registered" in response.json()["message"]
+
+    def test_handle_password_reset_request_email_disabled(self):
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        Utility.email_conf["email"]["enable"] = False
+        with patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('any@example.com'))
+        assert len(mail_sent) == 0
+        mock_logger.add_log.assert_not_called()
+
+    def test_handle_password_reset_request_invalid_email(self):
+        mail_sent = []
+
+        async def _mock_send(**kwargs):
+            mail_sent.append(kwargs)
+
+        Utility.email_conf["email"]["enable"] = True
+        with patch('kairon.shared.account.processor.UserActivityLogger') as mock_logger, \
+             patch.object(MailUtility, 'format_and_send_mail', side_effect=_mock_send):
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(AccountProcessor.handle_password_reset_request('not-an-email'))
+        assert len(mail_sent) == 0
+        mock_logger.add_log.assert_not_called()
+        Utility.email_conf["email"]["enable"] = False
+
+    def test_load_system_properties_missing_unverified_template(self):
+        from unittest.mock import MagicMock, mock_open
+        fake_templates = {
+            "verification": "v", "verification_confirmation": "vc",
+            "password_reset": "pr", "password_reset_confirmation": "prc",
+            "add_member_invitation": "ami", "add_member_confirmation": "amc",
+            "password_generated": "pg", "conversation": "conv",
+            "custom_text_mail": "ctm", "bot_msg_conversation": "bmc",
+            "user_msg_conversation": "umc", "update_role": "ur",
+            "untrusted_login": "ul", "add_trusted_device": "atd",
+            "button_template": "bt", "leave_bot_owner_notification": "lbon",
+            "catalog_sync_status": "css",
+            "password_reset_unverified": None,
+        }
+        fake_sp_dict = {"mail_templates": fake_templates}
+
+        mock_qs = MagicMock()
+        mock_qs.get.return_value.to_mongo.return_value.to_dict.return_value = fake_sp_dict
+
+        expected_html = "<html>FIRST_NAME reset unverified</html>"
+        with patch('kairon.shared.account.processor.SystemProperties') as mock_sp, \
+             mock.patch('builtins.open', mock_open(read_data=expected_html)):
+            mock_sp.objects.return_value = mock_qs
+            AccountProcessor.load_system_properties()
+
+        mock_qs.update_one.assert_called_once_with(
+            set__mail_templates__password_reset_unverified=expected_html
+        )
+        assert Utility.email_conf["email"]["templates"]["password_reset_unverified"] == expected_html

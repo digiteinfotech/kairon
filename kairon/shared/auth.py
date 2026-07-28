@@ -4,6 +4,8 @@ from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from typing import Text
 
+from uuid6 import uuid7
+
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import SecurityScopes
 from jwt import PyJWTError, encode
@@ -50,6 +52,11 @@ class Authentication:
         )
         try:
             payload = Utility.decode_limited_access_token(token)
+            jti = payload.get("jti")
+            if jti and payload.get("type") == TOKEN_TYPE.LOGIN.value:
+                from kairon.shared.authorization.data_objects import UserSessions
+                if UserSessions.objects(jti=jti).first():
+                    raise credentials_exception
             username: str = payload.get("sub")
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
@@ -167,6 +174,7 @@ class Authentication:
             to_encode.update({"exp": expire})
             if to_encode.get("iat") is None:
                 to_encode.update({"iat": datetime.utcnow()})
+            to_encode.update({"jti": str(uuid7())})
         to_encode.update({"type": token_type})
         to_encode = Authentication.encrypt_token_claims(to_encode)
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
@@ -239,6 +247,20 @@ class Authentication:
             metric_type = UserActivityType.login_refresh_token.value
         UserActivityLogger.add_log(a_type=metric_type, account=user["account"], email=username, data={"username": username})
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
+
+    @staticmethod
+    def logout(token: str, user: str):
+        from kairon.shared.authorization.data_objects import UserSessions
+        payload = Utility.decode_limited_access_token(token)
+        jti = payload.get("jti")
+        if jti:
+            exp = payload.get("exp")
+            expires_at = (
+                datetime.utcfromtimestamp(exp)
+                if exp
+                else datetime.utcnow() + timedelta(minutes=Utility.environment["security"]["token_expire"])
+            )
+            UserSessions(jti=jti, user=user, expires_at=expires_at).save()
 
     @staticmethod
     def validate_limited_access_token(request: Request, access_limit: list):

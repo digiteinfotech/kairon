@@ -2632,6 +2632,7 @@ class MailUtility:
     ):
         mail_actions_dict = {
             "password_reset": MailUtility.__handle_password_reset,
+            "password_reset_unverified": MailUtility.__handle_password_reset_unverified,
             "password_reset_confirmation": MailUtility.__handle_password_reset_confirmation,
             "verification": MailUtility.__handle_verification,
             "verification_confirmation": MailUtility.__handle_verification_confirmation,
@@ -2758,6 +2759,14 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["password_reset"]
         body = body.replace("FIRST_NAME", first_name.capitalize())
         subject = Utility.email_conf["email"]["templates"]["password_reset_subject"]
+        return body, subject
+
+    @staticmethod
+    def __handle_password_reset_unverified(**kwargs):
+        first_name = kwargs.get("first_name")
+        body = Utility.email_conf["email"]["templates"]["password_reset_unverified"]
+        body = body.replace("FIRST_NAME", first_name.capitalize())
+        subject = Utility.email_conf["email"]["templates"]["password_reset_unverified_subject"]
         return body, subject
 
     @staticmethod
