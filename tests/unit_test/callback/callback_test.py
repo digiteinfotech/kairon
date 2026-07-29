@@ -537,11 +537,9 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
 
 @pytest.mark.asyncio
 @patch('kairon.async_callback.processor.CallbackProcessor.async_callback', new_callable=AsyncMock)
-@patch('kairon.async_callback.processor.asyncio.create_task')
 @patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript_async')
 async def test_process_async_callback_request_async_triggers_callback(
     mock_run_pyscript_async,
-    mock_create_task,
     mock_async_callback
 ):
     token = "test_token"
@@ -577,7 +575,7 @@ async def test_process_async_callback_request_async_triggers_callback(
             token, identifier, request_data, callback_source
         )
 
-        mock_create_task.assert_called_once()
+        mock_run_pyscript_async.assert_called_once()
 
 @pytest.mark.asyncio
 @patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript')
