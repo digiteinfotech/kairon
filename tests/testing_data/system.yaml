@@ -284,3 +284,11 @@ pos:
 
 store_page:
   url: ${STORE_PAGE_URL:"http://localhost:8080"}
+crm:
+  supabase:
+    api_url: ${SUPABASE_API_URL:"https://api.supabase.com"}
+    access_token: ${SUPABASE_ACCESS_TOKEN:"placeholder-access-token"}
+    organization_id: ${SUPABASE_ORGANIZATION_ID:"placeholder-organization-id"}
+  bench:
+    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
+    container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
