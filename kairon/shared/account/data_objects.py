@@ -37,7 +37,7 @@ class BotAccess(Auditlog):
         required=True, choices=[status.value for status in ACTIVITY_STATUS]
     )
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "accessor_email", "status")]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["bot", ("bot", "accessor_email", "status")]}]}
 
 
 @auditlogger.log
@@ -54,7 +54,7 @@ class User(Auditlog):
     onboarding_timestamp = DateTimeField(default=None)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
-    meta = {"indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}
 
     def validate(self, clean=True):
         if (
@@ -89,6 +89,8 @@ class Bot(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
+    meta = {"strict": False}
+
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
             raise ValidationError("Bot Name cannot be empty or blank spaces")
@@ -102,6 +104,8 @@ class Account(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
     license = DictField()
+
+    meta = {"strict": False}
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.name):
@@ -126,7 +130,7 @@ class Feedback(Document):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["user", ("user", "-timestamp")]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["user", ("user", "-timestamp")]}]}
 
 
 @auditlogger.log
@@ -135,7 +139,7 @@ class UiConfig(Auditlog):
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
 
-    meta = {"indexes": [{"fields": ["user"]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["user"]}]}
 
 
 class MailTemplates(EmbeddedDocument):
@@ -161,6 +165,8 @@ class MailTemplates(EmbeddedDocument):
 class SystemProperties(Document):
     mail_templates = EmbeddedDocumentField(MailTemplates)
 
+    meta = {"strict": False}
+
 
 class UserActivityLog(Document):
     type = StringField(
@@ -173,7 +179,7 @@ class UserActivityLog(Document):
     message = ListField(StringField(), default=None)
     data = DynamicField()
 
-    meta = {"indexes": [{"fields": ["bot", ("user", "type", "timestamp")]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["bot", ("user", "type", "timestamp")]}]}
 
 
 @auditlogger.log
@@ -186,7 +192,7 @@ class TrustedDevice(Auditlog):
     confirmation_timestamp = DateTimeField(default=None)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["user", ("user", "status", "is_confirmed")]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["user", ("user", "status", "is_confirmed")]}]}
 
 
 @auditlogger.log
@@ -199,4 +205,4 @@ class Organization(Auditlog):
     create_user = BooleanField(default=True)
     only_sso_login = BooleanField(default=False)
 
-    meta = {"indexes": [{"fields": ["account", "name"]}]}
+    meta = {"strict": False, "indexes": [{"fields": ["account", "name"]}]}

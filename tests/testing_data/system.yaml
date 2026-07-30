@@ -271,3 +271,12 @@ pos:
     odoo_url: ${ODOO_URL:"http://localhost:8080"}
     odoo_master_password: ${ODOO_MASTER_PASSWORD:"testpassword"}
     odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
+
+crm:
+  supabase:
+    api_url: ${SUPABASE_API_URL:"https://api.supabase.com"}
+    access_token: ${SUPABASE_ACCESS_TOKEN:"sbp_test_access_token_placeholder"}
+    organization_id: ${SUPABASE_ORGANIZATION_ID:"tbnggzpbfsotztipohrd"}
+  bench:
+    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
+    container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}

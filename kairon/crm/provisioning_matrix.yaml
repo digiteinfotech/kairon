@@ -1,0 +1,85 @@
+# Kairon Feature -> Application Provisioning Matrix Configuration
+# Defines tier levels, required Frappe apps, landing routes, default roles, and dependencies.
+
+provisioning_matrix:
+  crm:
+    strategy_key: "crm"
+    tier: 1
+    required_apps:
+      - crm
+    home_page: "crm"
+    default_roles:
+      - "CRM Admin"
+      - "CRM User"
+    dependencies:
+      - frappe
+    upgrade_supported: true
+
+  helpdesk:
+    strategy_key: "helpdesk"
+    tier: 1
+    required_apps:
+      - helpdesk
+    home_page: "helpdesk"
+    default_roles:
+      - "Helpdesk Admin"
+    dependencies:
+      - frappe
+    upgrade_supported: true
+
+  hr:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+      - hrms
+    home_page: "workspace/HR"
+    default_roles:
+      - "HR Manager"
+      - "Employee"
+    dependencies:
+      - frappe
+      - payments
+      - erpnext
+    upgrade_supported: false
+
+  selling:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Selling"
+    default_roles:
+      - "Sales Manager"
+      - "Sales User"
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false
+
+  accounts:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Accounting"
+    default_roles:
+      - "Accounts Manager"
+      - "Accounts User"
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false
+
+  manufacturing:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Manufacturing"
+    default_roles:
+      - "Manufacturing Manager"
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false

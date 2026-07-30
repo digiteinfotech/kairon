@@ -6147,9 +6147,15 @@ class MongoProcessor:
 
         settings = BotSettings.objects(bot=bot, status=True).get()
         analytics = Analytics(**bot_settings.get("analytics"))
-        settings.update(
-            set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow()
-        )
+        update_kwargs = {
+            "set__analytics": analytics,
+            "set__user": user,
+            "set__timestamp": datetime.utcnow()
+        }
+        if "enable_crm" in bot_settings:
+            update_kwargs["set__enable_crm"] = bot_settings["enable_crm"]
+
+        settings.update(**update_kwargs)
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
@@ -8552,6 +8558,11 @@ class MongoProcessor:
     def is_pos_enabled(bot: str):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
         return bot_setting.get("pos_enabled")
+
+    @staticmethod
+    def is_crm_enabled(bot: str):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        return bot_setting.get("enable_crm", False)
 
     @staticmethod
     def is_voice_enabled(bot: str):
