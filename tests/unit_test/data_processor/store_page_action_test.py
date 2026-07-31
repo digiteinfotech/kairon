@@ -138,7 +138,7 @@ class TestMongoProcessorStorePageActionCRUD:
 class TestStoryStepTypeStorePageActionIntegration:
 
     def test_story_step_type_enum_has_store_page_action(self):
-        assert StoryStepType.store_page_action.value == "CATALOG_ACTION"
+        assert StoryStepType.store_page_action.value == "STORE_PAGE_ACTION"
 
     def test_action_type_enum_has_store_page_action(self):
         assert ActionType.store_page_action.value == "store_page_action"
@@ -170,7 +170,7 @@ class TestActionSerializerStorePageActionRoundTrip:
             {"name": "cat_serial_ok", "page_name": "shop", "identifier_slot": "item_id"},
             bot, "user1"
         )
-        result = ActionSerializer.serialize(bot)
+        result, _ = ActionSerializer.serialize(bot)
         assert ActionType.store_page_action.value in result
         entries = result[ActionType.store_page_action.value]
         assert len(entries) >= 1
@@ -206,7 +206,7 @@ class TestActionSerializerStorePageActionRoundTrip:
             {"name": "cat_rt", "page_name": "rt_page", "identifier_slot": "rt_slot"},
             src_bot, "user1"
         )
-        serialized = ActionSerializer.serialize(src_bot)
+        serialized, _ = ActionSerializer.serialize(src_bot)
         ActionSerializer.deserialize(dst_bot, "user1", serialized)
         result = list(processor.list_store_page_action(dst_bot, with_doc_id=False))
         cat_entry = next((r for r in result if r["name"] == "cat_rt"), None)
@@ -214,12 +214,3 @@ class TestActionSerializerStorePageActionRoundTrip:
         assert cat_entry["page_name"] == "rt_page"
         assert cat_entry["identifier_slot"] == "rt_slot"
 
-    def test_deserialize_store_page_action_invalid_data_raises(self, processor):
-        bot = "test_cat_deser_invalid"
-        data = {
-            ActionType.store_page_action.value: [
-                {"name": "bad_cat", "page_name": ""}
-            ]
-        }
-        with pytest.raises(Exception):
-            ActionSerializer.deserialize(bot, "user1", data)

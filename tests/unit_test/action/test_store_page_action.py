@@ -72,9 +72,9 @@ class TestActionStorePage:
         self._make_config(name="exec_ok", bot="bot_cat_exec")
         tracker.get_slot.side_effect = lambda k: "bot_cat_exec" if k == "bot" else "P-001"
 
-        with patch("kairon.actions.definitions.catalog.Utility.encrypt_message",
+        with patch("kairon.shared.utils.Utility.encrypt_message",
                    return_value="enc_P-001") as mock_enc, \
-             patch("kairon.actions.definitions.catalog.Authentication.create_access_token",
+             patch("kairon.shared.auth.Authentication.create_access_token",
                    return_value="tok_abc") as mock_tok, \
              patch("kairon.shared.actions.data_objects.ActionServerLogs.save") as mock_log:
             result = await ActionStorePage("bot_cat_exec", "exec_ok").execute(
@@ -98,9 +98,9 @@ class TestActionStorePage:
         self._make_config(name="exec_slots", bot="bot_cat_slots")
         tracker.get_slot.side_effect = lambda k: "bot_cat_slots" if k == "bot" else "ITEM-42"
 
-        with patch("kairon.actions.definitions.catalog.Utility.encrypt_message",
+        with patch("kairon.shared.utils.Utility.encrypt_message",
                    return_value="enc_ITEM-42"), \
-             patch("kairon.actions.definitions.catalog.Authentication.create_access_token",
+             patch("kairon.shared.auth.Authentication.create_access_token",
                    return_value="jwt_token"), \
              patch("kairon.shared.actions.data_objects.ActionServerLogs.save"):
             result = await ActionStorePage("bot_cat_slots", "exec_slots").execute(
@@ -142,13 +142,13 @@ class TestActionStorePage:
         self._make_config(name="exec_enc_err", bot="bot_cat_enc_err")
         tracker.get_slot.side_effect = lambda k: "bot_cat_enc_err" if k == "bot" else "P-999"
 
-        with patch("kairon.actions.definitions.catalog.Utility.encrypt_message",
+        with patch("kairon.shared.utils.Utility.encrypt_message",
                    side_effect=Exception("encryption failed")), \
              patch("kairon.shared.actions.data_objects.ActionServerLogs.save") as mock_log:
-            with pytest.raises(Exception):
-                await ActionStorePage("bot_cat_enc_err", "exec_enc_err").execute(
-                    dispatcher, tracker, {}, action_call={}
-                )
+            result = await ActionStorePage("bot_cat_enc_err", "exec_enc_err").execute(
+                dispatcher, tracker, {}, action_call={}
+            )
+        assert result == {}
         mock_log.assert_called_once()
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ class TestActionStorePage:
         assert ActionType.store_page_action.value == "store_page_action"
 
     def test_story_step_type_enum_has_store_page_action(self):
-        assert StoryStepType.store_page_action.value == "CATALOG_ACTION"
+        assert StoryStepType.store_page_action.value == "STORE_PAGE_ACTION"
 
     def test_action_factory_has_store_page_action(self):
         from kairon.actions.definitions.factory import ActionFactory

@@ -328,7 +328,7 @@ def test_get_collection_infos():
         assert k in other_collection_info_keys
         assert other_collection_info[k].get('db_model') is not None
 
-    assert len(action_info_keys) == 19
+    assert len(action_info_keys) == 20
     assert len(other_collection_info_keys) == 1
 
 
