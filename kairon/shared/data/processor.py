@@ -88,7 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
-    ParallelActionConfig, VoiceCallAction,
+    ParallelActionConfig, VoiceCallAction, StorePageAction,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -162,7 +162,8 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig,
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
-    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
+    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs,
+    StorePageMetadata
 )
 from .action_serializer import ActionSerializer
 from .data_validation import DataValidation
@@ -203,6 +204,7 @@ ACTION_TYPE_MODEL_MAP = {
     ActionType.parallel_action.value:        (ParallelActionConfig,         "name"),
     ActionType.voice_call_action.value:      (VoiceCallAction,              "name"),
     ActionType.callback_action.value:        (CallbackActionConfig,         "name"),
+    ActionType.store_page_action.value:      (StorePageAction,              "name"),
 }
 
 
@@ -308,6 +310,7 @@ class MongoProcessor:
             ActionType.database_action.value: MongoProcessor.is_slot_in_database_action_config,
             ActionType.callback_action.value: MongoProcessor.is_slot_in_callback_action_config,
             ActionType.schedule_action.value: MongoProcessor.is_slot_in_schedule_action_config,
+            ActionType.store_page_action.value: MongoProcessor.is_slot_in_store_page_action_config,
         }
         actions_to_exclude = [ActionType.form_validation_action.value,
                               ActionType.live_agent_action.value,
@@ -343,6 +346,12 @@ class MongoProcessor:
         if config.get('dynamic_url_slot_name') == slot:
             return True
 
+        return False
+
+    @staticmethod
+    def is_slot_in_store_page_action_config(config: dict, slot: Text):
+        if config.get('identifier_slot') == slot:
+            return True
         return False
 
     @staticmethod
@@ -1706,7 +1715,9 @@ class MongoProcessor:
         non_conversational_slots = {
             KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
             KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
-            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value
+            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value,
+            KaironSystemSlots.user_identifier.value, KaironSystemSlots.temp_token.value,
+            KaironSystemSlots.store_page_name.value,
         }
         for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
             initial_value = None
@@ -1986,6 +1997,11 @@ class MongoProcessor:
             ),
             StoryStepType.voice_call_action.value: dict(
                 VoiceCallAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.store_page_action.value: dict(
+                StorePageAction.objects(bot=bot, status=True).values_list(
                     "name", "id"
                 )
             ),
@@ -3732,6 +3748,7 @@ class MongoProcessor:
         schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
         parallel_actions = set(ParallelActionConfig.objects(bot=bot, status=True).values_list('name'))
         voice_call_actions = set(VoiceCallAction.objects(bot=bot, status=True).values_list('name'))
+        store_page_actions = set(StorePageAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3807,6 +3824,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.schedule_action.value
                     elif event['name'] in voice_call_actions:
                         step["type"] = StoryStepType.voice_call_action.value
+                    elif event['name'] in store_page_actions:
+                        step["type"] = StoryStepType.store_page_action.value
                     elif event['name'] == ActionType.kairon_voice_disconnect.value:
                         step["type"] = StoryStepType.kairon_voice_disconnect.value
                     elif event['name'] == 'action_listen':
@@ -5289,6 +5308,7 @@ class MongoProcessor:
         action_config.update(self.load_pyscript_action(bot))
         action_config.update(self.load_database_action(bot))
         action_config.update(self.load_live_agent_action(bot))
+        action_config.update(self.load_store_page_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -7249,7 +7269,58 @@ class MongoProcessor:
                                 name=action_name, bot=bot, status=True):
             raise AppException(f'Action with name "{action_name}" not found')
         VoiceCallAction.objects(name=action_name, bot=bot, status=True).get().delete()
-        self.delete_action(action_name, user, bot)
+        self.delete_action(action_name, bot, user)
+
+    def add_store_page_action(self, action: Dict, bot: str, user: str) -> str:
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        Utility.is_valid_action_name(action.get("name"), bot, StorePageAction)
+        doc = StorePageAction(
+            name=action["name"],
+            page_name=action["page_name"],
+            identifier_slot=action["identifier_slot"],
+            bot=bot,
+            user=user,
+        ).save()
+        self.add_action(action["name"], bot, user,
+                        action_type=ActionType.store_page_action.value, raise_exception=False)
+        return doc.id.__str__()
+
+    def edit_store_page_action(self, action: Dict, bot: str, user: str):
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if not Utility.is_exist(StorePageAction, raise_error=False,
+                                name=action.get("name"), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        store_page_action = StorePageAction.objects(name=action["name"], bot=bot, status=True).get()
+        store_page_action.page_name = action["page_name"]
+        store_page_action.identifier_slot = action["identifier_slot"]
+        store_page_action.user = user
+        store_page_action.timestamp = datetime.utcnow()
+        store_page_action.save()
+
+    def list_store_page_action(self, bot: Text, with_doc_id: bool = True):
+        for action in StorePageAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def load_store_page_action(self, bot: Text):
+        return {ActionType.store_page_action.value: list(self.list_store_page_action(bot, with_doc_id=False))}
+
+    def delete_store_page_action(self, action_name: Text, bot: Text, user: Text):
+        if not Utility.is_exist(StorePageAction, raise_error=False,
+                                name=action_name, bot=bot, status=True):
+            raise AppException(f'Action with name "{action_name}" not found')
+        StorePageAction.objects(name=action_name, bot=bot, status=True).get().delete()
+        self.delete_action(action_name, bot, user)
 
     def add_kairon_voice_disconnect(self, bot: Text, user: Text):
         """Register the kairon_voice_disconnect built-in action for this bot."""
@@ -9418,3 +9489,13 @@ class MongoProcessor:
 
                 sanitized[k] = v
         return sanitized
+
+    @staticmethod
+    def get_store_page_metadata(bot: Text):
+        try:
+            metadata = StorePageMetadata.objects(bot=bot).get()
+            data = metadata.to_mongo().to_dict()
+            data.pop("_id", None)
+            return data
+        except DoesNotExist:
+            raise AppException("Store page metadata not found for this bot.")

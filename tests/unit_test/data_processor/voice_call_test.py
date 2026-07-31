@@ -519,3 +519,33 @@ class TestKaironVoiceDisconnect:
             mock_objects.return_value.first.return_value = existing
             ActionSerializer.deserialize(bot, "user1", actions=actions)
         mock_save.assert_not_called()
+
+    # ─── delete_voice_call_action ──────────────────────────────────────────────
+
+    def test_delete_voice_call_action_not_found_raises(self):
+        processor = MongoProcessor()
+        with patch("kairon.shared.data.processor.Utility.is_exist", return_value=False):
+            with pytest.raises(AppException, match='Action with name "missing_action" not found'):
+                processor.delete_voice_call_action("missing_action", "bot1", "user1")
+
+    def test_delete_voice_call_action_success(self):
+        processor = MongoProcessor()
+        mock_doc = MagicMock()
+        with patch("kairon.shared.data.processor.Utility.is_exist", return_value=True), \
+             patch("kairon.shared.data.processor.VoiceCallAction") as mock_cls, \
+             patch.object(processor, "delete_action") as mock_del:
+            mock_cls.objects.return_value.get.return_value = mock_doc
+            processor.delete_voice_call_action("my_action", "bot1", "user1")
+        mock_doc.delete.assert_called_once()
+        mock_del.assert_called_once_with("my_action", "bot1", "user1")
+
+    def test_delete_voice_call_action_passes_bot_user_order(self):
+        """Regression: args were swapped (user, bot) before fix."""
+        processor = MongoProcessor()
+        calls = []
+        with patch("kairon.shared.data.processor.Utility.is_exist", return_value=True), \
+             patch("kairon.shared.data.processor.VoiceCallAction") as mock_cls, \
+             patch.object(processor, "delete_action", side_effect=lambda *a: calls.append(a)):
+            mock_cls.objects.return_value.get.return_value = MagicMock()
+            processor.delete_voice_call_action("act", "correct_bot", "correct_user")
+        assert calls == [("act", "correct_bot", "correct_user")]

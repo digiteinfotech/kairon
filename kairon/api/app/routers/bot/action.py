@@ -10,7 +10,7 @@ from kairon.api.models import (
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
     WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
-    ScheduleActionRequest, VoiceCallActionRequest
+    ScheduleActionRequest, VoiceCallActionRequest, StorePageActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -882,3 +882,50 @@ async def list_kairon_voice_disconnect(
     """
     actions = mongo_processor.list_kairon_voice_disconnect(current_user.get_bot())
     return Response(data=actions)
+
+
+@router.post("/store_page", response_model=Response)
+async def add_store_page_action(
+        request_data: StorePageActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the store page action config.
+    """
+    mongo_processor.add_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/store_page", response_model=Response)
+async def list_store_page_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of store page actions for bot.
+    """
+    actions = list(mongo_processor.list_store_page_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/store_page", response_model=Response)
+async def edit_store_page_action(
+        request_data: StorePageActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the store page action config.
+    """
+    mongo_processor.edit_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/store_page/{action_name}", response_model=Response)
+async def delete_store_page_action(
+        action_name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the store page action config.
+    """
+    mongo_processor.delete_store_page_action(action_name, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')
