@@ -191,6 +191,9 @@ class KaironSystemSlots(str, Enum):
     flow_dos='flow_docs'
     flow_images='flow_images'
     flow_data='flow_data'
+    user_identifier = 'user_identifier'
+    temp_token = 'temp_token'
+    store_page_name = 'store_page_name'
     llm_call_id = "llm_call_id"
 
 

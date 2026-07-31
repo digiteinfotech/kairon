@@ -7118,6 +7118,159 @@ class TestMongoProcessor:
         assert any(response['value']['custom'] == jsondata and response['type'] == "json"
                    for response in responses if "custom" in response['value'])
 
+    def test_add_catalog_custom_response_convention(self):
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id"
+            }
+        }
+        # R1: payload has marker field, data section, valid identifierType
+        assert catalog_payload["type"] == "catalog"
+        assert all(k in catalog_payload["data"] for k in ("page_name", "identifierType", "identifierValue"))
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        # R2: saved via existing create operation, no endpoint change
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_test", "tests", "testUser")
+
+    def test_get_catalog_custom_response_round_trip(self):
+        # R3: fetch returns correct marker, page_name, identifierType, identifierValue
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        assert len(responses) > 0
+        resp = responses[0]
+        payload = resp["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_home"
+        assert payload["data"]["identifierType"] == "slot"
+        assert payload["data"]["identifierValue"] == "customer_id"
+
+    def test_edit_catalog_custom_response_round_trip(self):
+        # R3: after edit, fetch returns updated values; R2: uses existing edit operation
+        processor = MongoProcessor()
+        updated_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_detail",
+                "identifierType": "value",
+                "identifierValue": "acme-corp"
+            }
+        }
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        processor.edit_custom_response(
+            responses[0]["_id"], updated_payload, name="utter_catalog_test", bot="tests", user="testUser"
+        )
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_detail"
+        assert payload["data"]["identifierType"] == "value"
+        assert payload["data"]["identifierValue"] == "acme-corp"
+
+    def test_catalog_identifiertype_value_convention(self):
+        # R1: identifierType "value" is accepted
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "literal-id-123"
+            }
+        }
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_value_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_value_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["identifierType"] == "value"
+
+    def test_non_catalog_custom_response_unaffected(self):
+        # R4: non-catalog custom saves and fetches unchanged, never reinterpreted as catalog
+        processor = MongoProcessor()
+        plain_payload = {"type": "image", "url": "https://example.com/img.png"}
+        assert processor.add_custom_response(plain_payload, "utter_non_catalog_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_non_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload == plain_payload
+        assert payload.get("type") != "catalog"
+
+    def test_catalog_label_field_round_trip(self):
+        # R1 c4: data section MAY contain optional label field with any string value
+        # R3 c4: label value equals saved value on fetch
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id",
+                "label": "View Catalog"
+            }
+        }
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_label_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_test", "tests"))
+        assert len(responses) > 0
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["label"] == "View Catalog"
+
+    def test_catalog_label_empty_and_whitespace_no_validation_error(self):
+        # R1 c5: saving with empty string or whitespace-only label succeeds with no validation error
+        processor = MongoProcessor()
+        for label_value in ["", "   "]:
+            catalog_payload = {
+                "type": "catalog",
+                "data": {
+                    "page_name": "store_home",
+                    "identifierType": "value",
+                    "identifierValue": "acme",
+                    "label": label_value
+                }
+            }
+            utterance_name = f"utter_catalog_empty_label_{label_value.strip() or 'empty'}_test"
+            assert processor.add_custom_response(
+                catalog_payload, utterance_name, "tests", "testUser"
+            ), f"Save should succeed for label={repr(label_value)}"
+            responses = list(processor.get_response(utterance_name, "tests"))
+            assert responses[0]["value"]["custom"]["data"]["label"] == label_value
+
+    def test_catalog_label_edit_add_change_remove(self):
+        # R3 c5: editing label (add, change, remove) round-trips correctly
+        processor = MongoProcessor()
+        base_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "promo-id"
+            }
+        }
+        assert processor.add_custom_response(base_payload, "utter_catalog_label_edit_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        resp_id = responses[0]["_id"]
+
+        # add label
+        with_label = dict(base_payload)
+        with_label["data"] = dict(base_payload["data"], label="Shop Now")
+        processor.edit_custom_response(resp_id, with_label, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Shop Now"
+
+        # change label
+        changed = dict(base_payload)
+        changed["data"] = dict(base_payload["data"], label="Browse")
+        processor.edit_custom_response(resp_id, changed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Browse"
+
+        # remove label
+        removed = dict(base_payload)
+        removed["data"] = dict(base_payload["data"])  # no label key
+        processor.edit_custom_response(resp_id, removed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert "label" not in responses[0]["value"]["custom"]["data"]
+
     def test_get_session_config(self):
         processor = MongoProcessor()
         session_config = processor.get_session_config("tests")
@@ -10582,7 +10735,7 @@ class TestMongoProcessor:
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
                             'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
-                            'parallel_action': [], 'voice_call_action': []
+                            'parallel_action': [], 'voice_call_action': [], 'store_page_action': []
                         }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2
@@ -16099,7 +16252,7 @@ class TestMongoProcessor:
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': []
+            'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -16123,7 +16276,7 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'voice_call_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'parallel_action': [], 'kairon_voice_disconnect': []
+            'parallel_action': [], 'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story(self):
@@ -16150,7 +16303,7 @@ class TestMongoProcessor:
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
                                       'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-                                      'kairon_voice_disconnect': [],
+                                      'kairon_voice_disconnect': [], 'store_page_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -18038,7 +18191,7 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'voice_call_action': [], 'kairon_voice_disconnect': [],
+            'voice_call_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
                            'utter_please_rephrase'], 'parallel_action': []}, ignore_order=True)
 
@@ -18149,7 +18302,7 @@ class TestMongoProcessor:
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': [],
+            'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
