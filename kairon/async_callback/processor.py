@@ -147,12 +147,15 @@ class CallbackProcessor:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
 
                 async def callback_function(rsp: dict):
-                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
+                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback,
+                                                        callback_source, bot, entry.get("sender_id"),
+                                                        entry.get("channel"), request_data)
                     await copied_func()
-
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
-                                                     predefined_objects=predefined_objects,
-                                                     callback=callback_function)
+                                                         predefined_objects=predefined_objects,
+                                                         callback=callback_function)
+                return {"message": "Request Acknowledged"}, message, error_code, response_type
+
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
