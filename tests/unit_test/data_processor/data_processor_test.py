@@ -6246,14 +6246,16 @@ class TestMongoProcessor:
                                  'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document',
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
                                  'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
-                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'] for slot in domain.slots)
+                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                                 'user_identifier', 'temp_token', 'store_page_name'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                              'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
                              'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body',
-                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'], ignore_order=True)
+                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                             'user_identifier', 'temp_token', 'store_page_name'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
@@ -6496,7 +6498,7 @@ class TestMongoProcessor:
         assert domain.slots.__len__() == 26
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 25
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -12010,7 +12012,10 @@ class TestMongoProcessor:
             {'name': 'flow_data', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
             {'name': 'llm_call_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
-             'is_default': True}
+             'is_default': True},
+            {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
 
         ]
         assert len(slots) == 35
