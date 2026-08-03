@@ -3452,7 +3452,7 @@ class TestMongoProcessor:
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 20
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 10
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 13
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
         print(multiflow_stories['multiflow_story'][0]['events'][0])
         step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
@@ -6246,14 +6246,16 @@ class TestMongoProcessor:
                                  'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document',
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
                                  'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
-                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'] for slot in domain.slots)
+                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                                 'user_identifier', 'temp_token', 'store_page_name'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                              'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
                              'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body',
-                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id'], ignore_order=True)
+                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                             'user_identifier', 'temp_token', 'store_page_name'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
@@ -6352,16 +6354,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -6423,11 +6425,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 31
+        assert domain.slots.__len__() == 34
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 31
+        assert domain.entities.__len__() == 34
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -6466,9 +6468,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 31
+        assert domain.slots.__len__() == 34
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 31
+        assert domain.entities.__len__() == 34
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 27
@@ -6493,10 +6495,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 23
+        assert domain.slots.__len__() == 26
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 22
+        assert domain.entities.__len__() == 25
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -6743,7 +6745,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 23
+        assert slots.__len__() == 26
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -6776,7 +6778,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 24
+        assert slots.__len__() == 27
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -6821,7 +6823,7 @@ class TestMongoProcessor:
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
                     'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
-                    'flow_data', 'llm_call_id']
+                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -7117,6 +7119,159 @@ class TestMongoProcessor:
         responses = list(processor.get_response("utter_custom", "tests"))
         assert any(response['value']['custom'] == jsondata and response['type'] == "json"
                    for response in responses if "custom" in response['value'])
+
+    def test_add_catalog_custom_response_convention(self):
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id"
+            }
+        }
+        # R1: payload has marker field, data section, valid identifierType
+        assert catalog_payload["type"] == "catalog"
+        assert all(k in catalog_payload["data"] for k in ("page_name", "identifierType", "identifierValue"))
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        # R2: saved via existing create operation, no endpoint change
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_test", "tests", "testUser")
+
+    def test_get_catalog_custom_response_round_trip(self):
+        # R3: fetch returns correct marker, page_name, identifierType, identifierValue
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        assert len(responses) > 0
+        resp = responses[0]
+        payload = resp["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_home"
+        assert payload["data"]["identifierType"] == "slot"
+        assert payload["data"]["identifierValue"] == "customer_id"
+
+    def test_edit_catalog_custom_response_round_trip(self):
+        # R3: after edit, fetch returns updated values; R2: uses existing edit operation
+        processor = MongoProcessor()
+        updated_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_detail",
+                "identifierType": "value",
+                "identifierValue": "acme-corp"
+            }
+        }
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        processor.edit_custom_response(
+            responses[0]["_id"], updated_payload, name="utter_catalog_test", bot="tests", user="testUser"
+        )
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_detail"
+        assert payload["data"]["identifierType"] == "value"
+        assert payload["data"]["identifierValue"] == "acme-corp"
+
+    def test_catalog_identifiertype_value_convention(self):
+        # R1: identifierType "value" is accepted
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "literal-id-123"
+            }
+        }
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_value_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_value_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["identifierType"] == "value"
+
+    def test_non_catalog_custom_response_unaffected(self):
+        # R4: non-catalog custom saves and fetches unchanged, never reinterpreted as catalog
+        processor = MongoProcessor()
+        plain_payload = {"type": "image", "url": "https://example.com/img.png"}
+        assert processor.add_custom_response(plain_payload, "utter_non_catalog_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_non_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload == plain_payload
+        assert payload.get("type") != "catalog"
+
+    def test_catalog_label_field_round_trip(self):
+        # R1 c4: data section MAY contain optional label field with any string value
+        # R3 c4: label value equals saved value on fetch
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id",
+                "label": "View Catalog"
+            }
+        }
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_label_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_test", "tests"))
+        assert len(responses) > 0
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["label"] == "View Catalog"
+
+    def test_catalog_label_empty_and_whitespace_no_validation_error(self):
+        # R1 c5: saving with empty string or whitespace-only label succeeds with no validation error
+        processor = MongoProcessor()
+        for label_value in ["", "   "]:
+            catalog_payload = {
+                "type": "catalog",
+                "data": {
+                    "page_name": "store_home",
+                    "identifierType": "value",
+                    "identifierValue": "acme",
+                    "label": label_value
+                }
+            }
+            utterance_name = f"utter_catalog_empty_label_{label_value.strip() or 'empty'}_test"
+            assert processor.add_custom_response(
+                catalog_payload, utterance_name, "tests", "testUser"
+            ), f"Save should succeed for label={repr(label_value)}"
+            responses = list(processor.get_response(utterance_name, "tests"))
+            assert responses[0]["value"]["custom"]["data"]["label"] == label_value
+
+    def test_catalog_label_edit_add_change_remove(self):
+        # R3 c5: editing label (add, change, remove) round-trips correctly
+        processor = MongoProcessor()
+        base_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "promo-id"
+            }
+        }
+        assert processor.add_custom_response(base_payload, "utter_catalog_label_edit_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        resp_id = responses[0]["_id"]
+
+        # add label
+        with_label = dict(base_payload)
+        with_label["data"] = dict(base_payload["data"], label="Shop Now")
+        processor.edit_custom_response(resp_id, with_label, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Shop Now"
+
+        # change label
+        changed = dict(base_payload)
+        changed["data"] = dict(base_payload["data"], label="Browse")
+        processor.edit_custom_response(resp_id, changed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Browse"
+
+        # remove label
+        removed = dict(base_payload)
+        removed["data"] = dict(base_payload["data"])  # no label key
+        processor.edit_custom_response(resp_id, removed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert "label" not in responses[0]["value"]["custom"]["data"]
 
     def test_get_session_config(self):
         processor = MongoProcessor()
@@ -7929,7 +8084,8 @@ class TestMongoProcessor:
         ], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
-                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': []}
+                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': [],
+                                 'store_page_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -9559,16 +9715,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -9624,9 +9780,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 31
+        assert domain.slots.__len__() == 34
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 31
+        assert domain.entities.__len__() == 34
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
@@ -9704,16 +9860,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -9769,16 +9925,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9819,16 +9975,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9877,16 +10033,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9922,16 +10078,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -9977,10 +10133,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 31
         assert domain.intents.__len__() == 33
@@ -10055,10 +10211,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 32
+        assert domain.slots.__len__() == 35
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 32
+        assert domain.entities.__len__() == 35
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -10582,7 +10738,7 @@ class TestMongoProcessor:
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
                             'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
-                            'parallel_action': [], 'voice_call_action': []
+                            'parallel_action': [], 'voice_call_action': [], 'store_page_action': []
                         }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2
@@ -11856,10 +12012,13 @@ class TestMongoProcessor:
             {'name': 'flow_data', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
             {'name': 'llm_call_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
-             'is_default': True}
+             'is_default': True},
+            {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
 
         ]
-        assert len(slots) == 32
+        assert len(slots) == 35
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
@@ -16099,7 +16258,7 @@ class TestMongoProcessor:
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': []
+            'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -16123,7 +16282,7 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'voice_call_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'parallel_action': [], 'kairon_voice_disconnect': []
+            'parallel_action': [], 'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story(self):
@@ -16150,7 +16309,7 @@ class TestMongoProcessor:
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
                                       'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-                                      'kairon_voice_disconnect': [],
+                                      'kairon_voice_disconnect': [], 'store_page_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -16162,7 +16321,11 @@ class TestMongoProcessor:
                                                      'utter_bad_feedback',
                                                      'utter_default',
                                                      'utter_please_rephrase', 'utter_custom', 'utter_query',
-                                                     'utter_more_queries']}, ignore_order=True)
+                                                     'utter_more_queries',
+                                                     'utter_catalog_test', 'utter_catalog_value_test',
+                                                     'utter_non_catalog_test', 'utter_catalog_label_test',
+                                                     'utter_catalog_empty_label_empty_test',
+                                                     'utter_catalog_label_edit_test']}, ignore_order=True)
 
     def test_add_complex_story_with_stop_flow_action(self):
         processor = MongoProcessor()
@@ -18038,7 +18201,7 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'voice_call_action': [], 'kairon_voice_disconnect': [],
+            'voice_call_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
                            'utter_please_rephrase'], 'parallel_action': []}, ignore_order=True)
 
@@ -18149,7 +18312,7 @@ class TestMongoProcessor:
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': [],
+            'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -18160,7 +18323,11 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']},
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries',
+                           'utter_catalog_test', 'utter_catalog_value_test',
+                           'utter_non_catalog_test', 'utter_catalog_label_test',
+                           'utter_catalog_empty_label_empty_test',
+                           'utter_catalog_label_edit_test']},
                             ignore_order=True)
 
     def test_add_duplicate_rule(self):

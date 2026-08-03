@@ -1772,3 +1772,14 @@ async def get_flow_tag(
     flows = mongo_processor.get_flows_by_tag(current_user.get_bot(), tag)
     return Response(data=flows)
 
+
+@router.get("/store_page/metadata", response_model=Response)
+async def get_store_page_metadata(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches store page metadata for the bot
+    """
+    metadata = mongo_processor.get_store_page_metadata(current_user.get_bot())
+    return Response(data=metadata)
+

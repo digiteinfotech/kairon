@@ -1020,6 +1020,12 @@ class VoiceCallActionRequest(BaseModel):
     dispatch_bot_response: bool = True
 
 
+class StorePageActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    page_name: str
+    identifier_slot: str
+
+
 class JiraActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     url: str

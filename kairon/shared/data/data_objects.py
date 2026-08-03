@@ -1130,3 +1130,12 @@ class POSIntegrations(Auditlog):
     sync_options = GenericEmbeddedDocumentField(required=True)
 
     meta = {"indexes": [{"fields": ["bot", "provider"]}]}
+
+
+class StorePageMetadata(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    config = DictField()
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
