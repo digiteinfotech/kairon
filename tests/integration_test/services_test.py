@@ -37977,6 +37977,126 @@ def test_list_kairon_voice_disconnect():
     assert len(actual["data"]) >= 1
 
 
+def test_add_store_page_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "home", "identifier_slot": "phone_number"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_store_page_action_duplicate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "home", "identifier_slot": "phone_number"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_store_page_action_missing_fields():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action_missing"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+
+
+def test_list_store_page_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert any(a["name"] == "test_store_page_action" for a in actual["data"])
+
+
+def test_edit_store_page_action_not_found():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "nonexistent_store_page_action", "page_name": "menu", "identifier_slot": "customer_id"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_store_page_action():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "menu", "identifier_slot": "customer_id"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+def test_delete_store_page_action_not_found():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/store_page/nonexistent_store_page_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_delete_store_page_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/store_page/test_store_page_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action deleted"
+
+
+def test_get_store_page_metadata_not_found():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/store_page/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "not found" in actual["message"].lower()
+
+
+def test_get_store_page_metadata():
+    from kairon.shared.data.data_objects import StorePageMetadata
+    StorePageMetadata.objects(bot=pytest.bot).delete()
+    StorePageMetadata(
+        bot=pytest.bot,
+        user="testUser",
+        config={"base_url": "https://store.example.com", "catalog_id": "cat_001"},
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/store_page/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["bot"] == pytest.bot
+    assert actual["data"]["config"]["base_url"] == "https://store.example.com"
+    StorePageMetadata.objects(bot=pytest.bot).delete()
+
+
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):
         return "https://kairon.s3.amazonaws.com/application/626a380d3060cf93782b52c3/actions_yml.yml"
