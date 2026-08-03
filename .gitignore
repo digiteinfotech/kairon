@@ -23,12 +23,3 @@ coverage_html
 /training_data/
 /.rasa/
 /enable_gpt_uat.py
-/.odylith/
-/odylith/compass/runtime/refresh-state.v1.json
-
-# Added by code-review-graph
-.code-review-graph/
-
-# Planning artifacts
-context/
-.cavekit/

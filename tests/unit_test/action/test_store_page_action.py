@@ -118,22 +118,30 @@ class TestActionStorePage:
         self._make_config(name="exec_empty_slot", bot="bot_cat_empty")
         tracker.get_slot.side_effect = lambda k: "bot_cat_empty" if k == "bot" else None
 
-        with patch("kairon.shared.actions.data_objects.ActionServerLogs.save"):
+        with patch("kairon.actions.definitions.store_page.ActionServerLogs") as mock_log_cls:
             with pytest.raises(ActionFailure, match="absent or empty"):
                 await ActionStorePage("bot_cat_empty", "exec_empty_slot").execute(
                     dispatcher, tracker, {}, action_call={}
                 )
+        mock_log_cls.assert_called_once()
+        log_kwargs = mock_log_cls.call_args.kwargs
+        assert log_kwargs.get("exception") is not None
+        assert "absent or empty" in log_kwargs["exception"]
 
     @pytest.mark.asyncio
     async def test_execute_slot_whitespace_raises(self, tracker, dispatcher):
         self._make_config(name="exec_ws_slot", bot="bot_cat_ws")
         tracker.get_slot.side_effect = lambda k: "bot_cat_ws" if k == "bot" else "   "
 
-        with patch("kairon.shared.actions.data_objects.ActionServerLogs.save"):
+        with patch("kairon.actions.definitions.store_page.ActionServerLogs") as mock_log_cls:
             with pytest.raises(ActionFailure, match="absent or empty"):
                 await ActionStorePage("bot_cat_ws", "exec_ws_slot").execute(
                     dispatcher, tracker, {}, action_call={}
                 )
+        mock_log_cls.assert_called_once()
+        log_kwargs = mock_log_cls.call_args.kwargs
+        assert log_kwargs.get("exception") is not None
+        assert "absent or empty" in log_kwargs["exception"]
 
     # ─── execute: external error ──────────────────────────────────────────────
 

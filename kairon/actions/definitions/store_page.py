@@ -54,7 +54,9 @@ class ActionStorePage(ActionsBase):
             slots["temp_token"] = token
             slots["store_page_name"] = page_name
 
-        except ActionFailure:
+        except ActionFailure as e:
+            exception = str(e)
+            status = STATUSES.FAIL.value
             raise
         except Exception as e:
             logger.exception(e)
