@@ -376,7 +376,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
                     f"{partner_base_url}/partner/app/{app_id}/media",
                     headers=headers,
                     files={
-                        "file": (None, media_url),
+                        "file": (filename, binary_data, extension),
                         "file_type": (None, extension)
                     },
                     timeout=(5, 60)
@@ -420,7 +420,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         external_media_id = media_resp.json().get("mediaId")
 
         media_doc.update(
-            set__media_id = external_media_id,
+            set__media_id = media_id,
             set__upload_status = UserMediaUploadStatus.completed.value,
             set__upload_type = UserMediaUploadType.broadcast.value,
             set__additional_info ={"message": "Upload successful and media_id generated."},
