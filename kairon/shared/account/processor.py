@@ -1005,6 +1005,7 @@ class AccountProcessor:
                 leave_bot_owner_notification=open("template/emails/leaveBotOwnerNotification.html", "r").read(),
                 catalog_sync_status=open("template/emails/catalog_sync_status.html", "r").read(),
                 password_reset_unverified=open("template/emails/passwordResetUnverified.html", "r").read(),
+                action_failure= open("template/emails/action_failure.html", "r").read(),
             )
             system_properties = (
                 SystemProperties(mail_templates=mail_templates)
@@ -1061,6 +1062,8 @@ class AccountProcessor:
             "leave_bot_owner_notification"]
         Utility.email_conf["email"]["templates"]["catalog_sync_status"] = system_properties["mail_templates"][
             "catalog_sync_status"]
+        Utility.email_conf['email']['templates']['action_failure'] = system_properties['mail_templates'][
+            'action_failure']
         Utility.email_conf["email"]["templates"]["password_reset_unverified"] = system_properties[
             "mail_templates"
         ].get("password_reset_unverified")

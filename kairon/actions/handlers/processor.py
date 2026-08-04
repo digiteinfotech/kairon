@@ -13,6 +13,8 @@ from ...shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from ...shared.data.constant import STATUSES
+from ...shared.utils import MailUtility
+from kairon.shared.account.data_objects import Bot
 
 
 class ActionProcessor:
@@ -51,3 +53,18 @@ class ActionProcessor:
                 status=STATUSES.FAIL.value,
                 request_id=get_request_id()
             ).save()
+            bot_name = tracker.get_slot("bot")
+            try:
+                bot_name = Bot.objects(id=bot_name).only("name").get().name
+
+                await MailUtility.format_and_send_mail(mail_type="action_failure",
+                                                       email=tracker.sender_id,
+                                                       stack_trace=str(e),
+                                                       slot_values=tracker.current_slot_values(),
+                                                       first_name="Kairon Team",
+                                                       bot_name=bot_name,
+                                                       action_name=action,
+                                                       user_query_history=tracker.latest_message.get('text')
+                                                       )
+            except Exception as mail_err:
+                logger.exception(mail_err)
