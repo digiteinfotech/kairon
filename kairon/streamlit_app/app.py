@@ -1,8 +1,16 @@
+import os
+import sys
+
+# Ensure repository root is in sys.path for Streamlit execution
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
 import streamlit as st
 from kairon.streamlit_app.components.styles import inject_enterprise_styles
 
 st.set_page_config(
-    page_title="Kairon CRM & ERPNext Provisioning Portal",
+    page_title="Kairon AI ↔ Frappe CRM Platform Portal",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -14,105 +22,78 @@ inject_enterprise_styles()
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "kairon_user" not in st.session_state:
-    st.session_state["kairon_user"] = "admin@kairon.io"
+    st.session_state["kairon_user"] = ""
 if "kairon_user_name" not in st.session_state:
-    st.session_state["kairon_user_name"] = "Kairon Admin"
+    st.session_state["kairon_user_name"] = "Guest User"
 if "kairon_bot" not in st.session_state:
-    st.session_state["kairon_bot"] = "bot_enterprise_01"
+    st.session_state["kairon_bot"] = ""
 if "available_bots" not in st.session_state:
-    st.session_state["available_bots"] = {
-        "bot_enterprise_01": "Enterprise Sales Bot (bot_enterprise_01)",
-        "bot_sales_crm": "Sales & Leads Bot (bot_sales_crm)",
-        "bot_customer_support": "Customer Support Bot (bot_customer_support)"
-    }
-if "crm_enabled_bots" not in st.session_state:
-    st.session_state["crm_enabled_bots"] = {"bot_enterprise_01": True}
+    st.session_state["available_bots"] = {}
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []
+if "events_stream" not in st.session_state:
+    st.session_state["events_stream"] = []
+
+def perform_logout():
+    st.session_state["kairon_user"] = ""
+    st.session_state["kairon_user_name"] = "Guest User"
+    st.session_state["kairon_bot"] = ""
+    st.session_state["available_bots"] = {}
+    st.session_state["authenticated"] = False
+    st.session_state["chat_history"] = []
+    st.session_state["events_stream"] = []
+    if "user_email_input" in st.session_state:
+        st.session_state["user_email_input"] = ""
 
 # ==========================================
-# 1. KAIRON LOGIN SCREEN (WHEN NOT LOGGED IN)
-# ==========================================
-if not st.session_state["authenticated"]:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    lcol1, lcol2, lcol3 = st.columns([1, 1.8, 1])
-
-    with lcol2:
-        st.markdown("""
-            <div class="metric-card" style="padding: 30px; border-top: 4px solid #6366F1; text-align: center;">
-                <div style="font-size: 2.5rem; margin-bottom: 10px;">⚡</div>
-                <h2 style="color: #FFFFFF; font-weight: 800; margin-bottom: 4px;">Kairon Platform Login</h2>
-                <p style="color: #94A3B8; font-size: 0.9rem; margin-bottom: 24px;">Sign in with your Kairon User credentials to manage CRM & ERPNext tenant provisioning.</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-        with st.form("kairon_login_form"):
-            user_preset = st.selectbox(
-                "Select Kairon User Account",
-                ["admin@kairon.io", "arya@kairon.ai", "harsh@kairon.ai", "soham@kairon.ai", "aditya@kairon.ai", "geet_demo@kairon.ai", "test@demo.in"],
-                help="Select your registered Kairon user to load your specific bots from MongoDB."
-            )
-            user_email = st.text_input("Kairon User Email / Username", value=user_preset)
-            user_password = st.text_input("Password", value="••••••••••••", type="password")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            login_submit = st.form_submit_button("🔑 Sign In to Kairon", use_container_width=True)
-
-            if login_submit:
-                if user_email and user_password:
-                    st.session_state["authenticated"] = True
-                    st.session_state["kairon_user"] = user_email.strip()
-                    st.session_state["kairon_user_name"] = user_email.split("@")[0].title()
-                    st.session_state["access_token"] = "mock_kairon_jwt_token_12345"
-                    st.success(f"Authenticated as {user_email}! Loading user's bots from MongoDB...")
-                    st.rerun()
-                else:
-                    st.error("Please enter valid username and password.")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        dev_bypass = st.button("⚡ Quick Dev Login (Demo Access)", use_container_width=True)
-        if dev_bypass:
-            st.session_state["authenticated"] = True
-            st.session_state["kairon_user"] = "admin@kairon.io"
-            st.session_state["kairon_user_name"] = "Admin User"
-            st.session_state["access_token"] = "dev_kairon_token"
-            st.rerun()
-
-    st.stop()
-
-
-# ==========================================
-# 2. AUTHENTICATED SIDEBAR & BOT CONTEXT
+# 1. AUTHENTICATED SIDEBAR & BOT CONTEXT
 # ==========================================
 with st.sidebar:
     st.markdown("""
         <div style="padding: 10px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px;">
-            <div style="font-size: 1.2rem; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 8px;">
-                <span>⚡</span> KAIRON ADMIN
+            <div style="font-size: 1.25rem; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #6366F1;">⚡</span> KAIRON ↔ CRM
             </div>
             <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">
-                Hybrid Provisioning Platform
+                Integration Framework v1.1.0
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Logged In User Card
+    # Logged In Kairon User Account Context
+    user_email_input = st.sidebar.text_input(
+        "Kairon Account Email",
+        value=st.session_state.get("kairon_user", ""),
+        placeholder="e.g. your_email@domain.com",
+        key="user_email_input"
+    )
+    if user_email_input and user_email_input != st.session_state.get("kairon_user"):
+        st.session_state["kairon_user"] = user_email_input.strip()
+        st.session_state["kairon_user_name"] = user_email_input.split("@")[0].title()
+        st.session_state["authenticated"] = True
+        # Dynamically refresh user's available bots from MongoDB
+        try:
+            from kairon.streamlit_app.services.tenant_service import TenantService
+            user_bots = TenantService.get_available_bots(user_email=user_email_input.strip())
+            if user_bots:
+                st.session_state["available_bots"] = user_bots
+                st.session_state["kairon_bot"] = list(user_bots.keys())[0]
+        except Exception:
+            pass
+        st.rerun()
+
     st.markdown(f"""
         <div class="metric-card" style="padding: 12px; margin-bottom: 16px; border-left: 3px solid #6366F1;">
-            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">LOGGED IN USER</div>
-            <div style="font-size: 0.9rem; font-weight: 700; color: #FFFFFF;">{st.session_state.get('kairon_user_name', 'User')}</div>
-            <div style="font-size: 0.78rem; color: #94A3B8;">{st.session_state.get('kairon_user', 'admin@kairon.io')}</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">LOGGED IN KAIRON USER</div>
+            <div style="font-size: 0.92rem; font-weight: 700; color: #FFFFFF;">{st.session_state.get('kairon_user_name', 'User')}</div>
+            <div style="font-size: 0.78rem; color: #94A3B8;">{st.session_state.get('kairon_user', 'Not Logged In')}</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Active Bot Context Dropdown (Filtered for logged-in user from MongoDB 'conversations.bot')
-    st.subheader("Active Bot Context")
-    from kairon.streamlit_app.services.tenant_service import TenantService
-
-    current_user_email = st.session_state.get("kairon_user", "admin@kairon.io")
-    real_bots = TenantService.get_available_bots(user_email=current_user_email)
-    bot_options = real_bots if real_bots else {"bot_enterprise_01": "Enterprise Sales Bot (bot_enterprise_01)"}
-
-    default_idx = 0
+    # Active Bot Context Dropdown
+    bot_options = st.session_state["available_bots"]
     bot_keys = list(bot_options.keys())
+    default_idx = 0
     if st.session_state.get("kairon_bot") in bot_keys:
         default_idx = bot_keys.index(st.session_state["kairon_bot"])
 
@@ -124,54 +105,44 @@ with st.sidebar:
     )
     st.session_state["kairon_bot"] = selected_bot_id
 
-    # Dynamic MongoDB CRM Capability Status Check
-    mongo_crm_enabled = TenantService.get_bot_crm_status(selected_bot_id)
-    crm_toggle = st.toggle("Enable CRM / ERPNext for Bot (Sync MongoDB)", value=mongo_crm_enabled, key=f"toggle_{selected_bot_id}")
-
-    if crm_toggle != mongo_crm_enabled:
-        TenantService.set_bot_crm_status(selected_bot_id, crm_toggle)
-        st.toast(f"MongoDB updated: enable_crm = {crm_toggle} for Bot {selected_bot_id}", icon="💾")
-        st.rerun()
-
-    if crm_toggle:
-        st.markdown("<span style='color: #34D399; font-size: 0.8rem;'>● CRM Capability Active (MongoDB: True)</span>", unsafe_allow_html=True)
-    else:
-        st.markdown("<span style='color: #F87171; font-size: 0.8rem;'>○ CRM Capability Disabled (MongoDB: False)</span>", unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Logout Button
-    if st.button("🚪 Logout from Kairon", use_container_width=True):
-        st.session_state["authenticated"] = False
-        st.session_state.pop("access_token", None)
-        st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
-        <div class="metric-card" style="padding: 10px 14px;">
-            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">BACKEND CONTAINER</div>
-            <div style="font-size: 0.85rem; font-weight: 700; color: #60A5FA;">frappe-backend-1</div>
-            <div style="font-size: 0.70rem; color: #34D399; margin-top: 2px;">● Docker Connected</div>
+        <div style="margin-top: 8px; margin-bottom: 16px;">
+            <span style='color: #34D399; font-size: 0.8rem; font-weight: 600;'>● Lead Sync Active (enable_lead_sync)</span>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div style='font-size: 0.72rem; color: var(--text-muted); margin-top: 10px;'>KAIRON PLATFORM v2.4</div>", unsafe_allow_html=True)
+    st.markdown("---")
 
+    # Quick System Info
+    st.markdown("""
+        <div class="metric-card" style="padding: 10px 14px; margin-bottom: 16px;">
+            <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">GATEWAY VERSION</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: #60A5FA;">v1.1.0-enterprise-hardening</div>
+            <div style="font-size: 0.70rem; color: #34D399; margin-top: 2px;">● Webhook Endpoint Ready</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.button("🚪 Logout Account", on_click=perform_logout, use_container_width=True)
 
 # ==========================================
-# 3. PAGE NAVIGATION
+# 2. MULTI-PAGE NAVIGATION
 # ==========================================
 try:
-    pg = st.navigation([
-        st.Page("pages/1_Dashboard.py", title="Dashboard", icon="📊"),
-        st.Page("pages/2_Provision_New_Tenant.py", title="Provision New Tenant", icon="🚀"),
-        st.Page("pages/3_Upgrade_Tenant.py", title="Upgrade Tenant", icon="⬆️"),
-        st.Page("pages/4_Tenants.py", title="Tenants Directory", icon="🏢"),
-        st.Page("pages/5_Tenant_Details.py", title="Tenant Details", icon="🔍"),
-        st.Page("pages/6_Logs.py", title="System Logs", icon="📜"),
-        st.Page("pages/7_Health.py", title="Infrastructure Health", icon="🩺"),
-        st.Page("pages/8_Settings.py", title="Settings", icon="⚙️")
-    ])
+    pg = st.navigation({
+        "👑 PHASE 1: ADMIN SETUP & PROVISIONING": [
+            st.Page("views/1_Dashboard.py", title="Executive Dashboard", icon="🏠"),
+            st.Page("views/7_Tenant_Provisioning.py", title="Tenant Provisioning", icon="🚀"),
+            st.Page("views/5_Integration_Status.py", title="Integration & Health Status", icon="⚙️"),
+        ],
+        "💬 PHASE 2: CUSTOMER DEMO (AI CHAT)": [
+            st.Page("views/2_AI_Chat.py", title="Public AI Sales Assistant", icon="💬"),
+        ],
+        "📊 PHASE 3: CRM VERIFICATION & AUDIT": [
+            st.Page("views/4_CRM_Leads.py", title="Synced CRM Leads Directory", icon="👥"),
+            st.Page("views/3_Live_Event_Monitor.py", title="Live Telemetry Monitor", icon="📊"),
+            st.Page("views/6_Audit_Logs.py", title="Webhook Audit & Replay", icon="📜"),
+        ]
+    })
     pg.run()
-except AttributeError:
-    st.switch_page("pages/1_Dashboard.py")
+except Exception as ex:
+    st.switch_page("views/1_Dashboard.py")

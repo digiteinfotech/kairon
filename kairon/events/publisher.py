@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import time
 import hmac
 import hashlib
 import json
@@ -62,7 +63,7 @@ class KaironEventPublisher:
         headers = {
             "Content-Type": "application/json",
             "X-Kairon-Signature": f"sha256={signature}",
-            "X-Kairon-Timestamp": str(int(datetime.datetime.utcnow().timestamp())),
+            "X-Kairon-Timestamp": str(int(time.time())),
             "X-Kairon-Event-ID": event.event_id,
             "X-Correlation-ID": event.correlation_id
         }
