@@ -1,5 +1,7 @@
 from typing import Text, Dict, Any
 
+from kairon.shared.utils import MailUtility
+from kairon.shared.account.data_objects import Bot
 from loguru import logger
 from mongoengine import DoesNotExist
 from rasa_sdk import Tracker
@@ -79,6 +81,20 @@ class ActionJiraTicket(ActionsBase):
             exception = str(e)
             status = STATUSES.FAIL.value
             bot_response = "I have failed to create issue for you"
+            try:
+                bot_name = Bot.objects(id=self.bot).only("name").get().name
+
+                await MailUtility.format_and_send_mail(mail_type="action_failure",
+                                                       email=tracker.sender_id,
+                                                       stack_trace=exception,
+                                                       slot_values=tracker.current_slot_values(),
+                                                       first_name="Kairon Team",
+                                                       bot_name=bot_name,
+                                                       action_name=self.name,
+                                                       user_query_history=tracker.latest_message.get('text')
+                                                       )
+            except Exception as mail_err:
+                logger.exception(mail_err)
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)
