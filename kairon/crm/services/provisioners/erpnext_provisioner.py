@@ -52,6 +52,16 @@ class ERPNextProvisioner(BaseProvisioner):
         if res.returncode != 0:
             raise AppException(f"[ERPNextProvisioner] Bench new-site failed: {res.stderr or res.stdout}")
 
+        # Always install kairon_connector for webhook integration
+        connector_cmd = [
+            "docker", "exec", self.container_name,
+            "bench", "--site", site_name, "install-app", "kairon_connector"
+        ]
+        logger.info(f"[ERPNextProvisioner] Installing kairon_connector on {site_name}")
+        c_res = subprocess.run(connector_cmd, capture_output=True, text=True)
+        if c_res.returncode != 0:
+            logger.warning(f"[ERPNextProvisioner] kairon_connector install failed: {c_res.stderr or c_res.stdout}")
+
         # Post-creation setup: Encryption key, homepage
         self.prelock_encryption_key(site_name)
         self.set_homepage(site_name, self.plan.home_page)
