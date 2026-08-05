@@ -1572,7 +1572,7 @@ class Utility:
         if provider not in voice_providers:
             raise error(f"Invalid telephony provider {provider}")
         provider_params = voice_providers[provider]
-        _secret_fields = {"account_sid", "auth_token"}
+        _secret_fields = set(provider_params.get("secret_fields", ["account_sid", "auth_token"]))
         for required_field in provider_params["required_fields"]:
             if required_field not in config:
                 raise error(f"Missing {provider_params['required_fields']} all or any in config")
