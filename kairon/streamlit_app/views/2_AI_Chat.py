@@ -345,22 +345,46 @@ def sync_crm_messages():
         if resp.status_code == 200:
             data = resp.json().get("message", {})
             comms = data.get("communications", [])
-            existing_texts = {m["content"] for m in st.session_state["messages"]}
-            lead_email = (st.session_state["lead_state"].get("email") or "").lower()
+            existing_texts = {m["content"].strip().lower() for m in st.session_state["messages"]}
+            
+            active_p = get_active_profile()
+            cust_name = (st.session_state["lead_state"].get("name") or active_p.get("name") or "").strip().lower()
+            cust_email = (st.session_state["lead_state"].get("email") or active_p.get("email") or "").strip().lower()
+            
             for comm in comms:
-                text = comm.get("content", "").strip()
-                sender = (comm.get("sender") or "").lower()
-                if text and text not in existing_texts and sender != lead_email and "bot" not in sender and "qualified prospect" not in text.lower():
-                    # Strip html if present
-                    if "<" in text and ">" in text:
-                        import re
-                        text = re.sub('<[^<]+?>', '', text)
+                text_raw = (comm.get("content") or "").strip()
+                sender_email = (comm.get("sender") or "").strip().lower()
+                sender_name = (comm.get("sender_full_name") or "").strip().lower()
+                synced = comm.get("custom_kairon_synced", 0)
+
+                # Skip inbound customer messages, synced items, bot logs, and transcript headers
+                if synced == 1:
+                    continue
+                if sender_email == cust_email or sender_email == "customer@kairon.ai" or "customer" in sender_email:
+                    continue
+                if cust_name and cust_name in sender_name:
+                    continue
+                if "bot" in sender_email or "guest" in sender_email:
+                    continue
+                
+                text_lower = text_raw.lower()
+                if "customer (" in text_lower or "customer message:" in text_lower or "qualified prospect" in text_lower or "kairon chatbot conversation transcript" in text_lower:
+                    continue
+
+                # Clean up HTML tags if present
+                text_clean = text_raw
+                if "<" in text_clean and ">" in text_clean:
+                    import re
+                    text_clean = re.sub('<[^<]+?>', '', text_clean).strip()
+
+                if text_clean and text_clean.lower() not in existing_texts:
                     st.session_state["messages"].append({
                         "role": "crm_sales",
                         "sender": comm.get("sender_full_name") or comm.get("sender") or "Sales Representative",
-                        "content": text,
+                        "content": text_clean,
                         "timestamp": datetime.datetime.now().strftime("%H:%M")
                     })
+                    existing_texts.add(text_clean.lower())
     except Exception:
         pass
 
