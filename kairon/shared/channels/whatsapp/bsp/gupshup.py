@@ -17,6 +17,7 @@ from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProv
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.data.data_objects import UserMediaData
 from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
@@ -430,6 +431,62 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         return external_media_id
 
     @staticmethod
+    async def upload_media(bot: str, bsp_type: str, media_id: str) -> str:
+        connector_type = "whatsapp"
+        try:
+            media_doc = UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        if not channel_config or channel_config.config.get("bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        app_id = channel_config.config.get("app_id")
+        partner_app_token = channel_config.config.get("partner_app_token")
+        if not partner_app_token:
+            raise AppException("partner_app_token not found in channel config")
+
+        try:
+            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            file_bytes = file_stream.read()
+            extension = os.path.splitext(filename)[1].lstrip(".")
+
+            partner_base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"][
+                "partner_base_url"]
+
+            headers = {"Authorization": partner_app_token, "accept": "application/json"}
+
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(None, lambda: requests.post(
+                f"{partner_base_url}/partner/app/{app_id}/media",
+                headers=headers,
+                files={"file": (filename, file_bytes, extension), "file_type": (None, extension)},
+                timeout=(5, 60),
+            ))
+
+            if response.status_code not in (200, 201):
+                media_doc.external_upload_info = {"bsp": bsp_type, "external_media_id": "", "error": response.text}
+                media_doc.save()
+                raise AppException(response.text)
+
+            external_media_id = response.json().get("mediaId")
+
+            media_doc.external_upload_info = {"bsp": bsp_type, "external_media_id": external_media_id, "error": ""}
+            media_doc.save()
+
+            return external_media_id
+
+        except Exception as e:
+            media_doc.external_upload_info = {"bsp": bsp_type, "error": str(e)}
+            media_doc.save()
+            raise e
+
+    @staticmethod
     def delete_media_file(media_id: str, channel_config):
         app_id = channel_config.get("config", {}).get("app_id")
         partner_app_token = channel_config.get("config", {}).get("partner_app_token")
@@ -449,7 +506,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         template = {}
         try:
             for t in self.list_templates():
-                if t.get("id") == name:
+                if t.get("elementName") == name or t.get("id") == name:
                     template = t
                     break
         except Exception as e:
@@ -486,14 +543,14 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         return raw_template if isinstance(raw_template, dict) else {}
 
     def get_template_params_for_broadcast(self, raw_template, template_config, recipients, default_params):
-        template, message = self.get_broadcast_template_params(raw_template, template_config)
-        return [(template, message) for _ in recipients]
+        components = self.get_broadcast_template_params(raw_template, template_config)
+        return [components for _ in recipients]
 
     def get_broadcast_namespace_and_language(self, raw_template, namespace, lang):
         return raw_template.get("namespace", namespace), raw_template.get("languageCode", lang)
 
     def get_broadcast_template_params(self, raw_template, template_config):
-        """Return (template, message) tuple for Gupshup broadcast send."""
+        """Return Meta Cloud API components list for Gupshup v3 broadcast send."""
         if not isinstance(raw_template, dict):
             raw_template = {}
         template_id = template_config.get("template_id") or raw_template.get("id")
@@ -503,6 +560,12 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             container_meta = json.loads(raw_template.get("containerMeta", "{}"))
         except Exception:
             container_meta = {}
+        try:
+            parsed_data = json.loads(template_config.get("data", "[]") or "[]")
+        except Exception:
+            parsed_data = []
+        if parsed_data and isinstance(parsed_data[0], list):
+            return parsed_data[0]
         body_params, media_id = BSPGupshup._resolve_runtime_params(template_config, container_meta)
         return BSPGupshup._build_template_payload(template_id, body_params, media_id, template_type, container_meta)
 
@@ -567,11 +630,13 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
                 upload_status=UserMediaUploadStatus.completed.value,
                 upload_type=UserMediaUploadType.broadcast.value,
                 timestamp__gte=thirty_days_ago,
+                external_upload_info__bsp=WhatsappBSPTypes.bsp_gupshup.value,
             ).only("filename", "media_id", "upload_status", "sender_id", "timestamp", "external_upload_info")
             return [
                 {
                     "filename": doc.filename,
                     "handle_id": (doc.external_upload_info or {}).get("handle_id"),
+                    "id": (doc.external_upload_info or {}).get("external_media_id"),
                     "upload_status": doc.upload_status,
                     "sender_id": doc.sender_id,
                     "timestamp": doc.timestamp,
@@ -607,15 +672,18 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
 
     @staticmethod
     def _build_template_payload(template_id, body_params, media_id, template_type, container_meta):
-        template = {"id": template_id, "params": body_params}
+        components = []
         media_type_map = {"IMAGE": "image", "VIDEO": "video", "DOCUMENT": "document"}
         if media_id:
             m_type = media_type_map.get(template_type, "image")
-            message = {"type": m_type, m_type: {"id": media_id}}
-        else:
-            text_template = container_meta.get("data", "")
-            for i, val in enumerate(body_params, start=1):
-                text_template = text_template.replace(f"{{{{{i}}}}}", str(val))
-            message = {"type": "text", "text": text_template or " "}
-        return template, message
+            components.append({
+                "type": "header",
+                "parameters": [{"type": m_type, m_type: {"id": media_id}}]
+            })
+        if body_params:
+            components.append({
+                "type": "body",
+                "parameters": [{"type": "text", "text": str(p)} for p in body_params]
+            })
+        return components
 

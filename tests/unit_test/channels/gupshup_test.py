@@ -2,7 +2,7 @@
 
 Covers:
 - WhatsappCloud BSUID recipient field routing ("." in phone → "recipient", else "to")
-- BSPGupshup chat client (send_action, send_action_async, send_gupshup_template_message,
+- BSPGupshup chat client (send_action, send_action_async,
   _build_gupshup_message, get_url, mark_as_read, typing_indicator, get_media_info)
 - WhatsappBroadcast Gupshup routing (send_template_message, send_template_message_retry,
   ChannelLogs creation)
@@ -388,158 +388,47 @@ class TestGupshupClientSendAsync:
         assert payload["destination"] == "919000000002"
 
 
-class TestGupshupSendTemplateMsgAsync:
-
-    @pytest.mark.asyncio
-    async def test_send_template_message_async_with_components(self, gupshup_client):
-        components = [{"type": "body", "parameters": [{"type": "text", "text": "val"}]}]
-        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
-            mock_send.return_value = (True, 200, {"messageId": "tm1"})
-            ok, status, resp = await gupshup_client.send_template_message_async(
-                name="order_update", to_phone_number="919000000002",
-                language_code="en", components=components
-            )
-        assert ok is True
-        call_payload = mock_send.call_args[0][0]
-        assert call_payload["name"] == "order_update"
-        assert call_payload["language"]["code"] == "en"
-        assert call_payload["components"] == components
-
-    @pytest.mark.asyncio
-    async def test_send_template_message_async_without_components(self, gupshup_client):
-        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
-            mock_send.return_value = (True, 202, {"messageId": "tm2"})
-            ok, status, resp = await gupshup_client.send_template_message_async(
-                name="promo_msg", to_phone_number="919000000003", language_code="hi"
-            )
-        assert ok is True
-        call_payload = mock_send.call_args[0][0]
-        assert "components" not in call_payload
-        assert call_payload["name"] == "promo_msg"
-        assert call_payload["language"]["code"] == "hi"
-
-    @pytest.mark.asyncio
-    async def test_send_template_message_async_routes_to_template_messaging_type(self, gupshup_client):
-        with patch.object(gupshup_client, "send_async", new_callable=AsyncMock) as mock_send:
-            mock_send.return_value = (True, 200, {})
-            await gupshup_client.send_template_message_async(
-                name="tmpl", to_phone_number="919000000002"
-            )
-        assert mock_send.call_args[1]["messaging_type"] == "template"
-
-
-class TestGupshupTemplateMessage:
-
-    @pytest.mark.asyncio
-    async def test_send_gupshup_template_message_success(self, gupshup_client):
-        template_part = {"id": "tmpl-uuid", "params": ["val1"]}
-        message_part = {"type": "text", "text": "Hello val1"}
-        components = (template_part, message_part)
-
-        async def mock_send_action_async(payload, url, headers, use_form):
-            assert use_form is True
-            assert payload["destination"] == "919000000002"
-            assert payload["source"] == gupshup_client.phone_number
-            import json
-            template_json = json.loads(payload["template"])
-            assert template_json == template_part
-            return True, 200, {"messageId": "t1", "status": "submitted"}
-
-        with patch.object(gupshup_client, "send_action_async", side_effect=mock_send_action_async):
-            ok, status, resp = await gupshup_client.send_gupshup_template_message("919000000002", components)
-
-        assert ok is True
-        assert resp["messageId"] == "t1"
-
-    @pytest.mark.asyncio
-    async def test_send_gupshup_template_message_text_excludes_message_field(self, gupshup_client):
-        """text-type message part should NOT be included in the data payload."""
-        template_part = {"id": "tmpl-uuid", "params": []}
-        message_part = {"type": "text"}
-        components = (template_part, message_part)
-
-        captured = {}
-
-        async def mock_send_action_async(payload, url, headers, use_form):
-            captured["payload"] = payload
-            return True, 200, {"messageId": "t2"}
-
-        with patch.object(gupshup_client, "send_action_async", side_effect=mock_send_action_async):
-            await gupshup_client.send_gupshup_template_message("919000000002", components)
-
-        assert "message" not in captured["payload"]
-
-    @pytest.mark.asyncio
-    async def test_send_gupshup_template_message_media_includes_message_field(self, gupshup_client):
-        """non-text message part (image) SHOULD be included in the data payload."""
-        template_part = {"id": "tmpl-uuid", "params": []}
-        message_part = {"type": "image", "image": {"id": "media-handle"}}
-        components = (template_part, message_part)
-
-        captured = {}
-
-        async def mock_send_action_async(payload, url, headers, use_form):
-            captured["payload"] = payload
-            return True, 200, {"messageId": "t3"}
-
-        with patch.object(gupshup_client, "send_action_async", side_effect=mock_send_action_async):
-            await gupshup_client.send_gupshup_template_message("919000000002", components)
-
-        assert "message" in captured["payload"]
-
-
 class TestBSPGupshupSendBroadcastTemplateAsync:
-    """Unit tests for BSPGupshup.send_broadcast_template_async routing."""
+    """Unit tests for BSPGupshup.send_broadcast_template_async — always routes to v3."""
 
     @pytest.mark.asyncio
-    async def test_tuple_routes_to_gupshup_template(self, gupshup_client):
-        components = ({"id": "tmpl-1", "params": []}, {"type": "text"})
-        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock,
-                          return_value=(True, 202, {"messageId": "t1"})) as mock_gs, \
-             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock) as mock_std:
+    async def test_components_list_sends_to_v3(self, gupshup_client):
+        components = [{"type": "body", "parameters": [{"type": "text", "text": "val"}]}]
+        with patch.object(gupshup_client, "_send_v3_template", new_callable=AsyncMock,
+                          return_value=(True, 200, {"messages": [{"id": "m1"}]})) as mock_v3:
             ok, code, resp = await gupshup_client.send_broadcast_template_async(
                 "tmpl_id", "919000000002", "en", components
             )
-        mock_gs.assert_called_once_with("919000000002", components)
-        mock_std.assert_not_called()
+        mock_v3.assert_called_once_with("tmpl_id", "919000000002", "en", components)
         assert ok is True
 
     @pytest.mark.asyncio
-    async def test_list_of_two_dicts_routes_to_standard(self, gupshup_client):
-        # Only tuple triggers Gupshup template path; a list routes to standard
-        components = [{"id": "tmpl-1", "params": []}, {"type": "text"}]
-        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
-             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
-                          return_value=(True, 200, {})) as mock_std:
+    async def test_empty_components_sends_to_v3(self, gupshup_client):
+        with patch.object(gupshup_client, "_send_v3_template", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_v3:
             await gupshup_client.send_broadcast_template_async(
-                "tmpl_id", "919000000002", "en", components, "ns"
+                "tmpl_id", "919000000002", "en", []
             )
-        mock_gs.assert_not_called()
-        mock_std.assert_called_once_with("tmpl_id", "919000000002", "en", components, "ns")
+        mock_v3.assert_called_once_with("tmpl_id", "919000000002", "en", [])
 
     @pytest.mark.asyncio
-    async def test_regular_component_list_routes_to_standard(self, gupshup_client):
-        # Standard Meta-style components list (not a 2-dict Gupshup pair)
-        components = [{"type": "body", "parameters": [{"type": "text", "text": "val"}]}]
-        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
-             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
-                          return_value=(True, 200, {})) as mock_std:
-            await gupshup_client.send_broadcast_template_async(
-                "tmpl_id", "919000000002", "en", components, "ns"
-            )
-        mock_gs.assert_not_called()
-        mock_std.assert_called_once_with("tmpl_id", "919000000002", "en", components, "ns")
-
-    @pytest.mark.asyncio
-    async def test_none_components_routes_to_standard(self, gupshup_client):
-        with patch.object(gupshup_client, "send_gupshup_template_message", new_callable=AsyncMock) as mock_gs, \
-             patch.object(gupshup_client, "send_template_message_async", new_callable=AsyncMock,
-                          return_value=(True, 200, {})) as mock_std:
+    async def test_none_components_sends_to_v3(self, gupshup_client):
+        with patch.object(gupshup_client, "_send_v3_template", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_v3:
             await gupshup_client.send_broadcast_template_async(
                 "tmpl_id", "919000000002", "en", None
             )
-        mock_gs.assert_not_called()
-        mock_std.assert_called_once()
+        mock_v3.assert_called_once_with("tmpl_id", "919000000002", "en", None)
+
+    @pytest.mark.asyncio
+    async def test_namespace_ignored_v3_does_not_use_it(self, gupshup_client):
+        components = [{"type": "header", "parameters": [{"type": "image", "image": {"id": "h1"}}]}]
+        with patch.object(gupshup_client, "_send_v3_template", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_v3:
+            await gupshup_client.send_broadcast_template_async(
+                "tmpl_id", "919000000002", "en", components, namespace="some-ns"
+            )
+        mock_v3.assert_called_once_with("tmpl_id", "919000000002", "en", components)
 
 
 class TestGupshupClientV3Methods:
@@ -568,6 +457,49 @@ class TestGupshupClientV3Methods:
         headers = gupshup_client._v3_headers()
         assert "Authorization" in headers
         assert headers["Authorization"] == gupshup_client.access_token
+
+    @pytest.mark.asyncio
+    async def test_send_v3_template_builds_correct_payload(self, gupshup_client):
+        components = [{"type": "body", "parameters": [{"type": "text", "text": "hello"}]}]
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {"messages": [{"id": "m1"}]})) as mock_send:
+            ok, code, resp = await gupshup_client._send_v3_template(
+                "order_confirm", "919000000001", "en", components
+            )
+        assert ok is True
+        call_kwargs = mock_send.call_args.kwargs
+        payload = call_kwargs["payload"]
+        assert payload["messaging_product"] == "whatsapp"
+        assert payload["type"] == "template"
+        assert payload["template"]["name"] == "order_confirm"
+        assert payload["template"]["language"]["code"] == "en"
+        assert payload["template"]["components"] == components
+        assert call_kwargs["url"] == gupshup_client._v3_url()
+
+    @pytest.mark.asyncio
+    async def test_send_v3_template_none_components_uses_empty_list(self, gupshup_client):
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_send:
+            await gupshup_client._send_v3_template("tmpl", "919000000001", "hi", None)
+        payload = mock_send.call_args.kwargs["payload"]
+        assert payload["template"]["components"] == []
+
+    @pytest.mark.asyncio
+    async def test_send_v3_template_to_field_present_in_payload(self, gupshup_client):
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_send:
+            await gupshup_client._send_v3_template("tmpl", "919000000099", "en", [])
+        payload = mock_send.call_args.kwargs["payload"]
+        assert payload["to"] == "919000000099"
+
+    @pytest.mark.asyncio
+    async def test_send_v3_template_uses_json_not_form_encoding(self, gupshup_client):
+        """v3 must send JSON body, not form-encoded — use_form must not be True."""
+        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock,
+                          return_value=(True, 200, {})) as mock_send:
+            await gupshup_client._send_v3_template("tmpl", "919000000099", "en", [])
+        call_kwargs = mock_send.call_args.kwargs
+        assert call_kwargs.get("use_form") is not True
 
 
 class TestGupshupGetMediaInfo:
@@ -718,6 +650,81 @@ class TestWhatsappBroadcastGupshupRouting:
         wb.channel_client.send_broadcast_template_async.assert_called_once_with(
             "tmpl_id", "9190000001", "en", components, "ns"
         )
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_flowname_text_json_components_extracted(self):
+        """flowname set: text response containing a JSON list is used as components."""
+        import json as _json
+        wb = self._make_broadcast()
+        body = {"type": "body", "parameters": [{"type": "text", "text": "hello"}]}
+        button = {"type": "button", "sub_type": "url", "index": "0",
+                  "parameters": [{"type": "text", "text": "X"}]}
+        flow_resps = [{"text": _json.dumps([body, button])}]
+
+        wb.channel_client.send_broadcast_template_async = AsyncMock(
+            return_value=(True, 200, {"messages": [{"id": "m1"}]}))
+
+        with patch("kairon.shared.channels.broadcast.whatsapp.AgenticFlow") as mock_flow_cls, \
+             patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
+            mock_flow = MagicMock()
+            mock_flow.execute_rule = AsyncMock(return_value=(flow_resps, None))
+            mock_flow_cls.return_value = mock_flow
+
+            await wb.send_template_message("tmpl_id", "9190000001", "en", None, flowname="promo_flow")
+
+        sent_components = wb.channel_client.send_broadcast_template_async.call_args[0][3]
+        assert body in sent_components
+        assert button in sent_components
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_flowname_custom_nested_dict_extracted(self):
+        """flowname set: Rasa-wrapped custom.custom dict → appended as a component."""
+        wb = self._make_broadcast()
+        body_comp = {"type": "body", "parameters": [{"type": "text", "text": "val"}]}
+        flow_resps = [{"custom": {"elements": None, "custom": body_comp}}]
+
+        wb.channel_client.send_broadcast_template_async = AsyncMock(
+            return_value=(True, 200, {"messages": [{"id": "m2"}]}))
+
+        with patch("kairon.shared.channels.broadcast.whatsapp.AgenticFlow") as mock_flow_cls, \
+             patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
+            mock_flow = MagicMock()
+            mock_flow.execute_rule = AsyncMock(return_value=(flow_resps, None))
+            mock_flow_cls.return_value = mock_flow
+
+            await wb.send_template_message("tmpl_id", "9190000001", "en", None, flowname="promo_flow")
+
+        sent_components = wb.channel_client.send_broadcast_template_async.call_args[0][3]
+        assert body_comp in sent_components
+
+    @pytest.mark.asyncio
+    async def test_send_template_message_flowname_multiple_resps_all_collected(self):
+        """Each resp slot contributes; body and button from separate slots are merged."""
+        import json as _json
+        wb = self._make_broadcast()
+        body = {"type": "body", "parameters": [{"type": "text", "text": "A"}]}
+        button = {"type": "button", "sub_type": "url", "index": "0",
+                  "parameters": [{"type": "text", "text": "B"}]}
+        flow_resps = [
+            {"text": _json.dumps(body)},
+            {"text": _json.dumps(button)},
+        ]
+
+        wb.channel_client.send_broadcast_template_async = AsyncMock(
+            return_value=(True, 200, {"messages": [{"id": "m3"}]}))
+
+        with patch("kairon.shared.channels.broadcast.whatsapp.AgenticFlow") as mock_flow_cls, \
+             patch("kairon.shared.channels.broadcast.whatsapp.MessageBroadcastProcessor.add_event_log"):
+            mock_flow = MagicMock()
+            mock_flow.execute_rule = AsyncMock(return_value=(flow_resps, None))
+            mock_flow_cls.return_value = mock_flow
+
+            await wb.send_template_message("tmpl_id", "9190000001", "en", None, flowname="promo_flow")
+
+        sent_components = wb.channel_client.send_broadcast_template_async.call_args[0][3]
+        assert body in sent_components
+        assert button in sent_components
+        assert len(sent_components) == 2
 
 
 # ---------------------------------------------------------------------------

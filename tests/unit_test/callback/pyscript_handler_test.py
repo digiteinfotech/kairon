@@ -2108,7 +2108,7 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
     )
 
     source_code = '''
-        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
         bot_response = external_media_id
         '''
     source_code = textwrap.dedent(source_code)
@@ -2151,7 +2151,7 @@ def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2210,7 +2210,7 @@ def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffe
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2293,7 +2293,7 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2374,7 +2374,7 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2459,7 +2459,7 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
     )
 
     source_code = '''
-        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
         bot_response = external_media_id
         '''
     source_code = textwrap.dedent(source_code)

@@ -460,21 +460,22 @@ def test_get_embedding_http_error():
         assert str(exc.value) == HTTPStatus(500).phrase
 
 
-def test_upload_media_to_360dialog():
-    from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+def test_upload_media_to_bsp_routes_via_factory():
+    from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
     bot = "test_bot"
-    bsp_type = "whatsapp"
-    media_id = "media_123"
-    mock_external_media_id = "external_456"
+    bsp_type = "bsp_gupshup"
+    media_id = "media_gs_123"
+    mock_external_media_id = "gs_ext_456"
+    mock_bsp_class = MagicMock()
 
-    with patch("asyncio.run") as mock_asyncio_run, \
-            patch.object(BSP360Dialog, "upload_media") as mock_upload_media:
-        mock_asyncio_run.return_value = mock_external_media_id
-        result = PyscriptUtility.upload_media_to_360dialog(bot, bsp_type, media_id)
+    with patch.object(BusinessServiceProviderFactory, "get_instance", return_value=mock_bsp_class) as mock_factory, \
+            patch("asyncio.run", return_value=mock_external_media_id) as mock_asyncio_run:
+        result = PyscriptUtility.upload_media_to_bsp(bot, bsp_type, media_id)
 
-        mock_upload_media.assert_called_once_with(bot, bsp_type, media_id)
-        mock_asyncio_run.assert_called_once()
-        assert result == mock_external_media_id
+    mock_factory.assert_called_once_with(bsp_type)
+    mock_asyncio_run.assert_called_once()
+    assert result == mock_external_media_id
+
 
 def test_get_embedding_single_text():
     text = "Hello world!"

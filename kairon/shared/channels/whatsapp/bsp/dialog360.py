@@ -410,6 +410,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                 media_id__ne="",
                 upload_type=UserMediaUploadType.broadcast.value,
                 timestamp__gte=thirty_days_ago,
+                external_upload_info__bsp=WhatsappBSPTypes.bsp_360dialog.value,
             ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
             return [
                 {
