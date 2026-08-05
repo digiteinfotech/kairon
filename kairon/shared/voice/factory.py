@@ -1,9 +1,12 @@
+from kairon.shared.constants import VoiceProviderTypes
+from kairon.shared.voice.exotel.outbound import ExotelOutboundClient
 from kairon.shared.voice.twilio import TwilioOutboundClient
 
 
 class VoiceOutboundFactory:
     __clients = {
-        "twilio": TwilioOutboundClient,
+        VoiceProviderTypes.twilio.value: TwilioOutboundClient,
+        VoiceProviderTypes.exotel.value: ExotelOutboundClient,
     }
 
     @classmethod
