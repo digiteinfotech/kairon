@@ -353,25 +353,18 @@ def sync_crm_messages():
             
             for comm in comms:
                 text_raw = (comm.get("content") or "").strip()
-                sender_email = (comm.get("sender") or "").strip().lower()
-                sender_name = (comm.get("sender_full_name") or "").strip().lower()
                 synced = comm.get("custom_kairon_synced", 0)
 
-                # Skip inbound customer messages, synced items, bot logs, and transcript headers
+                # 1. Skip items created by Kairon inbound customer message sync
                 if synced == 1:
                     continue
-                if sender_email == cust_email or sender_email == "customer@kairon.ai" or "customer" in sender_email:
-                    continue
-                if cust_name and cust_name in sender_name:
-                    continue
-                if "bot" in sender_email or "guest" in sender_email:
-                    continue
                 
+                # 2. Skip automated transcripts, bot logs, or headers
                 text_lower = text_raw.lower()
                 if "customer (" in text_lower or "customer message:" in text_lower or "qualified prospect" in text_lower or "kairon chatbot conversation transcript" in text_lower:
                     continue
 
-                # Clean up HTML tags if present
+                # 3. Clean up HTML tags if present (e.g. <p>hello</p>)
                 text_clean = text_raw
                 if "<" in text_clean and ">" in text_clean:
                     import re
