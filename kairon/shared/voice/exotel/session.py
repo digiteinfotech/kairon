@@ -23,7 +23,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable, List, Optional
 
-from kairon.shared.voice.exotel.audio import AudioChunker
+from kairon.shared.voice.cache import make_key
+from kairon.shared.voice.exotel.audio import AudioChunker, chunk_pcm
 from kairon.shared.voice.exotel.protocol import (
     ExotelEvent,
     InboundFrame,
@@ -33,6 +34,7 @@ from kairon.shared.voice.exotel.protocol import (
     build_media,
     parse_inbound,
 )
+from kairon.shared.voice.metrics import now_ms
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,8 @@ class ExotelCallSession:
         sample_rate: int = 8000,
         pace: bool = True,
         metrics=None,
+        tts_cache=None,
+        tts_cache_namespace: str = "",
     ):
         self.bot = bot
         self.config = config or {}
@@ -83,6 +87,16 @@ class ExotelCallSession:
         self.sample_rate = sample_rate
         self.pace = pace
         self.metrics = metrics
+        self.tts_cache = tts_cache
+        self.tts_cache_namespace = tts_cache_namespace
+
+        dtmf_cfg = (self.config.get("dtmf") or {})
+        self.dtmf_enabled = bool(dtmf_cfg.get("enabled", True))
+        self.dtmf_terminator = str(dtmf_cfg.get("terminator", "#"))
+        self.dtmf_max_length = int(dtmf_cfg.get("max_length", 32))
+        self.dtmf_timeout = float(dtmf_cfg.get("inter_digit_timeout", 0) or 0)
+        self._dtmf_buffer = ""
+        self._dtmf_timer: Optional[asyncio.Task] = None
 
         self.stream_sid: str = ""
         self.call_sid: str = ""
@@ -133,6 +147,8 @@ class ExotelCallSession:
             self.metadata.setdefault("caller_phone", frame.start.from_number)
             self.metadata.setdefault("called_number", frame.start.to_number)
         self.metadata.setdefault("call_sid", self.call_sid or self.stream_sid)
+        if self.metrics is not None and not getattr(self.metrics, "call_sid", ""):
+            self.metrics.call_sid = self.call_sid or self.stream_sid
         logger.info(
             "Exotel stream started bot=%s stream_sid=%s call_sid=%s",
             self.bot, self.stream_sid, self.call_sid,
@@ -148,9 +164,43 @@ class ExotelCallSession:
                 logger.warning("STT push failed bot=%s: %s", self.bot, e)
 
     async def _on_dtmf(self, frame: InboundFrame) -> None:
-        # Full DTMF routing (collect + terminate) is added in the resilience phase;
-        # here we simply record the keypress.
-        logger.info("DTMF digit '%s' bot=%s call_sid=%s", frame.dtmf_digit, self.bot, self.call_sid)
+        digit = frame.dtmf_digit
+        if not self.dtmf_enabled or not digit:
+            logger.debug("DTMF ignored (enabled=%s) bot=%s", self.dtmf_enabled, self.bot)
+            return
+        logger.info("DTMF digit '%s' bot=%s call_sid=%s", digit, self.bot, self.call_sid)
+        if digit == self.dtmf_terminator:
+            await self._submit_dtmf()
+            return
+        self._dtmf_buffer += digit
+        if len(self._dtmf_buffer) >= self.dtmf_max_length:
+            await self._submit_dtmf()
+            return
+        self._arm_dtmf_timer()
+
+    async def _submit_dtmf(self) -> None:
+        digits = self._dtmf_buffer
+        self._dtmf_buffer = ""
+        self._cancel_dtmf_timer()
+        if digits:
+            await self._run_turn(digits)
+
+    def _arm_dtmf_timer(self) -> None:
+        self._cancel_dtmf_timer()
+        if self.dtmf_timeout > 0:
+            self._dtmf_timer = asyncio.ensure_future(self._dtmf_timeout_submit())
+
+    def _cancel_dtmf_timer(self) -> None:
+        if self._dtmf_timer is not None:
+            self._dtmf_timer.cancel()
+            self._dtmf_timer = None
+
+    async def _dtmf_timeout_submit(self) -> None:
+        try:
+            await asyncio.sleep(self.dtmf_timeout)
+            await self._submit_dtmf()
+        except asyncio.CancelledError:  # pragma: no cover
+            pass
 
     def _on_mark(self, frame: InboundFrame) -> None:
         logger.debug("Mark '%s' acknowledged bot=%s", frame.mark_name, self.bot)
@@ -176,34 +226,64 @@ class ExotelCallSession:
 
     async def _run_turn(self, text: str) -> None:
         sender_id = self.call_sid or self.stream_sid or "anonymous"
+        agent_start = now_ms()
         try:
             turn = await self.agent_runner(text, sender_id, self.metadata)
         except Exception as e:
             logger.exception("Agent turn failed bot=%s: %s", self.bot, e)
             turn = AgentTurn(messages=["Sorry, something went wrong. Please try again."])
+        agent_ms = now_ms() - agent_start
         if turn is None:
             return
+        tts_ms = 0.0
+        cache_hit = False
         if turn.messages:
-            await self._speak(turn.messages)
+            tts_start = now_ms()
+            cache_hit = await self._speak(turn.messages)
+            tts_ms = now_ms() - tts_start
+        if self.metrics is not None:
+            try:
+                self.metrics.turn(agent_ms, tts_ms, cache_hit)
+            except Exception:  # pragma: no cover
+                pass
         if turn.hangup:
             await self.close()
 
     # ----------------------------------------------------------------- playback
-    async def _speak(self, messages: List[str]) -> None:
+    async def _speak(self, messages: List[str]) -> bool:
+        """Synthesise and stream each message. Returns True if every non-empty
+        message was served from the TTS cache."""
+        served = False
+        all_cached = True
         for message in messages:
             if message and message.strip():
-                await self._stream_tts(message)
+                served = True
+                cached = await self._stream_tts(message)
+                all_cached = all_cached and cached
+        return served and all_cached
 
-    async def _stream_tts(self, text: str) -> None:
+    async def _stream_tts(self, text: str) -> bool:
+        """Stream one utterance; returns True if it was served from cache."""
         if not self.stream_sid:
             logger.debug("No stream_sid yet; dropping utterance bot=%s", self.bot)
-            return
-        chunker = AudioChunker(
-            multiple=self.chunk_multiple,
-            max_bytes=self.chunk_max_bytes,
-        )
+            return False
+
+        cache_key = None
+        if self.tts_cache is not None:
+            cache_key = make_key(self.tts_cache_namespace, text)
+            cached = self.tts_cache.get(cache_key)
+            if cached is not None:
+                for frame in chunk_pcm(cached, self.chunk_multiple, self.chunk_max_bytes):
+                    await self._send_media(frame)
+                await self._send(build_mark(self.stream_sid, self._next_mark()))
+                return True
+
+        buffer = bytearray()
+        chunker = AudioChunker(multiple=self.chunk_multiple, max_bytes=self.chunk_max_bytes)
         try:
             async for pcm in self.tts.synthesize(text):
+                if pcm:
+                    buffer.extend(pcm)
                 chunker.push(pcm)
                 for frame in chunker.drain():
                     await self._send_media(frame)
@@ -211,8 +291,11 @@ class ExotelCallSession:
                 await self._send_media(frame)
         except Exception as e:  # pragma: no cover - network dependent
             logger.warning("TTS streaming failed bot=%s: %s", self.bot, e)
-            return
+            return False
+        if cache_key is not None and buffer:
+            self.tts_cache.put(cache_key, bytes(buffer))
         await self._send(build_mark(self.stream_sid, self._next_mark()))
+        return False
 
     async def _send_media(self, frame: bytes) -> None:
         await self._send(build_media(self.stream_sid, frame))
@@ -237,6 +320,7 @@ class ExotelCallSession:
         if self._closed:
             return
         self._closed = True
+        self._cancel_dtmf_timer()
         if self._consumer_task is not None:
             self._consumer_task.cancel()
         try:
