@@ -427,8 +427,8 @@ if user_input:
 
     st.session_state["messages"].append({"role": "assistant", "content": bot_reply, "timestamp": now_str})
 
-    # 4. Trigger Kairon Event Dispatch if Qualified
-    if trigger_event and not state["event_published"]:
+    # 4. Trigger Kairon Event Dispatch
+    if not state["event_published"]:
         state["event_published"] = True
 
         event_payload = {
@@ -455,9 +455,9 @@ if user_input:
         if not tenant_info and user_tenants:
             tenant_info = user_tenants[0]
             
-        tenant_site = tenant_info.get("site_name") if tenant_info else "127.0.0.1"
+        tenant_site = tenant_info.get("site_name") if tenant_info else "yash_123.localhost"
 
-        # Dispatch using KaironEventPublisher to Frappe Webhook Gateway for active tenant
+        # Dispatch using KaironEventPublisher to Webhook Gateway for active tenant
         webhook_target = f"http://{tenant_site}:8080/api/method/kairon_connector.api.v1.webhook.receive_event"
         secret = os.getenv("WEBHOOK_SECRET", "test_secret_123")
 
@@ -470,7 +470,6 @@ if user_input:
                 timeout_seconds=5
             )
         except Exception as ex:
-            # Do not mask errors; show actual failure so it's transparent to user
             dispatch_res = {"status_code": 500, "body": {"status": "failed", "error": str(ex)}}
 
         st.session_state["last_event_dispatch"] = {
@@ -481,6 +480,40 @@ if user_input:
             "company": state["company"],
             "email": state["email"]
         }
+
+    else:
+        # Lead is already qualified; dispatch continuous inbound conversation reply event!
+        current_user = st.session_state.get("kairon_user", "")
+        active_bot = st.session_state.get("kairon_bot", "")
+        user_tenants = TenantService.get_all_tenants(user_email=current_user) if current_user else []
+        tenant_info = next((t for t in user_tenants if t.get("bot") == active_bot), None)
+        if not tenant_info and user_tenants:
+            tenant_info = user_tenants[0]
+        tenant_site = tenant_info.get("site_name") if tenant_info else "yash_123.localhost"
+
+        msg_payload = {
+            "conversation_id": state["conversation_id"],
+            "bot_id": active_bot or "bot_enterprise_01",
+            "sender": state["name"],
+            "sender_type": "customer",
+            "message": user_input,
+            "lead_id": state["name"]
+        }
+        msg_evt = KaironEvent(
+            event_type="conversation.message.received",
+            payload=msg_payload
+        )
+        webhook_target = f"http://{tenant_site}:8080/api/method/kairon_connector.api.v1.webhook.receive_event"
+        secret = os.getenv("WEBHOOK_SECRET", "test_secret_123")
+        try:
+            KaironEventPublisher.publish_webhook(
+                target_url=webhook_target,
+                secret=secret,
+                event=msg_evt,
+                timeout_seconds=5
+            )
+        except Exception:
+            pass
 
     st.rerun()
 
