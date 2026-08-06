@@ -6,7 +6,9 @@ from typing import Any, List, Text, Dict
 
 import ujson as json
 
-from ..utils import Utility
+from kairon.shared.account.data_objects import Bot
+from ..utils import Utility, MailUtility
+import asyncio
 
 Utility.load_system_metadata()
 
@@ -1133,3 +1135,23 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
+
+    @staticmethod
+    def trigger_action_failure_mail(mail_type: str, stack_trace: str, user_query_history: str, slot_values: Any, bot_name: Any, action_name: str):
+        try:
+            bot_name = Bot.objects(id=bot_name).only("name").get().name
+            email = Utility.environment.get("support_mail")
+            first_name = "Team kAIron"
+            asyncio.create_task(
+                MailUtility.format_and_send_mail(mail_type=mail_type,
+                                                   email=email,
+                                                   first_name=first_name,
+                                                   stack_trace=stack_trace,
+                                                   slot_values=slot_values,
+                                                   bot_name=bot_name,
+                                                   action_name=action_name,
+                                                   user_query_history=user_query_history
+                                                   )
+            )
+        except Exception as mail_err:
+            logger.exception(mail_err)

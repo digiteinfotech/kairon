@@ -2966,6 +2966,6 @@ class MailUtility:
         body = body.replace("STACK_TRACE", str(stack_trace))
         body = body.replace("USER_QUERY_HISTORY", str(user_query_history))
         body = body.replace("SLOT_VALUES", str(slot_values))
-        body = body.replace("url", str(url))
+        body = body.replace("ACTION_URL", str(url))
         subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
         return body, subject
