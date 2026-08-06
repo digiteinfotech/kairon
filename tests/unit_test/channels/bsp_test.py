@@ -1594,6 +1594,31 @@ def test_delete_media_file_not_exist_raises():
     mock_http.assert_called_once()
 
 
+def test_bsp_360dialog_fetch_media_ids_success():
+    bot = "bsp360_fetch_success_bot"
+    UserMediaData.objects(bot=bot).delete()
+    media_id = "bsp360_media_uuid_001"
+    UserMediaData(
+        bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type=UserMediaUploadType.broadcast.value,
+        sender_id="u@t.com", timestamp=datetime.utcnow(),
+        external_upload_info={"bsp": "360dialog", "external_media_id": "ext_360_001"},
+    ).save()
+    UserMediaData(
+        bot=bot, media_id="other_bsp_media", filename="img.jpg", extension=".jpg",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type=UserMediaUploadType.broadcast.value,
+        sender_id="u@t.com", timestamp=datetime.utcnow(),
+        external_upload_info={"bsp": "gupshup", "external_media_id": "gs_001"},
+    ).save()
+    result = BSP360Dialog.fetch_media_ids(bot)
+    assert len(result) == 1
+    assert result[0]["media_id"] == media_id
+    assert result[0]["filename"] == "doc.pdf"
+    UserMediaData.objects(bot=bot).delete()
+
+
 def test_bsp_360dialog_fetch_media_ids_exception():
     bot = "bsp360_fetch_exc_bot"
     with patch(
@@ -2026,6 +2051,33 @@ class TestBSPGupshup:
         assert template == {}
         assert exc is not None
 
+    @responses.activate
+    def test_get_template_for_broadcast_found_by_element_name(self, gupshup_channel):
+        """elementName field is the primary match key; id may differ."""
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        api_resp = {"waba_templates": [
+            {"id": "internal_uuid_xyz", "elementName": "promo_tmpl", "language": "en", "status": "APPROVED"}
+        ]}
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        template, exc = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_for_broadcast("promo_tmpl", "en")
+        assert template["elementName"] == "promo_tmpl"
+        assert template["id"] == "internal_uuid_xyz"
+        assert exc is None
+
+    @responses.activate
+    def test_get_template_for_broadcast_element_name_miss_falls_back_to_id(self, gupshup_channel):
+        """When elementName doesn't match, id is the fallback lookup key."""
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        api_resp = {"waba_templates": [
+            {"id": "promo_tmpl", "elementName": "different_name", "language": "en", "status": "APPROVED"}
+        ]}
+        responses.add("GET", url=f"{base_url}/partner/app/gs_app_001/templates",
+                      json=api_resp, status=200)
+        template, exc = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_for_broadcast("promo_tmpl", "en")
+        assert template["id"] == "promo_tmpl"
+        assert exc is None
+
     # ─── to_log_template ──────────────────────────────────────────────
 
     def test_to_log_template_text_with_header_body_footer(self):
@@ -2157,40 +2209,42 @@ class TestBSPGupshup:
     # ─── _build_template_payload ──────────────────────────────────────
 
     def test_build_template_payload_text_substitutes_params(self):
-        template, message = BSPGupshup._build_template_payload(
+        components = BSPGupshup._build_template_payload(
             "tmpl_001", ["John", "Acme"], None, "TEXT", {"data": "Hi {{1}} from {{2}}!"}
         )
-        assert template == {"id": "tmpl_001", "params": ["John", "Acme"]}
-        assert message["type"] == "text"
-        assert "John" in message["text"] and "Acme" in message["text"]
+        body = next(c for c in components if c["type"] == "body")
+        texts = [p["text"] for p in body["parameters"]]
+        assert texts == ["John", "Acme"]
 
     def test_build_template_payload_image_with_media(self):
-        template, message = BSPGupshup._build_template_payload(
+        components = BSPGupshup._build_template_payload(
             "tmpl_002", [], "img_handle_001", "IMAGE", {}
         )
-        assert message["type"] == "image"
-        assert message["image"]["id"] == "img_handle_001"
+        header = next(c for c in components if c["type"] == "header")
+        assert header["parameters"][0]["type"] == "image"
+        assert header["parameters"][0]["image"]["id"] == "img_handle_001"
 
     def test_build_template_payload_video_with_media(self):
-        template, message = BSPGupshup._build_template_payload(
+        components = BSPGupshup._build_template_payload(
             "tmpl_003", [], "vid_handle_001", "VIDEO", {}
         )
-        assert message["type"] == "video"
-        assert message["video"]["id"] == "vid_handle_001"
+        header = next(c for c in components if c["type"] == "header")
+        assert header["parameters"][0]["type"] == "video"
+        assert header["parameters"][0]["video"]["id"] == "vid_handle_001"
 
     def test_build_template_payload_document_with_media(self):
-        template, message = BSPGupshup._build_template_payload(
+        components = BSPGupshup._build_template_payload(
             "tmpl_004", [], "doc_handle_001", "DOCUMENT", {}
         )
-        assert message["type"] == "document"
-        assert message["document"]["id"] == "doc_handle_001"
+        header = next(c for c in components if c["type"] == "header")
+        assert header["parameters"][0]["type"] == "document"
+        assert header["parameters"][0]["document"]["id"] == "doc_handle_001"
 
     def test_build_template_payload_text_no_params(self):
-        template, message = BSPGupshup._build_template_payload(
+        components = BSPGupshup._build_template_payload(
             "tmpl_005", [], None, "TEXT", {"data": "Hello World!"}
         )
-        assert message["type"] == "text"
-        assert message["text"] == "Hello World!"
+        assert components == []
 
     # ─── get_broadcast_template_params ────────────────────────────────
 
@@ -2204,10 +2258,11 @@ class TestBSPGupshup:
             })
         }
         template_config = {"template_id": "bc_tmpl_001", "data": "[]"}
-        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+        components = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
             raw_template, template_config)
-        assert template["id"] == "bc_tmpl_001"
-        assert message["type"] == "text"
+        body = next((c for c in components if c["type"] == "body"), None)
+        assert body is not None
+        assert all(p["type"] == "text" for p in body["parameters"])
 
     def test_get_broadcast_template_params_image_uses_sample_media(self):
         import json as _json
@@ -2216,16 +2271,62 @@ class TestBSPGupshup:
             "containerMeta": _json.dumps({"data": "Check image", "sampleMedia": "img_handle_bc"})
         }
         template_config = {"template_id": "bc_tmpl_002", "data": "[]"}
-        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+        components = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
             raw_template, template_config)
-        assert message["type"] == "image"
-        assert message["image"]["id"] == "img_handle_bc"
+        header = next(c for c in components if c["type"] == "header")
+        assert header["parameters"][0]["type"] == "image"
+        assert header["parameters"][0]["image"]["id"] == "img_handle_bc"
 
     def test_get_broadcast_template_params_non_dict_raw_template(self):
         template_config = {"template_id": "bc_tmpl_003", "data": "[]"}
-        template, message = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+        components = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
             None, template_config)
-        assert template["id"] == "bc_tmpl_003"
+        assert isinstance(components, list)
+
+    def test_get_broadcast_template_params_list_of_list_passthrough_includes_button(self):
+        """data = [[body, button]] is returned as-is; button component must survive."""
+        import json as _json
+        body = {"type": "body", "parameters": [{"type": "text", "text": "John"}]}
+        button = {"type": "button", "sub_type": "url", "index": "0",
+                  "parameters": [{"type": "text", "text": "ORD123"}]}
+        template_config = {"template_id": "bt_001", "data": _json.dumps([[body, button]])}
+        raw_template = {"id": "bt_001", "templateType": "TEXT", "containerMeta": "{}"}
+        components = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+            raw_template, template_config)
+        assert components == [body, button]
+        types = [c["type"] for c in components]
+        assert "button" in types
+        assert "body" in types
+
+    def test_get_broadcast_template_params_flat_list_falls_back_to_runtime(self):
+        """data is a flat list (not list-of-list); parsed_data[0] is a dict, falls through to runtime params."""
+        import json as _json
+        raw_template = {
+            "id": "bt_002", "templateType": "TEXT",
+            "containerMeta": _json.dumps({"data": "Hi {{1}}", "sampleText": "Hi Alice"})
+        }
+        template_config = {"template_id": "bt_002", "data": _json.dumps([{"type": "body"}])}
+        components = BSPGupshup(self.GS_BOT, self.GS_USER).get_broadcast_template_params(
+            raw_template, template_config)
+        assert isinstance(components, list)
+        body = next((c for c in components if c["type"] == "body"), None)
+        assert body is not None
+
+    # ─── get_template_params_for_broadcast ────────────────────────────
+
+    def test_get_template_params_for_broadcast_returns_one_per_recipient(self):
+        """Each recipient gets an identical copy of the computed components list."""
+        import json as _json
+        body = {"type": "body", "parameters": [{"type": "text", "text": "val"}]}
+        button = {"type": "button", "sub_type": "url", "index": "0",
+                  "parameters": [{"type": "text", "text": "X"}]}
+        template_config = {"template_id": "tp_001", "data": _json.dumps([[body, button]])}
+        raw_template = {"id": "tp_001", "templateType": "TEXT", "containerMeta": "{}"}
+        recipients = ["9190000001", "9190000002", "9190000003"]
+        result = BSPGupshup(self.GS_BOT, self.GS_USER).get_template_params_for_broadcast(
+            raw_template, template_config, recipients, default_params=None)
+        assert len(result) == 3
+        assert all(r == [body, button] for r in result)
 
     # ─── fetch_media_ids ──────────────────────────────────────────────
 
@@ -2236,7 +2337,7 @@ class TestBSPGupshup:
             bot=bot, media_id="handle_001", filename="promo.pdf", extension="application/pdf",
             sender_id="user_a", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
-            external_upload_info={"handle_id": "ext_handle_abc"},
+            external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_abc"},
             timestamp=datetime.utcnow()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
@@ -2261,6 +2362,39 @@ class TestBSPGupshup:
     def test_fetch_media_ids_empty_returns_empty_list(self):
         result = BSPGupshup.fetch_media_ids("bot_with_zero_media_gs_xyz")
         assert result == []
+
+    def test_fetch_media_ids_returns_external_media_id_in_id_field(self):
+        bot = "gs_fetch_media_ids_ext_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="internal_uuid", filename="promo.jpg", extension="image/jpeg",
+            sender_id="user_c", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_001", "external_media_id": "gs_media_456"},
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_media_ids(bot)
+        assert len(result) == 1
+        assert result[0]["id"] == "gs_media_456"
+        assert result[0]["handle_id"] == "ext_handle_001"
+        assert result[0]["filename"] == "promo.jpg"
+        UserMediaData.objects(bot=bot).delete()
+
+    def test_fetch_media_ids_id_none_when_external_media_id_absent(self):
+        bot = "gs_fetch_media_ids_no_ext_bot"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id="internal_uuid2", filename="doc.pdf", extension="application/pdf",
+            sender_id="user_d", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_002"},
+            timestamp=datetime.utcnow()
+        ).save()
+        result = BSPGupshup.fetch_media_ids(bot)
+        assert len(result) == 1
+        assert result[0]["id"] is None
+        assert result[0]["handle_id"] == "ext_handle_002"
+        UserMediaData.objects(bot=bot).delete()
 
     # ─── fetch_broadcast_media_ids ────────────────────────────────────
 
@@ -2377,6 +2511,119 @@ class TestBSPGupshup:
                 filename=filename, extension=extension, filesize=100
             )
         assert result == "ext_media_upload_001"
+
+    # ─── upload_media ────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.get_media_content_buffer")
+    @responses.activate
+    async def test_gupshup_upload_media_success(self, mock_get_buffer):
+        import io as _io
+        bot = "gs_upload_media_success_001"
+        bsp_type = "gupshup"
+        media_id = "gs_media_uuid_001"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="test.pdf", extension=".pdf",
+            upload_status="Completed", upload_type="user", filesize=1000,
+            sender_id="user@test.com", timestamp=datetime.utcnow()
+        ).save()
+        Channels(
+            bot=bot, connector_type="whatsapp",
+            config={"app_id": "gs_app_test_001", "partner_app_token": "gs_tok_secret", "bsp_type": bsp_type},
+            user="user@test.com", timestamp=datetime.utcnow()
+        ).save(validate=False)
+
+        mock_get_buffer.return_value = (_io.BytesIO(b"%PDF mock"), "test.pdf", ".pdf")
+        responses.add(responses.POST, f"{base_url}/partner/app/gs_app_test_001/media",
+                      json={"mediaId": "gs_ext_001"}, status=200)
+
+        result = await BSPGupshup.upload_media(bot, bsp_type, media_id)
+
+        assert result == "gs_ext_001"
+        doc = UserMediaData.objects.get(media_id=media_id)
+        assert doc.external_upload_info["external_media_id"] == "gs_ext_001"
+        assert doc.external_upload_info["error"] == ""
+
+        UserMediaData.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    async def test_gupshup_upload_media_doc_not_found(self):
+        with pytest.raises(AppException, match="UserMediaData not found"):
+            await BSPGupshup.upload_media("no_bot", "bsp_gupshup", "nonexistent_media_id_xyz")
+
+    @pytest.mark.asyncio
+    async def test_gupshup_upload_media_channel_not_configured(self):
+        bot = "gs_upload_media_no_ch_001"
+        media_id = "gs_media_no_ch_001"
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
+            upload_status="Completed", upload_type="user", filesize=500,
+            sender_id="u@t.com", timestamp=datetime.utcnow()
+        ).save()
+
+        with pytest.raises(AppException, match="Channel config not found"):
+            await BSPGupshup.upload_media(bot, "gupshup", media_id)
+
+        UserMediaData.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    async def test_gupshup_upload_media_missing_partner_token(self):
+        bot = "gs_upload_media_no_tok_001"
+        bsp_type = "gupshup"
+        media_id = "gs_media_no_tok_001"
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
+            upload_status="Completed", upload_type="user", filesize=500,
+            sender_id="u@t.com", timestamp=datetime.utcnow()
+        ).save()
+        Channels(
+            bot=bot, connector_type="whatsapp",
+            config={"app_id": "gs_app_no_tok", "bsp_type": bsp_type},
+            user="u@t.com", timestamp=datetime.utcnow()
+        ).save(validate=False)
+
+        with pytest.raises(AppException, match="partner_app_token not found"):
+            await BSPGupshup.upload_media(bot, bsp_type, media_id)
+
+        UserMediaData.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.get_media_content_buffer")
+    @responses.activate
+    async def test_gupshup_upload_media_api_failure(self, mock_get_buffer):
+        import io as _io
+        bot = "gs_upload_media_fail_001"
+        bsp_type = "gupshup"
+        media_id = "gs_media_fail_001"
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
+            upload_status="Completed", upload_type="user", filesize=500,
+            sender_id="u@t.com", timestamp=datetime.utcnow()
+        ).save()
+        Channels(
+            bot=bot, connector_type="whatsapp",
+            config={"app_id": "gs_app_fail", "partner_app_token": "gs_tok_fail", "bsp_type": bsp_type},
+            user="u@t.com", timestamp=datetime.utcnow()
+        ).save(validate=False)
+
+        mock_get_buffer.return_value = (_io.BytesIO(b"%PDF mock"), "doc.pdf", ".pdf")
+        responses.add(responses.POST, f"{base_url}/partner/app/gs_app_fail/media",
+                      json={"error": "upload rejected"}, status=400)
+
+        with pytest.raises(AppException):
+            await BSPGupshup.upload_media(bot, bsp_type, media_id)
+
+        doc = UserMediaData.objects.get(media_id=media_id)
+        assert doc.external_upload_info.get("error")
+
+        UserMediaData.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
 
 
 class TestDataRouterMediaEndpoints:

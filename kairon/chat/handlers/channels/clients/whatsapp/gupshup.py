@@ -99,18 +99,6 @@ class BSPGupshup(WhatsappCloud):
         except Exception as e:
             return False, last_status_code, {"error": str(e), "response": last_response}
 
-    async def send_template_message_async(self, name: str, to_phone_number: str, language_code: str = "en",
-                                          components: dict = None, namespace: str = None) -> (bool, int, any):
-        payload = {
-            "language": {
-                "code": language_code
-            },
-            "name": name
-        }
-        if components:
-            payload.update({"components": components})
-        return await self.send_async(payload, to_phone_number, messaging_type="template")
-
     def get_url(self, api_type: str) -> str:
         if api_type == "message":
             # SMSGW apps use /msg (form-encoded); CAPI apps use /v3/message (JSON)
@@ -144,39 +132,29 @@ class BSPGupshup(WhatsappCloud):
         logger.warning(f"Gupshup SMSGW: unsupported messaging_type '{messaging_type}'")
         return {"type": messaging_type}
 
-    async def send_gupshup_template_message(self, recipient, components):
-        template, message = components
 
-        url = self.get_url(api_type="template")
 
-        headers = {
-            self.auth_header: self.access_token,
-            "Content-Type": "application/x-www-form-urlencoded",
-            "accept": "application/json"
+    async def _send_v3_template(self, template_id: str, to_phone_number: str,
+                                language_code: str, components: list) -> tuple:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": to_phone_number,
+            "type": "template",
+            "template": {
+                "name": template_id,
+                "language": {"code": language_code},
+                "components": components or []
+            }
         }
-
-        data = {
-            "destination": recipient,
-            "source": self.phone_number or self.app_name,
-            "src.name": self.app_name,
-            "template": json.dumps(template),
-        }
-        if message.get("type") != "text":
-            data["message"] = json.dumps(message)
-
-
         return await self.send_action_async(
-            payload=data,
-            url=url,
-            headers=headers,
-            use_form=True
+            payload=payload,
+            url=self._v3_url(),
+            headers=self._v3_headers(),
         )
 
     async def send_broadcast_template_async(self, template_id: str, recipient: str,
                                             language_code: str, components, namespace: str = None):
-        if isinstance(components, tuple):
-            return await self.send_gupshup_template_message(recipient, components)
-        return await self.send_template_message_async(template_id, recipient, language_code, components, namespace)
+        return await self._send_v3_template(template_id, recipient, language_code, components)
 
     async def send_async(self, payload: dict, to_phone_number: str, messaging_type: str,
                          recipient_type: str = 'individual',

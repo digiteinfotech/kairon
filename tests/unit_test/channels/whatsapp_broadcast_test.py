@@ -656,7 +656,7 @@ async def test_send_template_message_success_with_flow():
     template_id = "template_id_1"
     recipient = "recipient_1"
     language_code = "en"
-    components = {"param": "value"}
+    components = [{"param": "value"}]
     namespace = "namespace_1"
     flowname = "test_flow"
 

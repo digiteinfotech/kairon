@@ -67,12 +67,29 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         if flowname:
             flow = AgenticFlow(self.bot)
             resps, _ = await flow.execute_rule(flowname, sender_id=recipient)
-            if  resps:
-                resp = resps[0]
-                if txt := resp.get('text'):
-                    components = json.loads(txt)
-                elif custom := resp.get('custom'):
-                    components = custom
+            if resps:
+                flow_components = []
+                for resp in resps:
+                    if txt := resp.get('text'):
+                        try:
+                            parsed = json.loads(txt)
+                            if isinstance(parsed, list):
+                                flow_components.extend(parsed)
+                            elif isinstance(parsed, dict):
+                                flow_components.append(parsed)
+                        except Exception:
+                            pass
+                    elif custom := resp.get('custom'):
+                        if isinstance(custom, list):
+                            flow_components.extend(custom)
+                        elif isinstance(custom, dict):
+                            inner = custom.get('custom', custom)
+                            if isinstance(inner, list):
+                                flow_components.extend(inner)
+                            elif isinstance(inner, dict):
+                                flow_components.append(inner)
+                if flow_components:
+                    components = flow_components
 
         status_flag = status_code = response = None
 
