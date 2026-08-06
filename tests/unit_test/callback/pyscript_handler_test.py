@@ -2486,6 +2486,85 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
     Channels.objects().delete()
 
 
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/test/test.pdf",
+        output_filename="user_media/test/test.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        bot_response = external_media_id
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': 'test',
+                  'slot': {},
+                  'intent': 'test'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data['statusCode'] == 200
+    assert data['body']['bot_response'] == expected_external_media_id
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+
 def test_pyscript_handler_for_decrypt_request_success():
     source_code = '''
         request_body = {

@@ -477,6 +477,21 @@ def test_upload_media_to_bsp_routes_via_factory():
     assert result == mock_external_media_id
 
 
+def test_upload_media_to_360dialog_calls_bsp360dialog():
+    from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+    bot = "test_bot"
+    bsp_type = "360dialog"
+    media_id = "media_123"
+    mock_result = "ext_456"
+
+    with patch.object(BSP360Dialog, "upload_media", return_value=mock_result) as mock_upload, \
+            patch("asyncio.run", return_value=mock_result) as mock_asyncio_run:
+        result = PyscriptUtility.upload_media_to_360dialog(bot, bsp_type, media_id)
+
+    mock_asyncio_run.assert_called_once()
+    assert result == mock_result
+
+
 def test_get_embedding_single_text():
     text = "Hello world!"
     user = "test_user"
