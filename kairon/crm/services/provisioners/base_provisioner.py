@@ -91,8 +91,11 @@ class BaseProvisioner(ABC):
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed to set home page: {e}")
 
-    def setup_user_and_migrate(self, site_name: str, admin_email: str, admin_password: str, company_name: str = None):
-        """Creates logs directory, runs bench migrate, creates user with email/roles, creates initial company org, and sets setup_complete."""
+    def setup_user_and_migrate(
+        self, site_name: str, admin_email: str, admin_password: str, company_name: str = None,
+        abbr: str = None, default_currency: str = "INR", country: str = "India"
+    ):
+        """Creates logs directory, runs bench migrate, initializes Company, Fiscal Year, User with email/roles, and sets setup_complete."""
         try:
             # 1. Ensure logs directory exists for site
             subprocess.run(["docker", "exec", self.container_name, "mkdir", "-p", f"sites/{site_name}/logs"], capture_output=True)
@@ -108,8 +111,12 @@ class BaseProvisioner(ABC):
             except Exception as fe_err:
                 logger.warning(f"[BaseProvisioner] Frontend asset sync warning: {fe_err}")
 
-            # 3. Create admin user, assign roles, create company org, and finalize setup flags
+            # 3. Create admin user, assign roles, create company & fiscal year, and finalize setup flags
             c_name = (company_name or "").strip()
+            c_abbr = (abbr or (c_name[:3].upper() if c_name else "COMP")).strip()
+            c_currency = (default_currency or "INR").strip()
+            c_country = (country or "India").strip()
+
             py_script = f"""
 import frappe
 from frappe.utils.password import update_password
@@ -149,18 +156,68 @@ if user_email and user_email.lower() != 'administrator':
     except Exception:
         pass
 
+    if not frappe.db.exists('Notification Settings', user_email):
+        try:
+            ns = frappe.get_doc({{
+                'doctype': 'Notification Settings',
+                'name': user_email,
+                'user': user_email,
+                'enable_notification': 1
+            }})
+            ns.insert(ignore_permissions=True)
+        except Exception:
+            pass
+
 comp_title = '{c_name}'
-if comp_title and frappe.db.exists('DocType', 'CRM Organization'):
-    if not frappe.db.exists('CRM Organization', {{'organization_name': comp_title}}):
-        frappe.get_doc({{
-            'doctype': 'CRM Organization',
-            'organization_name': comp_title
-        }}).insert(ignore_permissions=True)
+if comp_title:
+    if frappe.db.exists('DocType', 'CRM Organization'):
+        if not frappe.db.exists('CRM Organization', {{'organization_name': comp_title}}):
+            frappe.get_doc({{
+                'doctype': 'CRM Organization',
+                'organization_name': comp_title
+            }}).insert(ignore_permissions=True)
+
+    if frappe.db.exists('DocType', 'Company'):
+        for wt in ['Transit', 'Manufacturing', 'Stores']:
+            if frappe.db.exists('DocType', 'Warehouse Type') and not frappe.db.exists('Warehouse Type', wt):
+                frappe.get_doc({{'doctype': 'Warehouse Type', 'name': wt}}).insert(ignore_permissions=True)
+
+        if not frappe.db.exists('Company', comp_title):
+            c = frappe.get_doc({{
+                'doctype': 'Company',
+                'company_name': comp_title,
+                'abbr': '{c_abbr}',
+                'default_currency': '{c_currency}',
+                'country': '{c_country}'
+            }})
+            c.insert(ignore_permissions=True)
+
+        frappe.db.set_single_value('Global Defaults', 'default_company', comp_title)
+        if user_email:
+            frappe.defaults.set_user_default('company', comp_title, user_email)
+            frappe.defaults.set_user_default('Company', comp_title, user_email)
+
+        # Ensure active Fiscal Year exists
+        import datetime
+        now_year = datetime.date.today().year
+        fy_name = f"{{now_year}}-{{now_year+1}}"
+        if not frappe.db.exists('Fiscal Year', fy_name):
+            fy = frappe.get_doc({{
+                'doctype': 'Fiscal Year',
+                'year': fy_name,
+                'year_start_date': f"{{now_year}}-01-01",
+                'year_end_date': f"{{now_year}}-12-31"
+            }})
+            fy.insert(ignore_permissions=True)
 
 frappe.db.set_single_value('System Settings', 'setup_complete', 1)
 frappe.db.set_value('Installed Application', {{'app_name': 'frappe'}}, 'is_setup_complete', 1)
 try:
     frappe.db.set_value('Installed Application', {{'app_name': 'crm'}}, 'is_setup_complete', 1)
+except Exception:
+    pass
+try:
+    frappe.db.set_value('Installed Application', {{'app_name': 'erpnext'}}, 'is_setup_complete', 1)
 except Exception:
     pass
 frappe.db.sql("UPDATE \\\"tabDefaultValue\\\" SET defvalue='1' WHERE defkey='setup_complete'")
@@ -171,9 +228,10 @@ frappe.clear_cache()
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", self.container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
             ], capture_output=True)
-            logger.info(f"[BaseProvisioner] Configured user '{admin_email}' with CRM roles on '{site_name}'.")
+            logger.info(f"[BaseProvisioner] Configured user '{admin_email}' and company '{c_name}' on '{site_name}'.")
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
+
 
     @abstractmethod
     def provision(self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str) -> Dict[str, Any]:

@@ -78,7 +78,7 @@ class PreFlightValidator:
             if site_res.returncode == 0:
                 raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
 
-        # 3. Verify required apps exist in container apps directory
+        # 3. Verify required apps exist in container apps directory & sites/apps.txt
         for app in plan.apps:
             check_app_cmd = ["docker", "exec", container_name, "test", "-d", f"apps/{app}"]
             app_res = subprocess.run(check_app_cmd, capture_output=True)
@@ -88,4 +88,12 @@ class PreFlightValidator:
                     f"Please run 'bench get-app {app}' during image build."
                 )
 
+            # Ensure app is registered in sites/apps.txt for bench new-site compatibility
+            ensure_apps_cmd = [
+                "docker", "exec", container_name, "bash", "-c",
+                f"grep -q '^{app}$' sites/apps.txt || echo '{app}' >> sites/apps.txt"
+            ]
+            subprocess.run(ensure_apps_cmd, capture_output=True)
+
         logger.info("[PreFlightValidator] Infrastructure pre-flight validation completed successfully.")
+

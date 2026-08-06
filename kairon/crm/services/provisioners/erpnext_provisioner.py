@@ -76,6 +76,42 @@ class ERPNextProvisioner(BaseProvisioner):
                 ]
                 subprocess.run(install_cmd, capture_output=True)
 
+        # Setup user, roles, password, company, fiscal year, and migrate
+        user_email = doc.user if doc.user else "Administrator"
+        self.setup_user_and_migrate(
+            site_name, user_email, admin_password,
+            company_name=company_name, abbr=abbr,
+            default_currency=default_currency, country=country
+        )
+
+
+
+
+        # Apply Product Isolation Service & Role Profile
+        try:
+            from kairon.crm.services.erpnext_client import ERPNextClient
+            from kairon.crm.services.isolation_service import ProductIsolationService
+
+            base_url = self.bench_config.get("base_url", "http://localhost:8080")
+            client = ERPNextClient(base_url, site_name)
+            client.login(admin_password)
+
+            selected_features = getattr(self.plan, "selected_features", doc.selected_modules if hasattr(doc, "selected_modules") else ["pos"])
+            isolation_info = ProductIsolationService.apply_isolation(client, company_name, selected_features)
+
+
+            if user_email and user_email.lower() != "administrator":
+                client.assign_roles_and_company(
+                    user_email,
+                    self.plan.default_roles,
+                    company_name,
+                    module_profile=isolation_info.get("module_profile"),
+                    role_profile=isolation_info.get("role_profile"),
+                    default_workspace=isolation_info.get("default_workspace", "Point of Sale")
+                )
+        except Exception as iso_err:
+            logger.warning(f"[ERPNextProvisioner] Product isolation setup warning: {iso_err}")
+
         # Bypass setup wizard
         try:
             subprocess.run([
@@ -110,7 +146,7 @@ class ERPNextProvisioner(BaseProvisioner):
         # Update metadata in MongoDB
         doc.tier = 2
         doc.installed_apps = self.plan.apps
-        doc.onboarding_status = CRMOnboardingStatus.SITE_CREATED.value
+        doc.onboarding_status = CRMOnboardingStatus.COMPLETED.value
         doc.save()
 
         logger.info(f"[ERPNextProvisioner] Tier 2 ERPNext site '{site_name}' provisioned successfully.")
@@ -120,3 +156,4 @@ class ERPNextProvisioner(BaseProvisioner):
             "site_name": site_name,
             "message": "Tier 2 ERPNext Suite site provisioned successfully."
         }
+
