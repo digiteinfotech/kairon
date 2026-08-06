@@ -1,8 +1,7 @@
 import json
 from typing import Text, Dict, Any
 
-from kairon.shared.utils import MailUtility
-from kairon.shared.account.data_objects import Bot
+import traceback
 from loguru import logger
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
@@ -128,20 +127,13 @@ class ActionPrompt(ActionsBase):
             exception = str(e)
             status = STATUSES.FAIL.value
             bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
-            try:
-                bot_name = Bot.objects(id=self.bot).only("name").get().name
-
-                await MailUtility.format_and_send_mail(mail_type="action_failure",
-                                                       email=tracker.sender_id,
-                                                       stack_trace=exception,
-                                                       slot_values=tracker.current_slot_values(),
-                                                       first_name="Kairon Team",
-                                                       bot_name=bot_name,
-                                                       action_name=self.name,
-                                                       user_query_history=tracker.latest_message.get('text')
+            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
+                                                      stack_trace=traceback.format_exc(),
+                                                      slot_values=tracker.current_slot_values(),
+                                                      bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text')
                                                        )
-            except Exception as mail_err:
-                logger.exception(mail_err)
         finally:
             total_time_elapsed = time_taken_llm_response + time_taken_slots
             events_to_extend = [llm_response_log, final_slots]

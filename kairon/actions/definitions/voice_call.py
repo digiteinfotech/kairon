@@ -1,8 +1,8 @@
 import logging
 from typing import Text
 
-from kairon.shared.utils import MailUtility
-from kairon.shared.account.data_objects import Bot
+from kairon.shared.actions.utils import ActionUtility
+import traceback
 from mongoengine.errors import DoesNotExist
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
@@ -93,20 +93,13 @@ class ActionVoiceCall(ActionsBase):
             exception = str(e)
             bot_response = "I have failed to place the call"
             status = STATUSES.FAIL.value
-            try:
-                bot_name = Bot.objects(id=self.bot).only("name").get().name
-
-                await MailUtility.format_and_send_mail(mail_type="action_failure",
-                                                       email=tracker.sender_id,
-                                                       stack_trace=exception,
-                                                       slot_values=tracker.current_slot_values(),
-                                                       first_name="Kairon Team",
-                                                       bot_name=bot_name,
-                                                       action_name=self.name,
-                                                       user_query_history=tracker.latest_message.get('text')
+            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
+                                                      stack_trace=traceback.format_exc(),
+                                                      slot_values=tracker.current_slot_values(),
+                                                      bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text')
                                                        )
-            except Exception as mail_err:
-                logger.exception(mail_err)
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
