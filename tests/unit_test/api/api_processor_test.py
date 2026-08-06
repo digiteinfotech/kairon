@@ -3346,6 +3346,7 @@ class TestAccountProcessor:
             "untrusted_login": "ul", "add_trusted_device": "atd",
             "button_template": "bt", "leave_bot_owner_notification": "lbon",
             "catalog_sync_status": "css",
+            "action_failure": "af",
             "password_reset_unverified": None,
         }
         fake_sp_dict = {"mail_templates": fake_templates}
