@@ -41,9 +41,10 @@ BUSINESS_MODULE_CATALOG = {
     },
     "POS": {
         "workspace": "Point of Sale",
-        "frappe_module": "POS",
+        "frappe_module": "Point of Sale",
         "description": "Point of sale transactions",
     },
+
     "Buying": {
         "workspace": "Buying",
         "frappe_module": "Buying",

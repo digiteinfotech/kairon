@@ -222,27 +222,24 @@ class ProvisioningService:
                 )
                 doc.webhook_secret = Utility.encrypt_message(webhook_secret)
 
-                # 4f & 4g: Module Configuration (Workspace hiding + Module Profile)
+                # 4f & 4g: Module & Product Isolation Engine Setup
+                from kairon.crm.services.feature_resolver import FeatureAppResolver
+                from kairon.crm.services.isolation_service import ProductIsolationService
+                plan = FeatureAppResolver.resolve(doc.selected_modules)
+                matrix = FeatureAppResolver.load_matrix()
+
                 selected_mods = doc.selected_modules
                 if not selected_mods:
-                    # Default to all catalog business modules if none selected
                     selected_mods = list(BUSINESS_MODULE_CATALOG.keys())
                     doc.selected_modules = selected_mods
 
-                logger.info(f"[{self.provisioning_id}] Configuring module selection: {selected_mods}")
-                disc = client.discover_business_modules()
-                catalog = {m["key"]: m for m in disc["modules"]}
-
-                # 4f: Workspace hiding
-                client.configure_workspace_visibility(selected_mods, catalog=catalog)
-
-                # 4g: Module Profile creation/update
-                profile_name = f"Kairon CRM Profile ({doc.company_name})"
-                blocked_modules = [m["frappe_module"] for k, m in catalog.items() if k not in selected_mods]
-                client.create_or_update_module_profile(profile_name, blocked_modules)
-                doc.module_profile_name = profile_name
+                logger.info(f"[{self.provisioning_id}] Applying ProductIsolationService for selection: {selected_mods}")
+                isolation_info = ProductIsolationService.apply_isolation(client, doc.company_name, selected_mods)
+                doc.module_profile_name = isolation_info["module_profile"]
+                target_role_profile = isolation_info["role_profile"]
 
                 doc.save()
+
 
                 self.update_onboarding_status(CRMOnboardingStatus.COMPANY_CREATED)
                 doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
@@ -270,9 +267,25 @@ class ProvisioningService:
                 )
 
                 logger.info(f"[{self.provisioning_id}] Assigning Roles, Company & Module Profile '{doc.module_profile_name}'...")
-                roles = ["System Manager", "Sales Manager", "Stock Manager", "Accounts Manager", "Purchase Manager"]
+                roles = plan.default_roles or ["System Manager", "Sales Manager"]
                 target_default_ws = catalog[selected_mods[0]]["workspace"] if (selected_mods and selected_mods[0] in catalog) else "CRM"
-                client.assign_roles_and_company(current_user_email, roles, doc.company_name, module_profile=doc.module_profile_name, default_workspace=target_default_ws)
+                
+                # Check matrix for explicit home_page workspace override
+                for mod_key in selected_mods:
+                    if mod_key in matrix and "home_page" in matrix[mod_key]:
+                        hp = matrix[mod_key]["home_page"]
+                        if hp.startswith("workspace/"):
+                            target_default_ws = hp.replace("workspace/", "")
+                        break
+
+                client.assign_roles_and_company(
+                    current_user_email,
+                    roles,
+                    doc.company_name,
+                    module_profile=doc.module_profile_name,
+                    default_workspace=target_default_ws,
+                    role_profile=target_role_profile
+                )
 
                 # Update DB with operational metadata
                 doc.erpnext_owner_email = current_user_email

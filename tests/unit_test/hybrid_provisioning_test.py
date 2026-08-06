@@ -22,6 +22,19 @@ class TestHybridProvisioning(unittest.TestCase):
         assert plan.home_page == "crm"
         assert "CRM Admin" in plan.default_roles
 
+    def test_feature_app_resolver_pos_only(self):
+        plan = FeatureAppResolver.resolve(["pos"])
+        assert plan.tier == 2
+        assert plan.strategy_key == "erpnext_suite"
+        assert plan.apps == ["erpnext"]
+        assert plan.home_page == "workspace/Point of Sale Workspace"
+
+        assert "POS User" in plan.default_roles
+        assert "POS Manager" in plan.default_roles
+        assert "Stock User" in plan.default_roles
+
+
+
     def test_feature_app_resolver_hr_suite(self):
         plan = FeatureAppResolver.resolve(["hr", "crm"])
         assert plan.tier == 2
@@ -84,3 +97,29 @@ class TestHybridProvisioning(unittest.TestCase):
         client = CRMClient(site_url="http://test.localhost", api_key="key", api_secret="secret")
         lead = client.create_lead("Acme Corp", "lead@acme.com")
         assert lead["name"] == "LEAD-0001"
+
+    def test_product_isolation_service_pos(self):
+        from kairon.crm.services.isolation_service import ProductIsolationService
+        mock_client = MagicMock()
+        mock_client.discover_business_modules.return_value = {
+            "modules": [
+                {"key": "crm", "frappe_module": "CRM", "workspace": "CRM"},
+                {"key": "pos", "frappe_module": "Point of Sale", "workspace": "Point of Sale"},
+                {"key": "hr", "frappe_module": "HR", "workspace": "HR"},
+                {"key": "manufacturing", "frappe_module": "Manufacturing", "workspace": "Manufacturing"}
+            ]
+        }
+
+        res = ProductIsolationService.apply_isolation(mock_client, "Acme POS", ["pos"])
+        assert res["role_profile"] == "POS Admin"
+        assert "Point of Sale" in res["allowed_modules"]
+        assert "Stock" in res["allowed_modules"]
+        assert "HR" in res["blocked_modules"]
+        assert "CRM" in res["blocked_modules"]
+        assert "Manufacturing" in res["blocked_modules"]
+        mock_client.configure_workspace_visibility.assert_called_once()
+        mock_client.create_or_update_module_profile.assert_called_once()
+        mock_client.ensure_role_profile.assert_called_once_with("POS Admin", ["System Manager", "Desk User", "POS User", "POS Manager", "Stock User", "Accounts User"])
+
+
+

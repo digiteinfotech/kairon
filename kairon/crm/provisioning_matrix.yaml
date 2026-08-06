@@ -71,15 +71,62 @@ provisioning_matrix:
       - payments
     upgrade_supported: false
 
-  manufacturing:
+  pos:
     strategy_key: "erpnext_suite"
     tier: 2
     required_apps:
       - erpnext
-    home_page: "workspace/Manufacturing"
+    home_page: "workspace/Point of Sale Workspace"
+    workspaces:
+      - "Point of Sale Workspace"
+      - "Stock"
+      - "Invoicing"
+      - "Financial Reports"
+      - "Selling"
+      - "Buying"
+      - "Manufacturing"
+      - "Projects"
+      - "Quality"
+      - "Assets"
+      - "Organization"
+
+
+    allowed_modules:
+      - "Point of Sale"
+      - "Stock"
+      - "Accounts"
+      - "Setup"
+      - "Core"
+      - "Custom"
+      - "Integrations"
+      - "Utilities"
+      - "Contacts"
+    role_profile_name: "POS Admin"
     default_roles:
+      - "System Manager"
+      - "Desk User"
+      - "Stock User"
+      - "Stock Manager"
+      - "Accounts User"
+      - "Accounts Manager"
+      - "Sales User"
+      - "Sales Manager"
+      - "Purchase User"
+      - "Purchase Manager"
+      - "Manufacturing User"
       - "Manufacturing Manager"
+      - "Quality Manager"
+      - "Projects User"
+      - "Projects Manager"
+      - "Item Manager"
+      - "Workspace Manager"
+      - "Report Manager"
+
+
+
     dependencies:
       - frappe
       - payments
     upgrade_supported: false
+
+

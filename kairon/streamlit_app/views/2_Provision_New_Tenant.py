@@ -55,6 +55,7 @@ with col1:
         st.markdown("<br><b>Application & Feature Selection</b>", unsafe_allow_html=True)
         feature_options = {
             "crm": "Frappe CRM (Standalone / Suite)",
+            "pos": "ERPNext Point of Sale (POS)",
             "helpdesk": "Helpdesk & Customer Service",
             "selling": "ERPNext Selling & Sales Pipeline",
             "hr": "ERPNext HR & Payroll",
@@ -63,6 +64,7 @@ with col1:
             "projects": "ERPNext Project Management",
             "inventory": "ERPNext Stock & Warehouse"
         }
+
 
         selected_features = st.multiselect(
             "Select Desired Modules",

@@ -446,32 +446,43 @@ print(json.dumps(keys))
         return result
 
     def hide_workspace(self, workspace_name: str) -> bool:
-        """Sets is_hidden = 1 on Workspace document."""
+        """Sets is_hidden = 1 and public = 0 on Workspace document."""
         url = f"{self.base_url}/api/resource/Workspace/{workspace_name}"
-        resp = self.session.put(url, json={"is_hidden": 1}, timeout=15)
+        resp = self.session.put(url, json={"is_hidden": 1, "public": 0}, timeout=15)
         success = resp.status_code == 200
-        if not success and resp.status_code in (417, 403, 400):
-            try:
-                from kairon.crm.services.bench_executor import BenchExecutor
-                crm_config = Utility.environment.get("crm", {})
-                bench_config = crm_config.get("bench", {})
-                container_name = BenchExecutor()._resolve_container_name(bench_config)
-                script = f"import frappe; frappe.init(site='{self.site_name}'); frappe.connect(); frappe.db.set_value('Workspace', '{workspace_name}', 'is_hidden', 1); frappe.db.commit()"
-                cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
-                res = subprocess.run(cmd, capture_output=True, text=True)
-                success = res.returncode == 0
-            except Exception:
-                pass
+        try:
+            from kairon.crm.services.bench_executor import BenchExecutor
+            crm_config = Utility.environment.get("crm", {})
+            bench_config = crm_config.get("bench", {})
+            container_name = BenchExecutor()._resolve_container_name(bench_config)
+            script = f"import frappe; frappe.init(site='{self.site_name}'); frappe.connect(); frappe.db.set_value('Workspace', '{workspace_name}', {{'is_hidden': 1, 'public': 0}}); frappe.db.commit(); frappe.clear_cache()"
+            cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            success = res.returncode == 0
+        except Exception:
+            pass
         self._log_api_op("hide_workspace", workspace_name, success, resp.status_code if not success else 200)
         return success
 
     def show_workspace(self, workspace_name: str) -> bool:
-        """Sets is_hidden = 0 on Workspace document."""
+        """Sets is_hidden = 0 and public = 1 on Workspace document."""
         url = f"{self.base_url}/api/resource/Workspace/{workspace_name}"
-        resp = self.session.put(url, json={"is_hidden": 0}, timeout=15)
+        resp = self.session.put(url, json={"is_hidden": 0, "public": 1}, timeout=15)
         success = resp.status_code == 200
-        self._log_api_op("show_workspace", workspace_name, success, resp.status_code, resp.text if not success else None)
+        try:
+            from kairon.crm.services.bench_executor import BenchExecutor
+            crm_config = Utility.environment.get("crm", {})
+            bench_config = crm_config.get("bench", {})
+            container_name = BenchExecutor()._resolve_container_name(bench_config)
+            script = f"import frappe; frappe.init(site='{self.site_name}'); frappe.connect(); frappe.db.set_value('Workspace', '{workspace_name}', {{'is_hidden': 0, 'public': 1}}); frappe.db.commit(); frappe.clear_cache()"
+            cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            success = res.returncode == 0
+        except Exception:
+            pass
+        self._log_api_op("show_workspace", workspace_name, success, resp.status_code if not success else 200)
         return success
+
 
     def clear_cache(self) -> bool:
         """
@@ -656,6 +667,58 @@ frappe.db.commit()
             raise AppException(f"Failed to assign Module Profile '{profile_name}' to user '{email}': HTTP {resp.status_code}")
         return True
 
+    def get_all_roles(self) -> list:
+        """Fetches all role names present in target system."""
+        try:
+            url = f"{self.base_url}/api/resource/Role"
+            resp = self.session.get(url, params={"limit_page_length": 500}, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json().get("data", [])
+                return [r.get("name") for r in data if "name" in r]
+        except Exception as e:
+            logger.warning(f"[ERPNextClient] Failed to fetch roles: {e}")
+        return []
+
+    def ensure_role_profile(self, profile_name: str, roles: list) -> str:
+        """
+        Idempotently creates or updates a native Frappe Role Profile DocType.
+        """
+        url = f"{self.base_url}/api/resource/Role Profile/{profile_name}"
+        get_resp = self.session.get(url, timeout=10)
+
+        existing_system_roles = set(self.get_all_roles())
+        if existing_system_roles:
+            valid_roles = [r for r in roles if r in existing_system_roles]
+        else:
+            valid_roles = roles
+        if not valid_roles:
+            valid_roles = roles
+
+        roles_payload = [{"role": r} for r in valid_roles]
+
+        if get_resp.status_code == 200:
+            put_resp = self.session.put(url, json={"roles": roles_payload}, timeout=15)
+            if put_resp.status_code != 200:
+                self._log_api_op("update_role_profile", profile_name, False, put_resp.status_code, put_resp.text)
+                logger.warning(f"Failed to update Role Profile '{profile_name}': HTTP {put_resp.status_code}")
+                return profile_name
+            self._log_api_op("update_role_profile", profile_name, True, put_resp.status_code)
+            return profile_name
+        else:
+            create_url = f"{self.base_url}/api/resource/Role Profile"
+            payload = {
+                "role_profile": profile_name,
+                "roles": roles_payload
+            }
+            post_resp = self.session.post(create_url, json=payload, timeout=15)
+            if post_resp.status_code not in (200, 201):
+                self._log_api_op("create_role_profile", profile_name, False, post_resp.status_code, post_resp.text)
+                logger.warning(f"Failed to create Role Profile '{profile_name}': HTTP {post_resp.status_code}")
+                return profile_name
+            self._log_api_op("create_role_profile", profile_name, True, post_resp.status_code)
+            return profile_name
+
+
     # ─────────────────────────────────────────────────────────────
     # Company, User Management & Role Assignment
     # ─────────────────────────────────────────────────────────────
@@ -729,9 +792,9 @@ frappe.db.commit()
             raise AppException(f"Failed to create User: HTTP {response.status_code}")
         self._log_api_op("create_user", email, True, response.status_code)
 
-    def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None, default_workspace: Optional[str] = None):
+    def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None, default_workspace: Optional[str] = None, role_profile: Optional[str] = None):
         """
-        Assigns roles, a default company, optionally a module_profile, and default_workspace to an existing user.
+        Assigns roles (or a role_profile), a default company, optionally a module_profile, and default_workspace to an existing user.
         """
         url = f"{self.base_url}/api/resource/User/{email}"
         response = self.session.get(url, timeout=15)
@@ -741,16 +804,23 @@ frappe.db.commit()
         user_data = response.json().get("data", {})
         existing_roles = [r.get("role") for r in user_data.get("roles", [])]
 
-        new_roles = user_data.get("roles", [])
-        for r in roles:
-            if r not in existing_roles:
-                new_roles.append({"role": r})
+        payload = {}
+        if role_profile:
+            payload["role_profile_name"] = role_profile
+            payload["role_profiles"] = [{"role_profile": role_profile}]
+        else:
+            new_roles = user_data.get("roles", [])
+            for r in roles:
+                if r not in existing_roles:
+                    new_roles.append({"role": r})
+            payload["roles"] = new_roles
 
-        payload = {"roles": new_roles}
+
         if module_profile:
             payload["module_profile"] = module_profile
         if default_workspace:
             payload["default_workspace"] = default_workspace
+
 
         update_response = self.session.put(url, json=payload, timeout=15)
         if update_response.status_code != 200:
