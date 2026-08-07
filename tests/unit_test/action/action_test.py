@@ -5336,6 +5336,7 @@ class TestActions:
             {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
         ]
 
+    @patch("kairon.shared.actions.utils.traceback.format_exc")
     @patch("kairon.shared.actions.utils.asyncio.create_task")
     @patch("kairon.shared.actions.utils.MailUtility.format_and_send_mail")
     @patch("kairon.shared.actions.utils.Bot")
@@ -5344,15 +5345,15 @@ class TestActions:
             mock_bot,
             mock_format_and_send_mail,
             mock_create_task,
+            mock_format_exc,
     ):
         bot_obj = MagicMock()
         bot_obj.name = "Test Bot"
 
+        mock_format_exc.return_value = "formatted traceback"
         mock_bot.objects.return_value.only.return_value.get.return_value = bot_obj
 
         ActionUtility.trigger_action_failure_mail(
-            mail_type="action_failure",
-            stack_trace="trace",
             slot_values={"name": "john"},
             bot_name="bot_id",
             action_name="action_test",
@@ -5365,7 +5366,7 @@ class TestActions:
             mail_type="action_failure",
             email=Utility.environment.get("support_mail"),
             first_name="Team kAIron",
-            stack_trace="trace",
+            stack_trace="formatted traceback",
             slot_values={"name": "john"},
             bot_name="Test Bot",
             action_name="action_test",

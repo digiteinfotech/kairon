@@ -1,4 +1,3 @@
-import traceback
 from typing import Dict, Text, List, Any
 
 from rasa_sdk.executor import CollectingDispatcher
@@ -12,7 +11,6 @@ from ...shared.request_context import get_request_id
 from ...shared.actions.exception import ActionFailure
 from ...shared.actions.utils import ActionUtility
 from loguru import logger
-from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from ...shared.data.constant import STATUSES
 
 class ActionProcessor:
@@ -51,10 +49,6 @@ class ActionProcessor:
                 status=STATUSES.FAIL.value,
                 request_id=get_request_id()
             ).save()
-            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
-                                                      stack_trace=traceback.format_exc(),
-                                                      slot_values=tracker.current_slot_values(),
-                                                      bot_name=tracker.get_slot("bot"),
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=tracker.get_slot("bot"),
                                                       action_name=action,
-                                                      user_query_history=tracker.latest_message.get('text')
-                                                    )
+                                                      user_query_history=tracker.latest_message.get('text'))

@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import traceback
 from datetime import datetime
 from typing import Any, List, Text, Dict
 
@@ -1137,20 +1138,20 @@ class ActionUtility:
         return raw_resp, rephrased_message
 
     @staticmethod
-    def trigger_action_failure_mail(mail_type: str, stack_trace: str, user_query_history: str, slot_values: Any, bot_name: Any, action_name: str):
+    def trigger_action_failure_mail(**kwargs):
         try:
-            bot_name = Bot.objects(id=bot_name).only("name").get().name
+            bot_name = Bot.objects(id=kwargs.get("bot_name","")).only("name").get().name
             email = Utility.environment.get("support_mail")
-            first_name = "Team kAIron"
+            stack_trace = traceback.format_exc()
             asyncio.create_task(
-                MailUtility.format_and_send_mail(mail_type=mail_type,
+                MailUtility.format_and_send_mail(mail_type="action_failure",
                                                    email=email,
-                                                   first_name=first_name,
+                                                   first_name="Team kAIron",
                                                    stack_trace=stack_trace,
-                                                   slot_values=slot_values,
+                                                   slot_values=kwargs.get("slot_values", {}),
                                                    bot_name=bot_name,
-                                                   action_name=action_name,
-                                                   user_query_history=user_query_history
+                                                   action_name=kwargs.get("action_name"),
+                                                   user_query_history=kwargs.get("user_query_history", []),
                                                    )
             )
         except Exception as mail_err:
