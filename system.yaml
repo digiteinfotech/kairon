@@ -79,7 +79,7 @@ model:
   content_importer:
     limit_per_day: ${CONTENT_IMPORTING_LIMIT_PER_DAY:5}
   agent:
-    url: ${AGENT_URL}
+    url: ${AGENT_URL:"http://localhost:5000/"}
   config_properties:
     epoch_max_limit: ${EPOCH_MAX_LIMIT:200}
   pipeline:
@@ -191,7 +191,7 @@ multilingual:
 tracker:
   type: ${TRACKER_TYPE:"static"}
   url: ${TRACKER_URL:"mongodb://localhost:27017/test_conversations"}
-  collection: ${TRACKER_COLLECTION:"conversations"}
+  collection: ${TRACKER_COLLECTION:"6a7429f24ed1f2717067712b"}
   authentication:
     token: ${AUTH_TOKEN:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtleSI6ImI5ZDAxODYxMzkyNzU3YzY2ZGFhZjFmMjE0MjY4ZTI3MzlhNWJhYWM5MzUwNzFkMDZlMmVhNzFhNjZkYzViY2QifQ.eyJzdWIiOiJrYWlyb24uZGlnaXRlLmNvbSIsIm5hbWUiOiJrYWlyb24iLCJpYXQiOjE1MTYyMzkwMjJ9.3SOONqzoeX1tnMnUH5BVaOtZ7mElgwxyD1xpPvTQTrs"}
 

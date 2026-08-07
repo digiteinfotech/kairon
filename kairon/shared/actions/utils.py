@@ -10,7 +10,6 @@ import ujson as json
 from kairon.shared.account.data_objects import Bot
 from ..utils import Utility, MailUtility
 import asyncio
-
 Utility.load_system_metadata()
 
 import requests
@@ -1139,19 +1138,19 @@ class ActionUtility:
     @staticmethod
     def trigger_action_failure_mail(**kwargs):
         try:
-            bot_name = Bot.objects(id=kwargs.get("bot_name","")).only("name").get().name
+            bot_name = Bot.objects(id=kwargs.get("bot_name", "")).only("name").get().name
             email = Utility.environment.get("support_mail")
             stack_trace = traceback.format_exc()
             asyncio.create_task(
                 MailUtility.format_and_send_mail(mail_type="action_failure",
-                                                   email=email,
-                                                   first_name="Team kAIron",
-                                                   stack_trace=stack_trace,
-                                                   slot_values=kwargs.get("slot_values", {}),
-                                                   bot_name=bot_name,
-                                                   action_name=kwargs.get("action_name"),
-                                                   user_query_history=kwargs.get("user_query_history", []),
-                                                   )
+                                                 email=email,
+                                                 first_name="Team kAIron",
+                                                 stack_trace=stack_trace,
+                                                 slot_values=kwargs.get("slot_values", {}),
+                                                 bot_name=bot_name,
+                                                 action_name=kwargs.get("action_name"),
+                                                 user_query_history=kwargs.get("user_query_history", []),
+                                                 )
             )
         except Exception as mail_err:
             logger.exception(mail_err)
