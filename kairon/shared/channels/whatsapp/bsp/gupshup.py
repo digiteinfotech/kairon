@@ -1,5 +1,6 @@
 import asyncio
 import json
+import mimetypes
 import os
 from datetime import datetime, timedelta
 from typing import Text, Dict
@@ -454,7 +455,9 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
                 raise AppException("File stream not found")
 
             file_bytes = file_stream.read()
-            extension = os.path.splitext(filename)[1].lstrip(".")
+            content_type, _ = mimetypes.guess_type(filename)
+            if content_type is None:
+                content_type = "application/octet-stream"
 
             partner_base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"][
                 "partner_base_url"]
@@ -465,7 +468,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             response = await loop.run_in_executor(None, lambda: requests.post(
                 f"{partner_base_url}/partner/app/{app_id}/media",
                 headers=headers,
-                files={"file": (filename, file_bytes, extension), "file_type": (None, extension)},
+                files={"file": (filename, file_bytes, content_type), "file_type": (None, content_type)},
                 timeout=(5, 60),
             ))
 

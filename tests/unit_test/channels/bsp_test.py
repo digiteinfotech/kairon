@@ -2545,6 +2545,7 @@ class TestBSPGupshup:
         doc = UserMediaData.objects.get(media_id=media_id)
         assert doc.external_upload_info["external_media_id"] == "gs_ext_001"
         assert doc.external_upload_info["error"] == ""
+        assert "application/pdf" in responses.calls[0].request.body.decode("latin-1")
 
         UserMediaData.objects(bot=bot).delete()
         Channels.objects(bot=bot).delete()
