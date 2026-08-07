@@ -1,5 +1,4 @@
 import random
-import traceback
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -80,12 +79,7 @@ class ActionKaironBotResponse(ActionsBase):
             logger.debug(e)
             exception = str(e)
             status = STATUSES.FAIL.value
-            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
-                                                   stack_trace=traceback.format_exc(),
-                                                   slot_values=tracker.current_slot_values(),
-                                                   bot_name=self.bot,
-                                                   action_name=self.name,
-                                                   user_query_history=tracker.latest_message.get('text')
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot, action_name=self.name, user_query_history=tracker.latest_message.get('text')
                                                    )
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}

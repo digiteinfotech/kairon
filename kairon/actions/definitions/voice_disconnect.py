@@ -1,7 +1,6 @@
 from typing import Text, Dict, Any
 
 from kairon.shared.actions.utils import ActionUtility
-import traceback
 from loguru import logger
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
@@ -42,13 +41,9 @@ class ActionVoiceDisconnect(ActionsBase):
             logger.exception(e)
             exception = str(e)
             status = STATUSES.FAIL.value
-            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
-                                                      stack_trace=traceback.format_exc(),
-                                                      slot_values=tracker.current_slot_values(),
-                                                      bot_name=self.bot,
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
                                                       action_name=self.name,
-                                                      user_query_history=tracker.latest_message.get('text')
-                                                       )
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             trigger_info_data = kwargs.get('action_call', {}).get('trigger_info') or {}
             from kairon.shared.actions.data_objects import TriggerInfo

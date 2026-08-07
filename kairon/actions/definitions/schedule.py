@@ -1,5 +1,4 @@
 import json
-import traceback
 from calendar import timegm
 from datetime import datetime
 import pickle
@@ -140,13 +139,9 @@ class ActionSchedule(ActionsBase):
             logger.exception(e)
             status = STATUSES.FAIL.value
             bot_response = "Sorry, I am unable to process your request at the moment."
-            ActionUtility.trigger_action_failure_mail(mail_type="action_failure",
-                                                      stack_trace=traceback.format_exc(),
-                                                      slot_values=tracker.current_slot_values(),
-                                                      bot_name=self.bot,
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
                                                       action_name=self.name,
-                                                      user_query_history=tracker.latest_message.get('text')
-                                                       )
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
