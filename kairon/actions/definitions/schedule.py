@@ -29,8 +29,6 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.constants import EventClass, EventExecutor
 from kairon.shared.data.constant import TASK_TYPE, STATUSES
-from kairon.shared.utils import MailUtility
-from kairon.shared.account.data_objects import Bot
 
 class ActionSchedule(ActionsBase):
     __client = MongoClient(Utility.environment['database']['url'])

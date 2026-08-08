@@ -192,7 +192,6 @@ class ActionUtility:
             content_type
     ):
         import mimetypes
-        import asyncio
         from kairon.shared.chat.user_media import UserMedia
 
         ActionUtility.validate_media_sizes(bot, media_ids)
