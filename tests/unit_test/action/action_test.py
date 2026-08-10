@@ -32,6 +32,7 @@ from kairon.actions.definitions.zendesk import ActionZendeskTicket
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK, STATUSES
 from kairon.shared.data.data_objects import Slots, KeyVault, BotSettings, LLMSettings, UserMediaData
+from unittest.mock import MagicMock
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 from typing import Dict, Text, Any, List
@@ -5335,6 +5336,66 @@ class TestActions:
             {'role': 'user', 'content': 'I am interested in Kairon and want to know what features it offers'}
         ]
 
+    @patch("kairon.shared.actions.utils.traceback.format_exc")
+    @patch("kairon.shared.actions.utils.asyncio.create_task")
+    @patch("kairon.shared.actions.utils.MailUtility.format_and_send_mail")
+    @patch("kairon.shared.actions.utils.Bot")
+    def test_trigger_action_failure_mail_success(
+            self,
+            mock_bot,
+            mock_format_and_send_mail,
+            mock_create_task,
+            mock_format_exc,
+    ):
+        bot_obj = MagicMock()
+        bot_obj.name = "Test Bot"
+
+        mock_format_exc.return_value = "formatted traceback"
+        mock_bot.objects.return_value.only.return_value.get.return_value = bot_obj
+
+        ActionUtility.trigger_action_failure_mail(
+            slot_values={"name": "john"},
+            bot_name="bot_id",
+            action_name="action_test",
+            user_query_history="hello"
+        )
+
+        mock_bot.objects.assert_called_once_with(id="bot_id")
+
+        mock_format_and_send_mail.assert_called_once_with(
+            mail_type="action_failure",
+            email=Utility.environment.get("support_mail"),
+            first_name="Team kAIron",
+            stack_trace="formatted traceback",
+            slot_values={"name": "john"},
+            bot_name="Test Bot",
+            action_name="action_test",
+            user_query_history="hello",
+        )
+
+        mock_create_task.assert_called_once()
+        coroutine = mock_create_task.call_args.args[0]
+        coroutine.close()
+
+    @patch("kairon.shared.actions.utils.logger.exception")
+    @patch("kairon.shared.actions.utils.Bot")
+    def test_trigger_action_failure_mail_bot_lookup_exception(
+            self,
+            mock_bot,
+            mock_logger,
+    ):
+        mock_bot.objects.side_effect = Exception("DB Error")
+
+        ActionUtility.trigger_action_failure_mail(
+            mail_type="action_failure",
+            stack_trace="trace",
+            slot_values={},
+            bot_name="bot_id",
+            action_name="action_test",
+            user_query_history="hello"
+        )
+
+        mock_logger.assert_called_once()
 
 def test_format_custom_bot_reply_indirect():
     # Test text

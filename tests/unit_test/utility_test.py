@@ -1447,6 +1447,57 @@ class TestUtility:
         assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
     @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_action_failure(self, validate_and_send_mail_mock):
+        mail_type = "action_failure"
+        email = "sampletest@gmail.com"
+        first_name = "Team kAIron"
+
+        bot_name = "Test Bot"
+        action_name = "HTTP Action"
+        stack_trace = "Sample Trace"
+        user_query_history = "hello"
+        slot_values = {"name": "john"}
+        url = Utility.environment.get("action", {}).get("url")
+
+        Utility.email_conf["email"]["templates"]["action_failure"] = (
+            open("template/emails/action_failure.html", "rb").read().decode()
+        )
+
+        expected_body = Utility.email_conf["email"]["templates"]["action_failure"]
+
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name)
+            .replace("BASE_URL", Utility.environment["app"]["frontend_url"])
+            .replace("BOT_NAME", bot_name)
+            .replace("ACTION_NAME", action_name)
+            .replace("STACK_TRACE", str(stack_trace))
+            .replace("USER_QUERY_HISTORY", str(user_query_history))
+            .replace("SLOT_VALUES", str(slot_values))
+            .replace("ACTION_URL", str(url))
+        )
+
+        expected_subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type,
+            email=email,
+            first_name=first_name,
+            bot_name=bot_name,
+            action_name=action_name,
+            stack_trace=stack_trace,
+            user_query_history=user_query_history,
+            slot_values=slot_values,
+            url=url,
+        )
+
+        validate_and_send_mail_mock.assert_called_once_with(
+            email,
+            expected_subject,
+            expected_body,
+        )
+
+    @pytest.mark.asyncio
     async def test_trigger_email(self):
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock:
             content_type = "html"

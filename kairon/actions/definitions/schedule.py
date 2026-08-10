@@ -30,7 +30,6 @@ from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.constants import EventClass, EventExecutor
 from kairon.shared.data.constant import TASK_TYPE, STATUSES
 
-
 class ActionSchedule(ActionsBase):
     __client = MongoClient(Utility.environment['database']['url'])
     __events_db = Utility.environment['events']['queue']['name']
@@ -138,6 +137,9 @@ class ActionSchedule(ActionsBase):
             logger.exception(e)
             status = STATUSES.FAIL.value
             bot_response = "Sorry, I am unable to process your request at the moment."
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)

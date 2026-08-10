@@ -163,6 +163,7 @@ class MailTemplates(EmbeddedDocument):
     leave_bot_owner_notification = StringField()
     catalog_sync_status = StringField()
     password_reset_unverified = StringField()
+    action_failure = StringField()
 
 
 class SystemProperties(Document):

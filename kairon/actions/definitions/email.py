@@ -91,6 +91,9 @@ class ActionEmail(ActionsBase):
             exception = str(e)
             bot_response = "I have failed to process your request"
             status = STATUSES.FAIL.value
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)

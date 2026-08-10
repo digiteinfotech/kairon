@@ -27,4 +27,4 @@ email:
         member_left_bot_subject: ${EMAIL_TEMPLATES_USER_LEFT_BOT_SUBJECT:"User has left the BOT_NAME bot"}
         member_left_bot_mail_body: ${EMAIL_TEMPLATES_USER_LEFT_BOT_BODY:"User USER_NAME has left the BOT_NAME bot."}
         catalog_sync_status_subject: ${EMAIL_TEMPLATES_CATALOG_SYNC_UPDATE:"Catalog Sync Update"}
-
+        action_failure_subject: ${EMAIL_TEMPLATES_ACTION_FAILURE:"kAIron Action Failure Alert"}

@@ -2646,7 +2646,8 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
             "member_left_bot": MailUtility.__handle_member_left_bot,
-            "catalog_sync_status": MailUtility.__handle_catalog_sync_status
+            "catalog_sync_status": MailUtility.__handle_catalog_sync_status,
+            "action_failure": MailUtility.__handle_action_failure
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2952,3 +2953,19 @@ class MailUtility:
         subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject
 
+    def __handle_action_failure(**kwargs):
+        bot_name = kwargs.get("bot_name", "NA")
+        action_name = kwargs.get("action_name", "NA")
+        stack_trace = kwargs.get("stack_trace", "NA")
+        user_query_history = kwargs.get("user_query_history", {})
+        slot_values = kwargs.get("slot_values", {})
+        url = Utility.environment.get("action",{}).get("url")
+        body = Utility.email_conf["email"]["templates"]["action_failure"]
+        body = body.replace("BOT_NAME", bot_name)
+        body = body.replace("ACTION_NAME", action_name)
+        body = body.replace("STACK_TRACE", str(stack_trace))
+        body = body.replace("USER_QUERY_HISTORY", str(user_query_history))
+        body = body.replace("SLOT_VALUES", str(slot_values))
+        body = body.replace("ACTION_URL", str(url))
+        subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
+        return body, subject

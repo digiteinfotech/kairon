@@ -14,7 +14,6 @@ from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FORM_SLOT_SET_TYPE
 from kairon.shared.data.constant import STATUSES
 
-
 class ActionFormValidation(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):

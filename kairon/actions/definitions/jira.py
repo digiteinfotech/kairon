@@ -79,6 +79,9 @@ class ActionJiraTicket(ActionsBase):
             exception = str(e)
             status = STATUSES.FAIL.value
             bot_response = "I have failed to create issue for you"
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)

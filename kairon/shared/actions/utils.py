@@ -1,12 +1,15 @@
 import logging
 import re
 import time
+import traceback
 from datetime import datetime
 from typing import Any, List, Text, Dict
 
 import ujson as json
 
-from ..utils import Utility
+from kairon.shared.account.data_objects import Bot
+from ..utils import Utility, MailUtility
+import asyncio
 
 Utility.load_system_metadata()
 
@@ -189,7 +192,6 @@ class ActionUtility:
             content_type
     ):
         import mimetypes
-        import asyncio
         from kairon.shared.chat.user_media import UserMedia
 
         ActionUtility.validate_media_sizes(bot, media_ids)
@@ -1133,3 +1135,23 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
+
+    @staticmethod
+    def trigger_action_failure_mail(**kwargs):
+        try:
+            bot_name = Bot.objects(id=kwargs.get("bot_name","")).only("name").get().name
+            email = Utility.environment.get("support_mail")
+            stack_trace = traceback.format_exc()
+            asyncio.create_task(
+                MailUtility.format_and_send_mail(mail_type="action_failure",
+                                                   email=email,
+                                                   first_name="Team kAIron",
+                                                   stack_trace=stack_trace,
+                                                   slot_values=kwargs.get("slot_values", {}),
+                                                   bot_name=bot_name,
+                                                   action_name=kwargs.get("action_name"),
+                                                   user_query_history=kwargs.get("user_query_history", []),
+                                                   )
+            )
+        except Exception as mail_err:
+            logger.exception(mail_err)

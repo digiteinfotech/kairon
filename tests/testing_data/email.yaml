@@ -20,3 +20,4 @@ email:
         password_generated_subject: ${EMAIL_TEMPLATES_PASSWORD_GENERATED_SUBJECT:"Welcome to kAIron!"}
         untrusted_login_subject: ${EMAIL_TEMPLATES_UNTRUSTED_LOGIN_SUBJECT:"Suspicious sign-in detected!"}
         add_trusted_device: ${EMAIL_TEMPLATES_ADD_TRUSTED_DEVICE_SUBJECT:"Request to add truted device!"}
+        action_failure_subject: ${EMAIL_TEMPLATES_ACTION_FAILURE:"kAIron Action Failure Alert"}
