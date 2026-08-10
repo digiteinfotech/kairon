@@ -966,3 +966,194 @@ def test_get_client_gupshup_uses_partner_app_token():
     assert captured["access_token"] == "gs_partner_tok_xyz"
 
 
+def test_prepare_template_params_gupshup_hardcoded_image_id():
+    """Gupshup collection broadcast with hardcoded image ID — no crash, correct component built."""
+    raw_template = {
+        "elementName": "rajan_gs_mmt_utl",
+        "templateType": "IMAGE",
+        "containerMeta": "{}",
+        "languageCode": "en",
+    }
+    collection_records = [
+        {"phonenumber": "919876543001", "name": "Alice"},
+        {"phonenumber": "919876543002", "name": "Bob"},
+    ]
+    field_mapping = [
+        {
+            "type": "header",
+            "parameters": [{"type": "image", "image": {"id": "3280460405472722"}}],
+        }
+    ]
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "collection_config": {
+            "collection": "aug7data",
+            "number_field": "phonenumber",
+            "filters_list": [],
+            "field_mapping": {"rajan_gs_mmt_utl": field_mapping},
+        },
+        "template_config": [{"template_id": "rajan_gs_mmt_utl", "language": "en"}],
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch("kairon.shared.channels.broadcast.whatsapp.DataProcessor.get_broadcast_collection_data",
+               return_value=collection_records):
+        template_params, recipients = broadcast._WhatsappBroadcast__prepare_template_params(
+            raw_template, "rajan_gs_mmt_utl"
+        )
+
+    assert recipients == ["919876543001", "919876543002"]
+    assert len(template_params) == 2
+    for params in template_params:
+        assert params == [{"type": "header", "parameters": [{"type": "image", "image": {"id": "3280460405472722"}}]}]
+
+
+def test_prepare_template_params_gupshup_text_placeholder_resolved():
+    """Gupshup collection broadcast with text placeholder — resolves from record, dict raw_template safe."""
+    raw_template = {
+        "elementName": "promo_tmpl",
+        "templateType": "TEXT",
+        "containerMeta": "{}",
+    }
+    collection_records = [{"mobile": "919000000001", "customer_name": "Rajan"}]
+    field_mapping = [
+        {
+            "type": "body",
+            "parameters": [{"type": "text", "text": "{customer_name}"}],
+        }
+    ]
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "collection_config": {
+            "collection": "promo_data",
+            "number_field": "mobile",
+            "filters_list": [],
+            "field_mapping": {"promo_tmpl": field_mapping},
+        },
+        "template_config": [{"template_id": "promo_tmpl", "language": "en"}],
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch("kairon.shared.channels.broadcast.whatsapp.DataProcessor.get_broadcast_collection_data",
+               return_value=collection_records):
+        template_params, recipients = broadcast._WhatsappBroadcast__prepare_template_params(
+            raw_template, "promo_tmpl"
+        )
+
+    assert recipients == ["919000000001"]
+    assert template_params == [[{"type": "body", "parameters": [{"type": "text", "text": "Rajan"}]}]]
+
+
+def test_send_using_configuration_gupshup_with_collection_config():
+    """__send_using_configuration with Gupshup BSP and collection_config uses __prepare_template_params."""
+    raw_template = {
+        "elementName": "rajan_gs_mmt_utl",
+        "templateType": "IMAGE",
+        "languageCode": "en",
+        "namespace": "ns_gs",
+        "containerMeta": "{}",
+    }
+    collection_records = [
+        {"phonenumber": "919876543001"},
+        {"phonenumber": "919876543002"},
+    ]
+    field_mapping = [
+        {
+            "type": "header",
+            "parameters": [{"type": "image", "image": {"id": "3280460405472722"}}],
+        }
+    ]
+    mock_bsp = MagicMock()
+    mock_bsp.normalize_raw_template.return_value = raw_template
+    mock_bsp.get_broadcast_namespace_and_language.return_value = ("ns_gs", "en")
+    mock_bsp.to_log_template.return_value = []
+
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "collection_config": {
+            "collection": "aug7data",
+            "number_field": "phonenumber",
+            "filters_list": [],
+            "field_mapping": {"rajan_gs_mmt_utl": field_mapping},
+        },
+        "template_config": [{"template_id": "rajan_gs_mmt_utl", "language": "en"}],
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch.object(WhatsappBroadcast, '_WhatsappBroadcast__get_template',
+                      return_value=(raw_template, None)), \
+         patch("kairon.shared.channels.broadcast.whatsapp.BusinessServiceProviderFactory.get_instance",
+               return_value=lambda bot, user: mock_bsp), \
+         patch("kairon.shared.channels.broadcast.whatsapp.DataProcessor.get_broadcast_collection_data",
+               return_value=collection_records), \
+         patch.object(WhatsappBroadcast, 'initiate_broadcast', return_value=(2, [])) as mock_initiate, \
+         patch.object(MessageBroadcastProcessor, 'add_event_log'), \
+         patch.object(MessageBroadcastProcessor, 'update_broadcast_logs_with_template'):
+
+        broadcast._WhatsappBroadcast__send_using_configuration(None)
+
+    mock_bsp.get_template_params_for_broadcast.assert_not_called()
+    mock_initiate.assert_called_once()
+    message_list = mock_initiate.call_args[0][0]
+    assert len(message_list) == 2
+    for entry in message_list:
+        template_id, recipient, lang, t_params, namespace, _ = entry
+        assert template_id == "rajan_gs_mmt_utl"
+        assert recipient in ("919876543001", "919876543002")
+        assert lang == "en"
+        assert namespace == "ns_gs"
+        assert t_params == [{"type": "header", "parameters": [{"type": "image", "image": {"id": "3280460405472722"}}]}]
+
+
+def test_prepare_template_params_gupshup_button_preserves_sub_type_and_index():
+    """sub_type and index must survive component building for dynamic URL buttons."""
+    raw_template = {"elementName": "rajan_gs_mmt_utl", "templateType": "TEXT", "containerMeta": "{}"}
+    collection_records = [{"phonenumber": "919876543001"}]
+    field_mapping = [
+        {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": "John"},
+                {"type": "text", "text": "ORD234"},
+            ],
+        },
+        {
+            "type": "button",
+            "sub_type": "url",
+            "index": "1",
+            "parameters": [{"type": "text", "text": "ORD234"}],
+        },
+    ]
+    config = {
+        "bsp_type": WhatsappBSPTypes.bsp_gupshup.value,
+        "collection_config": {
+            "collection": "aug10",
+            "number_field": "phonenumber",
+            "filters_list": [],
+            "field_mapping": {"rajan_gs_mmt_utl": field_mapping},
+        },
+        "template_config": [{"template_id": "rajan_gs_mmt_utl", "language": "en"}],
+    }
+    broadcast = WhatsappBroadcast(config=config, bot="gs_bot", user="gs_user",
+                                  event_id="ev1", reference_id="ref1")
+
+    with patch("kairon.shared.channels.broadcast.whatsapp.DataProcessor.get_broadcast_collection_data",
+               return_value=collection_records):
+        template_params, recipients = broadcast._WhatsappBroadcast__prepare_template_params(
+            raw_template, "rajan_gs_mmt_utl"
+        )
+
+    assert recipients == ["919876543001"]
+    assert len(template_params) == 1
+    params = template_params[0]
+    body = params[0]
+    button = params[1]
+    assert body == {"type": "body", "parameters": [{"type": "text", "text": "John"}, {"type": "text", "text": "ORD234"}]}
+    assert button["type"] == "button"
+    assert button["sub_type"] == "url"
+    assert button["index"] == "1"
+    assert button["parameters"] == [{"type": "text", "text": "ORD234"}]
+

@@ -275,7 +275,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
 
         crud_data = DataProcessor.get_broadcast_collection_data(self.bot, collection_name, filters)
 
-        example_map = {item.get("type"): item.get("example", {}) for item in raw_template}
+        example_map = {item.get("type"): item.get("example", {}) for item in raw_template} if isinstance(raw_template, list) else {}
 
         def _default_text(section_type: str, field_name: str) -> str:
             """Fetch default text value from example_map."""
@@ -339,7 +339,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         for record in crud_data:
             record_params = [
                 {
-                    "type": comp["type"],
+                    **{k: v for k, v in comp.items() if k != "parameters"},
                     "parameters": [
                         _build_param(param, record, comp.get("type", "").upper())
                         for param in comp.get("parameters", [])
