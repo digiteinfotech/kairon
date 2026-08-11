@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Text, Dict, List, Optional
 
 from bson import ObjectId
-from loguru import logger
 from mongoengine import DoesNotExist
 from mongoengine.errors import NotUniqueError
 
