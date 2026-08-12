@@ -3,7 +3,7 @@ from typing import Text, Dict, List, Optional
 
 from bson import ObjectId
 from mongoengine import DoesNotExist
-from mongoengine.errors import NotUniqueError
+from mongoengine.errors import NotUniqueError, ValidationError
 
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import (
@@ -69,6 +69,8 @@ class CustomerOrderProcessor:
             customer.save()
         except NotUniqueError:
             raise AppException("Customer with this identifier already exists for another bot")
+        except ValidationError as e:
+            raise AppException(str(e))
 
         result = customer.to_mongo().to_dict()
         result["_id"] = str(result["_id"])
