@@ -17,36 +17,30 @@ from kairon.shared.models import User
 
 router = APIRouter()
 
-
-# ------------------------------------------------------------------ #
-# customer_details                                                      #
-# ------------------------------------------------------------------ #
-
 @router.post("/customer", response_model=Response)
 async def upsert_customer(
         request_data: UpsertCustomerRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    """Upsert a customer record. Decrypts identifier at boundary; stores plain user_id."""
+    """Upsert a customer record. Decrypts identifier at boundary; stores plain sender_id."""
     result = CustomerOrderProcessor.upsert_customer(
         bot=current_user.get_bot(),
-        user=current_user.get_user(),
-        encrypted_id=request_data.encrypted_id,
+        sender_id=request_data.sender_id,
         persona_type=request_data.persona_type,
-        payload=request_data.dict(exclude={"encrypted_id", "persona_type"}, exclude_none=True),
+        payload=request_data.dict(exclude={"sender_id", "persona_type"}, exclude_none=True),
     )
     return Response(data=result)
 
 
 @router.get("/customer", response_model=Response)
 async def get_customer(
-        encrypted_id: str = Query(description="Encrypted user identifier"),
+        sender_id: str = Query(description="Encrypted sender identifier"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """Fetch a customer. Returns re-encrypted user_id."""
     result = CustomerOrderProcessor.get_customer(
         bot=current_user.get_bot(),
-        encrypted_id=encrypted_id,
+        sender_id=sender_id,
     )
     return Response(data=result)
 
@@ -58,7 +52,7 @@ async def list_customers(
         page_size: int = Query(default=20, ge=1, le=100),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
-    """List customers for this bot, optionally filtered by persona_type."""
+    """List customers for this bot"""
     result = CustomerOrderProcessor.list_customers(
         bot=current_user.get_bot(),
         persona_type=persona_type,
@@ -70,14 +64,14 @@ async def list_customers(
 
 @router.put("/customer/address", response_model=Response)
 async def update_address(
-        encrypted_id: str = Query(description="Encrypted user identifier"),
+        sender_id: str = Query(description="Encrypted sender identifier"),
         request_data: AddressRequest = ...,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """Add or replace an address entry for a customer (matched by label)."""
     result = CustomerOrderProcessor.update_address(
         bot=current_user.get_bot(),
-        encrypted_id=encrypted_id,
+        sender_id=sender_id,
         address_payload=request_data.dict(),
     )
     return Response(data=result)
@@ -85,20 +79,16 @@ async def update_address(
 
 @router.delete("/customer", response_model=Response)
 async def delete_customer(
-        encrypted_id: str = Query(description="Encrypted user identifier"),
+        sender_id: str = Query(description="Encrypted sender identifier"),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """Soft-delete a customer (sets status=False)."""
     CustomerOrderProcessor.delete_customer(
         bot=current_user.get_bot(),
-        encrypted_id=encrypted_id,
+        sender_id=sender_id,
     )
     return Response(message="Customer deleted")
 
-
-# ------------------------------------------------------------------ #
-# order_details                                                         #
-# ------------------------------------------------------------------ #
 
 @router.post("/order", response_model=Response)
 async def create_order(
@@ -108,8 +98,7 @@ async def create_order(
     """Create an order tied to an existing customer. Fails if customer not found."""
     result = CustomerOrderProcessor.create_order(
         bot=current_user.get_bot(),
-        user=current_user.get_user(),
-        encrypted_id=request_data.encrypted_id,
+        sender_id=request_data.sender_id,
         persona_type=request_data.persona_type,
         order_payload=request_data.order_details,
     )
@@ -146,7 +135,7 @@ async def update_order_status(
 
 @router.get("/orders", response_model=Response)
 async def list_orders_for_customer(
-        encrypted_id: str = Query(description="Encrypted user identifier"),
+        sender_id: str = Query(description="Encrypted sender identifier"),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
@@ -154,7 +143,7 @@ async def list_orders_for_customer(
     """List all orders for a customer, sorted by created_at desc."""
     result = CustomerOrderProcessor.list_orders_for_customer(
         bot=current_user.get_bot(),
-        encrypted_id=encrypted_id,
+        sender_id=sender_id,
         page=page,
         page_size=page_size,
     )

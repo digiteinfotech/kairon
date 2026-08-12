@@ -1141,15 +1141,6 @@ class StorePageMetadata(Document):
     meta = {"indexes": [{"fields": ["bot"]}]}
 
 
-KNOWN_PERSONA_TYPES = ["fnb", "hotel", "fpo", "crm_lead"]
-
-CUSTOMER_REQUIRED_FIELDS_REGISTRY = {
-    "fnb": ["mobile"],
-    "hotel": ["mobile"],
-    "fpo": ["name"],
-    "crm_lead": [],
-}
-
 ORDER_STATUS_TRANSITIONS = {
     "placed": ["confirmed", "cancelled"],
     "confirmed": ["in_progress", "cancelled"],
@@ -1157,18 +1148,6 @@ ORDER_STATUS_TRANSITIONS = {
     "completed": [],
     "cancelled": [],
 }
-
-
-def validate_persona_type(persona_type: str):
-    if persona_type not in KNOWN_PERSONA_TYPES:
-        raise ValidationError(f"Unknown persona_type: {persona_type}. Must be one of {KNOWN_PERSONA_TYPES}")
-
-
-def validate_required_fields(persona_type: str, payload: dict):
-    required = CUSTOMER_REQUIRED_FIELDS_REGISTRY.get(persona_type, [])
-    missing = [f for f in required if not payload.get(f)]
-    if missing:
-        raise ValidationError(f"Missing required field(s) for {persona_type}: {missing}")
 
 
 def build_filterable_attrs(order_details: dict) -> list:
@@ -1185,13 +1164,10 @@ class Address(EmbeddedDocument):
     is_default = BooleanField(default=False)
 
 
-@auditlogger.log
-@push_notification.apply
-class CustomerDetails(Auditlog):
+class CustomerDetails(Document):
     bot = StringField(required=True)
-    persona_type = StringField(required=True)
-    user_id = StringField(required=True)
-    user = StringField(required=True)
+    persona_type = StringField()
+    sender_id = StringField(required=True)
     name = StringField()
     mobile = StringField()
     alternate_mobile = StringField()
@@ -1206,7 +1182,7 @@ class CustomerDetails(Auditlog):
 
     meta = {
         "indexes": [
-            {"fields": ["bot", "user_id"], "unique": True},
+            {"fields": ["bot", "sender_id"], "unique": True},
             {"fields": ["bot", "mobile"], "sparse": True},
             {"fields": ["bot", "persona_type"]},
         ]
@@ -1217,19 +1193,14 @@ class CustomerDetails(Auditlog):
             self.clean()
 
     def clean(self):
-        validate_persona_type(self.persona_type)
-        validate_required_fields(self.persona_type, self.to_mongo().to_dict())
         self.updated_at = datetime.utcnow()
 
 
-@auditlogger.log
-@push_notification.apply
-class OrderDetails(Auditlog):
+class OrderDetails(Document):
     bot = StringField(required=True)
-    persona_type = StringField(required=True)
+    persona_type = StringField()
     customer_id = StringField(required=True)
-    user_id = StringField(required=True)
-    user = StringField(required=True)
+    sender_id = StringField(required=True)
     status = StringField(
         required=True,
         choices=["placed", "confirmed", "in_progress", "completed", "cancelled"],
@@ -1242,7 +1213,7 @@ class OrderDetails(Auditlog):
 
     meta = {
         "indexes": [
-            {"fields": ["bot", "user_id", "-created_at"]},
+            {"fields": ["bot", "sender_id", "-created_at"]},
             {"fields": ["bot", "persona_type", "status", "-created_at"]},
             {"fields": ["bot", "persona_type", "filterable_attrs.k", "filterable_attrs.v"]},
         ]
@@ -1253,6 +1224,5 @@ class OrderDetails(Auditlog):
             self.clean()
 
     def clean(self):
-        validate_persona_type(self.persona_type)
         self.filterable_attrs = build_filterable_attrs(self.order_details)
         self.updated_at = datetime.utcnow()

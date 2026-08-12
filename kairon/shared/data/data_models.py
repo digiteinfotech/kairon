@@ -1583,8 +1583,8 @@ class AddressRequest(BaseModel):
 
 
 class UpsertCustomerRequest(BaseModel):
-    encrypted_id: str
-    persona_type: str
+    sender_id: str
+    persona_type: Optional[str] = None
     name: Optional[str] = None
     mobile: Optional[str] = None
     alternate_mobile: Optional[str] = None
@@ -1596,8 +1596,8 @@ class UpsertCustomerRequest(BaseModel):
 
 
 class CreateOrderRequest(BaseModel):
-    encrypted_id: str
-    persona_type: str
+    sender_id: str
+    persona_type: Optional[str] = None
     order_details: Dict[str, Any]
 
 
@@ -1606,7 +1606,7 @@ class UpdateOrderStatusRequest(BaseModel):
 
 
 class FilterOrdersRequest(BaseModel):
-    persona_type: str
+    persona_type: Optional[str] = None
     filters: Dict[str, Any] = {}
     page: int = 1
     page_size: int = 20
