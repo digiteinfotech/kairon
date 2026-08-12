@@ -84,7 +84,11 @@ async def execute_async_action_standalone(request: Request, token: str) -> BSRes
     return await process_router_message(token, None, request.method, request)
 
 @router.post("/main_pyscript/execute-python")
-async def trigger_restricted_python(payload: PyscriptPayload):
+async def trigger_restricted_python(
+        request: Request,
+        payload: PyscriptPayload
+):
+    await CallbackAuthenticator.verify(request)
     try:
         result = CallbackUtility.main_pyscript_handler({
             "source_code": payload.source_code,
