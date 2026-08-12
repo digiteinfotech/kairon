@@ -52,7 +52,7 @@ async def list_customers(
         page_size: int = Query(default=20, ge=1, le=100),
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
-    """List customers for this bot"""
+    """List customers for this bot."""
     result = CustomerOrderProcessor.list_customers(
         bot=current_user.get_bot(),
         persona_type=persona_type,
