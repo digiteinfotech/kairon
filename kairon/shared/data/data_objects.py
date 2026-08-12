@@ -1139,3 +1139,90 @@ class StorePageMetadata(Document):
     config = DictField()
 
     meta = {"indexes": [{"fields": ["bot"]}]}
+
+
+ORDER_STATUS_TRANSITIONS = {
+    "placed": ["confirmed", "cancelled"],
+    "confirmed": ["in_progress", "cancelled"],
+    "in_progress": ["completed", "cancelled"],
+    "completed": [],
+    "cancelled": [],
+}
+
+
+def build_filterable_attrs(order_details: dict) -> list:
+    attrs = []
+    for k, v in (order_details or {}).items():
+        if isinstance(v, (str, int, float, bool)):
+            attrs.append({"k": k, "v": v})
+    return attrs
+
+
+class Address(EmbeddedDocument):
+    label = StringField()
+    address = StringField()
+    is_default = BooleanField(default=False)
+
+
+class CustomerDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    sender_id = StringField(required=True)
+    name = StringField()
+    mobile = StringField()
+    alternate_mobile = StringField()
+    email = StringField()
+    alternate_email = StringField()
+    address_list = ListField(EmbeddedDocumentField(Address), default=[])
+    persona_details = DictField()
+    additional_info = DictField()
+    status = BooleanField(default=True)
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id"], "unique": True},
+            {"fields": ["bot", "mobile"], "sparse": True},
+            {"fields": ["bot", "persona_type"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.updated_at = datetime.utcnow()
+
+
+class OrderDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    customer_id = StringField(required=True)
+    sender_id = StringField(required=True)
+    status = StringField(
+        required=True,
+        choices=["placed", "confirmed", "in_progress", "completed", "cancelled"],
+        default="placed",
+    )
+    order_details = DictField()
+    filterable_attrs = ListField(DictField(), default=[])
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id", "-created_at"]},
+            {"fields": ["bot", "persona_type", "status", "-created_at"]},
+            {"fields": ["bot", "persona_type", "filterable_attrs.k", "filterable_attrs.v"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.filterable_attrs = build_filterable_attrs(self.order_details)
+        self.updated_at = datetime.utcnow()

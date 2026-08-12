@@ -1574,3 +1574,39 @@ class AnalyticsPipelineEventRequest(BaseModel):
     timestamp: str
     data_deletion_policy: Optional[List[Any]] = []
     triggers: Optional[List[Dict[str, Any]]] = []
+
+
+class AddressRequest(BaseModel):
+    label: str
+    address: str
+    is_default: bool = False
+
+
+class UpsertCustomerRequest(BaseModel):
+    sender_id: str
+    persona_type: Optional[str] = None
+    name: Optional[str] = None
+    mobile: Optional[str] = None
+    alternate_mobile: Optional[str] = None
+    email: Optional[str] = None
+    alternate_email: Optional[str] = None
+    address_list: Optional[List[Dict[str, Any]]] = None
+    persona_details: Optional[Dict[str, Any]] = None
+    additional_info: Optional[Dict[str, Any]] = None
+
+
+class CreateOrderRequest(BaseModel):
+    sender_id: str
+    persona_type: Optional[str] = None
+    order_details: Dict[str, Any]
+
+
+class UpdateOrderStatusRequest(BaseModel):
+    status: str
+
+
+class FilterOrdersRequest(BaseModel):
+    persona_type: Optional[str] = None
+    filters: Dict[str, Any] = {}
+    page: int = 1
+    page_size: int = 20
