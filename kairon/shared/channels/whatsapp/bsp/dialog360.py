@@ -450,7 +450,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
-    def delete_media_file(media_id: str, channel_config):
+    def delete_media_file(bot: str, media_id: str, channel_config):
         api_key = channel_config.get("config", {}).get("api_key")
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
         url = f"{base_url}/{media_id}"

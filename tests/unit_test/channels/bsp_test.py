@@ -1576,7 +1576,7 @@ def test_delete_media_file_success():
     with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
         mock_http.return_value = None
 
-        result = BSP360Dialog.delete_media_file(media_id, channel_config)
+        result = BSP360Dialog.delete_media_file("test_bot", media_id, channel_config)
 
     mock_http.assert_called_once()
     assert result == "Media file deleted successfully"
@@ -1589,7 +1589,7 @@ def test_delete_media_file_not_exist_raises():
     with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
         mock_http.side_effect = AppException("media file does not exist for this media id.")
         with pytest.raises(AppException, match="media file does not exist for this media id."):
-            BSP360Dialog.delete_media_file(media_id, channel_config)
+            BSP360Dialog.delete_media_file("test_bot", media_id, channel_config)
 
     mock_http.assert_called_once()
 
@@ -2428,19 +2428,41 @@ class TestBSPGupshup:
     # ─── delete_media_file ────────────────────────────────────────────
 
     def test_delete_media_file_gupshup_success(self):
+        bot = "gs_delete_success_bot"
+        media_id = "gs_media_001"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="promo.jpg", extension="image/jpeg",
+            sender_id="user_x", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            external_upload_info={"bsp": "gupshup", "external_media_id": "ext_gs_001"},
+            timestamp=datetime.utcnow()
+        ).save()
         channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
         with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
             mock_http.return_value = None
-            result = BSPGupshup.delete_media_file("gs_media_001", channel_config)
+            result = BSPGupshup.delete_media_file(bot, media_id, channel_config)
         assert result == "Media file deleted successfully"
         mock_http.assert_called_once()
+        UserMediaData.objects(bot=bot).delete()
 
     def test_delete_media_file_gupshup_raises_on_failure(self):
+        bot = "gs_delete_fail_bot"
+        media_id = "gs_media_fail_001"
+        UserMediaData.objects(bot=bot).delete()
+        UserMediaData(
+            bot=bot, media_id=media_id, filename="fail.jpg", extension="image/jpeg",
+            sender_id="user_y", upload_status=UserMediaUploadStatus.completed.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            external_upload_info={"bsp": "gupshup", "external_media_id": "ext_gs_fail"},
+            timestamp=datetime.utcnow()
+        ).save()
         channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
         with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
             mock_http.side_effect = AppException("media file does not exist for this media id.")
             with pytest.raises(AppException, match="media file does not exist"):
-                BSPGupshup.delete_media_file("bad_media_id", channel_config)
+                BSPGupshup.delete_media_file(bot, media_id, channel_config)
+        UserMediaData.objects(bot=bot).delete()
 
     # ─── upload_media_file ────────────────────────────────────────────
 
