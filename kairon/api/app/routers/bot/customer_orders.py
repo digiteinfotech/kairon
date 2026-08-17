@@ -19,12 +19,13 @@ router = APIRouter()
 
 @router.post("/customer", response_model=Response)
 async def upsert_customer(
+        bot: str,
         request_data: UpsertCustomerRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """Upsert a customer record. Decrypts identifier at boundary; stores plain sender_id."""
     result = CustomerOrderProcessor.upsert_customer(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=request_data.sender_id,
         persona_type=request_data.persona_type,
         payload=request_data.dict(exclude={"sender_id", "persona_type"}, exclude_none=True),
@@ -34,12 +35,13 @@ async def upsert_customer(
 
 @router.get("/customer", response_model=Response)
 async def get_customer(
+        bot: str,
         sender_id: str = Query(description="Encrypted sender identifier"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=TESTER_ACCESS),
 ):
     """Fetch a customer. Returns re-encrypted user_id."""
     result = CustomerOrderProcessor.get_customer(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=sender_id,
     )
     return Response(data=result)
@@ -64,13 +66,14 @@ async def list_customers(
 
 @router.put("/customer/address", response_model=Response)
 async def update_address(
+        bot: str,
         sender_id: str = Query(description="Encrypted sender identifier"),
         request_data: AddressRequest = ...,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """Add or replace an address entry for a customer (matched by label)."""
     result = CustomerOrderProcessor.update_address(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=sender_id,
         address_payload=request_data.dict(),
     )
@@ -79,12 +82,13 @@ async def update_address(
 
 @router.delete("/customer", response_model=Response)
 async def delete_customer(
+        bot: str,
         sender_id: str = Query(description="Encrypted sender identifier"),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """Soft-delete a customer (sets status=False)."""
     CustomerOrderProcessor.delete_customer(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=sender_id,
     )
     return Response(message="Customer deleted")
@@ -92,12 +96,13 @@ async def delete_customer(
 
 @router.post("/order", response_model=Response)
 async def create_order(
+        bot: str,
         request_data: CreateOrderRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """Create an order tied to an existing customer. Fails if customer not found."""
     result = CustomerOrderProcessor.create_order(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=request_data.sender_id,
         persona_type=request_data.persona_type,
         order_payload=request_data.order_details,
@@ -107,12 +112,13 @@ async def create_order(
 
 @router.get("/order/{order_id}", response_model=Response)
 async def get_order(
+        bot: str,
         order_id: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=TESTER_ACCESS),
 ):
     """Fetch a single order by ID."""
     result = CustomerOrderProcessor.get_order(
-        bot=current_user.get_bot(),
+        bot=bot,
         order_id=order_id,
     )
     return Response(data=result)
@@ -120,13 +126,14 @@ async def get_order(
 
 @router.patch("/order/{order_id}/status", response_model=Response)
 async def update_order_status(
+        bot: str,
         order_id: str,
         request_data: UpdateOrderStatusRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """Advance order lifecycle status. Validates allowed transitions."""
     result = CustomerOrderProcessor.update_order_status(
-        bot=current_user.get_bot(),
+        bot=bot,
         order_id=order_id,
         new_status=request_data.status,
     )
@@ -135,14 +142,15 @@ async def update_order_status(
 
 @router.get("/orders", response_model=Response)
 async def list_orders_for_customer(
+        bot: str,
         sender_id: str = Query(description="Encrypted sender identifier"),
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=TESTER_ACCESS),
 ):
     """List all orders for a customer, sorted by created_at desc."""
     result = CustomerOrderProcessor.list_orders_for_customer(
-        bot=current_user.get_bot(),
+        bot=bot,
         sender_id=sender_id,
         page=page,
         page_size=page_size,
@@ -152,12 +160,13 @@ async def list_orders_for_customer(
 
 @router.post("/orders/filter", response_model=Response)
 async def filter_orders(
+        bot: str,
         request_data: FilterOrdersRequest,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
+        current_user: User = Security(Authentication.validate_store_page_token, scopes=TESTER_ACCESS),
 ):
     """Filter orders via filterable_attrs attribute pattern. Never queries order_details.* directly."""
     result = CustomerOrderProcessor.filter_orders(
-        bot=current_user.get_bot(),
+        bot=bot,
         persona_type=request_data.persona_type,
         filters=request_data.filters,
         page=request_data.page,

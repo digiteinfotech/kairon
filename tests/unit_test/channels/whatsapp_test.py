@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import responses
 from mock import patch
@@ -1538,4 +1538,181 @@ class TestWhatsappHandler:
                 assert user_message.text == '/k_quick_reply_msg{"quick_reply": "buy kairon for 1 billion"}'
 
 
+class TestRegisterCustomerIfNewHook:
+    """T-004: Tests for the inbound WhatsApp customer auto-registration hook."""
 
+    CHANNEL_CONFIG = {
+        "connector_type": "whatsapp",
+        "config": {
+            "app_secret": "jagbd34567890",
+            "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+            "verify_token": "valid",
+            "phone_number": "1234567890",
+        },
+    }
+    META = {"channel_type": "whatsapp", "bsp_type": ",meta", "tabname": "default"}
+    BOT = "reg_hook_test_bot"
+    SENDER = "910123456789"
+
+    def _meta_payload(self, msg: dict) -> dict:
+        return {
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "WBA_ID", "changes": [{"value": {
+                "messaging_product": "whatsapp",
+                "metadata": {"display_phone_number": "910123456789", "phone_number_id": "12345678"},
+                "messages": [msg],
+            }, "field": "messages"}]}],
+        }
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        Utility.load_system_metadata()
+        connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+
+    @pytest.mark.asyncio
+    async def test_registration_invoked_once_with_correct_args(self):
+        # AC1: invoked exactly once with bot and sender_id on text message
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        msg = {"from": self.SENDER, "type": "text", "id": "msg1", "timestamp": "ts", "text": {"body": "hi"}}
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message", return_value="ok"):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new") as reg_mock:
+                    handler = Whatsapp(self.CHANNEL_CONFIG)
+                    await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+        reg_mock.assert_called_once_with(self.BOT, self.SENDER)
+
+    @pytest.mark.asyncio
+    async def test_registration_called_before_dispatch(self):
+        # AC2: registration precedes _handle_user_message dispatch
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        call_order = []
+        msg = {"from": self.SENDER, "type": "text", "id": "msg1", "timestamp": "ts", "text": {"body": "hi"}}
+
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message", return_value="ok"):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new",
+                           side_effect=lambda b, s: call_order.append("register")):
+                    with patch.object(Whatsapp, "_handle_user_message",
+                                      new_callable=AsyncMock,
+                                      side_effect=lambda *a, **kw: call_order.append("dispatch")):
+                        handler = Whatsapp(self.CHANNEL_CONFIG)
+                        await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+        assert call_order == ["register", "dispatch"]
+
+    @pytest.mark.asyncio
+    async def test_no_sender_skips_registration(self):
+        # AC3: absent/empty sender → registration not invoked
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        msg = {"type": "text", "id": "msg1", "timestamp": "ts", "text": {"body": "hi"}}  # no "from"
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message", return_value="ok"):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new") as reg_mock:
+                    handler = Whatsapp(self.CHANNEL_CONFIG)
+                    await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+        reg_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_continues_when_registration_fails(self):
+        # AC4: dispatch happens even when registration raises; AC5: exactly one warning, no error response
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        msg = {"from": self.SENDER, "type": "text", "id": "msg1", "timestamp": "ts", "text": {"body": "hi"}}
+        dispatch_mock = AsyncMock()
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "_handle_user_message", dispatch_mock):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new",
+                           side_effect=Exception("forced failure")):
+                    with patch("kairon.chat.handlers.channels.whatsapp.logger") as mock_log:
+                        handler = Whatsapp(self.CHANNEL_CONFIG)
+                        await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+        dispatch_mock.assert_called_once()
+        call_args = dispatch_mock.call_args[0]
+        assert call_args[1] == self.SENDER  # unchanged sender
+        assert call_args[3] == self.BOT     # unchanged bot
+        assert mock_log.warning.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_all_bsp_types_invoke_registration(self):
+        # AC6: meta, 360dialog, gupshup all invoke registration exactly once
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+        msg = {"from": self.SENDER, "type": "text", "id": "msg1", "timestamp": "ts", "text": {"body": "hi"}}
+
+        for bsp_type in ["meta", "360dialog", "gupshup"]:
+            config = dict(self.CHANNEL_CONFIG)
+            config["bsp_type"] = bsp_type
+            with patch.object(WhatsappBot, "mark_as_read"):
+                with patch.object(Whatsapp, "process_message", return_value="ok"):
+                    with patch.object(WhatsappFactory, "get_client", return_value=MagicMock(
+                            return_value=MagicMock())):
+                        with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new") as reg_mock:
+                            handler = Whatsapp(config)
+                            await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+            reg_mock.assert_called_once_with(self.BOT, self.SENDER)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("msg,expected_called", [
+        ({"from": "910123456789", "type": "text", "id": "m", "timestamp": "t", "text": {"body": "hi"}}, True),
+        ({"from": "910123456789", "type": "interactive", "id": "m", "timestamp": "t",
+          "interactive": {"type": "button_reply", "button_reply": {"id": "yes", "title": "Yes"}}}, True),
+        ({"from": "910123456789", "type": "button", "id": "m", "timestamp": "t",
+          "button": {"text": "Yes", "payload": "yes"}}, True),
+        ({"from": "910123456789", "type": "location", "id": "m", "timestamp": "t",
+          "location": {"latitude": "12.9", "longitude": "77.6"}}, True),
+        ({"from": "910123456789", "type": "order", "id": "m", "timestamp": "t",
+          "order": {"catalog_id": "c1", "product_items": []}}, True),
+    ])
+    async def test_content_types_invoke_registration(self, msg, expected_called):
+        # AC7: text, interactive, button, location, order each invoke registration
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message", return_value="ok"):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new") as reg_mock:
+                    handler = Whatsapp(self.CHANNEL_CONFIG)
+                    await handler.handle_meta_payload(self._meta_payload(msg), dict(self.META), self.BOT)
+        assert reg_mock.called == expected_called
+
+    @pytest.mark.asyncio
+    async def test_payment_event_registers_with_business_number(self):
+        # Payment status events route through message() like any other type.
+        # sender_id on that path is the business display_phone_number set by handle_meta_payload.
+        from kairon.chat.handlers.channels.whatsapp import Whatsapp, WhatsappBot
+        business_number = "918657459321"
+        payment_payload = {
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "190133580861200", "changes": [{"value": {
+                "messaging_product": "whatsapp",
+                "metadata": {"display_phone_number": business_number, "phone_number_id": "257191390803220"},
+                "statuses": [{
+                    "id": "wamid.ABC",
+                    "status": "captured",
+                    "timestamp": "1724764153",
+                    "recipient_id": "919515991234",
+                    "type": "payment",
+                    "payment": {
+                        "reference_id": "BM3-43D-12",
+                        "amount": {"value": 100, "offset": 100},
+                        "currency": "INR",
+                        "transaction": {
+                            "id": "order_1",
+                            "type": "razorpay",
+                            "status": "success",
+                            "created_timestamp": 1724764153,
+                            "updated_timestamp": 1724764153,
+                            "amount": {"value": 100, "offset": 100},
+                            "currency": "INR",
+                            "method": {"type": "upi"},
+                        },
+                        "receipt": "r1",
+                        "notes": {},
+                    },
+                }],
+            }, "field": "messages"}]}],
+        }
+        with patch.object(WhatsappBot, "mark_as_read"):
+            with patch.object(Whatsapp, "process_message", return_value="ok"):
+                with patch("kairon.chat.handlers.channels.whatsapp.CustomerOrderProcessor.register_customer_if_new") as reg_mock:
+                    handler = Whatsapp(self.CHANNEL_CONFIG)
+                    await handler.handle_meta_payload(payment_payload, dict(self.META), self.BOT)
+        reg_mock.assert_called_once_with(self.BOT, business_number)

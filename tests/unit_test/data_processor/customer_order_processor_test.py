@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 from mongoengine import connect
@@ -305,20 +306,9 @@ class TestCreateOrder:
             persona_type="fnb",
             order_payload={"item": "Pizza", "qty": 2, "price": 499},
         )
-        assert result["status"] == "placed"
-        assert result["order_details"]["item"] == "Pizza"
-        assert "_id" in result
-
-    def test_create_order_builds_filterable_attrs(self):
-        result = CustomerOrderProcessor.create_order(
-            bot=self.bot, sender_id=self.enc,
-            persona_type="fnb",
-            order_payload={"item": "Burger", "qty": 1, "nested": {"ignored": True}},
-        )
-        keys = {a["k"] for a in result["filterable_attrs"]}
-        assert "item" in keys
-        assert "qty" in keys
-        assert "nested" not in keys
+        assert "order_id" in result
+        assert result["payment_id"] is None
+        assert result["payment_link"] is None
 
     def test_create_order_customer_not_found(self):
         with pytest.raises(AppException, match="Customer not found"):
@@ -327,15 +317,6 @@ class TestCreateOrder:
                 persona_type="fnb",
                 order_payload={"item": "Soda"},
             )
-
-    def test_create_order_masks_sender_id_in_response(self):
-        result = CustomerOrderProcessor.create_order(
-            bot=self.bot, sender_id=self.enc,
-            persona_type="fnb",
-            order_payload={"item": "Tea", "qty": 3, "price": 50},
-        )
-        assert result["sender_id"] != "order_user1"
-        assert Utility.decrypt_message(result["sender_id"]) == "order_user1"
 
 
 class TestGetOrder:
@@ -354,7 +335,7 @@ class TestGetOrder:
         )
 
     def test_get_order_success(self):
-        result = CustomerOrderProcessor.get_order(bot=self.bot, order_id=self.order["_id"])
+        result = CustomerOrderProcessor.get_order(bot=self.bot, order_id=self.order["order_id"])
         assert result["order_details"]["item"] == "Pasta"
         assert result["status"] == "placed"
 
@@ -366,7 +347,7 @@ class TestGetOrder:
 
     def test_get_order_wrong_bot(self):
         with pytest.raises(AppException, match="Order not found"):
-            CustomerOrderProcessor.get_order(bot="wrong_bot", order_id=self.order["_id"])
+            CustomerOrderProcessor.get_order(bot="wrong_bot", order_id=self.order["order_id"])
 
 
 class TestUpdateOrderStatus:
@@ -386,14 +367,14 @@ class TestUpdateOrderStatus:
 
     def test_update_status_placed_to_confirmed(self):
         result = CustomerOrderProcessor.update_order_status(
-            bot=self.bot, order_id=self.order["_id"], new_status="confirmed",
+            bot=self.bot, order_id=self.order["order_id"], new_status="confirmed",
         )
         assert result["status"] == "confirmed"
 
     def test_update_status_invalid_transition(self):
         with pytest.raises(AppException, match="Invalid transition"):
             CustomerOrderProcessor.update_order_status(
-                bot=self.bot, order_id=self.order["_id"], new_status="completed",
+                bot=self.bot, order_id=self.order["order_id"], new_status="completed",
             )
 
     def test_update_status_terminal_completed_no_transitions(self):
@@ -407,11 +388,11 @@ class TestUpdateOrderStatus:
             bot=bot, sender_id=enc,
             persona_type="fnb", order_payload={"item": "X", "qty": 1, "price": 10},
         )
-        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["_id"], new_status="confirmed")
-        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["_id"], new_status="in_progress")
-        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["_id"], new_status="completed")
+        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["order_id"], new_status="confirmed")
+        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["order_id"], new_status="in_progress")
+        CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["order_id"], new_status="completed")
         with pytest.raises(AppException, match="Invalid transition"):
-            CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["_id"], new_status="cancelled")
+            CustomerOrderProcessor.update_order_status(bot=bot, order_id=order["order_id"], new_status="cancelled")
 
     def test_update_status_order_not_found(self):
         from bson import ObjectId
@@ -432,7 +413,7 @@ class TestUpdateOrderStatus:
             persona_type="fnb", order_payload={"item": "Y", "qty": 1, "price": 10},
         )
         result = CustomerOrderProcessor.update_order_status(
-            bot=bot, order_id=order["_id"], new_status="cancelled",
+            bot=bot, order_id=order["order_id"], new_status="cancelled",
         )
         assert result["status"] == "cancelled"
 
@@ -526,3 +507,92 @@ class TestFilterOrders:
             bot=self.bot, persona_type="hotel", filters={},
         )
         assert result == []
+
+
+class TestRegisterCustomerIfNew:
+
+    def setup_method(self):
+        self.bot = "reg_if_new_bot"
+        self.sender = "27831234567"
+        CustomerDetails.objects(bot=self.bot).delete()
+        CustomerDetails.objects(bot="reg_if_new_bot_2").delete()
+
+    def test_create_new_record(self):
+        # AC1: no existing record → creates exactly one
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        assert CustomerDetails.objects(bot=self.bot, sender_id=self.sender).count() == 1
+
+    def test_sender_id_stored_verbatim(self):
+        # AC2: byte-for-byte, no encryption/decryption applied
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        doc = CustomerDetails.objects(bot=self.bot, sender_id=self.sender).first()
+        assert doc.sender_id == self.sender
+
+    def test_idempotent_two_calls_one_record(self):
+        # AC3: two calls → one record
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        assert CustomerDetails.objects(bot=self.bot, sender_id=self.sender).count() == 1
+
+    def test_idempotent_second_call_no_write(self):
+        # AC3: second invocation performs no write
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        with patch.object(CustomerDetails, "save") as mock_save:
+            CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+            mock_save.assert_not_called()
+
+    def test_non_destructive_on_populated_record(self):
+        # AC4: existing record with populated fields is fully unchanged
+        CustomerDetails(
+            bot=self.bot, sender_id=self.sender, name="Alice", mobile="9000000001"
+        ).save()
+        before = CustomerDetails.objects(bot=self.bot, sender_id=self.sender).first().to_mongo().to_dict()
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        after = CustomerDetails.objects(bot=self.bot, sender_id=self.sender).first().to_mongo().to_dict()
+        before.pop("updated_at", None)
+        after.pop("updated_at", None)
+        assert before == after
+
+    def test_created_record_schema_defaults(self):
+        # AC5: created record has only bot+sender; all other fields are schema defaults
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        doc = CustomerDetails.objects(bot=self.bot, sender_id=self.sender).first()
+        assert doc.status is True
+        assert doc.address_list == []
+        assert doc.persona_type is None
+        assert doc.name is None
+        assert doc.mobile is None
+        assert doc.email is None
+
+    def test_per_bot_isolation(self):
+        # AC6: same sender under different bot → separate records; original untouched
+        other_bot = "reg_if_new_bot_2"
+        CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        CustomerOrderProcessor.register_customer_if_new(other_bot, self.sender)
+        assert CustomerDetails.objects(bot=self.bot, sender_id=self.sender).count() == 1
+        assert CustomerDetails.objects(bot=other_bot, sender_id=self.sender).count() == 1
+        assert CustomerDetails.objects(bot=self.bot).count() == 1
+
+    def test_read_failure_does_not_propagate_emits_one_warning(self):
+        # AC7 + AC8: DB read error → no exception, exactly one warning
+        with patch("kairon.shared.data.customer_order_processor.CustomerDetails") as mock_cls:
+            mock_cls.objects.side_effect = Exception("DB down")
+            with patch("kairon.shared.data.customer_order_processor.logger") as mock_log:
+                result = CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        assert result is None
+        assert mock_log.warning.call_count == 1
+
+    def test_write_failure_does_not_propagate_emits_one_warning(self):
+        # AC7 + AC8: DB write error → no exception, exactly one warning
+        with patch("kairon.shared.data.customer_order_processor.CustomerDetails") as mock_cls:
+            mock_cls.objects.return_value.first.return_value = None
+            mock_cls.return_value.save.side_effect = Exception("write failed")
+            with patch("kairon.shared.data.customer_order_processor.logger") as mock_log:
+                result = CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        assert result is None
+        assert mock_log.warning.call_count == 1
+
+    def test_returns_none(self):
+        # AC9: operation returns no value
+        result = CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
+        assert result is None
