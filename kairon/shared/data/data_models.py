@@ -1421,7 +1421,7 @@ class CallbackConfigRequest(BaseModel):
     standalone_id_path: Optional[str] = None
     expire_in: int = 0
     response_type: str = CallbackResponseType.KAIRON_JSON.value
-
+    redirect: Optional[Dict[str, Any]] = None
 
 class CallbackActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
