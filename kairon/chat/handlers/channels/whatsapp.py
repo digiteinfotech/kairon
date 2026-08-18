@@ -13,6 +13,7 @@ import logging
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon import Utility
 from kairon.shared.chat.user_media import UserMedia
+from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
 from kairon.shared.constants import ChannelTypes, ActorType, WhatsappBSPTypes
 from kairon.shared.models import User
@@ -124,7 +125,13 @@ class Whatsapp:
             logger.warning(f"Received a message from whatsapp that we can not handle. Message: {message}")
             return
         message.update(metadata)
-        await self._handle_user_message(text, message.get("from") or message.get("from_user_id"), message, bot, media_ids)
+        sender_id = message.get("from") or message.get("from_user_id")
+        if sender_id:
+            try:
+                CustomerOrderProcessor.register_customer_if_new(bot, sender_id)
+            except Exception as e:
+                logger.warning(f"Customer registration failed for bot {bot}: {e}")
+        await self._handle_user_message(text, sender_id, message, bot, media_ids)
 
     async def handle_meta_payload(self, payload: Dict, metadata: Optional[Dict[Text, Any]], bot: str) -> None:
         provider = self.config.get("bsp_type", "meta")

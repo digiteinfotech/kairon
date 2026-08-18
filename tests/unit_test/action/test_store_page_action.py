@@ -74,7 +74,7 @@ class TestActionStorePage:
 
         with patch("kairon.shared.utils.Utility.encrypt_message",
                    return_value="enc_P-001") as mock_enc, \
-             patch("kairon.shared.auth.Authentication.create_access_token",
+             patch("kairon.shared.auth.Authentication.create_store_page_token",
                    return_value="tok_abc") as mock_tok, \
              patch("kairon.shared.actions.data_objects.ActionServerLogs.save") as mock_log:
             result = await ActionStorePage("bot_cat_exec", "exec_ok").execute(
@@ -87,11 +87,6 @@ class TestActionStorePage:
         assert result["temp_token"] == "tok_abc"
         assert result["store_page_name"] == "product_page"
         mock_log.assert_called_once()
-        call_kwargs = mock_log.call_args[0][0] if mock_log.call_args[0] else mock_log.call_args.args[0] if mock_log.call_args.args else None
-        # verify via the saved document - status SUCCESS
-        from kairon.shared.actions.data_objects import ActionServerLogs as ASL
-        last_log = ASL.objects(action="exec_ok").order_by("-timestamp").first()
-        assert last_log is None or True  # save is patched, just confirm called
 
     @pytest.mark.asyncio
     async def test_execute_slots_set_correctly(self, tracker, dispatcher):
@@ -100,7 +95,7 @@ class TestActionStorePage:
 
         with patch("kairon.shared.utils.Utility.encrypt_message",
                    return_value="enc_ITEM-42"), \
-             patch("kairon.shared.auth.Authentication.create_access_token",
+             patch("kairon.shared.auth.Authentication.create_store_page_token",
                    return_value="jwt_token"), \
              patch("kairon.shared.actions.data_objects.ActionServerLogs.save"):
             result = await ActionStorePage("bot_cat_slots", "exec_slots").execute(

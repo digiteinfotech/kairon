@@ -271,3 +271,6 @@ pos:
     odoo_url: ${ODOO_URL:"http://localhost:8080"}
     odoo_master_password: ${ODOO_MASTER_PASSWORD:"testpassword"}
     odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
+
+store_page:
+  url: ${STORE_PAGE_URL:"http://localhost:8080"}

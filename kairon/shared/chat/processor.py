@@ -356,7 +356,7 @@ class ChatDataProcessor:
         try:
             channel_config = ChatDataProcessor.get_channel_config(channel, bot)
             bsp_type = channel_config.get("config").get("bsp_type", "meta")
-            BusinessServiceProviderFactory.get_instance(bsp_type).delete_media_file(media_id, channel_config)
+            BusinessServiceProviderFactory.get_instance(bsp_type).delete_media_file(bot, media_id, channel_config)
             return "File deleted from meta"
         except DoesNotExist as e:
             logger.error(

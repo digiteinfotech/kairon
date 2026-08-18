@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Text, Dict, List, Optional
+from typing import Text, Dict, List, Optional, Any
 
+import requests as http_requests
 from bson import ObjectId
 from bson.errors import InvalidId
+from loguru import logger
 from mongoengine import DoesNotExist
 from mongoengine.errors import NotUniqueError, ValidationError
 
@@ -12,6 +14,7 @@ from kairon.shared.data.data_objects import (
     OrderDetails,
     Address,
     ORDER_STATUS_TRANSITIONS,
+    StorePageMetadata,
 )
 from kairon.shared.utils import Utility
 
@@ -35,6 +38,66 @@ class CustomerOrderProcessor:
             doc["sender_id"] = CustomerOrderProcessor._encrypt(doc["sender_id"])
         return doc
 
+    @staticmethod
+    def _resolve_credential(param: dict, bot: str) -> str:
+        from kairon.shared.actions.models import ActionParameterType
+        from kairon.shared.actions.utils import ActionUtility
+        parameter_type = param.get("parameter_type", ActionParameterType.value.value)
+        value = param.get("value", "")
+        if parameter_type == ActionParameterType.key_vault.value:
+            return ActionUtility.get_secret_from_key_vault(value, bot) or ""
+        if param.get("encrypt") and value:
+            return Utility.decrypt_message(value)
+        return value
+
+    @staticmethod
+    def register_customer_if_new(bot: str, plain_sender_id: str) -> None:
+        try:
+            if not CustomerDetails.objects(bot=bot, sender_id=plain_sender_id).first():
+                CustomerDetails(bot=bot, sender_id=plain_sender_id).save()
+        except NotUniqueError:
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to auto-register customer for bot {bot}: {e}")
+
+    @staticmethod
+    def _generate_store_page_url(bot: str, plain_sender_id: str, page_name: str) -> str:
+        from kairon.shared.auth import Authentication
+        catalog_base = Utility.environment.get("store_page").get("url")
+        encrypted_id = Utility.encrypt_message(plain_sender_id)
+        token = Authentication.create_store_page_token(data={"sub": plain_sender_id, "bot": bot}, access_limit=["/api/bot/.+/customer_data/.*"])
+        return f"{catalog_base}/{page_name}/{bot}/{encrypted_id}/{token}"
+
+    @staticmethod
+    def _create_razorpay_payment_link(api_key: str, api_secret: str, order_id: str,
+                                      order_details: dict, callback_url: str) -> Dict[str, Any]:
+        amount = order_details.get("amount", 0)
+        currency = order_details.get("currency", "INR")
+        payload = {
+            "amount": int(float(amount) * 100),
+            "currency": currency,
+            "customer": {
+                "name": order_details.get("name", ""),
+                "contact": order_details.get("contact", ""),
+                "email": order_details.get("email", ""),
+            },
+            "callback_url": callback_url,
+            "callback_method": "get",
+            "reference_id": order_id,
+            "notify": {"sms": True, "email": True},
+            "notes": {
+                "kairon_id": order_id
+            },
+        }
+        resp = http_requests.post(
+            "https://api.razorpay.com/v1/payment_links",
+            json=payload,
+            auth=(api_key, api_secret),
+            timeout=30,
+        )
+        if not resp.ok:
+            raise AppException(f"Razorpay API error {resp.status_code}: {resp.text}")
+        return resp.json()
 
     @staticmethod
     def upsert_customer(bot: Text, sender_id: str, persona_type: Optional[str], payload: Dict) -> Dict:
@@ -131,7 +194,7 @@ class CustomerOrderProcessor:
         try:
             customer = CustomerDetails.objects(bot=bot, sender_id=plain_id, status=True).get()
         except DoesNotExist:
-            raise AppException("Customer not found — cannot create orphan order")
+            raise AppException("Customer not found")
 
         order = OrderDetails(
             bot=bot,
@@ -145,9 +208,46 @@ class CustomerOrderProcessor:
         except ValidationError as e:
             raise AppException(str(e))
 
-        result = order.to_mongo().to_dict()
-        result["_id"] = str(result["_id"])
-        return CustomerOrderProcessor._mask_sender_id(result)
+        order_id = str(order.id)
+        payment_id = None
+        payment_link = None
+
+        try:
+            metadata = StorePageMetadata.objects(bot=bot).get()
+            store_config = metadata.config or {}
+        except DoesNotExist:
+            store_config = {}
+
+        if store_config.get("payment_enabled"):
+            page_name = store_config.get("page_name", "catalog")
+
+            from kairon.shared.actions.data_objects import RazorpayAction
+            try:
+                action = RazorpayAction.objects(bot=bot, status=True).get()
+            except DoesNotExist:
+                raise AppException("Razorpay action not configured")
+
+            action_dict = action.to_mongo().to_dict()
+            api_key = CustomerOrderProcessor._resolve_credential(action_dict.get("api_key", {}), bot)
+            api_secret = CustomerOrderProcessor._resolve_credential(action_dict.get("api_secret", {}), bot)
+
+            callback_url = CustomerOrderProcessor._generate_store_page_url(bot, plain_id, page_name)
+
+            try:
+                razorpay_resp = CustomerOrderProcessor._create_razorpay_payment_link(
+                    api_key, api_secret, order_id, order_payload, callback_url
+                )
+                payment_id = razorpay_resp.get("id", "")
+                payment_link = razorpay_resp.get("short_url", "")
+                OrderDetails.objects(id=order.id).update_one(
+                    set__additional_info={"payment_id": payment_id, "payment_link": payment_link}
+                )
+            except AppException:
+                raise
+            except Exception as e:
+                logger.warning(f"Razorpay payment link creation failed for order {order_id}: {e}")
+
+        return {"order_id": order_id, "payment_id": payment_id, "payment_link": payment_link}
 
     @staticmethod
     def update_order_status(bot: Text, order_id: str, new_status: str) -> Dict:

@@ -909,6 +909,7 @@ class BotSettings(Auditlog):
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
+    store_page_token_expiry = IntField(default=15)
     refresh_token_expiry = IntField(default=60)
     media_size_limit = IntField(default=10)
     whatsapp = StringField(
@@ -1183,7 +1184,6 @@ class CustomerDetails(Document):
     meta = {
         "indexes": [
             {"fields": ["bot", "sender_id"], "unique": True},
-            {"fields": ["bot", "mobile"], "sparse": True},
             {"fields": ["bot", "persona_type"]},
         ]
     }
@@ -1208,6 +1208,7 @@ class OrderDetails(Document):
     )
     order_details = DictField()
     filterable_attrs = ListField(DictField(), default=[])
+    additional_info = DictField()
     created_at = DateTimeField(default=datetime.utcnow)
     updated_at = DateTimeField(default=datetime.utcnow)
 

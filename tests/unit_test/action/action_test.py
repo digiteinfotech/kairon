@@ -3720,7 +3720,8 @@ class TestActions:
                                 'max_template_per_broadcast': 5,
                                 'catalog_sync_limit_per_day': 5,
                                 'max_instagram_user_posts': 5,
-                                'media_size_limit': 10}
+                                'media_size_limit': 10,
+                                'store_page_token_expiry': 15}
 
         LLMSecret.objects.delete()
 
@@ -5031,7 +5032,8 @@ class TestActions:
                                 'max_instagram_user_posts': 5,
                                 'max_template_per_broadcast': 5,
                                 'media_size_limit': 10,
-                                'enable_voice': False}
+                                'enable_voice': False,
+                                'store_page_token_expiry': 15}
 
 
     def test_get_prompt_action_config_2(self):

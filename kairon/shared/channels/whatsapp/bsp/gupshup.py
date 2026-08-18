@@ -490,14 +490,17 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             raise e
 
     @staticmethod
-    def delete_media_file(media_id: str, channel_config):
+    def delete_media_file(bot: str, media_id: str, channel_config):
         app_id = channel_config.get("config", {}).get("app_id")
         partner_app_token = channel_config.get("config", {}).get("partner_app_token")
-
+        obj = UserMediaData.objects(
+            bot=bot,
+            media_id=media_id
+        ).get()
+        external_media_id = obj.external_upload_info["external_media_id"]
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
-        url = f"{base_url}/partner/app/{app_id}/media/{media_id}"
-        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["auth_header"]
-        headers = {header: partner_app_token}
+        url = f"{base_url}/partner/app/{app_id}/media/{external_media_id}"
+        headers = {"Authorization": partner_app_token}
         Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
                                      validate_status=True,
                                      err_msg="media file does not exist for this media id.")

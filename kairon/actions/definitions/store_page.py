@@ -48,7 +48,7 @@ class ActionStorePage(ActionsBase):
                 raise ActionFailure(f"Slot '{identifier_slot}' is absent or empty for sender {tracker.sender_id}")
 
             encrypted_id = Utility.encrypt_message(str(identifier_value))
-            token = Authentication.create_access_token(data={"sub": tracker.sender_id, "bot": self.bot})
+            token = Authentication.create_store_page_token(data={"sub": tracker.sender_id, "bot": self.bot}, access_limit=["/api/bot/.+/customer_data/.*"])
 
             slots["user_identifier"] = encrypted_id
             slots["temp_token"] = token
