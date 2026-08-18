@@ -183,34 +183,54 @@ class Authentication:
     @staticmethod
     def validate_store_page_token(request: Request):
         from kairon.shared.data.data_objects import CustomerDetails
-        from kairon.exceptions import AppException
         token = (request.query_params.get("authorization") or
                  request.headers.get("authorization", ""))
         if token.lower().startswith("bearer "):
             token = token[7:]
         bot = request.path_params.get("bot")
         if not token:
-            raise AppException("Token missing")
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Store page token is missing"
+            )
         try:
             claims = Utility.decode_limited_access_token(token)
         except PyJWTError:
-            raise AppException("Invalid or expired store page token")
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Store page token is invalid or has expired"
+            )
 
         if claims.get("type") != TOKEN_TYPE.STORE_PAGE.value:
-            raise AppException("Invalid token type")
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token type '{claims.get('type')}'; expected store_page token"
+            )
 
         if not claims.get("access-limit"):
-            raise AppException("Token missing access restrictions")
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized access",
+            )
 
         if claims.get("bot") != bot:
-            raise AppException("Token bot mismatch")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token is not valid for this bot",
+            )
 
         sender_id = claims.get("sub")
         if not sender_id:
-            raise AppException("Token missing sender identity")
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Token is missing sender identity",
+            )
 
         if not CustomerDetails.objects(bot=bot, sender_id=sender_id).count():
-            raise AppException("Sender not registered for this bot")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sender is not registered for this bot",
+            )
 
         return claims
 

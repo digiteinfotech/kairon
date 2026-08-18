@@ -297,4 +297,4 @@ pos:
     odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}
 
 store_page:
-  url: ${STORE_PAGE_URL:"https://catalog.kairon.com"}
+  url: ${STORE_PAGE_URL}

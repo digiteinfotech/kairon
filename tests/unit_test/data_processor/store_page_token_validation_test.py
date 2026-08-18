@@ -10,7 +10,7 @@ from kairon.shared.utils import Utility
 
 Utility.load_environment()
 
-from kairon.exceptions import AppException
+from fastapi import HTTPException
 from kairon.shared.auth import Authentication
 from kairon.shared.data.constant import TOKEN_TYPE
 from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
@@ -101,25 +101,25 @@ class TestValidateStorePageToken:
         CustomerDetails.objects(bot=self.BOT, sender_id=unknown).delete()
         token = _make_token(self.BOT, unknown)
         req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(AppException, match="Sender not registered for this bot"):
+        with pytest.raises(HTTPException, match="Sender is not registered for this bot"):
             Authentication.validate_store_page_token(req)
 
     # R3 AC3: other existing checks retain their pass/fail behavior
 
     def test_missing_token_raises(self):
         req = MockRequest(token="", bot=self.BOT)
-        with pytest.raises(AppException, match="Token missing"):
+        with pytest.raises(HTTPException, match="Store page token is missing"):
             Authentication.validate_store_page_token(req)
 
     def test_invalid_token_raises(self):
         req = MockRequest(token="not.a.valid.jwt", bot=self.BOT)
-        with pytest.raises(AppException, match="Invalid or expired store page token"):
+        with pytest.raises(HTTPException, match="Store page token is invalid or has expired"):
             Authentication.validate_store_page_token(req)
 
     def test_wrong_token_type_raises(self):
         token = _make_token(self.BOT, self.SENDER, token_type=TOKEN_TYPE.LOGIN.value)
         req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(AppException, match="Invalid token type"):
+        with pytest.raises(HTTPException, match="Invalid token type"):
             Authentication.validate_store_page_token(req)
 
     def test_missing_access_limit_raises(self):
@@ -127,14 +127,14 @@ class TestValidateStorePageToken:
             data={"sub": self.SENDER, "bot": self.BOT},
         )
         req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(AppException, match="Token missing access restrictions"):
+        with pytest.raises(HTTPException, match="Unauthorized access"):
             Authentication.validate_store_page_token(req)
 
     def test_bot_mismatch_raises(self):
         CustomerOrderProcessor.register_customer_if_new(self.BOT, self.SENDER)
         token = _make_token(self.BOT, self.SENDER)
         req = MockRequest(token=token, bot="different_bot")
-        with pytest.raises(AppException, match="Token bot mismatch"):
+        with pytest.raises(HTTPException, match="Token is not valid for this bot"):
             Authentication.validate_store_page_token(req)
 
     def test_missing_sender_identity_raises(self):
@@ -143,5 +143,5 @@ class TestValidateStorePageToken:
             access_limit=["/api/bot/.+/customer_data/.*"],
         )
         req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(AppException, match="Token missing sender identity"):
+        with pytest.raises(HTTPException, match="Token is missing sender identity"):
             Authentication.validate_store_page_token(req)

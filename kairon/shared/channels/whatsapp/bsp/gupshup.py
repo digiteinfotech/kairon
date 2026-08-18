@@ -500,8 +500,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         external_media_id = obj.external_upload_info["external_media_id"]
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
         url = f"{base_url}/partner/app/{app_id}/media/{external_media_id}"
-        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["auth_header"]
-        headers = {header: partner_app_token}
+        headers = {"Authorization": partner_app_token}
         Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
                                      validate_status=True,
                                      err_msg="media file does not exist for this media id.")

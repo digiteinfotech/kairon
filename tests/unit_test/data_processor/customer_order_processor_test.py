@@ -1,8 +1,10 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from mongoengine import connect
+from mongoengine import DoesNotExist
+from mongoengine.errors import NotUniqueError, ValidationError
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -596,3 +598,269 @@ class TestRegisterCustomerIfNew:
         # AC9: operation returns no value
         result = CustomerOrderProcessor.register_customer_if_new(self.bot, self.sender)
         assert result is None
+
+
+class TestResolveCredential:
+
+    def test_plain_value_returned_as_is(self):
+        param = {"parameter_type": "value", "value": "my_key"}
+        result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == "my_key"
+
+    def test_missing_value_returns_empty_string(self):
+        param = {"parameter_type": "value"}
+        result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == ""
+
+    def test_encrypted_value_is_decrypted(self):
+        plain = "secret123"
+        encrypted = Utility.encrypt_message(plain)
+        param = {"parameter_type": "value", "value": encrypted, "encrypt": True}
+        result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == plain
+
+    def test_empty_value_with_encrypt_flag_skips_decryption(self):
+        param = {"parameter_type": "value", "value": "", "encrypt": True}
+        result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == ""
+
+    def test_key_vault_fetches_secret(self):
+        param = {"parameter_type": "key_vault", "value": "MY_SECRET"}
+        with patch("kairon.shared.actions.utils.ActionUtility.get_secret_from_key_vault") as mock_vault:
+            mock_vault.return_value = "vault_value"
+            result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == "vault_value"
+        mock_vault.assert_called_once_with("MY_SECRET", "test_bot")
+
+    def test_key_vault_none_returns_empty_string(self):
+        param = {"parameter_type": "key_vault", "value": "MISSING_SECRET"}
+        with patch("kairon.shared.actions.utils.ActionUtility.get_secret_from_key_vault") as mock_vault:
+            mock_vault.return_value = None
+            result = CustomerOrderProcessor._resolve_credential(param, "test_bot")
+        assert result == ""
+
+
+class TestGenerateStorePageUrl:
+
+    _MOCK_BS = MagicMock(store_page_token_expiry=15)
+
+    def test_url_starts_with_catalog_base_and_contains_components(self):
+        bot = "url_gen_bot"
+        plain_sender = "url_user1"
+        page_name = "catalog"
+        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            mock_bs.objects.return_value.get.return_value = self._MOCK_BS
+            url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
+        catalog_base = Utility.environment.get("store_page", {}).get("url", "")
+        assert url.startswith(f"{catalog_base}/{page_name}/{bot}/")
+
+    def test_url_encrypted_id_decryptable_to_plain_sender(self):
+        bot = "url_gen_bot2"
+        plain_sender = "url_user2"
+        page_name = "shop"
+        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            mock_bs.objects.return_value.get.return_value = self._MOCK_BS
+            url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
+        catalog_base = Utility.environment.get("store_page", {}).get("url", "")
+        prefix = f"{catalog_base}/{page_name}/{bot}/"
+        remainder = url[len(prefix):]
+        encrypted_id, _ = remainder.split("/", 1)
+        assert Utility.decrypt_message(encrypted_id) == plain_sender
+
+    def test_url_token_is_jwt(self):
+        bot = "url_gen_bot3"
+        plain_sender = "url_user3"
+        page_name = "store"
+        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            mock_bs.objects.return_value.get.return_value = self._MOCK_BS
+            url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
+        token = url.split("/")[-1]
+        assert token.count(".") == 2
+
+
+class TestCreateRazorpayPaymentLink:
+
+    def test_success_returns_response_json(self):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"id": "pay_123", "short_url": "https://rzp.io/pay/abc"}
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            result = CustomerOrderProcessor._create_razorpay_payment_link(
+                api_key="key", api_secret="secret",
+                order_id="order_001",
+                order_details={"amount": 100, "currency": "INR", "name": "Alice",
+                               "contact": "9999999999", "email": "a@a.com"},
+                callback_url="https://catalog.kairon.com/catalog/bot/enc/token",
+            )
+        assert result["id"] == "pay_123"
+        assert result["short_url"] == "https://rzp.io/pay/abc"
+
+    def test_api_error_raises_app_exception(self):
+        mock_resp = MagicMock()
+        mock_resp.ok = False
+        mock_resp.status_code = 422
+        mock_resp.text = "amount too low"
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            with pytest.raises(AppException, match="Razorpay API error 422"):
+                CustomerOrderProcessor._create_razorpay_payment_link(
+                    api_key="key", api_secret="secret",
+                    order_id="order_002",
+                    order_details={"amount": 0},
+                    callback_url="https://cb.url",
+                )
+
+    def test_amount_converted_to_paise(self):
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"id": "pay_paise", "short_url": "https://rzp.io/p"}
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            CustomerOrderProcessor._create_razorpay_payment_link(
+                api_key="k", api_secret="s", order_id="o3",
+                order_details={"amount": 49.99},
+                callback_url="https://cb",
+            )
+        call_payload = mock_post.call_args.kwargs["json"]
+        assert call_payload["amount"] == 4999
+
+
+class TestUpsertCustomerExceptions:
+
+    def test_not_unique_error_raises_app_exception(self):
+        bot = "cop_unique_err_bot"
+        enc = _enc("unique_err_user")
+        with patch("kairon.shared.data.customer_order_processor.CustomerDetails") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.address_list = []
+            mock_instance.save.side_effect = NotUniqueError
+            mock_cls.objects.return_value.get.side_effect = DoesNotExist
+            mock_cls.return_value = mock_instance
+            with pytest.raises(AppException, match="Customer with this identifier already exists"):
+                CustomerOrderProcessor.upsert_customer(
+                    bot=bot, sender_id=enc, persona_type=None, payload={}
+                )
+
+    def test_validation_error_raises_app_exception(self):
+        bot = "cop_val_err_bot"
+        enc = _enc("val_err_user")
+        with patch("kairon.shared.data.customer_order_processor.CustomerDetails") as mock_cls:
+            mock_instance = MagicMock()
+            mock_instance.address_list = []
+            mock_instance.save.side_effect = ValidationError("mobile: Value must be a valid phone number")
+            mock_cls.objects.return_value.get.side_effect = DoesNotExist
+            mock_cls.return_value = mock_instance
+            with pytest.raises(AppException, match="mobile: Value must be a valid phone number"):
+                CustomerOrderProcessor.upsert_customer(
+                    bot=bot, sender_id=enc, persona_type=None, payload={}
+                )
+
+
+class TestCreateOrderPaymentEnabled:
+
+    def setup_method(self):
+        self.bot = "cop_payment_bot"
+        self.enc = _enc("payment_user1")
+        CustomerOrderProcessor.upsert_customer(
+            bot=self.bot, sender_id=self.enc,
+            persona_type="fnb", payload={"mobile": "9990000001"},
+        )
+        from kairon.shared.data.data_objects import StorePageMetadata
+        from kairon.shared.actions.data_objects import RazorpayAction
+        StorePageMetadata.objects(bot=self.bot).delete()
+        RazorpayAction.objects(bot=self.bot).delete()
+
+    def _save_store_metadata(self, payment_enabled=True, page_name="catalog"):
+        from kairon.shared.data.data_objects import StorePageMetadata
+        StorePageMetadata.objects(bot=self.bot).delete()
+        StorePageMetadata(
+            bot=self.bot, user="test_user",
+            config={"payment_enabled": payment_enabled, "page_name": page_name},
+        ).save()
+
+    def _save_razorpay_action(self, api_key="rzp_key", api_secret="rzp_secret"):
+        from kairon.shared.actions.data_objects import RazorpayAction, CustomActionRequestParameters
+        RazorpayAction.objects(bot=self.bot).delete()
+        RazorpayAction(
+            name="razorpay_action", bot=self.bot, user="test_user",
+            api_key=CustomActionRequestParameters(value=api_key, parameter_type="value"),
+            api_secret=CustomActionRequestParameters(value=api_secret, parameter_type="value"),
+            amount=CustomActionRequestParameters(value="100", parameter_type="value"),
+            currency=CustomActionRequestParameters(value="INR", parameter_type="value"),
+        ).save()
+
+    def test_payment_disabled_returns_none_payment_fields(self):
+        self._save_store_metadata(payment_enabled=False)
+        result = CustomerOrderProcessor.create_order(
+            bot=self.bot, sender_id=self.enc,
+            persona_type="fnb",
+            order_payload={"item": "Coffee", "amount": 80},
+        )
+        assert "order_id" in result
+        assert result["payment_id"] is None
+        assert result["payment_link"] is None
+
+    def test_payment_enabled_no_razorpay_action_raises(self):
+        self._save_store_metadata(payment_enabled=True)
+        with pytest.raises(AppException, match="Razorpay action not configured"):
+            CustomerOrderProcessor.create_order(
+                bot=self.bot, sender_id=self.enc,
+                persona_type="fnb",
+                order_payload={"item": "Pizza", "amount": 200},
+            )
+
+    def test_payment_enabled_razorpay_success_returns_payment_fields(self):
+        self._save_store_metadata(payment_enabled=True)
+        self._save_razorpay_action()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"id": "pay_xyz", "short_url": "https://rzp.io/xyz"}
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+                mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
+                result = CustomerOrderProcessor.create_order(
+                    bot=self.bot, sender_id=self.enc,
+                    persona_type="fnb",
+                    order_payload={"item": "Burger", "amount": 150},
+                )
+        assert result["payment_id"] == "pay_xyz"
+        assert result["payment_link"] == "https://rzp.io/xyz"
+        assert "order_id" in result
+
+    def test_payment_enabled_razorpay_app_exception_reraises(self):
+        self._save_store_metadata(payment_enabled=True)
+        self._save_razorpay_action()
+        mock_resp = MagicMock()
+        mock_resp.ok = False
+        mock_resp.status_code = 401
+        mock_resp.text = "Unauthorized"
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+                mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
+                with pytest.raises(AppException, match="Razorpay API error 401"):
+                    CustomerOrderProcessor.create_order(
+                        bot=self.bot, sender_id=self.enc,
+                        persona_type="fnb",
+                        order_payload={"item": "Drink", "amount": 50},
+                    )
+
+    def test_payment_enabled_network_error_logs_warning_returns_order(self):
+        self._save_store_metadata(payment_enabled=True)
+        self._save_razorpay_action()
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.side_effect = ConnectionError("network error")
+            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+                mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
+                with patch("kairon.shared.data.customer_order_processor.logger") as mock_log:
+                    result = CustomerOrderProcessor.create_order(
+                        bot=self.bot, sender_id=self.enc,
+                        persona_type="fnb",
+                        order_payload={"item": "Tea", "amount": 30},
+                    )
+        assert "order_id" in result
+        assert result["payment_id"] is None
+        assert result["payment_link"] is None
+        assert mock_log.warning.call_count == 1
