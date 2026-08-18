@@ -225,7 +225,7 @@ class CustomerOrderProcessor:
             try:
                 action = RazorpayAction.objects(bot=bot, status=True).get()
             except DoesNotExist:
-                raise AppException(f"Razorpay action not configured")
+                raise AppException("Razorpay action not configured")
 
             action_dict = action.to_mongo().to_dict()
             api_key = CustomerOrderProcessor._resolve_credential(action_dict.get("api_key", {}), bot)

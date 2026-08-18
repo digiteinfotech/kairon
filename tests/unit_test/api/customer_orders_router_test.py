@@ -105,18 +105,18 @@ class TestListCustomersRouter:
             return_value=expected,
         ) as mock_proc:
             result = await list_customers(
-                persona_type="fnb", page=1, page_size=10, current_user=_MOCK_USER
+                bot=BOT, persona_type="fnb", page=1, page_size=10, current_user=_MOCK_USER
             )
         mock_proc.assert_called_once_with(bot=BOT, persona_type="fnb", page=1, page_size=10)
         assert result.data == expected
 
     @pytest.mark.asyncio
-    async def test_list_customers_uses_bot_from_user(self):
+    async def test_list_customers_uses_bot_from_path(self):
         with patch(
             "kairon.api.app.routers.bot.customer_orders.CustomerOrderProcessor.list_customers",
             return_value=[],
         ) as mock_proc:
-            await list_customers(persona_type=None, page=2, page_size=5, current_user=_MOCK_USER)
+            await list_customers(bot=BOT, persona_type=None, page=2, page_size=5, current_user=_MOCK_USER)
         mock_proc.assert_called_once_with(bot=BOT, persona_type=None, page=2, page_size=5)
 
 
