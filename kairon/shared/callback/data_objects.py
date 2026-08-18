@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Optional, Dict
 import json
 
+from kairon.shared.actions.models import ActionParameterType
 from pydantic import BaseModel
 from uuid6 import uuid7
 
@@ -102,6 +103,7 @@ class CallbackConfig(Auditlog):
     response_type = StringField(default=CallbackResponseType.KAIRON_JSON.value,
                                 choices=[v.value for v in CallbackResponseType])
     bot = StringField(required=True)
+    redirect = DictField()
     meta = {"indexes": [{"fields": ["bot", "name"]}]}
 
     @staticmethod
@@ -128,10 +130,30 @@ class CallbackConfig(Auditlog):
                      standalone: bool = False,
                      standalone_id_path: str = '',
                      response_type: str = CallbackResponseType.KAIRON_JSON.value,
+                     redirect: Optional[dict] = None,
                      **kwargs):
         check_nonempty_string(name)
         if standalone and not standalone_id_path:
             raise AppException("Standalone ID path is required for standalone callbacks!")
+
+        if standalone and redirect:
+            raise AppException("Redirect is not supported for standalone callbacks!")
+
+        if execution_mode == CallbackExecutionMode.ASYNC.value and redirect:
+            raise AppException("Redirect is not supported for async callbacks!")
+
+        if redirect:
+            redirect_type = redirect.get("type")
+            redirect_value = redirect.get("value")
+
+            if redirect_type not in (
+                    ActionParameterType.value.value,
+                    ActionParameterType.slot.value
+            ):
+                raise AppException("Invalid redirect type!")
+
+            if not redirect_value:
+                raise AppException("Redirect value is required!")
         Utility.is_exist(
             CallbackConfig,
             exp_message=f"Callback Configuration with name '{name}' exists!",
@@ -155,6 +177,7 @@ class CallbackConfig(Auditlog):
                                 standalone=standalone,
                                 standalone_id_path=standalone_id_path,
                                 response_type=response_type,
+                                redirect=redirect,
                                 **kwargs)
         config.save()
         return config.to_mongo().to_dict()

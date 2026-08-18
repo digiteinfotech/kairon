@@ -1,5 +1,7 @@
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
+from kairon.exceptions import AppException
+from kairon.shared.actions.models import ActionParameterType
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -189,4 +191,39 @@ class CallbackUtility:
                     "success": False,
                 }
             ),
+        )
+
+    @staticmethod
+    def resolve_redirect_url(redirect: dict, metadata: dict):
+        if not redirect:
+            return None
+
+        redirect_type = redirect.get("type")
+        redirect_value = redirect.get("value")
+
+        if redirect_type == ActionParameterType.value.value:
+            redirect_url = redirect_value
+
+        elif redirect_type == ActionParameterType.slot.value:
+            redirect_url = metadata.get("redirect_url")
+
+        else:
+            raise AppException("Invalid redirect type!")
+
+        if not redirect_url:
+            raise AppException("Redirect URL could not be resolved!")
+
+        return redirect_url
+
+    @staticmethod
+    def redirect_response(redirect_url: str) -> BSResponse:
+        """
+        Return HTTP 302 redirect response.
+        """
+        return BSResponse(
+            status=302,
+            headers=[
+                (b"Location", redirect_url.encode())
+            ]
+
         )

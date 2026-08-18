@@ -7,6 +7,8 @@ from unittest.mock import patch, AsyncMock
 
 from httpx import QueryParams
 from jose import jwt
+from kairon.async_callback.utils import CallbackUtility
+from kairon.shared.actions.models import ActionParameterType
 from mongoengine import connect
 from blacksheep.contents import JSONContent
 from requests import Request
@@ -14,7 +16,7 @@ from requests import Request
 from kairon import Utility
 from fastapi.testclient import TestClient
 from blacksheep.testing import TestClient
-from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret
+from kairon.shared.callback.data_objects import CallbackData, CallbackConfig, encrypt_secret, CallbackExecutionMode
 from kairon.shared.auth import Authentication
 
 from kairon.async_callback.main import app
@@ -371,7 +373,7 @@ async def test_request_fallback_to_text():
     mock_request.query = QueryParams({})
     mock_request.scope = {"client": ["127.0.0.1"]}
     with patch("kairon.async_callback.processor.CallbackProcessor.process_async_callback_request",
-               new=AsyncMock(return_value=({}, "Success", 0, 'kairon_json'))):
+               new=AsyncMock(return_value=({}, "Success", 0, 'kairon_json', None))):
         response = await process_router_message("valid_token", "test_name", "GET", request=mock_request)
     response_json = await response.json()
     assert response_json["success"] is True
@@ -965,3 +967,32 @@ async def test_script_execution_failure(mock_execute, monkeypatch):
     print(body)
     assert body["statusCode"] == 422
     assert "script error" in body["body"]
+
+@pytest.mark.asyncio
+async def test_sync_callback_redirect_from_metadata():
+    callback = {
+        "execution_mode": CallbackExecutionMode.SYNC.value,
+        "redirect": {
+            "type": ActionParameterType.slot.value,
+            "value": "body"
+        },
+        # existing callback config fields...
+    }
+
+    metadata = {
+        "name": "Harshada",
+        "redirect_url": "https://www.nimblework.com/login/",
+        "bot": "test_bot"
+    }
+
+    redirect_url = CallbackUtility.resolve_redirect_url(
+        callback["redirect"],
+        metadata
+    )
+
+    response = CallbackUtility.redirect_response(redirect_url)
+
+    assert response.status == 302
+    assert response.headers[b"Location"] == (
+        b"https://www.nimblework.com/login/",
+    )
