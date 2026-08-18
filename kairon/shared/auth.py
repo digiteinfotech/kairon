@@ -207,11 +207,7 @@ class Authentication:
                 detail=f"Invalid token type '{claims.get('type')}'; expected store_page token"
             )
 
-        if not claims.get("access-limit"):
-            raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED,
-                detail="Unauthorized access",
-            )
+        Authentication.validate_limited_access_token(request, claims.get("access-limit"))
 
         if claims.get("bot") != bot:
             raise HTTPException(
@@ -219,20 +215,15 @@ class Authentication:
                 detail="Token is not valid for this bot",
             )
 
-        sender_id = claims.get("sub")
-        if not sender_id:
-            raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED,
-                detail="Token is missing sender identity",
-            )
-
-        if not CustomerDetails.objects(bot=bot, sender_id=sender_id).count():
+        try:
+            customer = CustomerDetails.objects(bot=bot, sender_id=claims.get("sub")).get()
+        except DoesNotExist:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Sender is not registered for this bot",
             )
 
-        return claims
+        return customer
 
     @staticmethod
     def create_access_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.LOGIN.value, token_expire: int = 0):

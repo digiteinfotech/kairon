@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Text, Dict, List, Optional
+from typing import Text, Dict, List, Optional, Any
 
 import requests as http_requests
 from bson import ObjectId
@@ -70,7 +70,7 @@ class CustomerOrderProcessor:
 
     @staticmethod
     def _create_razorpay_payment_link(api_key: str, api_secret: str, order_id: str,
-                                      order_details: dict, callback_url: str) -> str:
+                                      order_details: dict, callback_url: str) -> Dict[str, Any]:
         amount = order_details.get("amount", 0)
         currency = order_details.get("currency", "INR")
         payload = {

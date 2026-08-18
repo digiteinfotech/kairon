@@ -31,10 +31,11 @@ class MockRequest:
     (falling back to headers["authorization"]), so pass token there.
     """
 
-    def __init__(self, token=None, bot=None, auth_header=None):
+    def __init__(self, token=None, bot=None, auth_header=None, path=None):
         self._token = token or ""
         self._bot = bot
         self._auth = auth_header or ""
+        self._path = path or f"/api/bot/{bot}/customer_data/customer"
 
     @property
     def query_params(self):
@@ -47,6 +48,10 @@ class MockRequest:
     @property
     def headers(self):
         return {"authorization": self._auth}
+
+    @property
+    def scope(self):
+        return {"path": self._path}
 
 
 _MOCK_BOT_SETTINGS = MagicMock(store_page_token_expiry=15)
@@ -82,8 +87,9 @@ class TestValidateStorePageToken:
         CustomerOrderProcessor.register_customer_if_new(self.BOT, self.SENDER)
         token = _make_token(self.BOT, self.SENDER)
         req = MockRequest(token=token, bot=self.BOT)
-        claims = Authentication.validate_store_page_token(req)
-        assert claims.get("sub") == self.SENDER
+        customer = Authentication.validate_store_page_token(req)
+        assert customer.sender_id == self.SENDER
+        assert customer.bot == self.BOT
 
     # R3 AC1: also passes after explicit upsert_customer registration
     def test_validation_passes_after_explicit_upsert(self):
@@ -92,8 +98,9 @@ class TestValidateStorePageToken:
         CustomerOrderProcessor.upsert_customer(bot=self.BOT, sender_id=enc, persona_type=None, payload={})
         token = _make_token(self.BOT, self.SENDER)
         req = MockRequest(token=token, bot=self.BOT)
-        claims = Authentication.validate_store_page_token(req)
-        assert claims.get("sub") == self.SENDER
+        customer = Authentication.validate_store_page_token(req)
+        assert customer.sender_id == self.SENDER
+        assert customer.bot == self.BOT
 
     # R3 AC2: validation still fails for sender with no registration
     def test_validation_fails_for_unregistered_sender(self):
@@ -122,12 +129,10 @@ class TestValidateStorePageToken:
         with pytest.raises(HTTPException, match="Invalid token type"):
             Authentication.validate_store_page_token(req)
 
-    def test_missing_access_limit_raises(self):
-        token = Authentication.create_store_page_token(
-            data={"sub": self.SENDER, "bot": self.BOT},
-        )
-        req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(HTTPException, match="Unauthorized access"):
+    def test_path_not_in_access_limit_raises(self):
+        token = _make_token(self.BOT, self.SENDER, access_limit=["/api/bot/.+/customer_data/.*"])
+        req = MockRequest(token=token, bot=self.BOT, path="/api/bot/somebot/other/endpoint")
+        with pytest.raises(HTTPException, match="Access denied for this endpoint"):
             Authentication.validate_store_page_token(req)
 
     def test_bot_mismatch_raises(self):
@@ -143,5 +148,5 @@ class TestValidateStorePageToken:
             access_limit=["/api/bot/.+/customer_data/.*"],
         )
         req = MockRequest(token=token, bot=self.BOT)
-        with pytest.raises(HTTPException, match="Token is missing sender identity"):
+        with pytest.raises(HTTPException, match="Sender is not registered for this bot"):
             Authentication.validate_store_page_token(req)
