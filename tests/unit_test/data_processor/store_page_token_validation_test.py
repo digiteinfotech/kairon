@@ -58,7 +58,7 @@ _MOCK_BOT_SETTINGS = MagicMock(store_page_token_expiry=15)
 
 
 def _make_token(bot, sender, access_limit=None, token_type=TOKEN_TYPE.STORE_PAGE.value):
-    with patch("kairon.shared.auth.BotSettings") as mock_bs:
+    with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
         mock_bs.objects.return_value.get.return_value = _MOCK_BOT_SETTINGS
         return Authentication.create_store_page_token(
             data={"sub": sender, "bot": bot},
@@ -79,7 +79,7 @@ class TestValidateStorePageToken:
 
     @pytest.fixture(autouse=True)
     def patch_bot_settings(self):
-        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
             mock_bs.objects.return_value.get.return_value = _MOCK_BOT_SETTINGS
             yield
 

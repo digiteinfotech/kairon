@@ -648,7 +648,7 @@ class TestGenerateStorePageUrl:
         bot = "url_gen_bot"
         plain_sender = "url_user1"
         page_name = "catalog"
-        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
             mock_bs.objects.return_value.get.return_value = self._MOCK_BS
             url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
         catalog_base = Utility.environment.get("store_page", {}).get("url", "")
@@ -658,7 +658,7 @@ class TestGenerateStorePageUrl:
         bot = "url_gen_bot2"
         plain_sender = "url_user2"
         page_name = "shop"
-        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
             mock_bs.objects.return_value.get.return_value = self._MOCK_BS
             url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
         catalog_base = Utility.environment.get("store_page", {}).get("url", "")
@@ -671,7 +671,7 @@ class TestGenerateStorePageUrl:
         bot = "url_gen_bot3"
         plain_sender = "url_user3"
         page_name = "store"
-        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
             mock_bs.objects.return_value.get.return_value = self._MOCK_BS
             url = CustomerOrderProcessor._generate_store_page_url(bot, plain_sender, page_name)
         token = url.split("/")[-1]
@@ -818,7 +818,7 @@ class TestCreateOrderPaymentEnabled:
         mock_resp.json.return_value = {"id": "pay_xyz", "short_url": "https://rzp.io/xyz"}
         with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
             mock_post.return_value = mock_resp
-            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
                 mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
                 result = CustomerOrderProcessor.create_order(
                     bot=self.bot, sender_id=self.enc,
@@ -838,7 +838,7 @@ class TestCreateOrderPaymentEnabled:
         mock_resp.text = "Unauthorized"
         with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
             mock_post.return_value = mock_resp
-            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
                 mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
                 with pytest.raises(AppException, match="Razorpay API error 401"):
                     CustomerOrderProcessor.create_order(
@@ -852,7 +852,7 @@ class TestCreateOrderPaymentEnabled:
         self._save_razorpay_action()
         with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
             mock_post.side_effect = ConnectionError("network error")
-            with patch("kairon.shared.auth.BotSettings") as mock_bs:
+            with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
                 mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
                 with patch("kairon.shared.data.customer_order_processor.logger") as mock_log:
                     result = CustomerOrderProcessor.create_order(
