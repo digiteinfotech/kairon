@@ -13381,6 +13381,18 @@ def test_callback_config_add_with_valid_redirect():
         "value": "body"
     }
 
+    delete_response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_3",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert delete_response.json() == {
+        "success": True,
+        "message": "Callback deleted successfully!",
+        "data": None,
+        "error_code": 0
+    }
+
 def test_callback_config_edit_syntex_error():
     request_body = {
         "name": "callback_1",
