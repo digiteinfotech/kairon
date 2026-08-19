@@ -13171,6 +13171,7 @@ def test_callback_config_add():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               "redirect": {},
                       'execution_mode': 'async' }, 'error_code': 0}
 
 
@@ -13201,6 +13202,7 @@ def test_callback_config_add_standalone():
                                'shorten_token': False,
                                'standalone': True,
                                'standalone_id_path': 'data.id',
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -13280,6 +13282,7 @@ def test_callback_config_edit():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
