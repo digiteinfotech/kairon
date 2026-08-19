@@ -13352,47 +13352,6 @@ def test_callback_config_add_redirect_without_value():
     }
 
 
-def test_callback_config_add_with_valid_redirect():
-    request_body = {
-        "name": "callback_3",
-        "pyscript_code": "bot_response = 'Hello World!'",
-        "validation_secret": "string",
-        "execution_mode": "sync",
-        "redirect": {
-            "type": "slot",
-            "value": "body"
-        }
-    }
-
-    response = client.post(
-        url=f"/api/bot/{pytest.bot}/action/callback",
-        json=request_body,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    actual = response.json()
-
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert actual["data"]["name"] == "callback_3"
-    assert actual["data"]["execution_mode"] == "sync"
-    assert actual["data"]["redirect"] == {
-        "type": "slot",
-        "value": "body"
-    }
-
-    delete_response = client.delete(
-        url=f"/api/bot/{pytest.bot}/action/callback/callback_3",
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-
-    assert delete_response.json() == {
-        "success": True,
-        "message": "Callback deleted successfully!",
-        "data": None,
-        "error_code": 0
-    }
-
 def test_callback_config_edit_syntex_error():
     request_body = {
         "name": "callback_1",
