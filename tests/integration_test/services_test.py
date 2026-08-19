@@ -13238,6 +13238,149 @@ def test_callback_config_add_standalone_fail_no_path():
     assert actual == {'success': False, 'message': 'Standalone id path is required!',
                       'data': None, 'error_code': 422}
 
+
+def test_callback_config_add_standalone_with_redirect():
+    request_body = {
+        "name": "callback_redirect_standalone",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "standalone": True,
+        "standalone_id_path": "data.id",
+        "redirect": {
+            "type": "slot",
+            "value": "body"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for standalone callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_async_with_redirect():
+    request_body = {
+        "name": "callback_redirect_async",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect": {
+            "type": "slot",
+            "value": "body"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for async callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_invalid_redirect_type():
+    request_body = {
+        "name": "callback_invalid_redirect",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "redirect": {
+            "type": "invalid_type",
+            "value": "body"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Invalid redirect type!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_redirect_without_value():
+    request_body = {
+        "name": "callback_redirect_no_value",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "redirect": {
+            "type": "slot"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect value is required!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_with_valid_redirect():
+    request_body = {
+        "name": "callback_3",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "redirect": {
+            "type": "slot",
+            "value": "body"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["name"] == "callback_3"
+    assert actual["data"]["execution_mode"] == "sync"
+    assert actual["data"]["redirect"] == {
+        "type": "slot",
+        "value": "body"
+    }
+
 def test_callback_config_edit_syntex_error():
     request_body = {
         "name": "callback_1",
