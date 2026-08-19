@@ -12,7 +12,6 @@ from jwt import PyJWTError, encode
 from loguru import logger
 from mongoengine import DoesNotExist
 
-from kairon.shared.data.data_objects import BotSettings
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
@@ -159,6 +158,7 @@ class Authentication:
     @staticmethod
     def create_store_page_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.STORE_PAGE.value,
                                 token_expire: int = 15, access_limit: list = None):
+        from kairon.shared.data.data_objects import BotSettings
         bot_settings = BotSettings.objects(bot=str(data.get("bot"))).get()
         store_page_token_expiry = bot_settings.store_page_token_expiry
         secret_key = Utility.environment['security']["secret_key"]

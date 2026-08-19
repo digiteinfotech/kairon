@@ -63,7 +63,11 @@ def _make_token(bot, sender, access_limit=None, token_type=TOKEN_TYPE.STORE_PAGE
         return Authentication.create_store_page_token(
             data={"sub": sender, "bot": bot},
             token_type=token_type,
-            access_limit=access_limit or ["/api/bot/.+/customer_data/.*"],
+            access_limit=access_limit or [
+                "/api/bot/.+/customer_data/.*",
+                "/api/bot/.+/store_page/metadata",
+                "/api/bot/.+/data/collection/.*",
+            ],
         )
 
 
