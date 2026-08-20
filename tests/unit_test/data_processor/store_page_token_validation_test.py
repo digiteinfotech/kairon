@@ -2,7 +2,7 @@ import os
 
 import pytest
 from mongoengine import connect
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
@@ -58,12 +58,16 @@ _MOCK_BOT_SETTINGS = MagicMock(store_page_token_expiry=15)
 
 
 def _make_token(bot, sender, access_limit=None, token_type=TOKEN_TYPE.STORE_PAGE.value):
-    with patch("kairon.shared.auth.BotSettings") as mock_bs:
+    with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
         mock_bs.objects.return_value.get.return_value = _MOCK_BOT_SETTINGS
         return Authentication.create_store_page_token(
             data={"sub": sender, "bot": bot},
             token_type=token_type,
-            access_limit=access_limit or ["/api/bot/.+/customer_data/.*"],
+            access_limit=access_limit or [
+                "/api/bot/.+/customer_data/.*",
+                "/api/bot/.+/store_page/metadata",
+                "/api/bot/.+/data/collection/.*",
+            ],
         )
 
 
@@ -75,7 +79,7 @@ class TestValidateStorePageToken:
 
     @pytest.fixture(autouse=True)
     def patch_bot_settings(self):
-        with patch("kairon.shared.auth.BotSettings") as mock_bs:
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
             mock_bs.objects.return_value.get.return_value = _MOCK_BOT_SETTINGS
             yield
 
@@ -150,3 +154,78 @@ class TestValidateStorePageToken:
         req = MockRequest(token=token, bot=self.BOT)
         with pytest.raises(HTTPException, match="Sender is not registered for this bot"):
             Authentication.validate_store_page_token(req)
+
+
+class TestGetCurrentUserOrStorePageToken:
+    """Tests for combined auth dependency that routes between store page and user tokens."""
+
+    BOT = "combined_auth_test_bot"
+    SENDER = "27831111111"
+
+    @pytest.mark.asyncio
+    async def test_routes_to_store_page_when_token_type_is_store_page(self):
+        mock_customer = MagicMock(spec=CustomerDetails)
+        mock_customer.sender_id = self.SENDER
+        mock_customer.bot = self.BOT
+
+        store_page_token = _make_token(self.BOT, self.SENDER)
+        req = MockRequest(token=store_page_token, bot=self.BOT)
+
+        with patch.object(Authentication, "validate_store_page_token", return_value=mock_customer) as mock_validate:
+            result = await Authentication.get_current_user_or_store_page_token(
+                security_scopes=MagicMock(scopes=[]),
+                request=req,
+                token=store_page_token,
+            )
+
+        mock_validate.assert_called_once_with(req)
+        assert result is mock_customer
+
+    @pytest.mark.asyncio
+    async def test_routes_to_user_auth_when_token_type_is_login(self):
+        mock_user = MagicMock()
+        mock_security_scopes = MagicMock(scopes=[])
+        login_token = "fake.login.jwt"
+        req = MockRequest(token=login_token, bot=self.BOT)
+
+        with patch("kairon.shared.utils.Utility.decode_limited_access_token", return_value={"type": "login", "sub": "user@example.com"}):
+            with patch.object(Authentication, "get_current_user_and_bot", new=AsyncMock(return_value=mock_user)) as mock_user_auth:
+                result = await Authentication.get_current_user_or_store_page_token(
+                    security_scopes=mock_security_scopes,
+                    request=req,
+                    token=login_token,
+                )
+
+        mock_user_auth.assert_called_once_with(mock_security_scopes, req, login_token)
+        assert result is mock_user
+
+    @pytest.mark.asyncio
+    async def test_raises_401_when_token_decode_fails(self):
+        mock_security_scopes = MagicMock(scopes=[])
+        bad_token = "not.a.valid.jwt"
+        req = MockRequest(token=bad_token, bot=self.BOT)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await Authentication.get_current_user_or_store_page_token(
+                security_scopes=mock_security_scopes,
+                request=req,
+                token=bad_token,
+            )
+
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_routes_to_user_auth_when_no_token(self):
+        mock_user = MagicMock()
+        mock_security_scopes = MagicMock(scopes=[])
+        req = MockRequest(token="", bot=self.BOT)
+
+        with patch.object(Authentication, "get_current_user_and_bot", new=AsyncMock(return_value=mock_user)) as mock_user_auth:
+            result = await Authentication.get_current_user_or_store_page_token(
+                security_scopes=mock_security_scopes,
+                request=req,
+                token="",
+            )
+
+        mock_user_auth.assert_called_once_with(mock_security_scopes, req, "")
+        assert result is mock_user

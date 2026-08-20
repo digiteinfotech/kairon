@@ -31,6 +31,16 @@ from kairon.api.app.routers.bot.customer_orders import (
     update_order_status,
     upsert_customer,
 )
+from kairon.api.app.routers.bot.bot import get_store_page_metadata
+from kairon.api.app.routers.bot.data import (
+    list_collection_data,
+    get_collection_metadata,
+    get_collection_data,
+    get_collection_data_with_timestamp,
+    get_collection_data_with_id,
+    get_all_collections,
+    get_collection_filter_count,
+)
 
 BOT = "router_test_bot"
 
@@ -292,3 +302,141 @@ class TestFilterOrdersRouter:
             bot=BOT, persona_type=None, filters={}, page=1, page_size=20
         )
         assert result.data == []
+
+
+class TestGetStorePageMetadataRouter:
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_with_store_page_token(self):
+        """Store page token (CustomerDetails) path — uses bot from path param."""
+        expected = {"store_name": "My Shop", "logo_url": "https://example.com/logo.png"}
+        mock_customer = MagicMock()
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            return_value=expected,
+        ) as mock_proc:
+            result = await get_store_page_metadata(bot=BOT, current_user=mock_customer)
+        mock_proc.assert_called_once_with(BOT)
+        assert result.data == expected
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_with_user_token(self):
+        """Regular user token (User) path — uses bot from path param."""
+        expected = {"store_name": "Bot Store"}
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            return_value=expected,
+        ) as mock_proc:
+            result = await get_store_page_metadata(bot=BOT, current_user=_MOCK_USER)
+        mock_proc.assert_called_once_with(BOT)
+        assert result.data == expected
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_not_found_raises(self):
+        from kairon.exceptions import AppException
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            side_effect=AppException("Store page metadata not found"),
+        ):
+            with pytest.raises(AppException, match="Store page metadata not found"):
+                await get_store_page_metadata(bot=BOT, current_user=_MOCK_USER)
+
+
+_DATA_PROC = "kairon.api.app.routers.bot.data.DataProcessor"
+
+
+class TestCollectionDataRouter:
+
+    @pytest.mark.asyncio
+    async def test_list_collection_data_with_store_page_token(self):
+        expected = [{"name": "menu"}, {"name": "items"}]
+        with patch(f"{_DATA_PROC}.list_collection_data", return_value=expected) as mock_proc:
+            result = await list_collection_data(bot=BOT, current_user=MagicMock())
+        mock_proc.assert_called_once_with(BOT)
+        assert result["data"] == expected
+
+    @pytest.mark.asyncio
+    async def test_list_collection_data_with_user_token(self):
+        with patch(f"{_DATA_PROC}.list_collection_data", return_value=[]) as mock_proc:
+            result = await list_collection_data(bot=BOT, current_user=_MOCK_USER)
+        mock_proc.assert_called_once_with(BOT)
+        assert result["data"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_collection_metadata_success(self):
+        expected = {"fields": ["name", "price"]}
+        with patch(f"{_DATA_PROC}.get_crud_metadata", return_value=expected) as mock_proc:
+            result = await get_collection_metadata(bot=BOT, collection_name="menu", current_user=MagicMock())
+        mock_proc.assert_called_once_with(bot=BOT, collection_name="menu")
+        assert result["data"] == expected
+
+    @pytest.mark.asyncio
+    async def test_get_collection_metadata_raises(self):
+        with patch(f"{_DATA_PROC}.get_crud_metadata", side_effect=AppException("Collection not found")):
+            with pytest.raises(AppException, match="Collection not found"):
+                await get_collection_metadata(bot=BOT, collection_name="missing", current_user=MagicMock())
+
+    @pytest.mark.asyncio
+    async def test_get_collection_data_success(self):
+        rows = [{"data": {"name": "Burger", "price": 10}}]
+        with patch(f"{_DATA_PROC}.get_collection_data", return_value=rows):
+            with patch("kairon.api.app.routers.bot.data.CollectionData") as mock_cd:
+                mock_cd.objects.return_value.count.return_value = 1
+                result = await get_collection_data(
+                    bot=BOT, collection_name="menu",
+                    key=[], value=[], start_idx=0, page_size=10,
+                    current_user=MagicMock(),
+                )
+        assert result["data"]["logs"] == rows
+        assert result["data"]["total"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_collection_data_with_timestamp_success(self):
+        rows = [{"data": {"name": "Pizza"}}]
+        with patch(f"{_DATA_PROC}.get_collection_data_with_timestamp", return_value=rows) as mock_proc:
+            result = await get_collection_data_with_timestamp(
+                bot=BOT, collection_name="menu",
+                filters="{}", start_time=None, end_time=None,
+                current_user=MagicMock(),
+            )
+        mock_proc.assert_called_once_with(bot=BOT, data_filter="{}", collection_name="menu", start_time=None, end_time=None)
+        assert result["data"] == rows
+
+    @pytest.mark.asyncio
+    async def test_get_collection_data_with_id_success(self):
+        expected = {"_id": "abc123", "data": {"name": "Burger"}}
+        with patch(f"{_DATA_PROC}.get_collection_data_with_id", return_value=expected) as mock_proc:
+            result = await get_collection_data_with_id(bot=BOT, collection_id="abc123", current_user=MagicMock())
+        mock_proc.assert_called_once_with(BOT, collection_id="abc123")
+        assert result["data"] == expected
+
+    @pytest.mark.asyncio
+    async def test_get_collection_data_with_id_raises(self):
+        with patch(f"{_DATA_PROC}.get_collection_data_with_id", side_effect=AppException("Record not found")):
+            with pytest.raises(AppException, match="Record not found"):
+                await get_collection_data_with_id(bot=BOT, collection_id="bad_id", current_user=MagicMock())
+
+    @pytest.mark.asyncio
+    async def test_get_all_collections_success(self):
+        expected = ["menu", "items", "specials"]
+        with patch(f"{_DATA_PROC}.get_all_collections", return_value=expected) as mock_proc:
+            result = await get_all_collections(bot=BOT, current_user=MagicMock())
+        mock_proc.assert_called_once_with(BOT)
+        assert result.data == expected
+
+    @pytest.mark.asyncio
+    async def test_get_collection_filter_count_success(self):
+        with patch(f"{_DATA_PROC}.get_collection_filter_data_count", return_value=42) as mock_proc:
+            result = await get_collection_filter_count(
+                bot=BOT, collection_name="menu", filters=None, current_user=MagicMock()
+            )
+        mock_proc.assert_called_once_with(BOT, "menu", None)
+        assert result.data == {"count": 42}
+
+    @pytest.mark.asyncio
+    async def test_get_collection_filter_count_raises(self):
+        with patch(f"{_DATA_PROC}.get_collection_filter_data_count", side_effect=AppException("Invalid filters")):
+            with pytest.raises(AppException, match="Invalid filters"):
+                await get_collection_filter_count(
+                    bot=BOT, collection_name="menu", filters="{bad}", current_user=MagicMock()
+                )

@@ -65,7 +65,14 @@ class CustomerOrderProcessor:
         from kairon.shared.auth import Authentication
         catalog_base = Utility.environment.get("store_page").get("url")
         encrypted_id = Utility.encrypt_message(plain_sender_id)
-        token = Authentication.create_store_page_token(data={"sub": plain_sender_id, "bot": bot}, access_limit=["/api/bot/.+/customer_data/.*"])
+        token = Authentication.create_store_page_token(
+            data={"sub": plain_sender_id, "bot": bot},
+            access_limit=[
+                "/api/bot/.+/customer_data/.*",
+                "/api/bot/.+/store_page/metadata",
+                "/api/bot/.+/data/collection/.*",
+            ],
+        )
         return f"{catalog_base}/{page_name}/{bot}/{encrypted_id}/{token}"
 
     @staticmethod

@@ -12,7 +12,6 @@ from jwt import PyJWTError, encode
 from loguru import logger
 from mongoengine import DoesNotExist
 
-from kairon.shared.data.data_objects import BotSettings
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
@@ -159,6 +158,7 @@ class Authentication:
     @staticmethod
     def create_store_page_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.STORE_PAGE.value,
                                 token_expire: int = 15, access_limit: list = None):
+        from kairon.shared.data.data_objects import BotSettings
         bot_settings = BotSettings.objects(bot=str(data.get("bot"))).get()
         store_page_token_expiry = bot_settings.store_page_token_expiry
         secret_key = Utility.environment['security']["secret_key"]
@@ -179,6 +179,27 @@ class Authentication:
         encoded = Authentication.encrypt_token_claims(to_encode)
         encoded_jwt = encode(encoded, secret_key, algorithm=algorithm)
         return encoded_jwt
+
+    @staticmethod
+    async def get_current_user_or_store_page_token(
+        security_scopes: SecurityScopes,
+        request: Request,
+        token: str = Depends(DataUtility.oauth2_scheme),
+    ):
+        raw_token = (request.headers.get("authorization") or token or "")
+        if raw_token.lower().startswith("bearer "):
+            raw_token = raw_token[7:]
+        if raw_token:
+            try:
+                claims = Utility.decode_limited_access_token(raw_token)
+                if claims.get("type") == TOKEN_TYPE.STORE_PAGE.value:
+                    return Authentication.validate_store_page_token(request)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid token: {e}"
+                )
+        return await Authentication.get_current_user_and_bot(security_scopes, request, token)
 
     @staticmethod
     def validate_store_page_token(request: Request):
