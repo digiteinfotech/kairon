@@ -296,7 +296,6 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
     @staticmethod
     async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
                            filesize: int = 0) -> str:
-        from uuid6 import uuid7
 
         app_id = channel_config.get("config", {}).get("app_id")
         partner_app_token = channel_config.get("config", {}).get("partner_app_token")
@@ -358,18 +357,15 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             )
             raise AppException(response.text)
 
-        media_id = uuid7().hex
         resp_data = response.json()
         handle_id_raw = resp_data.get("handleId")
         handle_id = handle_id_raw if isinstance(handle_id_raw, str) else (handle_id_raw or {}).get("message")
-        expiration_date = datetime.utcnow() + timedelta(days = 30)
+        expiration_date = datetime.utcnow() + timedelta(days=30)
 
         output_filename = f"template_media/{bot}/{filename}"
         bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
         with open(file_path, "rb") as f:
             binary_data = f.read()
-            media_url = UserMedia.save_media_content(bot, sender_id, media_id, binary_data, filename,
-                                                     file_path, output_filename, bucket, False)
 
         async def _get_external_media_id():
             def _do():
@@ -387,46 +383,43 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, _do)
 
-        media_doc.update(
-            set__media_url=media_url,
-            set__upload_type=UserMediaUploadType.broadcast.value,
-            set__additional_info={"message": "Upload successful"},
-            set__external_upload_info__handle_id=handle_id,
-            set__external_upload_info__expiry_date=expiration_date,
-        )
-
         external_media_id = None
 
         try:
             media_resp = await _get_external_media_id()
-
         except requests.RequestException as e:
             logger.exception(f"Failed to fetch external media id: {e}")
 
             media_doc.update(
-                set__upload_status = UserMediaUploadStatus.failed.value,
-                set__additional_info ={"message": "Upload failed: network error"},
-                set__external_upload_info__error = str(e),
+                set__upload_status=UserMediaUploadStatus.failed.value,
+                set__additional_info={"message": "Upload failed: network error"},
+                set__external_upload_info__error=str(e),
             )
             raise AppException(f"Upload request failed: {e}") from e
 
         if media_resp.status_code not in (200, 201):
             logger.error(f"Media API failed: {media_resp.text}")
             media_doc.update(
-                set__upload_status = UserMediaUploadStatus.failed.value,
-                set__additional_info ={"message": "Upload failed"},
-                set__external_upload_info__error = media_resp.text,
+                set__upload_status=UserMediaUploadStatus.failed.value,
+                set__additional_info={"message": "Upload failed"},
+                set__external_upload_info__error=media_resp.text,
             )
             raise AppException(media_resp.text)
 
         external_media_id = media_resp.json().get("mediaId")
 
+        media_doc.update(set__media_id=external_media_id)
+
+        UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename,
+                                     file_path, output_filename, bucket, False)
+
         media_doc.update(
-            set__media_id = media_id,
-            set__upload_status = UserMediaUploadStatus.completed.value,
-            set__upload_type = UserMediaUploadType.broadcast.value,
-            set__additional_info ={"message": "Upload successful and media_id generated."},
-            set__external_upload_info__external_media_id = external_media_id,
+            set__upload_status=UserMediaUploadStatus.completed.value,
+            set__upload_type=UserMediaUploadType.broadcast.value,
+            set__additional_info={"message": "Upload successful and media_id generated."},
+            set__external_upload_info__external_media_id=external_media_id,
+            set__external_upload_info__handle_id=handle_id,
+            set__external_upload_info__expiry_date=expiration_date,
         )
 
         return external_media_id
@@ -493,13 +486,8 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
     def delete_media_file(bot: str, media_id: str, channel_config):
         app_id = channel_config.get("config", {}).get("app_id")
         partner_app_token = channel_config.get("config", {}).get("partner_app_token")
-        obj = UserMediaData.objects(
-            bot=bot,
-            media_id=media_id
-        ).get()
-        external_media_id = obj.external_upload_info["external_media_id"]
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
-        url = f"{base_url}/partner/app/{app_id}/media/{external_media_id}"
+        url = f"{base_url}/partner/app/{app_id}/media/{media_id}"
         headers = {"Authorization": partner_app_token}
         Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
                                      validate_status=True,
@@ -641,8 +629,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             return [
                 {
                     "filename": doc.filename,
-                    "handle_id": (doc.external_upload_info or {}).get("handle_id"),
-                    "id": (doc.external_upload_info or {}).get("external_media_id"),
+                    "media_id": (doc.external_upload_info or {}).get("handle_id"),
                     "upload_status": doc.upload_status,
                     "sender_id": doc.sender_id,
                     "timestamp": doc.timestamp,
@@ -662,6 +649,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
                 media_id__ne="",
                 upload_type=UserMediaUploadType.broadcast.value,
                 timestamp__gte=thirty_days_ago,
+                external_upload_info__bsp=WhatsappBSPTypes.bsp_gupshup.value,
             ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
             return [
                 {
