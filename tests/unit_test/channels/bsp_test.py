@@ -2342,7 +2342,7 @@ class TestBSPGupshup:
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
-        assert result[0]["handle_id"] == "ext_handle_abc"
+        assert result[0]["media_id"] == "ext_handle_abc"
         assert result[0]["filename"] == "promo.pdf"
         UserMediaData.objects(bot=bot).delete()
 
@@ -2363,7 +2363,7 @@ class TestBSPGupshup:
         result = BSPGupshup.fetch_media_ids("bot_with_zero_media_gs_xyz")
         assert result == []
 
-    def test_fetch_media_ids_returns_external_media_id_in_id_field(self):
+    def test_fetch_media_ids_returns_handle_id_as_media_id(self):
         bot = "gs_fetch_media_ids_ext_bot"
         UserMediaData.objects(bot=bot).delete()
         UserMediaData(
@@ -2375,55 +2375,61 @@ class TestBSPGupshup:
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
-        assert result[0]["id"] == "gs_media_456"
-        assert result[0]["handle_id"] == "ext_handle_001"
+        assert result[0]["media_id"] == "ext_handle_001"
         assert result[0]["filename"] == "promo.jpg"
         UserMediaData.objects(bot=bot).delete()
 
-    def test_fetch_media_ids_id_none_when_external_media_id_absent(self):
+    def test_fetch_media_ids_media_id_none_when_handle_id_absent(self):
         bot = "gs_fetch_media_ids_no_ext_bot"
         UserMediaData.objects(bot=bot).delete()
         UserMediaData(
             bot=bot, media_id="internal_uuid2", filename="doc.pdf", extension="application/pdf",
             sender_id="user_d", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
-            external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_002"},
+            external_upload_info={"bsp": "gupshup"},
             timestamp=datetime.utcnow()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
-        assert result[0]["id"] is None
-        assert result[0]["handle_id"] == "ext_handle_002"
+        assert result[0]["media_id"] is None
         UserMediaData.objects(bot=bot).delete()
 
     # ─── fetch_broadcast_media_ids ────────────────────────────────────
 
     def test_fetch_broadcast_media_ids_success(self):
+        from unittest.mock import MagicMock
         bot = "gs_fetch_bc_media_ids_bot"
-        UserMediaData.objects(bot=bot).delete()
-        UserMediaData(
-            bot=bot, media_id="ext_media_001", filename="video.mp4", extension="video/mp4",
-            sender_id="user_c", upload_status=UserMediaUploadStatus.completed.value,
-            upload_type=UserMediaUploadType.broadcast.value,
-            timestamp=datetime.utcnow()
-        ).save()
-        result = BSPGupshup.fetch_broadcast_media_ids(bot)
+        mock_doc = MagicMock()
+        mock_doc.filename = "video.mp4"
+        mock_doc.media_id = "ext_media_001"
+        mock_doc.upload_status = UserMediaUploadStatus.completed.value
+        mock_doc.sender_id = "user_c"
+        mock_doc.timestamp = datetime.utcnow()
+
+        mock_qs = MagicMock()
+        mock_qs.only.return_value = [mock_doc]
+
+        with patch(
+            "kairon.shared.channels.whatsapp.bsp.gupshup.UserMediaData.objects",
+            return_value=mock_qs,
+        ):
+            result = BSPGupshup.fetch_broadcast_media_ids(bot)
         assert len(result) == 1
         assert result[0]["media_id"] == "ext_media_001"
-        UserMediaData.objects(bot=bot).delete()
+        assert result[0]["filename"] == "video.mp4"
 
     def test_fetch_broadcast_media_ids_excludes_empty_media_id(self):
+        from unittest.mock import MagicMock
         bot = "gs_fetch_bc_media_excl_bot"
-        UserMediaData.objects(bot=bot).delete()
-        UserMediaData(
-            bot=bot, media_id="", filename="img.png", extension="image/png",
-            sender_id="user_d", upload_status=UserMediaUploadStatus.completed.value,
-            upload_type=UserMediaUploadType.broadcast.value,
-            timestamp=datetime.utcnow()
-        ).save()
-        result = BSPGupshup.fetch_broadcast_media_ids(bot)
+        mock_qs = MagicMock()
+        mock_qs.only.return_value = []
+
+        with patch(
+            "kairon.shared.channels.whatsapp.bsp.gupshup.UserMediaData.objects",
+            return_value=mock_qs,
+        ):
+            result = BSPGupshup.fetch_broadcast_media_ids(bot)
         assert result == []
-        UserMediaData.objects(bot=bot).delete()
 
     # ─── delete_media_file ────────────────────────────────────────────
 
@@ -2522,17 +2528,24 @@ class TestBSPGupshup:
                       json={"mediaId": "ext_media_upload_001"}, status=200)
 
         storage_env = {"storage": {"whatsapp_media": {"bucket": "test-bucket"}}}
+        call_order = []
         with patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.create_media_doc") as mock_doc, \
-             patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.save_media_content") as mock_save, \
+             patch("kairon.shared.channels.whatsapp.bsp.gupshup.UserMedia.save_media_content",
+                   side_effect=lambda *a, **kw: call_order.append("save")) as mock_save, \
              mock.patch.dict(Utility.environment, storage_env):
             mock_doc_inst = MagicMock()
+            mock_doc_inst.update.side_effect = lambda **kw: call_order.append(list(kw.keys())[0])
             mock_doc.return_value = mock_doc_inst
-            mock_save.return_value = "https://s3.aws/test/promo.pdf"
             result = await BSPGupshup.upload_media_file(
                 bot=bot, channel_config=channel_config, sender_id="user",
                 filename=filename, extension=extension, filesize=100
             )
         assert result == "ext_media_upload_001"
+        # media_id must be set on the doc BEFORE save_media_content so mark_user_media_data_upload_done can find it
+        assert call_order.index("set__media_id") < call_order.index("save")
+        mock_save.assert_called_once()
+        save_args = mock_save.call_args
+        assert save_args.args[2] == "ext_media_upload_001"
 
     # ─── upload_media ────────────────────────────────────────────
 
