@@ -200,22 +200,19 @@ class TestGetCurrentUserOrStorePageToken:
         assert result is mock_user
 
     @pytest.mark.asyncio
-    async def test_routes_to_user_auth_when_token_decode_fails(self):
-        mock_user = MagicMock()
+    async def test_raises_401_when_token_decode_fails(self):
         mock_security_scopes = MagicMock(scopes=[])
         bad_token = "not.a.valid.jwt"
         req = MockRequest(token=bad_token, bot=self.BOT)
 
-        with patch("kairon.shared.utils.Utility.decode_limited_access_token", side_effect=Exception("decode failed")):
-            with patch.object(Authentication, "get_current_user_and_bot", new=AsyncMock(return_value=mock_user)) as mock_user_auth:
-                result = await Authentication.get_current_user_or_store_page_token(
-                    security_scopes=mock_security_scopes,
-                    request=req,
-                    token=bad_token,
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            await Authentication.get_current_user_or_store_page_token(
+                security_scopes=mock_security_scopes,
+                request=req,
+                token=bad_token,
+            )
 
-        mock_user_auth.assert_called_once_with(mock_security_scopes, req, bad_token)
-        assert result is mock_user
+        assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
     async def test_routes_to_user_auth_when_no_token(self):

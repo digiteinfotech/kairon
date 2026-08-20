@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -22,6 +22,7 @@ from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollectionDataRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
+from kairon.shared.data.data_objects import CustomerDetails
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User, VaultSyncType
 from kairon.shared.utils import Utility
@@ -265,41 +266,44 @@ async def delete_collection_data(
 
 @router.get("/collection", response_model=Response)
 async def list_collection_data(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data of the bot
     """
-    return {"data": list(DataProcessor.list_collection_data(current_user.get_bot()))}
+    return {"data": list(DataProcessor.list_collection_data(bot))}
 
 
 @router.get("/collection/{collection_name}/metadata", response_model=Response)
 async def get_collection_metadata(
+        bot: str,
         collection_name: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data of the bot
     """
-    return {"data": DataProcessor.get_crud_metadata(bot=current_user.get_bot(), collection_name=collection_name)}
+    return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
+        bot: str,
         collection_name: str,
         key: List[str] = Query([]), value: List[str] = Query([]),
         start_idx: int = 0, page_size: int = 10,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    data = list(DataProcessor.get_collection_data(current_user.get_bot(),
+    data = list(DataProcessor.get_collection_data(bot,
                                                   collection_name=collection_name,
                                                   key=key, value=value, start_idx=start_idx,
                                                   page_size=page_size))
     query = {
-        "bot": current_user.get_bot(),
+        "bot": bot,
         "collection_name": collection_name.lower()
     }
     query.update({
@@ -310,16 +314,17 @@ async def get_collection_data(
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
 async def get_collection_data_with_timestamp(
+        bot: str,
         collection_name: str,
         filters = Query(default='{}'),
         start_time: str = Query(default=None),
         end_time: str = Query(default=None),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
+    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=bot,
                                                                                    data_filter=filters,
                                                                                  collection_name=collection_name,
                                                                                    start_time=start_time,
@@ -328,36 +333,39 @@ async def get_collection_data_with_timestamp(
 
 @router.get("/collection/data/{collection_id}", response_model=Response)
 async def get_collection_data_with_id(
+        bot: str,
         collection_id: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the collection_id provided
     """
-    return {"data": DataProcessor.get_collection_data_with_id(current_user.get_bot(),
+    return {"data": DataProcessor.get_collection_data_with_id(bot,
                                                                     collection_id=collection_id)}
 
 @router.get("/collections/all", response_model=Response)
 async def get_all_collections(
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
 ):
     """
     List all collection names for the bot.
     """
-    names = DataProcessor.get_all_collections(current_user.get_bot())
+    names = DataProcessor.get_all_collections(bot)
     return Response(data=names)
 
 @router.get("/collections/{collection_name}/filter/count", response_model=Response)
 async def get_collection_filter_count(
+    bot: str,
     collection_name: str,
     filters: Optional[str] = Query(None),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+    current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
 ):
     """
     Count of filtered records
     """
     count = DataProcessor.get_collection_filter_data_count(
-        current_user.get_bot(),
+        bot,
         collection_name,
         filters
     )
