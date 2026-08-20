@@ -181,6 +181,25 @@ class Authentication:
         return encoded_jwt
 
     @staticmethod
+    async def get_current_user_or_store_page_token(
+        security_scopes: SecurityScopes,
+        request: Request,
+        token: str = Depends(DataUtility.oauth2_scheme),
+    ):
+        from kairon.shared.data.constant import TOKEN_TYPE
+        raw_token = (request.headers.get("authorization") or token or "")
+        if raw_token.lower().startswith("bearer "):
+            raw_token = raw_token[7:]
+        if raw_token:
+            try:
+                claims = Utility.decode_limited_access_token(raw_token)
+                if claims.get("type") == TOKEN_TYPE.STORE_PAGE.value:
+                    return Authentication.validate_store_page_token(request)
+            except Exception:
+                pass
+        return await Authentication.get_current_user_and_bot(security_scopes, request, token)
+
+    @staticmethod
     def validate_store_page_token(request: Request):
         from kairon.shared.data.data_objects import CustomerDetails
         token = (request.query_params.get("authorization") or

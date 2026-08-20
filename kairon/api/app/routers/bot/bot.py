@@ -1,6 +1,6 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional, Dict, Text
+from typing import List, Optional, Dict, Text, Union
 
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
@@ -37,7 +37,7 @@ from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
     AuditlogActions, LogTypes
-from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
+from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules, CustomerDetails
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.events.processor import ExecutorProcessor
@@ -1775,11 +1775,12 @@ async def get_flow_tag(
 
 @router.get("/store_page/metadata", response_model=Response)
 async def get_store_page_metadata(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=TESTER_ACCESS)
 ):
     """
     Fetches store page metadata for the bot
     """
-    metadata = mongo_processor.get_store_page_metadata(current_user.get_bot())
+    metadata = mongo_processor.get_store_page_metadata(bot)
     return Response(data=metadata)
 

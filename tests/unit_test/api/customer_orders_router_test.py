@@ -31,6 +31,7 @@ from kairon.api.app.routers.bot.customer_orders import (
     update_order_status,
     upsert_customer,
 )
+from kairon.api.app.routers.bot.bot import get_store_page_metadata
 
 BOT = "router_test_bot"
 
@@ -292,3 +293,41 @@ class TestFilterOrdersRouter:
             bot=BOT, persona_type=None, filters={}, page=1, page_size=20
         )
         assert result.data == []
+
+
+class TestGetStorePageMetadataRouter:
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_with_store_page_token(self):
+        """Store page token (CustomerDetails) path — uses bot from path param."""
+        expected = {"store_name": "My Shop", "logo_url": "https://example.com/logo.png"}
+        mock_customer = MagicMock()
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            return_value=expected,
+        ) as mock_proc:
+            result = await get_store_page_metadata(bot=BOT, current_user=mock_customer)
+        mock_proc.assert_called_once_with(BOT)
+        assert result.data == expected
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_with_user_token(self):
+        """Regular user token (User) path — uses bot from path param."""
+        expected = {"store_name": "Bot Store"}
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            return_value=expected,
+        ) as mock_proc:
+            result = await get_store_page_metadata(bot=BOT, current_user=_MOCK_USER)
+        mock_proc.assert_called_once_with(BOT)
+        assert result.data == expected
+
+    @pytest.mark.asyncio
+    async def test_get_store_page_metadata_not_found_raises(self):
+        from kairon.exceptions import AppException
+        with patch(
+            "kairon.api.app.routers.bot.bot.mongo_processor.get_store_page_metadata",
+            side_effect=AppException("Store page metadata not found"),
+        ):
+            with pytest.raises(AppException, match="Store page metadata not found"):
+                await get_store_page_metadata(bot=BOT, current_user=_MOCK_USER)
