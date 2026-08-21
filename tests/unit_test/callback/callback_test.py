@@ -4,6 +4,9 @@ from datetime import time
 
 import pytest
 from unittest.mock import patch, MagicMock
+
+from kairon.async_callback.utils import CallbackUtility
+from kairon.shared.actions.models import ActionParameterType
 from mongoengine import connect
 from kairon import Utility
 from kairon.async_callback.exceptions import CallbackException
@@ -571,7 +574,7 @@ async def test_process_async_callback_request_async_triggers_callback(
         mock_run_pyscript_async.side_effect = fake_run_pyscript_async
 
         from kairon.async_callback.processor import CallbackProcessor
-        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -617,7 +620,7 @@ async def test_process_async_callback_request_sync(
 
         mock_parse_pyscript_data.return_value = ("Test Bot", {"state": "updated"}, False, True)
 
-        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url = await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -693,6 +696,74 @@ async def test_async_callback_no_response_empty_dict(mock_failure_entry):
         error_log="No response received from callback script",
         request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
     )
+
+def test_resolve_redirect_url_with_value():
+    redirect = {
+        "type": ActionParameterType.value.value,
+        "value": "https://www.nimblework.com/login/"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, {})
+
+    assert result == "https://www.nimblework.com/login/"
+
+
+def test_resolve_redirect_url_with_slot_from_metadata():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "body"
+    }
+
+    metadata = {
+        "redirect_url": "https://www.nimblework.com/login/",
+        "bot": "test_bot"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+    assert result == "https://www.nimblework.com/login/"
+
+
+def test_resolve_redirect_url_with_multiple_metadata_values():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "body"
+    }
+
+    metadata = {
+        "name": "Harshada",
+        "redirect_url": "https://www.nimblework.com/login/",
+        "bot": "test_bot"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+    assert result == "https://www.nimblework.com/login/"
+
+
+def test_resolve_redirect_url_missing_metadata_value():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "body"
+    }
+
+    metadata = {
+        "name": "Harshada",
+        "bot": "test_bot"
+    }
+
+    with pytest.raises(AppException, match="Redirect URL could not be resolved!"):
+        CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+
+def test_resolve_redirect_url_invalid_type():
+    redirect = {
+        "type": "invalid",
+        "value": "https://www.nimblework.com/login/"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect type!"):
+        CallbackUtility.resolve_redirect_url(redirect, {})
 
 #not needed already covered in other tests
 # @patch('kairon.shared.callback.data_objects.CallbackConfig.objects')

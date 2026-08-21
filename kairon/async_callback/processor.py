@@ -8,7 +8,6 @@ from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode, CallbackResponseType
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
@@ -142,6 +141,8 @@ class CallbackProcessor:
         bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
+        redirect = callback.get("redirect")
+        redirect_url = None
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
@@ -154,13 +155,16 @@ class CallbackProcessor:
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
                                                          predefined_objects=predefined_objects,
                                                          callback=callback_function)
-                return {"message": "Request Acknowledged"}, message, error_code, response_type
+                return {"message": "Request Acknowledged"}, message, error_code, response_type, None
 
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
                                                         predefined_objects=predefined_objects)
                 bot_response, state, invalidate, dispatch_bot_response = CallbackProcessor.parse_pyscript_data(result)
+                if redirect:
+                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, entry.get("metadata", {}))
+
                 CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
                 data = bot_response
                 logger.info(f'Pyscript output: {bot_response, state, invalidate}')
@@ -193,4 +197,4 @@ class CallbackProcessor:
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
 
-        return data, message, error_code, response_type
+        return data, message, error_code, response_type, redirect_url
