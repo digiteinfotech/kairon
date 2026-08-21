@@ -131,13 +131,14 @@ voice_channels:
       - api_key
       - api_token
       - account_sid
-      - subdomain
       - exophone
     secret_fields:
       - api_key
       - api_token
+      - account_sid
     optional_fields:
-      - voice
+      - subdomain
+      - tts_voice
       - language
       - welcome_message
       - sample_rate

@@ -1579,6 +1579,12 @@ class Utility:
             if encrypt and required_field in _secret_fields:
                 config[required_field] = Utility.encrypt_message(config[required_field])
         config["telephony_provider"] = provider
+        if provider == "exotel" and not config.get("subdomain"):
+            config["subdomain"] = (
+                Utility.environment.get("voice", {})
+                .get("exotel", {})
+                .get("subdomain", "api.exotel.com")
+            )
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):

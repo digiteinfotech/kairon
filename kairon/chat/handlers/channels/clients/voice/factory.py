@@ -13,8 +13,10 @@ class VoiceProviderFactory:
     def _get_implementations(cls) -> dict:
         if not cls.__implementations:
             from kairon.chat.handlers.channels.clients.voice.twilio import TwilioVoiceProvider
+            from kairon.chat.handlers.channels.clients.voice.exotel import ExotelVoiceProvider
             cls.__implementations = {
                 VoiceProviderTypes.twilio.value: TwilioVoiceProvider,
+                VoiceProviderTypes.exotel.value: ExotelVoiceProvider,
             }
         return cls.__implementations
 

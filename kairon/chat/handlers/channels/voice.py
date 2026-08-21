@@ -44,10 +44,9 @@ class VoiceOutput(OutputChannel):
     async def send_custom_json(self, recipient_id: Text, json_message, **kwargs):
         if json_message.get("disconnect"):
             self._should_hangup = True
-        else:
-            text = json_message.get("text") or json_message.get("data", {}).get("text")
-            if text:
-                self._messages.append(text)
+        text = json_message.get("text") or json_message.get("data", {}).get("text")
+        if text:
+            self._messages.append(text)
 
     def get_accumulated_text(self) -> Text:
         return " ".join(self._messages)
@@ -225,3 +224,41 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
             logger.warning("Invalid %s signature on /status — bot=%s provider=%s", self.provider, self.bot, self.provider)
             raise HTTPException(status_code=403, detail=f"Invalid {self.provider} signature")
         await provider_impl.handle_call_status(self.request, self.bot)
+
+    async def handle_resolver_request(self) -> dict:
+        """
+        Handle dynamic HTTP(S) resolver GET from telephony provider (e.g. Exotel).
+        Returns JSON dict with WSS stream URL.
+        """
+        params = dict(self.request.query_params)
+        call_sid = params.get("CallSid", "unknown")
+        logger.info(
+            "Resolver: bot=%s provider=%s call_sid=%s from=%s",
+            self.bot, self.provider, call_sid, params.get("From", ""),
+        )
+        provider_impl, _ = self._load_provider()
+        payload = provider_impl.build_resolver_response(params, self.bot, self.user.get_user())
+        ChannelLogs(
+            type="voice", status="resolver", data=params,
+            message_id=call_sid, bot=self.bot, user=self.user.get_user(),
+        ).save()
+        return payload
+
+    async def handle_greeting_request(self) -> str:
+        """
+        Handle greeting/initializer GET from telephony provider (e.g. Exotel).
+        Plays greeting WAV then connects to WSS stream via ExoML.
+        """
+        params = dict(self.request.query_params)
+        call_sid = params.get("CallSid", "unknown")
+        logger.info(
+            "Greeting: bot=%s provider=%s call_sid=%s from=%s",
+            self.bot, self.provider, call_sid, params.get("From", ""),
+        )
+        provider_impl, _ = self._load_provider()
+        xml = provider_impl.build_greeting_response(params, self.bot, self.user.get_user())
+        ChannelLogs(
+            type="voice", status="greeting", data=params,
+            message_id=call_sid, bot=self.bot, user=self.user.get_user(),
+        ).save()
+        return xml
