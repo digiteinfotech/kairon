@@ -93,17 +93,31 @@ class CognitionData(Auditlog):
             self.collection = self.collection.strip().lower()
 
 
+def build_collection_filterable_attrs(data: dict) -> list:
+    attrs = []
+    for k, v in (data or {}).items():
+        if isinstance(v, (str, int, float, bool)):
+            attrs.append({"k": k, "v": v})
+    return attrs
+
+
 class CollectionData(Auditlog):
     collection_name = StringField(required=True)
     is_secure = ListField(StringField(), default=[])
     is_non_editable = ListField(StringField(), default=[])
     data = DictField()
+    filterable_attrs = ListField(DictField(), default=[])
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {
+        "indexes": [
+            {"fields": ["bot"]},
+            {"fields": ["bot", "collection_name", "filterable_attrs.k", "filterable_attrs.v"]},
+        ]
+    }
 
     def validate(self, clean=True):
         from kairon import Utility
@@ -129,6 +143,7 @@ class CollectionData(Auditlog):
     def clean(self):
         if self.collection_name:
             self.collection_name = self.collection_name.strip().lower()
+        self.filterable_attrs = build_collection_filterable_attrs(self.data)
 
 class AnalyticsCollectionData(Auditlog):
     bot = StringField(required=True)
