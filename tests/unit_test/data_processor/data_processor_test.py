@@ -367,6 +367,34 @@ class TestMongoProcessor:
             }
         ).save()
 
+    def test_collection_data_filterable_attrs_populated_on_save(self):
+        from kairon.shared.cognition.data_objects import build_collection_filterable_attrs
+        data = {
+            "name": "Test",
+            "age": 30,
+            "score": 9.5,
+            "active": True,
+            "nested": {"key": "val"},
+            "items": [1, 2, 3],
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable",
+            data=data
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable").first()
+        expected = build_collection_filterable_attrs(data)
+        assert saved.filterable_attrs == expected
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "score", "active"}
+        assert "nested" not in attr_keys
+        assert "items" not in attr_keys
+
+        saved.delete()
+
     def test_get_collection_data_with_filters_list(self, mock_collection_data):
         collection_name = "crop_details"
         filters = [
