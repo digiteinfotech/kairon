@@ -25,7 +25,7 @@ from kairon.shared.callback.data_objects import (
     CallbackConfig,
     CallbackData,
     CallbackRecordStatusType,
-    CallbackLog,
+    CallbackLog, validate_redirect_config,
 )
 from uuid6 import uuid7
 
@@ -711,7 +711,7 @@ def test_resolve_redirect_url_with_value():
 def test_resolve_redirect_url_with_slot_from_metadata():
     redirect = {
         "type": ActionParameterType.slot.value,
-        "value": "body"
+        "value": "redirect_url"
     }
 
     metadata = {
@@ -724,37 +724,35 @@ def test_resolve_redirect_url_with_slot_from_metadata():
     assert result == "https://www.nimblework.com/login/"
 
 
-def test_resolve_redirect_url_with_multiple_metadata_values():
+def test_resolve_redirect_url_with_multiple_slot_values():
     redirect = {
         "type": ActionParameterType.slot.value,
-        "value": "body"
+        "value": "redirect_url"
     }
 
-    metadata = {
+    live_slots = {
         "name": "Harshada",
         "redirect_url": "https://www.nimblework.com/login/",
         "bot": "test_bot"
     }
 
-    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
+    result = CallbackUtility.resolve_redirect_url(redirect, live_slots)
 
     assert result == "https://www.nimblework.com/login/"
 
-
-def test_resolve_redirect_url_missing_metadata_value():
+def test_resolve_redirect_url_missing_slot_value():
     redirect = {
         "type": ActionParameterType.slot.value,
-        "value": "body"
+        "value": "redirect_url"
     }
 
-    metadata = {
+    live_slots = {
         "name": "Harshada",
         "bot": "test_bot"
     }
 
     with pytest.raises(AppException, match="Redirect URL could not be resolved!"):
-        CallbackUtility.resolve_redirect_url(redirect, metadata)
-
+        CallbackUtility.resolve_redirect_url(redirect, live_slots)
 
 def test_resolve_redirect_url_invalid_type():
     redirect = {
@@ -764,6 +762,104 @@ def test_resolve_redirect_url_invalid_type():
 
     with pytest.raises(AppException, match="Invalid redirect type!"):
         CallbackUtility.resolve_redirect_url(redirect, {})
+
+def test_validate_redirect_config_disabled():
+    validate_redirect_config(
+        execution_mode="async",
+        standalone=False,
+        redirect_enabled=False,
+        redirect=None
+    )
+
+def test_validate_redirect_config_value_success():
+    validate_redirect_config(
+        execution_mode="sync",
+        standalone=False,
+        redirect_enabled=True,
+        redirect={
+            "type": "value",
+            "value": "https://example.com"
+        }
+    )
+
+def test_validate_redirect_config_slot_success():
+    validate_redirect_config(
+        execution_mode="sync",
+        standalone=False,
+        redirect_enabled=True,
+        redirect={
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    )
+
+def test_validate_redirect_config_standalone():
+    with pytest.raises(
+        AppException,
+        match="Redirect is not supported for standalone callbacks!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=True,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_async():
+    with pytest.raises(
+        AppException,
+        match="Redirect is not supported for async callbacks!"
+    ):
+        validate_redirect_config(
+            execution_mode="async",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_invalid_type():
+    with pytest.raises(AppException, match="Invalid redirect type!"):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "invalid_type",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_missing_redirect():
+    with pytest.raises(
+        AppException,
+        match="Redirect configuration is required!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect=None
+        )
+
+def test_validate_redirect_config_missing_value():
+    with pytest.raises(
+        AppException,
+        match="Only redirect_url slot is supported for redirect!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot"
+            }
+        )
 
 #not needed already covered in other tests
 # @patch('kairon.shared.callback.data_objects.CallbackConfig.objects')

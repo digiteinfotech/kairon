@@ -3,6 +3,9 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Text
 
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.shared.actions.models import ActionParameterType
+from kairon.shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
@@ -120,6 +123,9 @@ class CallbackProcessor:
                                              metadata=ent.get("metadata"),
                                              callback_url=ent.get("callback_url"),
                                              callback_source=c_src)
+            ActionUtility.trigger_action_failure_mail(slot_values=ent.get('metadata'), bot_name=bot_id,
+                                                      action_name=ent.get("action_name"),
+                                                      user_query_history=rd.get('body'))
 
     @staticmethod
     async def process_async_callback_request(token: str,
@@ -142,6 +148,7 @@ class CallbackProcessor:
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
         redirect = callback.get("redirect")
+        redirect_enabled = callback.get("redirect_enabled", False)
         redirect_url = None
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
@@ -159,12 +166,19 @@ class CallbackProcessor:
 
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
+
+                if redirect_enabled and redirect:
+                    if redirect.get("type") == ActionParameterType.slot.value:
+                        agent = AgentProcessor.get_agent(bot)
+                        tracker = await agent.tracker_store.retrieve(entry.get("sender_id"))
+                        live_slots = tracker.current_slot_values() if tracker else {}
+                    else:
+                        live_slots = {}
+                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, live_slots)
+
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
                                                         predefined_objects=predefined_objects)
                 bot_response, state, invalidate, dispatch_bot_response = CallbackProcessor.parse_pyscript_data(result)
-                if redirect:
-                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, entry.get("metadata", {}))
-
                 CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
                 data = bot_response
                 logger.info(f'Pyscript output: {bot_response, state, invalidate}')
@@ -196,5 +210,8 @@ class CallbackProcessor:
                                              metadata=entry.get("metadata"),
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=bot,
+                                                      action_name=entry.get("action_name"),
+                                                      user_query_history=tracker.latest_message.get('text'))
 
         return data, message, error_code, response_type, redirect_url

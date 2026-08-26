@@ -969,17 +969,16 @@ async def test_script_execution_failure(mock_execute, monkeypatch):
     assert "script error" in body["body"]
 
 @pytest.mark.asyncio
-async def test_sync_callback_redirect_from_metadata():
+async def test_sync_callback_redirect_from_live_slots():
     callback = {
         "execution_mode": CallbackExecutionMode.SYNC.value,
         "redirect": {
             "type": ActionParameterType.slot.value,
-            "value": "body"
+            "value": "redirect_url"
         },
-        # existing callback config fields...
     }
 
-    metadata = {
+    live_slots = {
         "name": "Harshada",
         "redirect_url": "https://www.nimblework.com/login/",
         "bot": "test_bot"
@@ -987,7 +986,7 @@ async def test_sync_callback_redirect_from_metadata():
 
     redirect_url = CallbackUtility.resolve_redirect_url(
         callback["redirect"],
-        metadata
+        live_slots
     )
 
     response = CallbackUtility.redirect_response(redirect_url)
