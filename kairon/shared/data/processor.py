@@ -8678,6 +8678,7 @@ class MongoProcessor:
         expire_in = request_data.get("expire_in")
         standalone_id_path = request_data.get("standalone_id_path")
         response_type = request_data.get("response_type", CallbackResponseType.KAIRON_JSON.value)
+        redirect_enabled = request_data.get("redirect_enabled", False)
         redirect = request_data.get("redirect")
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
@@ -8692,6 +8693,7 @@ class MongoProcessor:
                                              standalone,
                                              standalone_id_path,
                                              response_type,
+                                             redirect_enabled,
                                              redirect)
         config.pop('_id')
         return config

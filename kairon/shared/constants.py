@@ -196,6 +196,7 @@ class KaironSystemSlots(str, Enum):
     store_page_name = 'store_page_name'
     callback_identifier = 'callback_identifier'
     llm_call_id = "llm_call_id"
+    redirect_url = "redirect_url"
 
 
 
