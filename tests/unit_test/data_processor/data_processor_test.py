@@ -6363,7 +6363,7 @@ class TestMongoProcessor:
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 35
+        assert domain.entities.__len__() == 36
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -12016,7 +12016,7 @@ class TestMongoProcessor:
             {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
-            {'name': 'redirect_url', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'redirect_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
 
         ]
         assert len(slots) == 36
