@@ -213,8 +213,8 @@ class CallbackProcessor:
                                              metadata=entry.get("metadata"),
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
-            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=bot,
+            ActionUtility.trigger_action_failure_mail(slot_values=entry.get('metadata'), bot_name=bot,
                                                       action_name=entry.get("action_name"),
-                                                      user_query_history=tracker.latest_message.get('text'))
+                                                      user_query_history=entry.get('body'))
 
         return data, message, error_code, response_type, redirect_url
