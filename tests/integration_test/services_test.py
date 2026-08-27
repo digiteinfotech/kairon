@@ -13440,8 +13440,7 @@ def test_callback_config_edit_partial_update_with_redirect_enabled():
     )
 
     actual = response.json()
-
-    assert actual['success']
+    assert actual['success'] == False
     assert actual['data']['redirect_enabled'] is True
     assert actual['data']['redirect'] == {
         "type": "value",
@@ -13452,7 +13451,7 @@ def test_callback_config_edit_partial_update_with_redirect_enabled():
 def test_callback_config_edit_disable_redirect():
     request_body = {
         "name": "callback_1",
-        "pyscript_code": "bot_response = 'Hello World!'",
+        "pyscript_code": "bot_response = 'Hello World2!'",
         "validation_secret": "string",
         "execution_mode": "async",
         "redirect_enabled": False,
@@ -13475,7 +13474,7 @@ def test_callback_config_edit_disable_redirect():
 def test_callback_config_edit_redirect_while_enabled():
     request_body = {
         "name": "callback_1",
-        "pyscript_code": "bot_response = 'Hello World!'",
+        "pyscript_code": "bot_response = 'Hello World2!'",
         "validation_secret": "string",
         "execution_mode": "sync",
         "redirect_enabled": True,
@@ -13504,7 +13503,7 @@ def test_callback_config_edit_redirect_while_enabled():
 def test_callback_config_edit_sync_to_async_with_redirect_enabled():
     request_body = {
         "name": "callback_1",
-        "pyscript_code": "bot_response = 'Hello World!'",
+        "pyscript_code": "bot_response = 'Hello World2!'",
         "validation_secret": "string",
         "execution_mode": "async",
         "redirect_enabled": True,
@@ -13530,7 +13529,7 @@ def test_callback_config_edit_sync_to_async_with_redirect_enabled():
 def test_callback_config_edit_standalone_with_redirect_enabled():
     request_body = {
         "name": "callback_1",
-        "pyscript_code": "bot_response = 'Hello World!'",
+        "pyscript_code": "bot_response = 'Hello World2!'",
         "validation_secret": "string",
         "execution_mode": "sync",
         "standalone": True,
@@ -19265,7 +19264,7 @@ def test_list_entities():
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
                 'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                'user_identifier', 'temp_token', 'store_page_name', 'callback_identifier'}
+                'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 

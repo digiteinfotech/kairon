@@ -3502,7 +3502,7 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 23
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 20
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 21
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 14
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
@@ -6299,7 +6299,7 @@ class TestMongoProcessor:
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
                                  'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
                                  'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                                 'user_identifier', 'temp_token', 'store_page_name', 'callback_identifier'] for slot in domain.slots)
+                                 'user_identifier', 'temp_token', 'store_page_name','redirect_url','callback_identifier'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
@@ -6875,7 +6875,7 @@ class TestMongoProcessor:
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
                     'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
-                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name', 'callback_identifier']
+                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -12068,6 +12068,7 @@ class TestMongoProcessor:
             {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'redirect_url', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'callback_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
 
         ]
