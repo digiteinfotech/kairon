@@ -3450,7 +3450,7 @@ class TestMongoProcessor:
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 23
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 20
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 21
         assert len(
             list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 13
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
@@ -6247,7 +6247,7 @@ class TestMongoProcessor:
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
                                  'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
                                  'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                                 'user_identifier', 'temp_token', 'store_page_name'] for slot in domain.slots)
+                                 'user_identifier', 'temp_token', 'store_page_name','redirect_url'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
@@ -6354,7 +6354,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
@@ -6425,7 +6425,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 34
+        assert domain.slots.__len__() == 35
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
@@ -6468,7 +6468,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 34
+        assert domain.slots.__len__() == 35
         assert domain.responses.keys().__len__() == 27
         assert domain.entities.__len__() == 34
         assert domain.forms.__len__() == 2
@@ -6495,7 +6495,7 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 26
+        assert domain.slots.__len__() == 27
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
         assert domain.entities.__len__() == 25
@@ -6745,7 +6745,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 26
+        assert slots.__len__() == 27
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -6778,7 +6778,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 27
+        assert slots.__len__() == 28
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -6823,7 +6823,7 @@ class TestMongoProcessor:
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
                     'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
-                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name']
+                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name','redirect_url']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -9715,7 +9715,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
@@ -9860,7 +9860,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 32
@@ -9925,7 +9925,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
@@ -9975,7 +9975,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
@@ -10033,7 +10033,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
@@ -10078,7 +10078,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 20
         assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 15
         assert domain.intent_properties.__len__() == 33
@@ -10133,7 +10133,7 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
         assert domain.entities.__len__() == 35
@@ -10211,7 +10211,7 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 35
+        assert domain.slots.__len__() == 36
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
         assert domain.entities.__len__() == 35
@@ -12016,9 +12016,10 @@ class TestMongoProcessor:
             {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'redirect_url', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
 
         ]
-        assert len(slots) == 35
+        assert len(slots) == 36
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
