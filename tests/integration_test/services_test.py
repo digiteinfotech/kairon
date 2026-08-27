@@ -13440,12 +13440,10 @@ def test_callback_config_edit_partial_update_with_redirect_enabled():
     )
 
     actual = response.json()
-    assert actual['success'] == False
-    assert actual['data']['redirect_enabled'] is True
-    assert actual['data']['redirect'] == {
-        "type": "value",
-        "value": "https://example.com"
-    }
+    assert actual['success'] is False
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Redirect is not supported for async callbacks!"
+    assert actual['data'] is None
 
 
 def test_callback_config_edit_disable_redirect():
@@ -19914,7 +19912,7 @@ def test_get_slots():
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 25
+    assert default_slots_count == 26
 
 
 def test_add_slots():
