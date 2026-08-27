@@ -12068,7 +12068,7 @@ class TestMongoProcessor:
             {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
-            {'name': 'redirect_url', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'redirect_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
 
         ]
         assert len(slots) == 36
