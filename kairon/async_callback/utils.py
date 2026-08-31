@@ -194,7 +194,7 @@ class CallbackUtility:
         )
 
     @staticmethod
-    def resolve_redirect_url(redirect: dict, live_slots: dict):
+    def resolve_redirect_url(redirect: dict, metadata: dict):
         if not redirect:
             return None
 
@@ -205,7 +205,7 @@ class CallbackUtility:
             redirect_url = redirect_value
 
         elif redirect_type == ActionParameterType.slot.value:
-            redirect_url = live_slots.get(redirect_value)
+            redirect_url = metadata.get(redirect_value)
 
         else:
             raise AppException("Invalid redirect type!")
@@ -217,9 +217,7 @@ class CallbackUtility:
 
     @staticmethod
     def redirect_response(redirect_url: str) -> BSResponse:
-        """
-        Return HTTP 302 redirect response.
-        """
+        """Return HTTP 302 redirect response."""
         return BSResponse(
             status=302,
             headers=[

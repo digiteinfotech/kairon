@@ -1,6 +1,4 @@
-import json
 import os
-from datetime import time
 
 import pytest
 from unittest.mock import patch, MagicMock
@@ -730,13 +728,13 @@ def test_resolve_redirect_url_with_multiple_slot_values():
         "value": "redirect_url"
     }
 
-    live_slots = {
+    metadata = {
         "name": "Harshada",
         "redirect_url": "https://www.nimblework.com/login/",
         "bot": "test_bot"
     }
 
-    result = CallbackUtility.resolve_redirect_url(redirect, live_slots)
+    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
 
     assert result == "https://www.nimblework.com/login/"
 
@@ -746,13 +744,13 @@ def test_resolve_redirect_url_missing_slot_value():
         "value": "redirect_url"
     }
 
-    live_slots = {
+    metadata = {
         "name": "Harshada",
         "bot": "test_bot"
     }
 
     with pytest.raises(AppException, match="Redirect URL could not be resolved!"):
-        CallbackUtility.resolve_redirect_url(redirect, live_slots)
+        CallbackUtility.resolve_redirect_url(redirect, metadata)
 
 def test_resolve_redirect_url_invalid_type():
     redirect = {

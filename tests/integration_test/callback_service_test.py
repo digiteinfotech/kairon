@@ -978,7 +978,7 @@ async def test_sync_callback_redirect_from_live_slots():
         },
     }
 
-    live_slots = {
+    metadata = {
         "name": "Harshada",
         "redirect_url": "https://www.nimblework.com/login/",
         "bot": "test_bot"
@@ -986,7 +986,7 @@ async def test_sync_callback_redirect_from_live_slots():
 
     redirect_url = CallbackUtility.resolve_redirect_url(
         callback["redirect"],
-        live_slots
+        metadata
     )
 
     response = CallbackUtility.redirect_response(redirect_url)

@@ -3,8 +3,6 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Text
 
-from kairon.chat.agent_processor import AgentProcessor
-from kairon.shared.actions.models import ActionParameterType
 from kairon.shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon import Utility
@@ -171,13 +169,7 @@ class CallbackProcessor:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
 
                 if redirect_enabled and redirect:
-                    if redirect.get("type") == ActionParameterType.slot.value:
-                        agent = AgentProcessor.get_agent(bot)
-                        tracker = await agent.tracker_store.retrieve(entry.get("sender_id"))
-                        live_slots = tracker.current_slot_values() if tracker else {}
-                    else:
-                        live_slots = {}
-                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, live_slots)
+                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, entry.get('metadata'))
 
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
                                                         predefined_objects=predefined_objects)
