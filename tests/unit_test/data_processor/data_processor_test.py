@@ -395,6 +395,29 @@ class TestMongoProcessor:
 
         saved.delete()
 
+    def test_collection_data_filterable_attrs_excludes_secure_fields(self):
+        data = {
+            "name": "Test",
+            "age": 30,
+            "token": "secret123",
+            "active": True,
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable_secure",
+            data=data,
+            is_secure=["token"]
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable_secure").first()
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "active"}
+        assert "token" not in attr_keys
+
+        saved.delete()
+
     def test_get_collection_data_with_filters_list(self, mock_collection_data):
         collection_name = "crop_details"
         filters = [
