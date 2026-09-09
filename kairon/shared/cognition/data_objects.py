@@ -93,10 +93,11 @@ class CognitionData(Auditlog):
             self.collection = self.collection.strip().lower()
 
 
-def build_collection_filterable_attrs(data: dict) -> list:
+def build_collection_filterable_attrs(data: dict, exclude: list = None) -> list:
+    excluded = set(exclude or [])
     attrs = []
     for k, v in (data or {}).items():
-        if isinstance(v, (str, int, float, bool)):
+        if k not in excluded and isinstance(v, (str, int, float, bool)):
             attrs.append({"k": k, "v": v})
     return attrs
 
@@ -143,7 +144,7 @@ class CollectionData(Auditlog):
     def clean(self):
         if self.collection_name:
             self.collection_name = self.collection_name.strip().lower()
-        self.filterable_attrs = build_collection_filterable_attrs(self.data)
+        self.filterable_attrs = build_collection_filterable_attrs(self.data, exclude=self.is_secure)
 
 class AnalyticsCollectionData(Auditlog):
     bot = StringField(required=True)
