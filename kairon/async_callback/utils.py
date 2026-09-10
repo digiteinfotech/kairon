@@ -18,6 +18,7 @@ from kairon.api.app.routers.bot.data import CognitionDataProcessor
 from kairon.shared.callback.data_objects import CallbackResponseType
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
+from urllib.parse import urlparse
 
 
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
@@ -92,7 +93,7 @@ class CallbackUtility:
         predefined_objects['mark_as_processed'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
         predefined_objects['delete_data_analytics'] = partial(CallbackScriptUtility.delete_data_analytics, bot=bot)
         predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
-        predefined_objects["invoke_agentic_flow"] = partial(CallbackScriptUtility.invoke_agentic_flow,
+        predefined_objects["invoke_agentic_flow"] = partial(CallbackUtility.invoke_agentic_flow,
                                                             bot=bot,
                                                             sender_id=sender_id,
                                                             channel=channel
@@ -102,49 +103,6 @@ class CallbackUtility:
             predefined_objects=predefined_objects
         )
         return script_variables
-
-    @staticmethod
-    def invoke_agentic_flow(flow_name: str, slot_vals: Dict = None, bot: str = None, sender_id: str = None, channel: str = None):
-        """Invoke an AgenticFlow from callback pyscript."""
-
-        # DEBUG - remove after investigation
-        logger.info(f"[DEBUG invoke_agentic_flow] flow_name={repr(flow_name)} bot={repr(bot)} sender_id={repr(sender_id)} channel={repr(channel)} slot_vals={slot_vals}")
-
-        if not flow_name:
-            raise AppException("Agentic flow name is required")
-
-        async def _run():
-            flow = AgenticFlow(
-                bot=bot,
-                slot_vals=slot_vals or {},
-                sender_id=sender_id
-            )
-
-            responses, errors = await flow.execute_rule(flow_name)
-
-            if errors:
-                logger.warning(
-                    f"AgenticFlow [{flow_name}] completed with errors: {errors}"
-                )
-
-            for response in responses:
-                if text := response.get("text"):
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot,
-                        sender_id,
-                        text,
-                        channel
-                    )
-                elif custom := response.get("custom"):
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot,
-                        sender_id,
-                        custom,
-                        channel
-                    )
-
-            return responses, errors
-        return asyncio.run(_run())
 
     @staticmethod
     def pyscript_handler(event, context):
@@ -242,4 +200,42 @@ class CallbackUtility:
                     "success": False,
                 }
             ),
+        )
+
+    @staticmethod
+    def resolve_redirect_url(redirect: dict, metadata: dict):
+        if not redirect:
+            return None
+
+        redirect_type = redirect.get("type")
+        redirect_value = redirect.get("value")
+
+        if redirect_type == ActionParameterType.value.value:
+            redirect_url = redirect_value
+
+        elif redirect_type == ActionParameterType.slot.value:
+            redirect_url = metadata.get(redirect_value)
+
+        else:
+            raise AppException("Invalid redirect type!")
+
+        if not redirect_url:
+            raise AppException("Redirect URL could not be resolved!")
+
+        parsed_url = urlparse(redirect_url)
+
+        if parsed_url.scheme not in ("http", "https"):
+            raise AppException("Invalid redirect URL!")
+
+        return redirect_url
+
+    @staticmethod
+    def redirect_response(redirect_url: str) -> BSResponse:
+        """Return HTTP 302 redirect response."""
+        return BSResponse(
+            status=302,
+            headers=[
+                (b"Location", redirect_url.encode())
+            ]
+
         )
