@@ -668,7 +668,7 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__age__gte": 25
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 25}}}}]
         }
 
     def test_multiple_filters_with_conditions(self):
@@ -685,9 +685,11 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "farmers",
-            "data__age__gte": 20,
-            "data__city__iexact": "Delhi",
-            "data__status__in": ["active", "pending"]
+            "$and": [
+                {"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 20}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "city", "v": {"$regex": "^Delhi$", "$options": "i"}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "status", "v": {"$in": ["active", "pending"]}}}}
+            ]
         }
 
     def test_filter_without_condition(self):
@@ -699,11 +701,10 @@ class TestMongoProcessor:
 
         result = DataProcessor.get_collection_filter(bot, collection_name, filters)
 
-        # when condition is empty, it should not append __condition
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__name": "Mahesh"
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
         }
 
     def test_empty_filters_list(self):
@@ -730,7 +731,7 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__name": "Mahesh"
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
         }
 
     def test_get_decoded_data_with_valid_encoded_json(self):

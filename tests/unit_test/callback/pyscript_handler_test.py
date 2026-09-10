@@ -1283,7 +1283,7 @@ def test_get_data_success(mock_fetch):
     expected_query = {
         "bot": bot,
         "collection_name": collection_name.lower(),
-        "data.field": "value"
+        "filterable_attrs": {"$elemMatch": {"k": "field", "v": "value"}},
     }
 
     mock_fetch.assert_called_once_with(expected_query)
@@ -1313,7 +1313,7 @@ def test_get_data_with_datetime_kwargs(mock_fetch):
             "bot": bot,
             "collection_name": collection_name.lower(),
             "timestamp": {"$gte": expected_time},
-            "data.field": "value"
+            "filterable_attrs": {"$elemMatch": {"k": "field", "v": "value"}},
         }
 
         mock_fetch.assert_called_with(expected_query)
