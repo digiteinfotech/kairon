@@ -18496,7 +18496,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 26
+    assert len(actual['data']) == 27
     assert actual["success"]
 
 
@@ -19907,12 +19907,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 33
+    assert len(actual["data"]) == 34
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 26
+    assert default_slots_count == 27
 
 
 def test_add_slots():
