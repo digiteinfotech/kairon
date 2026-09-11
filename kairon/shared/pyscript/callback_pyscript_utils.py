@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 from calendar import timegm
 from datetime import datetime, date
@@ -8,6 +9,8 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
+from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
@@ -632,3 +635,59 @@ class CallbackScriptUtility:
         return {
             "message": "collection created successfully"
         }
+
+    @staticmethod
+    def invoke_agentic_flow(flow_name: str, slot_vals: Dict = None, bot: str = None, sender_id: str = None,
+                            channel: str = None):
+        logger.info(
+            f"[DEBUG AGENTIC-1] START flow_name={flow_name}, "
+            f"bot={bot}, sender_id={sender_id}, channel={channel}"
+        )
+
+        if not flow_name:
+            raise AppException("Agentic flow name is required")
+
+        logger.info("[DEBUG AGENTIC-2] Creating AgenticFlow")
+
+        flow = AgenticFlow(
+            bot=bot,
+            slot_vals=slot_vals or {},
+            sender_id=sender_id
+        )
+
+        logger.info("[DEBUG AGENTIC-3] AgenticFlow created")
+
+        async def _run():
+            logger.info("[DEBUG AGENTIC-4] Before execute_rule")
+
+            responses, errors = await flow.execute_rule(flow_name)
+
+            logger.info(
+                f"[DEBUG AGENTIC-5] After execute_rule "
+                f"responses={responses}, errors={errors}"
+            )
+
+            for response in responses:
+                logger.info(f"[DEBUG AGENTIC-6] Response: {response}")
+
+                if text := response.get("text"):
+                    logger.info("[DEBUG AGENTIC-7] Dispatching text response")
+                    await ChannelMessageDispatcher.dispatch_message(
+                        bot, sender_id, text, channel
+                    )
+
+                elif custom := response.get("custom"):
+                    logger.info("[DEBUG AGENTIC-7] Dispatching custom response")
+                    await ChannelMessageDispatcher.dispatch_message(
+                        bot, sender_id, custom, channel
+                    )
+
+            return responses, errors
+
+        logger.info("[DEBUG AGENTIC-8] Before asyncio.run")
+
+        result = asyncio.run(_run())
+
+        logger.info(f"[DEBUG AGENTIC-9] After asyncio.run result={result}")
+
+        return result

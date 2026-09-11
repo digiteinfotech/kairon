@@ -1,9 +1,6 @@
 import asyncio
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
-from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.exceptions import AppException
-from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -94,7 +91,7 @@ class CallbackUtility:
         predefined_objects['mark_as_processed'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
         predefined_objects['delete_data_analytics'] = partial(CallbackScriptUtility.delete_data_analytics, bot=bot)
         predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
-        predefined_objects["invoke_agentic_flow"] = partial(CallbackUtility.invoke_agentic_flow,
+        predefined_objects["invoke_agentic_flow"] = partial(CallbackScriptUtility.invoke_agentic_flow,
                                                             bot=bot,
                                                             sender_id=sender_id,
                                                             channel=channel
@@ -105,48 +102,6 @@ class CallbackUtility:
         )
         return script_variables
 
-    @staticmethod
-    def invoke_agentic_flow(flow_name: str, slot_vals: Dict = None, bot: str = None, sender_id: str = None, channel: str = None):
-        """Invoke an AgenticFlow from callback pyscript."""
-
-        # DEBUG - remove after investigation
-        logger.info(f"[DEBUG invoke_agentic_flow] flow_name={repr(flow_name)} bot={repr(bot)} sender_id={repr(sender_id)} channel={repr(channel)} slot_vals={slot_vals}")
-
-        if not flow_name:
-            raise AppException("Agentic flow name is required")
-
-        async def _run():
-            flow = AgenticFlow(
-                bot=bot,
-                slot_vals=slot_vals or {},
-                sender_id=sender_id
-            )
-
-            responses, errors = await flow.execute_rule(flow_name)
-
-            if errors:
-                logger.warning(
-                    f"AgenticFlow [{flow_name}] completed with errors: {errors}"
-                )
-
-            for response in responses:
-                if text := response.get("text"):
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot,
-                        sender_id,
-                        text,
-                        channel
-                    )
-                elif custom := response.get("custom"):
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot,
-                        sender_id,
-                        custom,
-                        channel
-                    )
-
-            return responses, errors
-        return asyncio.run(_run())
 
     @staticmethod
     def pyscript_handler(event, context):
