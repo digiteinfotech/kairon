@@ -23,6 +23,7 @@ class CallbackProcessor:
         Run python script
         """
         trigger_task = Utility.environment['async_callback_action']['pyscript']['trigger_task']
+        logger.info(f"[DEBUG TRIGGER_TASK] trigger_task={trigger_task}")
         try:
             if trigger_task:
                 logger.info("Triggering lambda for pyscript evaluation")
