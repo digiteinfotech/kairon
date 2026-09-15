@@ -78,7 +78,8 @@ class CRMClientDetails(Auditlog):
     kairon_integration_user = StringField()  # e.g. kairon-crm@{site_name}
     kairon_api_key = StringField()           # encrypted Frappe api_key
     kairon_api_secret = StringField()        # encrypted Frappe api_secret
-    webhook_secret = StringField()           # encrypted, verifies X-Frappe-Webhook-Signature
+    webhook_secret = StringField()           # encrypted, verifies X-Frappe-Webhook-Signature (ERPNext -> Kairon invitation-accepted)
+    lead_webhook_secret = StringField()      # encrypted, signs Kairon -> kairon_connector lead/conversation-sync events
 
     # Module Selection
     selected_modules = ListField(StringField(), default=list)  # business module keys chosen at onboarding
