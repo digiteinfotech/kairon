@@ -63,6 +63,9 @@ class ProvisionVerifier:
         Logs in as Administrator to verify the existence of the Company and User,
         checks that the User has the required roles and default company,
         and optionally verifies that the user can login with their password.
+
+        'company' is None on Tier 1 standalone sites (no erpnext -> no 'Company'
+        DocType) -- the Company/default-company checks are skipped in that case.
         """
         # 1. Login as Administrator (asserts Administrator account exists)
         login_payload = {"usr": "Administrator", "pwd": admin_password}
@@ -74,12 +77,13 @@ class ProvisionVerifier:
 
         logger.info("[ProvisionVerifier] Verified that the Administrator account exists and can log in.")
 
-        # 2. Verify Company
-        company_resp = self.session.get(f"{self.base_url}/api/resource/Company/{company}", timeout=10)
-        if company_resp.status_code != 200:
-            logger.error(f"[ProvisionVerifier] Company '{company}' does not exist.")
-            return False
-        logger.info(f"[ProvisionVerifier] Verified that Company '{company}' exists.")
+        # 2. Verify Company (Tier 2 only)
+        if company:
+            company_resp = self.session.get(f"{self.base_url}/api/resource/Company/{company}", timeout=10)
+            if company_resp.status_code != 200:
+                logger.error(f"[ProvisionVerifier] Company '{company}' does not exist.")
+                return False
+            logger.info(f"[ProvisionVerifier] Verified that Company '{company}' exists.")
 
         # 3. Verify User
         user_resp = self.session.get(f"{self.base_url}/api/resource/User/{email}", timeout=10)
@@ -98,28 +102,29 @@ class ProvisionVerifier:
                 return False
         logger.info(f"[ProvisionVerifier] Verified User roles: {required_roles}.")
 
-        # Retrieve default company via User Permission DocType resource API
-        filters = [
-            ["User Permission", "user", "=", email],
-            ["User Permission", "allow", "=", "Company"],
-            ["User Permission", "for_value", "=", company],
-            ["User Permission", "is_default", "=", 1]
-        ]
-        params = {
-            "filters": json.dumps(filters),
-            "fields": json.dumps(["name"])
-        }
-        default_resp = self.session.get(f"{self.base_url}/api/resource/User Permission", params=params, timeout=10)
+        # Retrieve default company via User Permission DocType resource API (Tier 2 only)
+        if company:
+            filters = [
+                ["User Permission", "user", "=", email],
+                ["User Permission", "allow", "=", "Company"],
+                ["User Permission", "for_value", "=", company],
+                ["User Permission", "is_default", "=", 1]
+            ]
+            params = {
+                "filters": json.dumps(filters),
+                "fields": json.dumps(["name"])
+            }
+            default_resp = self.session.get(f"{self.base_url}/api/resource/User Permission", params=params, timeout=10)
 
-        if default_resp.status_code != 200:
-            logger.error(f"[ProvisionVerifier] Failed to retrieve default company for User '{email}'. Status: {default_resp.status_code}")
-            return False
+            if default_resp.status_code != 200:
+                logger.error(f"[ProvisionVerifier] Failed to retrieve default company for User '{email}'. Status: {default_resp.status_code}")
+                return False
 
-        data = default_resp.json().get("data", [])
-        if not data:
-            logger.error(f"[ProvisionVerifier] Default company '{company}' is not set for User '{email}'.")
-            return False
-        logger.info(f"[ProvisionVerifier] Verified User default company: '{company}'.")
+            data = default_resp.json().get("data", [])
+            if not data:
+                logger.error(f"[ProvisionVerifier] Default company '{company}' is not set for User '{email}'.")
+                return False
+            logger.info(f"[ProvisionVerifier] Verified User default company: '{company}'.")
 
         # 5. Verify User Login if password provided
         if temp_password:

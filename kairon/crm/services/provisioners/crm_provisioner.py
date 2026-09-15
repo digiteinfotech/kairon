@@ -65,7 +65,7 @@ class CRMProvisioner(BaseProvisioner):
         logger.info(f"[CRMProvisioner] Installing kairon_connector on {site_name}")
         c_res = subprocess.run(connector_cmd, capture_output=True, text=True)
         if c_res.returncode != 0:
-            logger.warning(f"[CRMProvisioner] kairon_connector install failed: {c_res.stderr or c_res.stdout}")
+            raise AppException(f"[CRMProvisioner] kairon_connector install failed: {c_res.stderr or c_res.stdout}")
 
         # Post-creation setup: Encryption key, setup wizard bypass, homepage, migrate & user creation
         self.prelock_encryption_key(site_name)
