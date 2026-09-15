@@ -309,6 +309,26 @@ print(json.dumps(keys))
         self._log_api_op("ensure_webhook", name, True, create_resp.status_code)
         return name
 
+    def set_lead_webhook_secret(self, webhook_secret: str) -> None:
+        """
+        Configures the kairon_connector app's inbound event-gateway secret
+        (single doctype 'Kairon Settings' -> webhook_secret) on this freshly
+        provisioned site, so Kairon's outbound event publisher can sign
+        lead/conversation-sync events that this site's
+        /api/method/kairon_connector.api.v1.webhook.receive_event will accept.
+
+        Called once, immediately after kairon_connector is installed during
+        initial provisioning -- not a rotation mechanism.
+        """
+        # Frappe's REST update route is /api/resource/{doctype}/{name}; for a
+        # Single DocType the document name is the doctype name itself.
+        url = f"{self.base_url}/api/resource/Kairon Settings/Kairon Settings"
+        resp = self.session.put(url, json={"webhook_secret": webhook_secret}, timeout=15)
+        if resp.status_code not in (200, 201):
+            self._log_api_op("set_lead_webhook_secret", "Kairon Settings", False, resp.status_code, resp.text)
+            raise AppException(f"Failed to configure Kairon Connector webhook secret: HTTP {resp.status_code}")
+        self._log_api_op("set_lead_webhook_secret", "Kairon Settings", True, resp.status_code)
+
     # ─────────────────────────────────────────────────────────────
     # Dynamic Module Discovery
     # ─────────────────────────────────────────────────────────────
@@ -791,6 +811,20 @@ frappe.db.commit()
             self._log_api_op("create_user", email, False, response.status_code, response.text)
             raise AppException(f"Failed to create User: HTTP {response.status_code}")
         self._log_api_op("create_user", email, True, response.status_code)
+
+        # The User doctype's insert-time welcome-email hook does not reliably fire via
+        # the REST create path on every Frappe build (send_welcome_email persisted 1,
+        # but no Email Queue entry was created -- verified empirically). Explicitly
+        # trigger the same reset-password-link email via Frappe's own whitelisted
+        # 'reset_password' method so the user genuinely receives a set-new-password
+        # link rather than silently getting no email at all.
+        if send_welcome_email and not password:
+            reset_url = f"{self.base_url}/api/method/frappe.core.doctype.user.user.reset_password"
+            reset_resp = self.session.post(reset_url, data={"user": email}, timeout=15)
+            if reset_resp.status_code != 200:
+                logger.warning(f"[ERPNextClient] Welcome/reset-password email trigger failed for '{email}': HTTP {reset_resp.status_code}")
+            else:
+                self._log_api_op("send_welcome_email", email, True, reset_resp.status_code)
 
     def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None, default_workspace: Optional[str] = None, role_profile: Optional[str] = None):
         """

@@ -143,10 +143,18 @@ class ERPNextProvisioner(BaseProvisioner):
         # Worker reload
         self.reload_gunicorn_workers()
 
-        # Update metadata in MongoDB
+        # Update metadata in MongoDB. NOTE: status is SITE_CREATED here, not COMPLETED --
+        # marking it COMPLETED at this point (as this used to) skips every remaining step
+        # in ProvisioningService.execute_onboarding_workflow (health check, Company/
+        # integration-user/webhook-secret setup, the tenant owner's actual User record +
+        # welcome email, and final verification), since each of those steps only runs
+        # when the status guard matches its expected prior state. That left every Tier 2
+        # (ERPNext) tenant with only "Administrator" and an ephemeral password nobody was
+        # ever told -- no real login for the tenant owner at all. Matches CRMProvisioner's
+        # (Tier 1) already-correct behavior of stopping at SITE_CREATED.
         doc.tier = 2
         doc.installed_apps = self.plan.apps
-        doc.onboarding_status = CRMOnboardingStatus.COMPLETED.value
+        doc.onboarding_status = CRMOnboardingStatus.SITE_CREATED.value
         doc.save()
 
         logger.info(f"[ERPNextProvisioner] Tier 2 ERPNext site '{site_name}' provisioned successfully.")

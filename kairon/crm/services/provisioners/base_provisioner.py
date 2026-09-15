@@ -119,7 +119,6 @@ class BaseProvisioner(ABC):
 
             py_script = f"""
 import frappe
-from frappe.utils.password import update_password
 
 frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
@@ -130,31 +129,21 @@ for role in ['Sales Manager', 'Sales User', 'System Manager']:
         admin_doc.append('roles', {{'role': role}})
 admin_doc.save(ignore_permissions=True)
 
+# User creation & credential issuance (welcome email vs. temporary password) is owned
+# exclusively by ProvisioningService.execute_onboarding_workflow ->
+# ERPNextClient.create_erpnext_user(), which runs right after this bench step and
+# knows whether to send a welcome-email set-password link or a temporary password.
+# Creating the user here (as this used to) and setting its password to the ephemeral,
+# never-returned Administrator admin_password would race that decision and leave the
+# tenant owner with a password nobody is ever told -- so this only touches the user
+# if create_erpnext_user already ran in a prior resumed attempt and the user exists.
 user_email = '{admin_email.strip()}'
-if user_email and user_email.lower() != 'administrator':
-    if not frappe.db.exists('User', user_email):
-        u = frappe.get_doc({{
-            'doctype': 'User',
-            'email': user_email,
-            'first_name': user_email.split('@')[0].title(),
-            'enabled': 1,
-            'send_welcome_email': 0,
-            'user_type': 'System User',
-            'roles': [{{'role': r}} for r in ['System Manager', 'Sales Manager', 'Sales User', 'Desk User']]
-        }})
-        u.insert(ignore_permissions=True)
-    else:
-        u = frappe.get_doc('User', user_email)
-        for role in ['System Manager', 'Sales Manager', 'Sales User', 'Desk User']:
-            if not any(r.role == role for r in u.roles):
-                u.append('roles', {{'role': role}})
-
-    u.new_password = '{admin_password}'
+if user_email and user_email.lower() != 'administrator' and frappe.db.exists('User', user_email):
+    u = frappe.get_doc('User', user_email)
+    for role in ['System Manager', 'Sales Manager', 'Sales User', 'Desk User']:
+        if not any(r.role == role for r in u.roles):
+            u.append('roles', {{'role': role}})
     u.save(ignore_permissions=True)
-    try:
-        update_password(user_email, '{admin_password}')
-    except Exception:
-        pass
 
     if not frappe.db.exists('Notification Settings', user_email):
         try:

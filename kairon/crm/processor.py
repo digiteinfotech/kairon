@@ -254,6 +254,18 @@ class CRMProcessor:
             client.login(pwd)
         return client
 
+    @staticmethod
+    def get_lead_webhook_secret(bot: str) -> str:
+        """
+        Returns the decrypted per-tenant secret used to sign outbound Kairon events
+        (lead.qualified, conversation.message.received, ...) so a KaironEventPublisher
+        call can authenticate against this tenant's kairon_connector webhook gateway.
+        """
+        doc = CRMClientDetails.objects(bot=bot).first()
+        if not doc or not doc.lead_webhook_secret:
+            raise AppException("Lead webhook secret not configured for this bot. Is provisioning COMPLETED?")
+        return Utility.decrypt_message(doc.lead_webhook_secret)
+
     @classmethod
     def get_erpnext_users(cls, bot: str) -> list:
         """

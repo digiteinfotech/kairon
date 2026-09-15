@@ -222,6 +222,13 @@ class ProvisioningService:
                 )
                 doc.webhook_secret = Utility.encrypt_message(webhook_secret)
 
+                # 4e-bis: Configure the kairon_connector inbound lead/conversation-sync
+                # webhook secret so Kairon's event publisher can sign events this site accepts.
+                lead_webhook_secret = secrets_mod.token_hex(32)
+                logger.info(f"[{self.provisioning_id}] Configuring Kairon Connector lead-sync webhook secret...")
+                client.set_lead_webhook_secret(lead_webhook_secret)
+                doc.lead_webhook_secret = Utility.encrypt_message(lead_webhook_secret)
+
                 # 4f & 4g: Module & Product Isolation Engine Setup
                 from kairon.crm.services.feature_resolver import FeatureAppResolver
                 from kairon.crm.services.isolation_service import ProductIsolationService
