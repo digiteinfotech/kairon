@@ -194,6 +194,7 @@ class CallbackProcessor:
         except AppException as e:
             error_code = 400
             message = str(e)
+            redirect_url = None
             CallbackLog.create_failure_entry(name=entry.get("action_name"),
                                              bot=bot,
                                              channel=entry.get("channel"),
@@ -207,6 +208,6 @@ class CallbackProcessor:
                                              callback_source=callback_source)
             ActionUtility.trigger_action_failure_mail(slot_values=entry.get('metadata'), bot_name=bot,
                                                       action_name=entry.get("action_name"),
-                                                      user_query_history=entry.get('body'))
+                                                      user_query_history=request_data.get('body'))
 
         return data, message, error_code, response_type, redirect_url
