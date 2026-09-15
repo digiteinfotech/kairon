@@ -861,8 +861,11 @@ frappe.db.commit()
             self._log_api_op("assign_roles_and_company", email, False, update_response.status_code, update_response.text)
             raise AppException(f"Failed to assign roles to User {email}.")
 
-        # Set default company via User Permission
-        self.assign_company_permission(email, company)
+        # Set default company via User Permission -- only when a company was supplied.
+        # Tier 1 standalone sites (no erpnext) have no 'Company' DocType, so callers
+        # pass company=None there and this step is correctly skipped.
+        if company:
+            self.assign_company_permission(email, company)
         self._log_api_op("assign_roles_and_company", email, True, update_response.status_code)
 
     def assign_company_permission(self, email: str, company: str):
