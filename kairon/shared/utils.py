@@ -1738,75 +1738,75 @@ class Utility:
                             [0.0s, 0.2s, 0.4s, 0.8s, …] between retries. No backoff will ever be longer than backoff_max.
         :return: dict/response object
         """
-        session = requests.Session()
-        max_retries = kwargs.get("max_retries", 0)
-        status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
-        backoff_factor = kwargs.get("backoff_factor", 0)
-        retries = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=status_forcelist,
-            read=False,
-        )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        if not headers:
-            headers = {}
+        with requests.Session() as session:
+            max_retries = kwargs.get("max_retries", 0)
+            status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
+            backoff_factor = kwargs.get("backoff_factor", 0)
+            retries = Retry(
+                total=max_retries,
+                backoff_factor=backoff_factor,
+                status_forcelist=status_forcelist,
+                read=False,
+            )
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            if not headers:
+                headers = {}
 
-        if request_body is None:
-            request_body = {}
-        try:
-            logger.info(f"Event started: {http_url}")
-            if request_method.lower() in ["get", "delete"]:
-                response = requests.request(
-                    request_method.upper(),
-                    http_url,
-                    params=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            elif request_method.lower() in ["post", "put", "patch"]:
-                response = session.request(
-                    request_method.upper(),
-                    http_url,
-                    json=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            else:
-                raise AppException("Invalid request method!")
-            logger.debug("raw response: " + str(response.text))
-            logger.debug("status " + str(response.status_code))
-        except (
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError,
-        ):
-            _, _, host, _, _, _, _ = parse_url(http_url)
-            raise AppException(f"Failed to connect to service: {host}")
-        except Exception as e:
-            logger.exception(e)
-            raise AppException(f"Failed to execute the url: {str(e)}")
-
-        if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
-            "expected_status_code", 200
-        ):
-            if Utility.check_empty_string(kwargs.get("err_msg")):
-                raise AppException("err_msg cannot be empty")
-            error_message = f"{kwargs['err_msg']}{response.reason}"
+            if request_body is None:
+                request_body = {}
             try:
-                resp_json = response.json()
-                if resp_json.get("meta"):
-                    developer_message = resp_json.get("meta", {}).get("developer_message")
-                    error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                logger.info(f"Event started: {http_url}")
+                if request_method.lower() in ["get", "delete"]:
+                    response = requests.request(
+                        request_method.upper(),
+                        http_url,
+                        params=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                elif request_method.lower() in ["post", "put", "patch"]:
+                    response = session.request(
+                        request_method.upper(),
+                        http_url,
+                        json=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                else:
+                    raise AppException("Invalid request method!")
+                logger.debug("raw response: " + str(response.text))
+                logger.debug("status " + str(response.status_code))
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError,
+            ):
+                _, _, host, _, _, _, _ = parse_url(http_url)
+                raise AppException(f"Failed to connect to service: {host}")
             except Exception as e:
                 logger.exception(e)
+                raise AppException(f"Failed to execute the url: {str(e)}")
+
+            if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
+                "expected_status_code", 200
+            ):
+                if Utility.check_empty_string(kwargs.get("err_msg")):
+                    raise AppException("err_msg cannot be empty")
                 error_message = f"{kwargs['err_msg']}{response.reason}"
-            raise AppException(f"{error_message}")
+                try:
+                    resp_json = response.json()
+                    if resp_json.get("meta"):
+                        developer_message = resp_json.get("meta", {}).get("developer_message")
+                        error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                except Exception as e:
+                    logger.exception(e)
+                    error_message = f"{kwargs['err_msg']}{response.reason}"
+                raise AppException(f"{error_message}")
 
-        if return_json:
-            response = response.json()
+            if return_json:
+                response = response.json()
 
-        return response
+            return response
 
     @staticmethod
     def get_event_server_url():

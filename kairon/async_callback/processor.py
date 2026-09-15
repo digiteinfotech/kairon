@@ -75,7 +75,10 @@ class CallbackProcessor:
         def run_async_task():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(execute_script_task(callback, script, predefined_objects))
+            try:
+                loop.run_until_complete(execute_script_task(callback, script, predefined_objects))
+            finally:
+                loop.close()
 
         try:
             async_task_executor.submit(run_async_task)
