@@ -8,9 +8,14 @@ provisioning_matrix:
     required_apps:
       - crm
     home_page: "crm"
+    # "CRM Admin"/"CRM User" do not exist as Frappe Role records anywhere (not core
+    # Frappe, not the standalone crm app) -- assigning them 500s with LinkValidationError.
+    # Use the same real roles BaseProvisioner.setup_user_and_migrate already assigns to
+    # the bench-created Tier 1 admin user, so both paths agree.
     default_roles:
-      - "CRM Admin"
-      - "CRM User"
+      - "System Manager"
+      - "Sales Manager"
+      - "Sales User"
     dependencies:
       - frappe
     upgrade_supported: true
@@ -76,8 +81,9 @@ provisioning_matrix:
     tier: 2
     required_apps:
       - erpnext
-    home_page: "workspace/Point of Sale Workspace"
+    home_page: "workspace/Restaurant POS"
     workspaces:
+      - "Restaurant POS"
       - "Point of Sale Workspace"
       - "Stock"
       - "Invoicing"

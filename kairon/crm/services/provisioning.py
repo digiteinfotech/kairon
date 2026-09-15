@@ -183,8 +183,15 @@ class ProvisioningService:
                 logger.info(f"[{self.provisioning_id}] Logging into ERPNext...")
                 client.login(admin_password)
 
-                logger.info(f"[{self.provisioning_id}] Creating Company...")
-                client.create_company(doc.company_name, doc.abbr, doc.default_currency, doc.country)
+                # The 'Company' DocType only exists when 'erpnext' is installed (Tier 2).
+                # Tier 1 standalone sites (crm app only) already got a 'CRM Organization'
+                # record created during bench provisioning (BaseProvisioner.setup_user_and_migrate) --
+                # calling create_company here would 500 since the DocType doesn't exist.
+                if doc.tier == 2:
+                    logger.info(f"[{self.provisioning_id}] Creating Company...")
+                    client.create_company(doc.company_name, doc.abbr, doc.default_currency, doc.country)
+                else:
+                    logger.info(f"[{self.provisioning_id}] Tier 1 site: skipping ERPNext Company creation (uses CRM Organization instead).")
 
                 logger.info(f"[{self.provisioning_id}] Ensuring default SMTP Email Account...")
                 client.ensure_default_smtp_account()
@@ -243,7 +250,6 @@ class ProvisioningService:
                 logger.info(f"[{self.provisioning_id}] Applying ProductIsolationService for selection: {selected_mods}")
                 isolation_info = ProductIsolationService.apply_isolation(client, doc.company_name, selected_mods)
                 doc.module_profile_name = isolation_info["module_profile"]
-                target_role_profile = isolation_info["role_profile"]
 
                 doc.save()
 
@@ -273,10 +279,25 @@ class ProvisioningService:
                     password=temp_password
                 )
 
+                # Recomputed here (not just relying on step 4's locals) so a resumed
+                # execution that skips step 4 -- e.g. retrying from FAILED_USER, where
+                # doc.onboarding_status is already past SITE_HEALTHY/FAILED_COMPANY --
+                # doesn't NameError on undefined plan/matrix/catalog/target_role_profile.
+                from kairon.crm.services.feature_resolver import FeatureAppResolver
+                matrix = FeatureAppResolver.load_matrix()
+                plan = FeatureAppResolver.resolve(doc.selected_modules)
+                selected_mods = doc.selected_modules or list(BUSINESS_MODULE_CATALOG.keys())
+                catalog = {m["key"]: m for m in client.discover_business_modules()["modules"]}
+                target_role_profile = None
+                for mod_key in selected_mods:
+                    if mod_key in matrix and matrix[mod_key].get("role_profile_name"):
+                        target_role_profile = matrix[mod_key]["role_profile_name"]
+                        break
+
                 logger.info(f"[{self.provisioning_id}] Assigning Roles, Company & Module Profile '{doc.module_profile_name}'...")
                 roles = plan.default_roles or ["System Manager", "Sales Manager"]
                 target_default_ws = catalog[selected_mods[0]]["workspace"] if (selected_mods and selected_mods[0] in catalog) else "CRM"
-                
+
                 # Check matrix for explicit home_page workspace override
                 for mod_key in selected_mods:
                     if mod_key in matrix and "home_page" in matrix[mod_key]:
@@ -288,7 +309,7 @@ class ProvisioningService:
                 client.assign_roles_and_company(
                     current_user_email,
                     roles,
-                    doc.company_name,
+                    doc.company_name if doc.tier == 2 else None,
                     module_profile=doc.module_profile_name,
                     default_workspace=target_default_ws,
                     role_profile=target_role_profile
@@ -326,7 +347,7 @@ class ProvisioningService:
 
                 if not verifier.verify_provisioning_state(
                     admin_password=admin_password,
-                    company=doc.company_name,
+                    company=doc.company_name if doc.tier == 2 else None,
                     email=current_user_email,
                     required_roles=["System Manager"],
                     temp_password=temp_password
