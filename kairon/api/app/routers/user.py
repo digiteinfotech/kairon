@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
-from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS, DESIGNER_ACCESS
+from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
 from kairon.shared.data.data_models import ConsentRequest, DictData
 from kairon.shared.multilingual.utils.translator import Translator
@@ -62,7 +62,7 @@ async def update_user_details(
 
 
 @router.get("/roles/access", response_model=Response)
-async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user, scopes=DESIGNER_ACCESS)):
+async def list_access_for_roles(current_user: User = Security(Authentication.get_current_user)):
     """
     Lists roles and what components they can have access to.
     """
