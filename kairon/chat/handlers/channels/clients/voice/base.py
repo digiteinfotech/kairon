@@ -7,7 +7,8 @@ from starlette.requests import Request
 class VoiceProviderBase(ABC):
 
     def __init__(self, bot: str, config: dict):
-        """Base initialiser for voice provider implementations.
+        """
+        Base initialiser for voice provider implementations.
 
         :param bot: bot ID this provider is serving
         :param config: decrypted channel config dict for the bot

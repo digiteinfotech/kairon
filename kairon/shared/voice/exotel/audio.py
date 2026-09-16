@@ -1,4 +1,5 @@
-"""Audio framing helpers for the Exotel streaming gateway.
+"""
+Audio framing helpers for the Exotel streaming gateway.
 
 Exotel accepts outbound media only in payloads whose byte length is a multiple of
 ``chunk.multiple`` (320 bytes for 8 kHz / 16-bit / 20 ms frames) and bounded by
@@ -25,8 +26,11 @@ def frame_multiple(nbytes: int, multiple: int) -> int:
 
 
 def pad_to_multiple(pcm: bytes, multiple: int) -> bytes:
-    """Right-pad ``pcm`` with silence (0x00) up to the next multiple of
-    ``multiple`` so a final short chunk is still a legal Exotel frame."""
+    """
+    Right-pad ``pcm`` with silence (0x00) up to the next multiple of
+
+    ``multiple`` so a final short chunk is still a legal Exotel frame.
+    """
     if multiple <= 0:
         return pcm
     remainder = len(pcm) % multiple
@@ -36,7 +40,8 @@ def pad_to_multiple(pcm: bytes, multiple: int) -> bytes:
 
 
 def rms(pcm: bytes) -> float:
-    """Root-mean-square amplitude of 16-bit signed little-endian PCM.
+    """
+    Root-mean-square amplitude of 16-bit signed little-endian PCM.
 
     Uses stdlib ``audioop`` when available (fast, C), falling back to a pure
     Python computation on interpreters where ``audioop`` has been removed
@@ -63,15 +68,19 @@ def rms(pcm: bytes) -> float:
 
 
 def is_silence(pcm: bytes, threshold: float = DEFAULT_SILENCE_RMS) -> bool:
-    """True when ``pcm``'s RMS energy is below ``threshold`` (i.e. the caller is
-    not speaking). Empty input counts as silence."""
+    """
+    True when ``pcm``'s RMS energy is below ``threshold`` (i.e. the caller is
+
+    not speaking). Empty input counts as silence.
+    """
     if not pcm:
         return True
     return rms(pcm) < threshold
 
 
 class AudioChunker:
-    """Buffers PCM and emits Exotel-legal frames.
+    """
+    Buffers PCM and emits Exotel-legal frames.
 
     Each yielded chunk length is a multiple of ``multiple`` and at most
     ``max_bytes``. By default frames are emitted one ``frame_bytes`` unit at a
@@ -116,8 +125,11 @@ class AudioChunker:
         yield from self._emit(ready)
 
     def flush(self) -> Iterator[bytes]:
-        """Yield every remaining frame, padding the final short chunk with silence
-        so the whole buffer is drained. Call at end of an utterance."""
+        """
+        Yield every remaining frame, padding the final short chunk with silence
+
+        so the whole buffer is drained. Call at end of an utterance.
+        """
         if self._buffer:
             padded = pad_to_multiple(bytes(self._buffer), self.multiple)
             self._buffer = bytearray(padded)
@@ -130,9 +142,12 @@ class AudioChunker:
 
 def chunk_pcm(pcm: bytes, multiple: int = DEFAULT_MULTIPLE,
               max_bytes: int = DEFAULT_MAX_BYTES) -> List[bytes]:
-    """Convenience: split a complete PCM buffer into Exotel-legal frames,
+    """
+    Convenience: split a complete PCM buffer into Exotel-legal frames,
+
     padding the tail with silence. Equivalent to pushing ``pcm`` into an
-    :class:`AudioChunker` and flushing."""
+    :class:`AudioChunker` and flushing.
+    """
     chunker = AudioChunker(multiple=multiple, max_bytes=max_bytes)
     chunker.push(pcm)
     return list(chunker.flush())

@@ -1,4 +1,5 @@
-"""Per-call voice metrics.
+"""
+Per-call voice metrics.
 
 Streaming voice quality lives and dies on latency, so every turn's agent think
 time and TTS time are recorded, plus TTS cache hit-rate and total call duration.
@@ -82,8 +83,11 @@ class CallMetrics:
 
 
 def persist_call_metrics(summary: Dict) -> None:
-    """Sink that writes a metrics summary to the ``VoiceCallMetrics`` collection.
-    Lazy-imports the document so importing this module never touches mongoengine."""
+    """
+    Sink that writes a metrics summary to the ``VoiceCallMetrics`` collection.
+
+    Lazy-imports the document so importing this module never touches mongoengine.
+    """
     from kairon.shared.voice.data_objects import VoiceCallMetrics
 
     VoiceCallMetrics(

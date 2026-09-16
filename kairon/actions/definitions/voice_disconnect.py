@@ -13,13 +13,16 @@ from kairon.shared.request_context import get_request_id
 
 
 class ActionVoiceDisconnect(ActionsBase):
-    """Sends a disconnect signal to the voice output channel so the handler
+    """
+    Sends a disconnect signal to the voice output channel so the handler
+
     can terminate the call with a <Hangup> TwiML instruction.
     Add this action to any flow node where the call should end gracefully.
     """
 
     def __init__(self, bot: Text, name: Text):
-        """Initialize VoiceDisconnect action.
+        """
+        Initialize VoiceDisconnect action.
 
         @param bot: bot id
         @param name: action name

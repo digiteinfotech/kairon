@@ -1,4 +1,5 @@
-"""Exotel streaming call session — the MVP voice call loop.
+"""
+Exotel streaming call session — the MVP voice call loop.
 
 One :class:`ExotelCallSession` drives a single call for its whole lifetime:
 
@@ -254,8 +255,11 @@ class ExotelCallSession:
 
     # ----------------------------------------------------------------- playback
     async def _speak(self, messages: List[str]) -> bool:
-        """Synthesise and stream each message. Returns True if every non-empty
-        message was served from the TTS cache."""
+        """
+        Synthesise and stream each message. Returns True if every non-empty
+
+        message was served from the TTS cache.
+        """
         served = False
         all_cached = True
         for message in messages:

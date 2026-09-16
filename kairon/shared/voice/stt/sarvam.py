@@ -1,4 +1,5 @@
-"""Sarvam streaming speech-to-text adapter.
+"""
+Sarvam streaming speech-to-text adapter.
 
 Implements :class:`~kairon.shared.voice.stt.base.BaseSTT` over Sarvam's realtime
 STT WebSocket. Audio frames pushed by the gateway are forwarded to Sarvam; the
@@ -104,7 +105,8 @@ class SarvamSTT(BaseSTT):
 
     @staticmethod
     def _parse_result(raw) -> Optional[Transcript]:
-        """Map a Sarvam WS message to a :class:`Transcript`.
+        """
+        Map a Sarvam WS message to a :class:`Transcript`.
 
         Tolerant of the several field names Sarvam has used across versions:
         text under ``transcript``/``text``, finality under ``is_final``/``final``

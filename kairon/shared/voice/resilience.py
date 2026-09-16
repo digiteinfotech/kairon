@@ -1,4 +1,5 @@
-"""STT/TTS fallback chains.
+"""
+STT/TTS fallback chains.
 
 A single provider outage should not drop a live call. These wrappers accept an
 ordered list of *builders* (zero-arg callables that construct a concrete adapter)

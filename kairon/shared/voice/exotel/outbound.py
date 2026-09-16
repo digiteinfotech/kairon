@@ -1,4 +1,5 @@
-"""Exotel outbound call client — outbound-action parity with the Twilio client.
+"""
+Exotel outbound call client — outbound-action parity with the Twilio client.
 
 Places a call *from* the platform to a customer and connects it to a bot flow,
 the Exotel analogue of Twilio's outbound ``initiate_call``. It targets Exotel's
@@ -29,7 +30,9 @@ class ExotelOutboundClient(VoiceOutboundBase):
     def __init__(self, account_sid: str, auth_token: str, from_number: str,
                  api_key: Optional[str] = None, api_token: Optional[str] = None,
                  subdomain: Optional[str] = None, exophone: Optional[str] = None):
-        """:param account_sid: Exotel account SID
+        """
+        :param account_sid: Exotel account SID
+
         :param auth_token: Exotel API token (kept for base-class parity)
         :param from_number: caller id / exophone in the account
         :param api_key: Exotel API key (defaults to account_sid)
@@ -68,8 +71,11 @@ class ExotelOutboundClient(VoiceOutboundBase):
 
     @staticmethod
     def _parse_call_sid(payload: dict) -> str:
-        """Extract the call Sid from an Exotel connect response (tolerant of the
-        ``{"Call": {"Sid": ...}}`` and flat ``{"Sid": ...}`` shapes)."""
+        """
+        Extract the call Sid from an Exotel connect response (tolerant of the
+
+        ``{"Call": {"Sid": ...}}`` and flat ``{"Sid": ...}`` shapes).
+        """
         if not isinstance(payload, dict):
             return ""
         call = payload.get("Call") or payload.get("call") or payload
@@ -78,7 +84,9 @@ class ExotelOutboundClient(VoiceOutboundBase):
         return ""
 
     def initiate_call(self, to_phone: str, twiml_url: str, status_callback_url: str = None) -> str:
-        """Dial ``to_phone`` and connect the call to ``twiml_url`` (the Exotel
+        """
+        Dial ``to_phone`` and connect the call to ``twiml_url`` (the Exotel
+
         App/flow URL running the streaming applet). Returns the Exotel call Sid.
 
         ``twiml_url`` keeps the base-class parameter name; for Exotel it is the
@@ -103,6 +111,9 @@ class ExotelOutboundClient(VoiceOutboundBase):
         return call_sid
 
     def connect_to_flow(self, to_phone: str, flow_app_id: str, status_callback_url: str = None) -> str:
-        """Convenience: dial ``to_phone`` and connect it to the Exotel flow
-        identified by ``flow_app_id``."""
+        """
+        Convenience: dial ``to_phone`` and connect it to the Exotel flow
+
+        identified by ``flow_app_id``.
+        """
         return self.initiate_call(to_phone, self.flow_app_url(flow_app_id), status_callback_url)

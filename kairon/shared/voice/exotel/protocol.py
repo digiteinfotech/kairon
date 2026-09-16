@@ -1,4 +1,5 @@
-"""Exotel Voice Streaming (Voicebot) WebSocket protocol.
+"""
+Exotel Voice Streaming (Voicebot) WebSocket protocol.
 
 Exotel streams a live call to a bidirectional WebSocket as JSON text frames. The
 shape mirrors Twilio Media Streams closely:
@@ -62,7 +63,8 @@ class StartInfo:
 
 @dataclass
 class InboundFrame:
-    """A normalised view over one inbound Exotel frame.
+    """
+    A normalised view over one inbound Exotel frame.
 
     ``media_payload`` holds the *decoded* PCM bytes (not the base64 string) so
     callers never touch the wire encoding.
@@ -87,7 +89,9 @@ def _to_int(value: Any) -> Optional[int]:
 
 
 def parse_inbound(message: Any) -> InboundFrame:
-    """Parse a raw Exotel frame (JSON ``str``/``bytes`` or already-decoded dict)
+    """
+    Parse a raw Exotel frame (JSON ``str``/``bytes`` or already-decoded dict)
+
     into an :class:`InboundFrame`. Unknown/malformed frames yield an
     ``InboundFrame`` with the best-effort event name and ``raw`` populated, never
     an exception — a noisy carrier must not tear down the call loop.
@@ -145,8 +149,11 @@ def parse_inbound(message: Any) -> InboundFrame:
 
 
 def decode_payload(payload: Optional[str]) -> bytes:
-    """Base64-decode a media payload to raw PCM bytes; tolerant of ``None``,
-    padding errors, and urlsafe encoding."""
+    """
+    Base64-decode a media payload to raw PCM bytes; tolerant of ``None``,
+
+    padding errors, and urlsafe encoding.
+    """
     if not payload:
         return b""
     if isinstance(payload, (bytes, bytearray)):
@@ -177,8 +184,11 @@ def build_media(stream_sid: str, pcm: bytes) -> Dict[str, Any]:
 
 
 def build_mark(stream_sid: str, name: str) -> Dict[str, Any]:
-    """Build a ``mark`` frame. Exotel echoes it back once the audio queued before
-    it has finished playing — used to know when the bot's utterance is done."""
+    """
+    Build a ``mark`` frame. Exotel echoes it back once the audio queued before
+
+    it has finished playing — used to know when the bot's utterance is done.
+    """
     return {
         "event": ExotelEvent.MARK.value,
         "stream_sid": stream_sid,
@@ -187,6 +197,9 @@ def build_mark(stream_sid: str, name: str) -> Dict[str, Any]:
 
 
 def build_clear(stream_sid: str) -> Dict[str, Any]:
-    """Build a ``clear`` frame to discard audio already buffered on Exotel's side
-    (used for barge-in / interrupting the bot)."""
+    """
+    Build a ``clear`` frame to discard audio already buffered on Exotel's side
+
+    (used for barge-in / interrupting the bot).
+    """
     return {"event": ExotelEvent.CLEAR.value, "stream_sid": stream_sid}

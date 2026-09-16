@@ -1,4 +1,5 @@
-"""AWS Polly text-to-speech adapter.
+"""
+AWS Polly text-to-speech adapter.
 
 Implements :class:`~kairon.shared.voice.tts.base.BaseTTS` using Polly's
 ``synthesize_speech`` with ``OutputFormat="pcm"`` — Polly returns 16-bit signed

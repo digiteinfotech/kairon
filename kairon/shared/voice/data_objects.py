@@ -18,7 +18,8 @@ from kairon.shared.data.signals import auditlogger, push_notification
 @auditlogger.log
 @push_notification.apply
 class SpeechProviderConfig(Auditlog):
-    """STT/TTS provider configuration — global (Kairon-managed) or bot-scoped (BYOK).
+    """
+    STT/TTS provider configuration — global (Kairon-managed) or bot-scoped (BYOK).
 
     `metadata` holds non-secret provider config (URLs, model, speaker, etc.).
     `secrets` holds encrypted credential fields (encrypted by SpeechProviderConfigProcessor).
@@ -46,7 +47,8 @@ class SpeechProviderConfig(Auditlog):
 
 
 class VoiceCallMetrics(Document):
-    """Per-call latency/quality metrics for a streaming voice call.
+    """
+    Per-call latency/quality metrics for a streaming voice call.
 
     One document is written when a call ends: agent think-time and TTS synthesis
     time (average and worst-case across turns), TTS cache hit count, turn count

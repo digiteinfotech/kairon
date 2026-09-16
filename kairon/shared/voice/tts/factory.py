@@ -14,7 +14,8 @@ _BUILTIN_ADAPTERS = ("kairon.shared.voice.tts.polly", "kairon.shared.voice.tts.s
 
 
 class TTSFactory:
-    """Registry-backed factory for streaming TTS adapters.
+    """
+    Registry-backed factory for streaming TTS adapters.
 
     A provider is usable only when it is BOTH declared in metadata/tts_providers.yml
     AND has a concrete adapter registered via `register`. Built-in adapters
