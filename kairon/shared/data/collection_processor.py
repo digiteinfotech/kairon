@@ -290,8 +290,6 @@ class DataProcessor:
             for key, value in zip(keys, values) if key and value
         ]
         result_limit = kwargs.pop("result_limit", None)
-        print(attr_filters)
-
         page_size = kwargs.pop("page_size", None)
         start_idx = kwargs.pop("start_idx", None)
 
