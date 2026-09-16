@@ -899,8 +899,7 @@ class Analytics(EmbeddedDocument):
 
 
 class VoiceIntegrationSettings(EmbeddedDocument):
-    """
-    Bot-specific voice STT/TTS provider selection for the streaming voice channel.
+    """Bot-specific voice STT/TTS provider selection for the streaming voice channel.
 
     (e.g. Exotel). Credentials are resolved from SpeechProviderConfig — bot-scoped
     entries automatically override global ones.

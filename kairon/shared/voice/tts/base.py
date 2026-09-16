@@ -3,8 +3,7 @@ from typing import AsyncIterator, Optional
 
 
 class BaseTTS(ABC):
-    """
-    Provider-agnostic streaming text-to-speech adapter.
+    """Provider-agnostic streaming text-to-speech adapter.
 
     Concrete adapters (AWS Polly, Sarvam, ElevenLabs, Google, ...) live behind this
     interface and are registered with TTSFactory. `synthesize` yields raw PCM chunks

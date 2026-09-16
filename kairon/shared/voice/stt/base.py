@@ -5,8 +5,7 @@ from typing import AsyncIterator, Optional
 
 @dataclass
 class Transcript:
-    """
-    A single STT result.
+    """A single STT result.
 
     ``is_final`` distinguishes streaming partials from the endpointed final
     transcript that is handed to the agent brain.
@@ -18,8 +17,7 @@ class Transcript:
 
 
 class BaseSTT(ABC):
-    """
-    Provider-agnostic streaming speech-to-text adapter.
+    """Provider-agnostic streaming speech-to-text adapter.
 
     The agent core never imports a vendor SDK; concrete adapters (Sarvam, AWS
     Transcribe, Google, ...) live behind this interface and are registered with

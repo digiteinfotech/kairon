@@ -1,5 +1,4 @@
-"""
-Unit tests for SpeechProviderConfig (MongoEngine model) and
+"""Unit tests for SpeechProviderConfig (MongoEngine model) and
 
 SpeechProviderConfigProcessor (CRUD + single-query resolve).
 """

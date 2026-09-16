@@ -1,5 +1,4 @@
-"""
-Exotel Voice Streaming WebSocket handler.
+"""Exotel Voice Streaming WebSocket handler.
 
 Bridges an Exotel bidirectional media WebSocket to the provider-agnostic
 :class:`~kairon.shared.voice.exotel.session.ExotelCallSession`:
@@ -71,8 +70,7 @@ class ExotelStreamHandler:
         return Utility.environment.get("voice", {}) or {}
 
     def _provider_chain(self, config: dict, service: str, default: str) -> list:
-        """
-        Return an ordered, de-duplicated provider list with the bot's choice first.
+        """Return an ordered, de-duplicated provider list with the bot's choice first.
 
         The bot's configured provider is placed first, followed by the global
         ``fallback_order``.

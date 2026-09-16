@@ -1,5 +1,4 @@
-"""
-Exotel streaming call session — the MVP voice call loop.
+"""Exotel streaming call session — the MVP voice call loop.
 
 One :class:`ExotelCallSession` drives a single call for its whole lifetime:
 
