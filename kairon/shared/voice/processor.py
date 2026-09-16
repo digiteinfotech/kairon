@@ -1,4 +1,5 @@
-"""Voice provider configuration processor.
+"""
+Voice provider configuration processor.
 
 Manages ``SpeechProviderConfig`` documents in MongoDB.
 Provides CRUD for global (Kairon-managed) and bot-scoped (BYOK) provider
@@ -56,7 +57,8 @@ class SpeechProviderConfigProcessor:
 
     @staticmethod
     def decrypt_config(config: dict, secret_fields: List[str], decryptor=None) -> dict:
-        """Decrypt the specified secret fields in config. Non-secret fields are untouched.
+        """
+        Decrypt the specified secret fields in config. Non-secret fields are untouched.
 
         On decryption failure the value is left as-is (graceful degradation).
         Accepts an optional custom decryptor for testability.
@@ -175,7 +177,8 @@ class SpeechProviderConfigProcessor:
             bot_id: str,
             provider: Optional[str] = None,
     ) -> List[dict]:
-        """Return all active provider configs visible to a bot: bot-scoped + global.
+        """
+        Return all active provider configs visible to a bot: bot-scoped + global.
 
         Bot-scoped entries for the same provider appear alongside global ones —
         the caller (or the UI) can use scope/bot_id fields to distinguish them.
@@ -196,7 +199,8 @@ class SpeechProviderConfigProcessor:
 
     @classmethod
     def resolve(cls, bot: str, providers: List[str]) -> dict:
-        """Resolve provider configurations for a list of providers in ONE MongoDB query.
+        """
+        Resolve provider configurations for a list of providers in ONE MongoDB query.
 
         Returns a dict keyed by provider name:
             {

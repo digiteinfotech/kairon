@@ -27,7 +27,8 @@ async def voice_dynamic_resolver(
         token: Text = Path(description="Channel integration token"),
         current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS),
 ):
-    """Dynamic HTTP(S) resolver for streaming voice providers (e.g. Exotel).
+    """
+    Dynamic HTTP(S) resolver for streaming voice providers (e.g. Exotel).
 
     Exotel GETs this URL when a call arrives. Returns JSON {"url": "wss://..."} with a
     short-lived stream token so Exotel can open the audio WebSocket directly.
@@ -47,7 +48,8 @@ async def voice_greeting_initializer(
         token: Text = Path(description="Channel integration token"),
         current_user: User = Security(Authentication.authenticate_token_in_path_param, scopes=CHAT_ACCESS),
 ):
-    """Greeting/initializer applet for streaming voice providers.
+    """
+    Greeting/initializer applet for streaming voice providers.
 
     Plays the configured greeting WAV file then connects the call to the WSS stream.
     Returns ExoML: <Play url="..."/><Connect><Stream url="wss://..."/></Connect>
@@ -90,7 +92,8 @@ async def handle_voice_stream(
         provider: Text = Path(description="Streaming voice provider name (e.g. exotel)"),
         token: Text = Path(description="Channel integration token"),
 ):
-    """Bidirectional media WebSocket for streaming voice providers (Exotel).
+    """
+    Bidirectional media WebSocket for streaming voice providers (Exotel).
 
     Authentication happens inside the handler (token is a path param).
     """

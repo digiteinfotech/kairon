@@ -1,4 +1,5 @@
-"""Sarvam text-to-speech adapter.
+"""
+Sarvam text-to-speech adapter.
 
 POST https://api.sarvam.ai/text-to-speech — returns base64-encoded WAV.
 WAV is decoded, stripped to raw PCM, and resampled to the target sample rate.

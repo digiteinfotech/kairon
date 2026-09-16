@@ -1,4 +1,5 @@
-"""Exotel Voice Streaming (Voicebot) WebSocket protocol.
+"""
+Exotel Voice Streaming (Voicebot) WebSocket protocol.
 
 Exotel streams a live call to a bidirectional WebSocket as JSON text frames. The
 shape mirrors Twilio Media Streams closely:
@@ -63,7 +64,8 @@ class StartInfo:
 
 @dataclass
 class InboundFrame:
-    """A normalised view over one inbound Exotel frame.
+    """
+    A normalised view over one inbound Exotel frame.
 
     ``media_payload`` holds the *decoded* PCM bytes (not the base64 string) so
     callers never touch the wire encoding.
@@ -89,7 +91,8 @@ def _to_int(value: Any) -> Optional[int]:
 
 
 def parse_inbound(message: Any) -> InboundFrame:
-    """Parse a raw Exotel frame (JSON str/bytes or dict) into an :class:`InboundFrame`.
+    """
+    Parse a raw Exotel frame (JSON str/bytes or dict) into an :class:`InboundFrame`.
 
     Unknown/malformed frames yield an ``InboundFrame`` with best-effort event name
     and ``raw`` populated, never an exception — a noisy carrier must not tear down
@@ -148,7 +151,8 @@ def parse_inbound(message: Any) -> InboundFrame:
 
 
 def decode_payload(payload: Optional[str]) -> bytes:
-    """Base64-decode a media payload to raw PCM bytes.
+    """
+    Base64-decode a media payload to raw PCM bytes.
 
     Tolerant of ``None``, padding errors, and urlsafe encoding.
     """
@@ -182,7 +186,8 @@ def build_media(stream_sid: str, pcm: bytes) -> Dict[str, Any]:
 
 
 def build_mark(stream_sid: str, name: str) -> Dict[str, Any]:
-    """Build a ``mark`` frame.
+    """
+    Build a ``mark`` frame.
 
     Exotel echoes it back once the audio queued before it has finished playing —
     used to know when the bot's utterance is done.
@@ -195,7 +200,8 @@ def build_mark(stream_sid: str, name: str) -> Dict[str, Any]:
 
 
 def build_clear(stream_sid: str) -> Dict[str, Any]:
-    """Build a ``clear`` frame to discard audio already buffered on Exotel's side.
+    """
+    Build a ``clear`` frame to discard audio already buffered on Exotel's side.
 
     Used for barge-in / interrupting the bot.
     """
