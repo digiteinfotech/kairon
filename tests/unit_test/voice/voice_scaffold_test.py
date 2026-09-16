@@ -125,9 +125,19 @@ class TestSTTTTSFactories:
     def test_metadata_provider_without_adapter_raises(self):
         from kairon.shared.voice.stt.factory import STTFactory
 
-        # 'sarvam' is in metadata but no adapter is registered in the scaffold phase
+        # 'deepgram' is declared in metadata but ships no adapter yet
         with pytest.raises(AppException, match="no adapter implementation"):
-            STTFactory.get("sarvam")
+            STTFactory.get("deepgram")
+
+    def test_builtin_adapters_available(self):
+        # MVP phase registers Sarvam (STT) and Polly (TTS) built-in adapters
+        from kairon.shared.voice.stt.factory import STTFactory
+        from kairon.shared.voice.tts.factory import TTSFactory
+        from kairon.shared.voice.stt.sarvam import SarvamSTT
+        from kairon.shared.voice.tts.polly import PollyTTS
+
+        assert STTFactory.get("sarvam") is SarvamSTT
+        assert TTSFactory.get("polly") is PollyTTS
 
     def test_register_then_get(self):
         from kairon.shared.voice.stt.factory import STTFactory
