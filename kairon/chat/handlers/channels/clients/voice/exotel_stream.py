@@ -27,11 +27,19 @@ from kairon.shared.auth import Authentication
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import CHAT_ACCESS, ChannelTypes
 from kairon.shared.utils import Utility
+from kairon.shared.voice.cache import TTSCache
+from kairon.shared.voice.credentials import VoiceCredentialResolver
 from kairon.shared.voice.exotel.session import AgentTurn, ExotelCallSession
+from kairon.shared.voice.metrics import CallMetrics, persist_call_metrics
+from kairon.shared.voice.resilience import FallbackSTT, FallbackTTS
 from kairon.shared.voice.stt.factory import STTFactory
 from kairon.shared.voice.tts.factory import TTSFactory
 
 logger = logging.getLogger(__name__)
+
+# Process-wide TTS cache shared across calls so repeated prompts (welcome,
+# re-prompts, menu options) are synthesised once.
+_TTS_CACHE = TTSCache()
 
 
 class ExotelStreamHandler:
@@ -63,49 +71,66 @@ class ExotelStreamHandler:
     def _voice_env(self) -> dict:
         return Utility.environment.get("voice", {}) or {}
 
-    def _provider_credentials(self, provider: str) -> dict:
-        """Global STT/TTS provider credentials from system.yaml (``voice.providers``).
-        Per-bot BYO credentials override these in the resilience phase."""
-        providers = self._voice_env().get("providers", {}) or {}
-        return dict(providers.get(provider, {}) or {})
-
-    def _build_stt(self, config: dict):
+    def _provider_chain(self, config: dict, service: str, default: str) -> list:
+        """Ordered, de-duplicated provider list: the bot's chosen provider first,
+        then the configured global ``fallback_order``."""
         voice_env = self._voice_env()
-        provider = (
-            config.get("stt_provider")
-            or voice_env.get("stt", {}).get("default_provider")
-            or "sarvam"
-        )
-        sample_rate = int(config.get("sample_rate") or voice_env.get("default_sample_rate") or 8000)
-        language = config.get("language", "en-IN")
-        creds = self._provider_credentials(provider)
-        # carry the sample-rate model choice from metadata if present
-        metadata = STTFactory.provider_metadata(provider)
-        model = (metadata.get("models") or {}).get(str(sample_rate))
-        if model and "model" not in creds:
-            creds = {**creds, "model": model}
-        impl = STTFactory.get(provider)
-        return impl(creds, language, sample_rate), provider
+        chosen = config.get(f"{service}_provider") or voice_env.get(service, {}).get("default_provider")
+        order = list(voice_env.get(service, {}).get("fallback_order", []) or [])
+        chain = []
+        for provider in [chosen, *order, default]:
+            if provider and provider not in chain:
+                chain.append(provider)
+        return chain
 
-    def _build_tts(self, config: dict):
-        voice_env = self._voice_env()
-        provider = (
-            config.get("tts_provider")
-            or voice_env.get("tts", {}).get("default_provider")
-            or "polly"
-        )
-        sample_rate = int(config.get("sample_rate") or voice_env.get("default_sample_rate") or 8000)
+    def _stt_builder(self, provider: str, language: str, sample_rate: int, use_bot_creds: bool):
+        def build():
+            creds = VoiceCredentialResolver.resolve(
+                self.bot, "stt", provider, use_bot_credentials=use_bot_creds
+            )
+            metadata = STTFactory.provider_metadata(provider)
+            model = (metadata.get("models") or {}).get(str(sample_rate))
+            if model and "model" not in creds:
+                creds = {**creds, "model": model}
+            return STTFactory.get(provider)(creds, language, sample_rate)
+
+        return build
+
+    def _tts_builder(self, provider: str, language: str, sample_rate: int, voice_override, use_bot_creds: bool):
+        def build():
+            creds = VoiceCredentialResolver.resolve(
+                self.bot, "tts", provider, use_bot_credentials=use_bot_creds
+            )
+            metadata = TTSFactory.provider_metadata(provider)
+            voice = (
+                voice_override
+                or (metadata.get("voices") or {}).get(language)
+                or metadata.get("default_voice")
+            )
+            merged = {**creds, "engine": metadata.get("engine", creds.get("engine", "neural"))}
+            return TTSFactory.get(provider)(merged, voice=voice, language=language, sample_rate=sample_rate)
+
+        return build
+
+    def _build_stt(self, config: dict, sample_rate: int):
         language = config.get("language", "en-IN")
-        creds = self._provider_credentials(provider)
-        metadata = TTSFactory.provider_metadata(provider)
-        voice = (
-            config.get("voice")
-            or (metadata.get("voices") or {}).get(language)
-            or metadata.get("default_voice")
-        )
-        merged = {**creds, "engine": metadata.get("engine", creds.get("engine", "neural"))}
-        impl = TTSFactory.get(provider)
-        return impl(merged, voice=voice, language=language, sample_rate=sample_rate), provider
+        use_bot_creds = bool(config.get("use_bot_credentials", False))
+        chain = self._provider_chain(config, "stt", "sarvam")
+        builders = [
+            (p, self._stt_builder(p, language, sample_rate, use_bot_creds)) for p in chain
+        ]
+        return FallbackSTT(builders), chain[0]
+
+    def _build_tts(self, config: dict, sample_rate: int):
+        language = config.get("language", "en-IN")
+        use_bot_creds = bool(config.get("use_bot_credentials", False))
+        voice_override = config.get("voice")
+        chain = self._provider_chain(config, "tts", "polly")
+        builders = [
+            (p, self._tts_builder(p, language, sample_rate, voice_override, use_bot_creds))
+            for p in chain
+        ]
+        return FallbackTTS(builders), chain[0], language, voice_override
 
     def _base_metadata(self) -> dict:
         return {
@@ -153,8 +178,8 @@ class ExotelStreamHandler:
         sample_rate = int(config.get("sample_rate") or voice_env.get("default_sample_rate") or 8000)
 
         try:
-            stt, stt_provider = self._build_stt(config)
-            tts, tts_provider = self._build_tts(config)
+            stt, stt_provider = self._build_stt(config, sample_rate)
+            tts, tts_provider, tts_language, tts_voice = self._build_tts(config, sample_rate)
         except Exception as e:
             logger.exception("Failed to build STT/TTS bot=%s: %s", self.bot, e)
             await self.websocket.close(code=1011)
@@ -164,6 +189,13 @@ class ExotelStreamHandler:
 
         async def sender(frame: dict) -> None:
             await self.websocket.send_text(json.dumps(frame))
+
+        metrics = CallMetrics(
+            bot=self.bot, call_sid="", provider=self.provider,
+            stt_provider=stt_provider, tts_provider=tts_provider,
+            sink=persist_call_metrics,
+        )
+        cache_namespace = f"{tts_provider}:{tts_voice or ''}:{tts_language}:{sample_rate}"
 
         session = ExotelCallSession(
             bot=self.bot,
@@ -177,6 +209,9 @@ class ExotelStreamHandler:
             chunk_multiple=int(chunk.get("multiple", 320)),
             chunk_max_bytes=int(chunk.get("max_bytes", 100000)),
             sample_rate=sample_rate,
+            metrics=metrics,
+            tts_cache=_TTS_CACHE,
+            tts_cache_namespace=cache_namespace,
         )
         logger.info(
             "Exotel stream connected bot=%s stt=%s tts=%s", self.bot, stt_provider, tts_provider
