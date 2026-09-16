@@ -24,8 +24,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.app.routers import auth, augment, history, user, account, idp, system, pos
 from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingual, metric, data, \
-    channels, custom_widgets, integrations, analytics, speech_provider_config as bot_speech_provider_config
-    channels, custom_widgets, integrations, analytics, customer_orders
+    channels, custom_widgets, integrations, analytics, speech_provider_config as bot_speech_provider_config, \
+    customer_orders
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor

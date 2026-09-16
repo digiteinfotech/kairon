@@ -47,7 +47,7 @@ class PollyTTS(BaseTTS):
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:
         if not text or not text.strip():
             return
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         audio = await loop.run_in_executor(None, self._synthesize_sync, text)
         for i in range(0, len(audio), _YIELD_CHUNK):
             yield audio[i:i + _YIELD_CHUNK]

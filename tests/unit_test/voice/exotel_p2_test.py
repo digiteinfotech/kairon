@@ -6,7 +6,6 @@ import pytest
 
 from kairon.exceptions import AppException
 from kairon.shared.voice.cache import TTSCache, make_key
-from kairon.shared.voice.credentials import VoiceCredentialResolver
 from kairon.shared.voice.metrics import CallMetrics
 from kairon.shared.voice.resilience import FallbackSTT, FallbackTTS
 from kairon.shared.voice.exotel.session import AgentTurn, ExotelCallSession
@@ -146,26 +145,6 @@ class TestCallMetrics:
         first = m.finalize()
         m.finalize()
         assert len(seen) == 1 and seen[0]["turns"] == 1 and first["turns"] == 1
-
-
-# ------------------------------------------------------------------- credentials
-class TestCredentialResolver:
-
-    def test_decrypt_config_uses_secret_fields(self):
-        out = VoiceCredentialResolver.decrypt_config(
-            {"api_key": "ENC", "region": "ap-south-1"},
-            ["api_key"],
-            decryptor=lambda v: f"dec({v})",
-        )
-        assert out["api_key"] == "dec(ENC)"
-        assert out["region"] == "ap-south-1"  # non-secret untouched
-
-    def test_decrypt_leaves_value_on_failure(self):
-        def boom(_):
-            raise ValueError("bad token")
-
-        out = VoiceCredentialResolver.decrypt_config({"api_key": "plain"}, ["api_key"], decryptor=boom)
-        assert out["api_key"] == "plain"
 
 
 # --------------------------------------------------------------------- fakes/util

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # Built-in adapter modules imported lazily on first use; importing each triggers
 # its `TTSFactory.register(...)` call. Vendor SDKs stay lazily imported inside the
 # adapters, so this import never pulls in boto3/etc.
-_BUILTIN_ADAPTERS = ("kairon.shared.voice.tts.polly",)
+_BUILTIN_ADAPTERS = ("kairon.shared.voice.tts.polly", "kairon.shared.voice.tts.sarvam")
 
 
 class TTSFactory:
