@@ -27,6 +27,7 @@ roles:
       posProducts: true
       analyticsPipeline: true
       telemetryAnalytics: true
+      storeConfig: true
     pages:
       chatbots:
         renameBot: true
@@ -161,6 +162,7 @@ roles:
       posProducts: true
       analyticsPipeline: true
       telemetryAnalytics: true
+      storeConfig: true
     pages:
       chatbots:
         renameBot: false
@@ -294,6 +296,7 @@ roles:
       posProducts: true
       analyticsPipeline: true
       telemetryAnalytics: true
+      storeConfig: true
     pages:
       chatbots:
         renameBot: false
