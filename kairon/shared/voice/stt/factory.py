@@ -14,8 +14,7 @@ _BUILTIN_ADAPTERS = ("kairon.shared.voice.stt.sarvam",)
 
 
 class STTFactory:
-    """
-    Registry-backed factory for streaming STT adapters.
+    """Registry-backed factory for streaming STT adapters.
 
     A provider is usable only when it is BOTH declared in metadata/stt_providers.yml
     (capabilities, required/secret fields, models) AND has a concrete adapter

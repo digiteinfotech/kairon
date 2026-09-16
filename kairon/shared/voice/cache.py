@@ -1,5 +1,4 @@
-"""
-TTS audio cache.
+"""TTS audio cache.
 
 Synthesising the same phrase repeatedly (welcome prompts, re-prompts, "sorry I
 didn't catch that", menu options) is wasteful and adds latency to every call.
@@ -34,6 +33,7 @@ class TTSCache:
 
     def __init__(self, max_entries: int = 256, max_bytes: int = 32 * 1024 * 1024,
                  max_item_bytes: int = 1 * 1024 * 1024, enabled: bool = True):
+        """Initialise LRU cache with entry/byte/item-size limits and enable flag."""
         self.max_entries = max(1, max_entries)
         self.max_bytes = max(0, max_bytes)
         self.max_item_bytes = max(0, max_item_bytes)
@@ -45,6 +45,7 @@ class TTSCache:
         self.misses = 0
 
     def get(self, key: str) -> Optional[bytes]:
+        """Return cached PCM for key, updating LRU order; None on miss or disabled."""
         if not self.enabled:
             return None
         with self._lock:
@@ -57,6 +58,7 @@ class TTSCache:
             return value
 
     def put(self, key: str, pcm: bytes) -> None:
+        """Store PCM under key; skips if disabled, empty, or item exceeds max_item_bytes."""
         if not self.enabled or not pcm:
             return
         if self.max_item_bytes and len(pcm) > self.max_item_bytes:
@@ -78,6 +80,7 @@ class TTSCache:
             self._bytes -= len(evicted)
 
     def clear(self) -> None:
+        """Evict all entries and reset byte counter."""
         with self._lock:
             self._store.clear()
             self._bytes = 0
@@ -87,4 +90,5 @@ class TTSCache:
 
     @property
     def current_bytes(self) -> int:
+        """Total bytes currently held across all cached entries."""
         return self._bytes

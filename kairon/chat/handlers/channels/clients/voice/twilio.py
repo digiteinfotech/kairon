@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 class TwilioVoiceProvider(VoiceProviderBase):
 
     def __init__(self, bot: str, config: dict):
-        """
-        Initialise provider from already-decrypted channel config.
+        """Initialise provider from already-decrypted channel config.
 
         config is supplied by get_channel_config(mask_characters=False) which decrypts
         account_sid and auth_token before reaching this point. Do NOT decrypt here.

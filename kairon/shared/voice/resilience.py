@@ -1,5 +1,4 @@
-"""
-STT/TTS fallback chains.
+"""STT/TTS fallback chains.
 
 A single provider outage should not drop a live call. These wrappers accept an
 ordered list of *builders* (zero-arg callables that construct a concrete adapter)
@@ -39,6 +38,8 @@ def _normalise(builders: Sequence) -> List[NamedBuilder]:
 
 
 class FallbackSTT:
+    """STT adapter that tries providers in order, failing over on open() errors."""
+
     def __init__(self, builders: Sequence):
         self._builders = _normalise(builders)
         if not self._builders:
@@ -47,6 +48,7 @@ class FallbackSTT:
         self.active_provider: Optional[str] = None
 
     async def open(self) -> None:
+        """Open the first available STT provider; raise AppException if all fail."""
         errors = []
         for name, builder in self._builders:
             try:
@@ -63,27 +65,33 @@ class FallbackSTT:
         raise AppException(f"All STT providers failed to open ({'; '.join(errors)})")
 
     async def push(self, pcm: bytes) -> None:
+        """Forward a PCM audio chunk to the active STT provider."""
         if self.active is not None:
             await self.active.push(pcm)
 
     async def transcripts(self) -> AsyncIterator[Transcript]:
+        """Yield transcript events from the active STT provider."""
         if self.active is None:
             return
         async for transcript in self.active.transcripts():
             yield transcript
 
     async def close(self) -> None:
+        """Close the active STT provider and release resources."""
         if self.active is not None:
             await self.active.close()
 
 
 class FallbackTTS:
+    """TTS adapter that retries the next provider if synthesis fails before audio starts."""
+
     def __init__(self, builders: Sequence):
         self._builders = _normalise(builders)
         if not self._builders:
             raise AppException("FallbackTTS requires at least one provider builder")
 
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:
+        """Yield PCM chunks, falling over to the next provider on pre-audio failure."""
         errors = []
         for name, builder in self._builders:
             emitted = False

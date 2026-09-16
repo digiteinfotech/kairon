@@ -36,12 +36,15 @@ def _derive_stream_url(call_url: str) -> str:
 
 
 class ExotelVoiceProvider(VoiceProviderBase):
+    """Exotel telephony provider — uses WebSocket media streaming."""
 
     def is_streaming(self) -> bool:
+        """Return True; Exotel delivers audio over a persistent WebSocket stream."""
         return True
 
     @classmethod
     def supports_dynamic_resolver(cls) -> bool:
+        """Return True; Exotel fetches a dynamic WSS URL from the resolver endpoint."""
         return True
 
     def validate_signature(self, request: Request, url: str, form_params: dict) -> bool:
@@ -49,13 +52,16 @@ class ExotelVoiceProvider(VoiceProviderBase):
         return True
 
     def build_voice_response(self, messages: List[str], call_url: str) -> str:
+        """Return ExoML that connects the call to the bot's WebSocket stream."""
         stream_url = self.config.get("stream_url") or _derive_stream_url(call_url)
         return _STREAM_CONNECT_TEMPLATE.format(stream_url=stream_url)
 
     def build_hangup_response(self, messages: List[str]) -> str:
+        """Return ExoML that terminates the active call."""
         return '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>'
 
     async def handle_call_status(self, request: Request, bot: str) -> None:
+        """Log Exotel call-status webhook payload to ChannelLogs."""
         form = dict(await request.form())
         call_status = form.get("Status") or form.get("CallStatus", "unknown")
         call_sid = form.get("CallSid", "unknown")
@@ -70,6 +76,7 @@ class ExotelVoiceProvider(VoiceProviderBase):
         ).save()
 
     def validate_config(self, config: dict) -> None:
+        """Raise AppException if any required Exotel credential field is absent."""
         from kairon.exceptions import AppException
         for field in ["api_key", "api_token", "account_sid", "exophone"]:
             if not config.get(field):

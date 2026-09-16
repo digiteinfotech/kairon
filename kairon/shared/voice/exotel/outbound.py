@@ -1,5 +1,4 @@
-"""
-Exotel outbound call client — outbound-action parity with the Twilio client.
+"""Exotel outbound call client — outbound-action parity with the Twilio client.
 
 Places a call *from* the platform to a customer and connects it to a bot flow,
 the Exotel analogue of Twilio's outbound ``initiate_call``. It targets Exotel's
@@ -30,8 +29,7 @@ class ExotelOutboundClient(VoiceOutboundBase):
     def __init__(self, account_sid: str, auth_token: str, from_number: str,
                  api_key: Optional[str] = None, api_token: Optional[str] = None,
                  subdomain: Optional[str] = None, exophone: Optional[str] = None):
-        """
-        :param account_sid: Exotel account SID
+        """:param account_sid: Exotel account SID
         :param auth_token: Exotel API token (kept for base-class parity)
         :param from_number: caller id / exophone in the account
         :param api_key: Exotel API key (defaults to account_sid)

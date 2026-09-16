@@ -1,5 +1,4 @@
-"""
-Sarvam streaming speech-to-text adapter.
+"""Sarvam streaming speech-to-text adapter.
 
 Implements :class:`~kairon.shared.voice.stt.base.BaseSTT` over Sarvam's realtime
 STT WebSocket. Audio frames pushed by the gateway are forwarded to Sarvam; the
@@ -26,10 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 class SarvamSTT(BaseSTT):
+    """Streaming STT adapter backed by Sarvam's real-time WebSocket API."""
+
     ENDPOINT = "wss://api.sarvam.ai/speech-to-text/ws"
     DEFAULT_MODEL = "saarika:v2"
 
     def __init__(self, config: dict, language: str, sample_rate: int = 8000):
+        """Validate api_key and set up internal queue and socket state."""
         super().__init__(config, language, sample_rate)
         self.api_key = config.get("api_key")
         if not self.api_key:
@@ -41,6 +43,7 @@ class SarvamSTT(BaseSTT):
         self._closed = False
 
     async def open(self) -> None:
+        """Connect to Sarvam STT WebSocket and start the background receive loop."""
         try:
             import websockets
         except ImportError as e:  # pragma: no cover - env dependent
@@ -62,6 +65,7 @@ class SarvamSTT(BaseSTT):
         self._receiver_task = asyncio.ensure_future(self._receive_loop())
 
     async def push(self, pcm: bytes) -> None:
+        """Base64-encode and send a PCM chunk to the active WebSocket session."""
         if self._ws is None:
             raise AppException("SarvamSTT.push() called before open()")
         if not pcm:
@@ -91,6 +95,7 @@ class SarvamSTT(BaseSTT):
             await self._queue.put(None)  # sentinel -> ends transcripts()
 
     async def transcripts(self) -> AsyncIterator[Transcript]:
+        """Yield Transcript objects as Sarvam emits them; ends when socket closes."""
         while True:
             item = await self._queue.get()
             if item is None:
@@ -135,6 +140,7 @@ class SarvamSTT(BaseSTT):
         return Transcript(text=str(text), is_final=bool(is_final), confidence=confidence)
 
     async def close(self) -> None:
+        """Cancel the receive loop and close the WebSocket connection."""
         if self._closed:
             return
         self._closed = True

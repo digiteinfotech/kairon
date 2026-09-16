@@ -1,5 +1,4 @@
-"""
-Exotel Voice Streaming WebSocket handler.
+"""Exotel Voice Streaming WebSocket handler.
 
 Bridges an Exotel bidirectional media WebSocket to the provider-agnostic
 :class:`~kairon.shared.voice.exotel.session.ExotelCallSession`:
@@ -15,7 +14,6 @@ Bridges an Exotel bidirectional media WebSocket to the provider-agnostic
 """
 import json
 import logging
-from typing import Optional
 
 from fastapi.security import SecurityScopes
 from starlette.websockets import WebSocket, WebSocketDisconnect

@@ -1,5 +1,4 @@
-"""
-Sarvam text-to-speech adapter.
+"""Sarvam text-to-speech adapter.
 
 POST https://api.sarvam.ai/text-to-speech — returns base64-encoded WAV.
 WAV is decoded, stripped to raw PCM, and resampled to the target sample rate.
@@ -40,6 +39,8 @@ def _wav_to_pcm(wav_bytes: bytes, target_rate: int) -> bytes:
 
 
 class SarvamTTS(BaseTTS):
+    """TTS adapter that calls the Sarvam HTTP API and decodes WAV to PCM chunks."""
+
     DEFAULT_MODEL = "bulbul:v2"
     DEFAULT_SPEAKER = "anushka"
 
@@ -50,6 +51,7 @@ class SarvamTTS(BaseTTS):
         language: Optional[str] = None,
         sample_rate: int = 8000,
     ):
+        """Validate api_key and resolve model, speaker and language from config."""
         super().__init__(config, voice=voice, language=language, sample_rate=sample_rate)
         self.api_key = config.get("api_key")
         if not self.api_key:
@@ -61,9 +63,10 @@ class SarvamTTS(BaseTTS):
         self.language = language or config.get("language", "en-IN")
 
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:
+        """POST to Sarvam TTS in a thread, decode WAV to PCM, yield chunks."""
         if not text or not text.strip():
             return
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         pcm = await loop.run_in_executor(None, self._synthesize_sync, text)
         for i in range(0, len(pcm), _YIELD_CHUNK):
             yield pcm[i:i + _YIELD_CHUNK]

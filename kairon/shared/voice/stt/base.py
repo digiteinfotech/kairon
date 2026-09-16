@@ -13,8 +13,7 @@ class Transcript:
 
 
 class BaseSTT(ABC):
-    """
-    Provider-agnostic streaming speech-to-text adapter.
+    """Provider-agnostic streaming speech-to-text adapter.
 
     The agent core never imports a vendor SDK; concrete adapters (Sarvam, AWS
     Transcribe, Google, ...) live behind this interface and are registered with
@@ -29,6 +28,7 @@ class BaseSTT(ABC):
     """
 
     def __init__(self, config: dict, language: str, sample_rate: int = 8000):
+        """Store STT config, target language and sample rate."""
         self.config = config
         self.language = language
         self.sample_rate = sample_rate

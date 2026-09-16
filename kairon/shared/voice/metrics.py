@@ -1,5 +1,4 @@
-"""
-Per-call voice metrics.
+"""Per-call voice metrics.
 
 Streaming voice quality lives and dies on latency, so every turn's agent think
 time and TTS time are recorded, plus TTS cache hit-rate and total call duration.
@@ -22,6 +21,8 @@ def now_ms() -> float:
 
 @dataclass
 class TurnTiming:
+    """Latency breakdown for a single conversation turn."""
+
     agent_ms: float
     tts_ms: float
     cache_hit: bool = False
@@ -29,6 +30,8 @@ class TurnTiming:
 
 @dataclass
 class CallMetrics:
+    """Aggregates per-turn and whole-call voice latency metrics."""
+
     bot: str
     call_sid: str
     provider: str = "exotel"
@@ -40,9 +43,11 @@ class CallMetrics:
     _finalized: bool = False
 
     def turn(self, agent_ms: float, tts_ms: float, cache_hit: bool = False) -> None:
+        """Record latency for one conversation turn."""
         self._turns.append(TurnTiming(agent_ms=agent_ms, tts_ms=tts_ms, cache_hit=cache_hit))
 
     def summary(self) -> Dict:
+        """Return a snapshot dict of aggregated metrics without triggering the sink."""
         agent = [t.agent_ms for t in self._turns]
         tts = [t.tts_ms for t in self._turns]
         cache_hits = sum(1 for t in self._turns if t.cache_hit)
@@ -63,6 +68,7 @@ class CallMetrics:
         }
 
     def finalize(self) -> Dict:
+        """Emit summary via sink (once) and return it. Idempotent after first call."""
         summary = self.summary()
         if self._finalized:
             return summary

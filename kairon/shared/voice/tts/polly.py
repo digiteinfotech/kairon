@@ -1,5 +1,4 @@
-"""
-AWS Polly text-to-speech adapter.
+"""AWS Polly text-to-speech adapter.
 
 Implements :class:`~kairon.shared.voice.tts.base.BaseTTS` using Polly's
 ``synthesize_speech`` with ``OutputFormat="pcm"`` — Polly returns 16-bit signed
@@ -26,6 +25,8 @@ _YIELD_CHUNK = 800
 
 
 class PollyTTS(BaseTTS):
+    """TTS adapter that synthesizes speech via AWS Polly, yielding PCM chunks."""
+
     def __init__(
         self,
         config: dict,
@@ -33,6 +34,7 @@ class PollyTTS(BaseTTS):
         language: Optional[str] = None,
         sample_rate: int = 8000,
     ):
+        """Validate AWS credentials and resolve voice/region/engine from config."""
         super().__init__(config, voice=voice, language=language, sample_rate=sample_rate)
         self.access_key = config.get("aws_access_key_id")
         self.secret_key = config.get("aws_secret_access_key")
@@ -45,6 +47,7 @@ class PollyTTS(BaseTTS):
             )
 
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:
+        """Call Polly in a thread and yield raw PCM chunks; skips empty text."""
         if not text or not text.strip():
             return
         loop = asyncio.get_running_loop()

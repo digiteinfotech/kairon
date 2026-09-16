@@ -1,5 +1,4 @@
-"""
-Exotel Voice Streaming (Voicebot) WebSocket protocol.
+"""Exotel Voice Streaming (Voicebot) WebSocket protocol.
 
 Exotel streams a live call to a bidirectional WebSocket as JSON text frames. The
 shape mirrors Twilio Media Streams closely:
@@ -36,6 +35,8 @@ from typing import Any, Dict, Optional
 
 
 class ExotelEvent(str, Enum):
+    """Enum of Exotel WebSocket event names for both inbound and outbound frames."""
+
     CONNECTED = "connected"
     START = "start"
     MEDIA = "media"

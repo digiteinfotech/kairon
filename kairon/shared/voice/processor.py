@@ -1,5 +1,4 @@
-"""
-Voice provider configuration processor.
+"""Voice provider configuration processor.
 
 Manages ``SpeechProviderConfig`` documents in MongoDB.
 Provides CRUD for global (Kairon-managed) and bot-scoped (BYOK) provider
@@ -195,8 +194,7 @@ class SpeechProviderConfigProcessor:
 
     @classmethod
     def resolve(cls, bot: str, providers: List[str]) -> dict:
-        """
-        Resolve provider configurations for a list of providers in ONE MongoDB query.
+        """Resolve provider configurations for a list of providers in ONE MongoDB query.
 
         Returns a dict keyed by provider name:
             {

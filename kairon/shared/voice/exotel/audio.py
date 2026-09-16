@@ -1,5 +1,4 @@
-"""
-Audio framing helpers for the Exotel streaming gateway.
+"""Audio framing helpers for the Exotel streaming gateway.
 
 Exotel accepts outbound media only in payloads whose byte length is a multiple of
 ``chunk.multiple`` (320 bytes for 8 kHz / 16-bit / 20 ms frames) and bounded by
@@ -85,6 +84,7 @@ class AudioChunker:
 
     def __init__(self, multiple: int = DEFAULT_MULTIPLE, max_bytes: int = DEFAULT_MAX_BYTES,
                  frame_bytes: Optional[int] = None):
+        """Compute legal frame size and max_bytes from multiples; initialise buffer."""
         self.multiple = multiple if multiple and multiple > 0 else DEFAULT_MULTIPLE
         max_frame = frame_multiple(max(max_bytes, self.multiple), self.multiple)
         self.max_bytes = max_frame or self.multiple
@@ -94,6 +94,7 @@ class AudioChunker:
         self._buffer = bytearray()
 
     def push(self, pcm: Optional[bytes]) -> None:
+        """Append raw PCM bytes to the internal buffer."""
         if pcm:
             self._buffer.extend(pcm)
 
@@ -123,6 +124,7 @@ class AudioChunker:
         yield from self._emit(len(self._buffer))
 
     def pending_bytes(self) -> int:
+        """Number of bytes buffered but not yet emitted as a complete frame."""
         return len(self._buffer)
 
 

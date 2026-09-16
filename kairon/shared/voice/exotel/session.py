@@ -1,5 +1,4 @@
-"""
-Exotel streaming call session — the MVP voice call loop.
+"""Exotel streaming call session — the MVP voice call loop.
 
 One :class:`ExotelCallSession` drives a single call for its whole lifetime:
 
@@ -53,6 +52,8 @@ FrameSender = Callable[[dict], Awaitable[None]]
 
 
 class ExotelCallSession:
+    """Drives one Exotel WebSocket call: STT -> agent -> TTS -> media frames."""
+
     def __init__(
         self,
         *,
@@ -72,6 +73,7 @@ class ExotelCallSession:
         tts_cache=None,
         tts_cache_namespace: str = "",
     ):
+        """Wire STT/TTS adapters, agent runner and sender for one call lifetime."""
         self.bot = bot
         self.config = config or {}
         self._send = sender
@@ -118,6 +120,7 @@ class ExotelCallSession:
         await self.on_frame(frame)
 
     async def on_frame(self, frame: InboundFrame) -> None:
+        """Dispatch a parsed inbound frame to the appropriate event handler."""
         event = frame.event
         if event == ExotelEvent.START.value:
             await self._on_start(frame)
@@ -317,6 +320,7 @@ class ExotelCallSession:
             await self._send(build_clear(self.stream_sid))
 
     async def close(self) -> None:
+        """Tear down STT, cancel background tasks, and emit final metrics."""
         if self._closed:
             return
         self._closed = True
