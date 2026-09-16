@@ -35,3 +35,13 @@ class VoiceProviderBase(ABC):
     @abstractmethod
     def build_hangup_response(self, messages: List[str]) -> str:
         raise NotImplementedError
+
+    def build_resolver_response(self, params: dict, bot: str, user: str) -> dict:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support dynamic resolver")
+
+    def build_greeting_response(self, params: dict, bot: str, user: str) -> str:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support greeting applet")
+
+    @classmethod
+    def supports_dynamic_resolver(cls) -> bool:
+        return False

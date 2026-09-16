@@ -149,6 +149,10 @@ voice:
     google:
       service_account_json: ${VOICE_GOOGLE_SA_JSON:""}
 
+voice:
+  exotel:
+    subdomain: ${EXOTEL_DEFAULT_SUBDOMAIN:"api.exotel.com"}
+
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
   executor:
