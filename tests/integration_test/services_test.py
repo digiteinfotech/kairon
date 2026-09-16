@@ -35932,6 +35932,8 @@ def test_get_bot_settings():
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
                               'enable_voice': False,
+                              'voice': {'stt_provider': 'sarvam', 'tts_provider': 'polly',
+                                        'stt_fallback': [], 'tts_fallback': [], 'sample_rate': 8000},
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
@@ -36048,6 +36050,8 @@ def test_update_analytics_settings():
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
                               'enable_voice': False,
+                              'voice': {'stt_provider': 'sarvam', 'tts_provider': 'polly',
+                                        'stt_fallback': [], 'tts_fallback': [], 'sample_rate': 8000},
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
@@ -41359,7 +41363,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 21
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(

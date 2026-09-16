@@ -68,8 +68,9 @@ class TestExotelChannelValidation:
         # secrets no longer equal the plaintext
         assert cfg["api_key"] != "key-123"
         assert cfg["api_token"] != "tok-123"
+        # account_sid is a secret field — encrypted
+        assert cfg["account_sid"] != "acc-sid"
         # non-secret required fields stay as-is
-        assert cfg["account_sid"] == "acc-sid"
         assert cfg["exophone"] == "08047000000"
         assert cfg["telephony_provider"] == "exotel"
 
