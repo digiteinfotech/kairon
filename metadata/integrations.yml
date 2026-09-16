@@ -113,6 +113,9 @@ voice_channels:
       - account_sid
       - auth_token
       - phone_number
+    secret_fields:
+      - account_sid
+      - auth_token
     optional_fields:
       - voice_type
       - language
@@ -123,6 +126,26 @@ voice_channels:
     disabled_fields:
       - call_url
       - status_url
+  exotel:
+    required_fields:
+      - api_key
+      - api_token
+      - account_sid
+      - subdomain
+      - exophone
+    secret_fields:
+      - api_key
+      - api_token
+    optional_fields:
+      - voice
+      - language
+      - welcome_message
+      - sample_rate
+      - stt_provider
+      - tts_provider
+      - flow_app_id
+    disabled_fields:
+      - stream_url
 
 actions:
   pipedrive:

@@ -1,0 +1,49 @@
+# Text-to-Speech provider registry (provider-agnostic voice layer).
+# New providers are added here (v1 -> v2 -> v3) plus one adapter class each.
+# `secret_fields` are encrypted when credentials are stored per-bot.
+# `voices` maps language -> a sensible default voice for that provider.
+tts_providers:
+  polly:
+    streaming: true
+    engine: neural
+    required_fields:
+      - aws_access_key_id
+      - aws_secret_access_key
+      - region
+    secret_fields:
+      - aws_access_key_id
+      - aws_secret_access_key
+    voices:
+      hi-IN: Kajal
+      en-IN: Kajal
+    default_voice: Kajal
+  sarvam:
+    streaming: false
+    required_fields:
+      - api_key
+    secret_fields:
+      - api_key
+    voices:
+      hi-IN: meera
+      en-IN: meera
+    default_voice: meera
+  elevenlabs:
+    streaming: true
+    required_fields:
+      - api_key
+    secret_fields:
+      - api_key
+    voices:
+      hi-IN: Rachel
+      en-IN: Rachel
+    default_voice: Rachel
+  google:
+    streaming: true
+    required_fields:
+      - service_account_json
+    secret_fields:
+      - service_account_json
+    voices:
+      hi-IN: hi-IN-Chirp3-HD-Aoede
+      en-IN: en-IN-Chirp3-HD-Aoede
+    default_voice: hi-IN-Chirp3-HD-Aoede

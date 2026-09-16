@@ -127,6 +127,42 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
+voice:
+  enable: ${ENABLE_VOICE_STREAMING:false}
+  default_sample_rate: ${VOICE_SAMPLE_RATE:8000}
+  chunk:
+    multiple: 320
+    min_bytes: 3200
+    max_bytes: 100000
+  stt:
+    default_provider: ${VOICE_STT_PROVIDER:"sarvam"}
+    fallback_order:
+      - sarvam
+      - aws_transcribe
+      - google
+    timeout: ${VOICE_STT_TIMEOUT:5}
+  tts:
+    default_provider: ${VOICE_TTS_PROVIDER:"polly"}
+    fallback_order:
+      - polly
+      - sarvam
+    timeout: ${VOICE_TTS_TIMEOUT:5}
+  providers:
+    sarvam:
+      api_key: ${SARVAM_API_KEY:""}
+    polly:
+      aws_access_key_id: ${VOICE_AWS_ACCESS_KEY_ID:""}
+      aws_secret_access_key: ${VOICE_AWS_SECRET_ACCESS_KEY:""}
+      region: ${VOICE_AWS_REGION:"ap-south-1"}
+    aws_transcribe:
+      aws_access_key_id: ${VOICE_AWS_ACCESS_KEY_ID:""}
+      aws_secret_access_key: ${VOICE_AWS_SECRET_ACCESS_KEY:""}
+      region: ${VOICE_AWS_REGION:"ap-south-1"}
+    elevenlabs:
+      api_key: ${ELEVENLABS_API_KEY:""}
+    google:
+      service_account_json: ${VOICE_GOOGLE_SA_JSON:""}
+
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
