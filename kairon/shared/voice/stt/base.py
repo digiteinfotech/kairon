@@ -6,10 +6,12 @@ from typing import AsyncIterator, Optional
 @dataclass
 class Transcript:
     """
-    A single STT result. `is_final` distinguishes streaming partials from the
+    A single STT result.
 
-    endpointed final transcript that is handed to the agent brain.
+    ``is_final`` distinguishes streaming partials from the endpointed final
+    transcript that is handed to the agent brain.
     """
+
     text: str
     is_final: bool
     confidence: Optional[float] = None

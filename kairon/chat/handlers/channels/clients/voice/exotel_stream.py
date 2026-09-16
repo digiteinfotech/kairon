@@ -63,8 +63,8 @@ class ExotelStreamHandler:
             logger.warning("Exotel stream auth failed bot=%s: %s", self.bot, e)
             try:
                 await self.websocket.close(code=1008)
-            except Exception:
-                pass
+            except Exception as close_err:
+                logger.debug("WS close failed: %s", close_err)
             return False
 
     def _voice_env(self) -> dict:
@@ -72,9 +72,10 @@ class ExotelStreamHandler:
 
     def _provider_chain(self, config: dict, service: str, default: str) -> list:
         """
-        Ordered, de-duplicated provider list: the bot's chosen provider first,
+        Return an ordered, de-duplicated provider list with the bot's choice first.
 
-        then the configured global ``fallback_order``.
+        The bot's configured provider is placed first, followed by the global
+        ``fallback_order``.
         """
         voice_env = self._voice_env()
         chosen = config.get(f"{service}_provider") or voice_env.get(service, {}).get("default_provider")

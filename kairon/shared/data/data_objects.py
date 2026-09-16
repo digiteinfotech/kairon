@@ -899,15 +899,16 @@ class Analytics(EmbeddedDocument):
 
 
 class VoiceIntegrationSettings(EmbeddedDocument):
-    """
-    Bot-specific voice STT/TTS provider selection for the streaming voice channel
+    """Bot-specific voice STT/TTS provider selection for the streaming voice channel.
+
     (e.g. Exotel). Credentials are resolved from SpeechProviderConfig — bot-scoped
     entries automatically override global ones.
     """
+
     stt_provider = StringField(default=STTProviderTypes.sarvam.value)
     tts_provider = StringField(default=TTSProviderTypes.polly.value)
-    stt_fallback = ListField(StringField(), default=[])
-    tts_fallback = ListField(StringField(), default=[])
+    stt_fallback = ListField(StringField(), default=list)
+    tts_fallback = ListField(StringField(), default=list)
     sample_rate = IntField(default=8000)
 
 

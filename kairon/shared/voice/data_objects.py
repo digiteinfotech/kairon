@@ -25,6 +25,7 @@ class SpeechProviderConfig(Auditlog):
     `secrets` holds encrypted credential fields (encrypted by SpeechProviderConfigProcessor).
     Bot-scoped entries override global ones during resolution.
     """
+
     provider = StringField(required=True)
     scope = StringField(required=True, choices=["global", "bot"])
     bot_id = StringField(null=True)
@@ -54,6 +55,7 @@ class VoiceCallMetrics(Document):
     time (average and worst-case across turns), TTS cache hit count, turn count
     and total duration. Used for latency dashboards and provider comparison.
     """
+
     bot = StringField(required=True)
     call_sid = StringField(default="")
     provider = StringField(default="exotel")

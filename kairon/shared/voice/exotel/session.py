@@ -1,5 +1,4 @@
-"""
-Exotel streaming call session — the MVP voice call loop.
+"""Exotel streaming call session — the MVP voice call loop.
 
 One :class:`ExotelCallSession` drives a single call for its whole lifetime:
 
@@ -42,6 +41,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AgentTurn:
     """Result of running one turn of the agent brain."""
+
     messages: List[str] = field(default_factory=list)
     hangup: bool = False
 
@@ -248,17 +248,13 @@ class ExotelCallSession:
         if self.metrics is not None:
             try:
                 self.metrics.turn(agent_ms, tts_ms, cache_hit)
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as e:
+                logger.debug("Metrics update failed bot=%s: %s", self.bot, e)
         if turn.hangup:
             await self.close()
 
-    # ----------------------------------------------------------------- playback
     async def _speak(self, messages: List[str]) -> bool:
-        """
-        Synthesise and stream each message. Returns True if every non-empty
-
-        message was served from the TTS cache.
+        """Synthesise and stream each message; return True if all were served from TTS cache.
         """
         served = False
         all_cached = True
@@ -338,5 +334,5 @@ class ExotelCallSession:
         if self.metrics is not None:
             try:
                 self.metrics.finalize()
-            except Exception:  # pragma: no cover
-                pass
+            except Exception as e:  # pragma: no cover
+                logger.debug("Metrics finalize failed bot=%s: %s", self.bot, e)

@@ -18,17 +18,16 @@ from typing import Optional
 
 def make_key(namespace: str, text: str) -> str:
     """
-    Stable cache key for ``text`` under a synthesis ``namespace`` (typically
+    Return a stable cache key for ``text`` under a synthesis ``namespace``.
 
-    ``"provider:voice:language:sample_rate"``).
+    ``namespace`` is typically ``"provider:voice:language:sample_rate"``.
     """
     digest = hashlib.sha256(f"{namespace}\x00{text}".encode("utf-8")).hexdigest()
     return digest
 
 
 class TTSCache:
-    """
-    Thread-safe bounded LRU cache of synthesised PCM.
+    """Thread-safe bounded LRU cache of synthesised PCM.
 
     ``max_entries`` caps the number of cached utterances and ``max_bytes`` caps
     total audio held; the least-recently-used entries are evicted when either
