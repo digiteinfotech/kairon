@@ -302,14 +302,16 @@ async def get_collection_data(
                                                   collection_name=collection_name,
                                                   key=key, value=value, start_idx=start_idx,
                                                   page_size=page_size))
-    query = {
-        "bot": bot,
-        "collection_name": collection_name.lower()
-    }
-    query.update({
-        f"data__{k}": v for k, v in zip(key, value) if k and v
-    })
-    total = CollectionData.objects(**query).count()
+    attr_filters = [
+        {"filterable_attrs": {"$elemMatch": {"k": k, "v": v}}}
+        for k, v in zip(key, value) if k and v
+    ]
+    raw_query = {"bot": bot, "collection_name": collection_name.lower()}
+    if len(attr_filters) > 1:
+        raw_query["$and"] = attr_filters
+    elif attr_filters:
+        raw_query.update(attr_filters[0])
+    total = CollectionData.objects(__raw__=raw_query).count()
     return {"data": {"logs": data, "total": total}}
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)

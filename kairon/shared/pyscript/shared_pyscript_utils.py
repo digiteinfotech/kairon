@@ -68,7 +68,14 @@ class PyscriptSharedUtility:
         if data_filter.get("raw_query"):
             query.update(data_filter.get("raw_query"))
         else:
-            query.update({f"data.{key}": value for key, value in data_filter.items()})
+            attr_filters = [
+                {"filterable_attrs": {"$elemMatch": {"k": key, "v": value}}}
+                for key, value in data_filter.items() if key and value
+            ]
+            if len(attr_filters) > 1:
+                query["$and"] = attr_filters
+            elif attr_filters:
+                query.update(attr_filters[0])
         data = list(PyscriptSharedUtility.fetch_collection_data(query))
         return {"data": data}
 

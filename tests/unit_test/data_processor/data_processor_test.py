@@ -367,6 +367,57 @@ class TestMongoProcessor:
             }
         ).save()
 
+    def test_collection_data_filterable_attrs_populated_on_save(self):
+        from kairon.shared.cognition.data_objects import build_collection_filterable_attrs
+        data = {
+            "name": "Test",
+            "age": 30,
+            "score": 9.5,
+            "active": True,
+            "nested": {"key": "val"},
+            "items": [1, 2, 3],
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable",
+            data=data
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable").first()
+        expected = build_collection_filterable_attrs(data)
+        assert saved.filterable_attrs == expected
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "score", "active"}
+        assert "nested" not in attr_keys
+        assert "items" not in attr_keys
+
+        saved.delete()
+
+    def test_collection_data_filterable_attrs_excludes_secure_fields(self):
+        data = {
+            "name": "Test",
+            "age": 30,
+            "token": "secret123",
+            "active": True,
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable_secure",
+            data=data,
+            is_secure=["token"]
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable_secure").first()
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "active"}
+        assert "token" not in attr_keys
+
+        saved.delete()
+
     def test_get_collection_data_with_filters_list(self, mock_collection_data):
         collection_name = "crop_details"
         filters = [
@@ -617,7 +668,7 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__age__gte": 25
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 25}}}}]
         }
 
     def test_multiple_filters_with_conditions(self):
@@ -634,9 +685,11 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "farmers",
-            "data__age__gte": 20,
-            "data__city__iexact": "Delhi",
-            "data__status__in": ["active", "pending"]
+            "$and": [
+                {"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 20}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "city", "v": {"$regex": "^Delhi$", "$options": "i"}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "status", "v": {"$in": ["active", "pending"]}}}}
+            ]
         }
 
     def test_filter_without_condition(self):
@@ -648,11 +701,10 @@ class TestMongoProcessor:
 
         result = DataProcessor.get_collection_filter(bot, collection_name, filters)
 
-        # when condition is empty, it should not append __condition
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__name": "Mahesh"
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
         }
 
     def test_empty_filters_list(self):
@@ -679,7 +731,7 @@ class TestMongoProcessor:
         assert result == {
             "bot": "test_bot",
             "collection_name": "crop_details",
-            "data__name": "Mahesh"
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
         }
 
     def test_get_decoded_data_with_valid_encoded_json(self):
