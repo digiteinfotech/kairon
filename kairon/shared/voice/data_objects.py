@@ -11,43 +11,39 @@ from mongoengine import (
     ValidationError,
 )
 
-from kairon.shared.constants import VoiceServiceType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger, push_notification
 
 
 @auditlogger.log
 @push_notification.apply
-class VoiceProviderCredential(Auditlog):
+class SpeechProviderConfig(Auditlog):
     """
-    Bot-scoped credentials for a streaming voice STT/TTS provider (BYO provider).
+    STT/TTS provider configuration — global (Kairon-managed) or bot-scoped (BYOK).
 
-    Secret fields inside `config` are encrypted by the caller before saving,
-    using the provider's `secret_fields` from stt_providers.yml / tts_providers.yml.
-    When absent for a bot, the layer falls back to the global keys in system.yaml.
+    `metadata` holds non-secret provider config (URLs, model, speaker, etc.).
+    `secrets` holds encrypted credential fields (encrypted by SpeechProviderConfigProcessor).
+    Bot-scoped entries override global ones during resolution.
     """
-    bot = StringField(required=True)
-    user = StringField(required=True)
-    type = StringField(
-        required=True,
-        choices=[VoiceServiceType.stt.value, VoiceServiceType.tts.value],
-    )
     provider = StringField(required=True)
-    config = DictField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    scope = StringField(required=True, choices=["global", "bot"])
+    bot_id = StringField(null=True)
+    metadata = DictField(default=dict)
+    secrets = DictField(default=dict)
     status = BooleanField(default=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
 
     meta = {
         "indexes": [
-            {"fields": ["bot", "type", "provider"]}
+            {"fields": ["provider", "scope", "bot_id"]},
         ]
     }
 
     def validate(self, clean=True):
         if not self.provider:
             raise ValidationError("provider is required")
-        if not self.config:
-            raise ValidationError("config is required")
+        if self.scope == "bot" and not self.bot_id:
+            raise ValidationError("bot_id is required when scope='bot'")
 
 
 class VoiceCallMetrics(Document):

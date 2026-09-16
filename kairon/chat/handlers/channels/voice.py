@@ -220,7 +220,7 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
     async def handle_call_status(self) -> None:
         provider_impl, config = self._load_provider()
         form = dict(await self.request.form())
-        if not provider_impl.validate_signature(self.request, config["status_url"], form):
+        if not provider_impl.validate_signature(self.request, config.get("status_url", ""), form):
             logger.warning("Invalid %s signature on /status — bot=%s provider=%s", self.provider, self.bot, self.provider)
             raise HTTPException(status_code=403, detail=f"Invalid {self.provider} signature")
         await provider_impl.handle_call_status(self.request, self.bot)

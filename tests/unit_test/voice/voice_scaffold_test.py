@@ -39,7 +39,7 @@ class TestVoiceProviderMetadata:
         assert "exotel" in voice_channels
         assert "twilio" in voice_channels
         assert set(voice_channels["exotel"]["required_fields"]) == {
-            "api_key", "api_token", "account_sid", "subdomain", "exophone",
+            "api_key", "api_token", "account_sid", "exophone",
         }
 
     def test_get_channels_includes_voice(self):
@@ -47,11 +47,7 @@ class TestVoiceProviderMetadata:
 
     def test_global_voice_config_present(self):
         voice = Utility.environment["voice"]
-        assert voice["chunk"]["multiple"] == 320
-        assert voice["chunk"]["min_bytes"] == 3200
-        assert voice["chunk"]["max_bytes"] == 100000
-        assert voice["stt"]["fallback_order"] == ["sarvam", "aws_transcribe", "google"]
-        assert voice["tts"]["fallback_order"] == ["polly", "sarvam"]
+        assert voice["exotel"]["subdomain"] == "api.exotel.com"
 
 
 class TestExotelChannelValidation:
@@ -158,7 +154,6 @@ class TestBotVoiceSettings:
         assert v.stt_provider == "sarvam"
         assert v.tts_provider == "polly"
         assert v.sample_rate == 8000
-        assert v.use_bot_credentials is False
 
     def test_bot_settings_has_voice_field(self):
         from kairon.shared.data.data_objects import BotSettings

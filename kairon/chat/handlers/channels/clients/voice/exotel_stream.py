@@ -6,9 +6,8 @@ Bridges an Exotel bidirectional media WebSocket to the provider-agnostic
 
   * authenticates the channel token (same JWT/scope check as the HTTP voice
     webhooks) and loads the bot's voice channel config,
-  * builds the configured STT and TTS adapters (credentials from the global
-    ``voice.providers`` block of system.yaml; per-bot BYO credentials are layered
-    on in the resilience phase),
+  * builds the configured STT and TTS adapters (credentials resolved from
+    ``SpeechProviderConfig`` — bot-scoped entries override global ones),
   * wires an agent runner that drives kairon's agent brain via
     ``AgentProcessor.handle_channel_message`` and collects the reply through the
     existing :class:`~kairon.chat.handlers.channels.voice.VoiceOutput` channel,
@@ -28,8 +27,8 @@ from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import CHAT_ACCESS, ChannelTypes
 from kairon.shared.utils import Utility
 from kairon.shared.voice.cache import TTSCache
-from kairon.shared.voice.credentials import VoiceCredentialResolver
 from kairon.shared.voice.exotel.session import AgentTurn, ExotelCallSession
+from kairon.shared.voice.processor import SpeechProviderConfigProcessor
 from kairon.shared.voice.metrics import CallMetrics, persist_call_metrics
 from kairon.shared.voice.resilience import FallbackSTT, FallbackTTS
 from kairon.shared.voice.stt.factory import STTFactory
@@ -83,51 +82,47 @@ class ExotelStreamHandler:
                 chain.append(provider)
         return chain
 
-    def _stt_builder(self, provider: str, language: str, sample_rate: int, use_bot_creds: bool):
+    def _stt_builder(self, provider: str, language: str, sample_rate: int, resolved: dict):
         def build():
-            creds = VoiceCredentialResolver.resolve(
-                self.bot, "stt", provider, use_bot_credentials=use_bot_creds
-            )
-            metadata = STTFactory.provider_metadata(provider)
-            model = (metadata.get("models") or {}).get(str(sample_rate))
+            entry = resolved.get(provider) or {}
+            creds = {**entry.get("metadata", {}), **entry.get("secrets", {})}
+            factory_meta = STTFactory.provider_metadata(provider)
+            model = (factory_meta.get("models") or {}).get(str(sample_rate))
             if model and "model" not in creds:
                 creds = {**creds, "model": model}
             return STTFactory.get(provider)(creds, language, sample_rate)
 
         return build
 
-    def _tts_builder(self, provider: str, language: str, sample_rate: int, voice_override, use_bot_creds: bool):
+    def _tts_builder(self, provider: str, language: str, sample_rate: int, voice_override, resolved: dict):
         def build():
-            creds = VoiceCredentialResolver.resolve(
-                self.bot, "tts", provider, use_bot_credentials=use_bot_creds
-            )
-            metadata = TTSFactory.provider_metadata(provider)
+            entry = resolved.get(provider) or {}
+            creds = {**entry.get("metadata", {}), **entry.get("secrets", {})}
+            factory_meta = TTSFactory.provider_metadata(provider)
             voice = (
                 voice_override
-                or (metadata.get("voices") or {}).get(language)
-                or metadata.get("default_voice")
+                or (factory_meta.get("voices") or {}).get(language)
+                or factory_meta.get("default_voice")
             )
-            merged = {**creds, "engine": metadata.get("engine", creds.get("engine", "neural"))}
+            merged = {**creds, "engine": factory_meta.get("engine", creds.get("engine", "neural"))}
             return TTSFactory.get(provider)(merged, voice=voice, language=language, sample_rate=sample_rate)
 
         return build
 
-    def _build_stt(self, config: dict, sample_rate: int):
+    def _build_stt(self, config: dict, sample_rate: int, resolved: dict):
         language = config.get("language", "en-IN")
-        use_bot_creds = bool(config.get("use_bot_credentials", False))
         chain = self._provider_chain(config, "stt", "sarvam")
         builders = [
-            (p, self._stt_builder(p, language, sample_rate, use_bot_creds)) for p in chain
+            (p, self._stt_builder(p, language, sample_rate, resolved)) for p in chain
         ]
         return FallbackSTT(builders), chain[0]
 
-    def _build_tts(self, config: dict, sample_rate: int):
+    def _build_tts(self, config: dict, sample_rate: int, resolved: dict):
         language = config.get("language", "en-IN")
-        use_bot_creds = bool(config.get("use_bot_credentials", False))
         voice_override = config.get("voice")
         chain = self._provider_chain(config, "tts", "polly")
         builders = [
-            (p, self._tts_builder(p, language, sample_rate, voice_override, use_bot_creds))
+            (p, self._tts_builder(p, language, sample_rate, voice_override, resolved))
             for p in chain
         ]
         return FallbackTTS(builders), chain[0], language, voice_override
@@ -177,9 +172,13 @@ class ExotelStreamHandler:
         chunk = voice_env.get("chunk", {}) or {}
         sample_rate = int(config.get("sample_rate") or voice_env.get("default_sample_rate") or 8000)
 
+        stt_chain = self._provider_chain(config, "stt", "sarvam")
+        tts_chain = self._provider_chain(config, "tts", "polly")
+        resolved = SpeechProviderConfigProcessor.resolve(self.bot, list({*stt_chain, *tts_chain}))
+
         try:
-            stt, stt_provider = self._build_stt(config, sample_rate)
-            tts, tts_provider, tts_language, tts_voice = self._build_tts(config, sample_rate)
+            stt, stt_provider = self._build_stt(config, sample_rate, resolved)
+            tts, tts_provider, tts_language, tts_voice = self._build_tts(config, sample_rate, resolved)
         except Exception as e:
             logger.exception("Failed to build STT/TTS bot=%s: %s", self.bot, e)
             await self.websocket.close(code=1011)
