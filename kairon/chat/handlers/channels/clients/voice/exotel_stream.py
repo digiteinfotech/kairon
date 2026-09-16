@@ -44,6 +44,7 @@ class ExotelStreamHandler:
     INPUT_CHANNEL = ChannelTypes.VOICE.value
 
     def __init__(self, bot: str, provider: str, token: str, websocket: WebSocket):
+        """Store bot id, provider name, stream token and WebSocket for this call."""
         self.bot = bot
         self.provider = provider
         self.token = token

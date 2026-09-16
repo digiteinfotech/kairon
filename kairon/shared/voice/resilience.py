@@ -42,6 +42,7 @@ class FallbackSTT:
     """STT adapter that tries providers in order, failing over on open() errors."""
 
     def __init__(self, builders: Sequence):
+        """Normalise and store the ordered list of provider builders."""
         self._builders = _normalise(builders)
         if not self._builders:
             raise AppException("FallbackSTT requires at least one provider builder")
@@ -87,6 +88,7 @@ class FallbackTTS:
     """TTS adapter that retries the next provider if synthesis fails before audio starts."""
 
     def __init__(self, builders: Sequence):
+        """Normalise and store the ordered list of provider builders."""
         self._builders = _normalise(builders)
         if not self._builders:
             raise AppException("FallbackTTS requires at least one provider builder")

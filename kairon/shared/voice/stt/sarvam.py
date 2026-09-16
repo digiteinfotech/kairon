@@ -55,14 +55,9 @@ class SarvamSTT(BaseSTT):
             f"{self.ENDPOINT}?model={self.model}"
             f"&language-code={self.language}&sample-rate={self.sample_rate}"
         )
-        try:
-            self._ws = await websockets.connect(
-                url, additional_headers={"api-subscription-key": self.api_key}
-            )
-        except TypeError:  # older websockets uses extra_headers
-            self._ws = await websockets.connect(
-                url, extra_headers={"api-subscription-key": self.api_key}
-            )
+        self._ws = await websockets.connect(
+            url, extra_headers={"api-subscription-key": self.api_key}
+        )
         self._receiver_task = asyncio.ensure_future(self._receive_loop())
 
     async def push(self, pcm: bytes) -> None:
