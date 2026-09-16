@@ -1,5 +1,4 @@
-"""
-Exotel outbound call client — outbound-action parity with the Twilio client.
+"""Exotel outbound call client — outbound-action parity with the Twilio client.
 
 Places a call *from* the platform to a customer and connects it to a bot flow,
 the Exotel analogue of Twilio's outbound ``initiate_call``. It targets Exotel's
@@ -30,8 +29,7 @@ class ExotelOutboundClient(VoiceOutboundBase):
     def __init__(self, account_sid: str, auth_token: str, from_number: str,
                  api_key: Optional[str] = None, api_token: Optional[str] = None,
                  subdomain: Optional[str] = None, exophone: Optional[str] = None):
-        """
-        Store Exotel credentials, subdomain and exophone for this client.
+        """Store Exotel credentials, subdomain and exophone for this client.
 
         :param account_sid: Exotel account SID
         :param auth_token: Exotel API token (kept for base-class parity)
@@ -72,8 +70,7 @@ class ExotelOutboundClient(VoiceOutboundBase):
 
     @staticmethod
     def _parse_call_sid(payload: dict) -> str:
-        """
-        Extract the call Sid from an Exotel connect response.
+        """Extract the call Sid from an Exotel connect response.
 
         Tolerant of the ``{"Call": {"Sid": ...}}`` and flat ``{"Sid": ...}`` shapes.
         """
@@ -85,8 +82,7 @@ class ExotelOutboundClient(VoiceOutboundBase):
         return ""
 
     def initiate_call(self, to_phone: str, twiml_url: str, status_callback_url: str = None) -> str:
-        """
-        Dial ``to_phone`` and connect it to ``twiml_url``; return the Exotel call Sid.
+        """Dial ``to_phone`` and connect it to ``twiml_url``; return the Exotel call Sid.
 
         ``twiml_url`` keeps the base-class parameter name; for Exotel it is the
         App/flow URL running the streaming applet rather than TwiML.
@@ -110,7 +106,6 @@ class ExotelOutboundClient(VoiceOutboundBase):
         return call_sid
 
     def connect_to_flow(self, to_phone: str, flow_app_id: str, status_callback_url: str = None) -> str:
-        """
-        Dial ``to_phone`` and connect it to the Exotel flow identified by ``flow_app_id``.
+        """Dial ``to_phone`` and connect it to the Exotel flow identified by ``flow_app_id``.
         """
         return self.initiate_call(to_phone, self.flow_app_url(flow_app_id), status_callback_url)

@@ -1,5 +1,4 @@
-"""
-TTS audio cache.
+"""TTS audio cache.
 
 Synthesising the same phrase repeatedly (welcome prompts, re-prompts, "sorry I
 didn't catch that", menu options) is wasteful and adds latency to every call.
@@ -17,8 +16,7 @@ from typing import Optional
 
 
 def make_key(namespace: str, text: str) -> str:
-    """
-    Return a stable cache key for ``text`` under a synthesis ``namespace``.
+    """Return a stable cache key for ``text`` under a synthesis ``namespace``.
 
     ``namespace`` is typically ``"provider:voice:language:sample_rate"``.
     """

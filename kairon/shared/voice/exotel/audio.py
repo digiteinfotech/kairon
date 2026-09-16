@@ -36,7 +36,6 @@ def pad_to_multiple(pcm: bytes, multiple: int) -> bytes:
         return pcm
     return pcm + b"\x00" * (multiple - remainder)
 
-
 def rms(pcm: bytes) -> float:
     """Root-mean-square amplitude of 16-bit signed little-endian PCM.
 
@@ -66,7 +65,6 @@ def rms(pcm: bytes) -> float:
 
 def is_silence(pcm: bytes, threshold: float = DEFAULT_SILENCE_RMS) -> bool:
     """Return True when ``pcm``'s RMS energy is below ``threshold``.
-
     Empty input counts as silence.
     """
     if not pcm:
@@ -120,8 +118,7 @@ class AudioChunker:
         yield from self._emit(ready)
 
     def flush(self) -> Iterator[bytes]:
-        """
-        Yield every remaining frame, padding the final short chunk with silence.
+        """Yield every remaining frame, padding the final short chunk with silence.
 
         Drains the whole buffer; call at end of an utterance.
         """
@@ -137,8 +134,7 @@ class AudioChunker:
 
 def chunk_pcm(pcm: bytes, multiple: int = DEFAULT_MULTIPLE,
               max_bytes: int = DEFAULT_MAX_BYTES) -> List[bytes]:
-    """
-    Split a complete PCM buffer into Exotel-legal frames, padding the tail with silence.
+    """Split a complete PCM buffer into Exotel-legal frames, padding the tail with silence.
 
     Equivalent to pushing ``pcm`` into an :class:`AudioChunker` and flushing.
     """

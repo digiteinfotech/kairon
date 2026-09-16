@@ -61,8 +61,7 @@ class VoiceOutput(OutputChannel):
 class VoiceHandler(InputChannel, ChannelHandlerBase):
 
     def __init__(self, bot: Text, user: User, request: Request, provider: Text):
-        """
-        Initialise the voice call handler for a single inbound request.
+        """Initialise the voice call handler for a single inbound request.
 
         :param bot: bot ID
         :param user: authenticated User object from JWT
@@ -226,8 +225,7 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
         await provider_impl.handle_call_status(self.request, self.bot)
 
     async def handle_resolver_request(self) -> dict:
-        """
-        Handle dynamic HTTP(S) resolver GET from telephony provider (e.g. Exotel).
+        """Handle dynamic HTTP(S) resolver GET from telephony provider (e.g. Exotel).
 
         Returns JSON dict with WSS stream URL.
         """
@@ -246,8 +244,7 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
         return payload
 
     async def handle_greeting_request(self) -> str:
-        """
-        Handle greeting/initializer GET from telephony provider (e.g. Exotel).
+        """Handle greeting/initializer GET from telephony provider (e.g. Exotel).
 
         Plays greeting WAV then connects to WSS stream via ExoML.
         """
