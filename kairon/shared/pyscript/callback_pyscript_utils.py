@@ -1,4 +1,3 @@
-import asyncio
 import pickle
 from calendar import timegm
 from datetime import datetime, date
@@ -9,8 +8,7 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
-from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.shared.chat.agent.agent_flow import AgenticFlow
+from kairon.shared.data.constant import TOKEN_TYPE
 from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
@@ -33,6 +31,9 @@ import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
+from urllib.parse import urljoin
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
 
 
 class CallbackScriptUtility:
@@ -637,57 +638,45 @@ class CallbackScriptUtility:
         }
 
     @staticmethod
-    def invoke_agentic_flow(flow_name: str, slot_vals: Dict = None, bot: str = None, sender_id: str = None,
-                            channel: str = None):
-        logger.info(
-            f"[DEBUG AGENTIC-1] START flow_name={flow_name}, "
-            f"bot={bot}, sender_id={sender_id}, channel={channel}"
-        )
-
+    def invoke_agentic_flow(
+            flow_name: str,
+            slot_vals: Dict = None,
+            bot: str = None,
+            sender_id: str = None,
+            channel: str = None
+    ):
         if not flow_name:
             raise AppException("Agentic flow name is required")
 
-        logger.info("[DEBUG AGENTIC-2] Creating AgenticFlow")
+        agent_url = Utility.environment["model"]["agent"].get("url")
 
-        flow = AgenticFlow(
-            bot=bot,
-            slot_vals=slot_vals or {},
-            sender_id=sender_id
+        bot_owner = AccountProcessor.get_bot_owner(bot)
+        email = bot_owner["accessor_email"]
+
+        token, _ = Authentication.generate_integration_token(
+            bot,
+            email,
+            expiry=5,
+            token_type=TOKEN_TYPE.CHANNEL.value
         )
 
-        logger.info("[DEBUG AGENTIC-3] AgenticFlow created")
+        response = Utility.http_request(
+            "post",
+            urljoin(agent_url, f"/api/bot/{bot}/exec/flow"),
+            token,
+            email,
+            json_dict={
+                "name": flow_name,
+                "slot_vals": slot_vals or {},
+                "sender_id": sender_id
+            }
+        )
 
-        async def _run():
-            logger.info("[DEBUG AGENTIC-4] Before execute_rule")
+        result = jsond.loads(response)
 
-            responses, errors = await flow.execute_rule(flow_name)
-
-            logger.info(
-                f"[DEBUG AGENTIC-5] After execute_rule "
-                f"responses={responses}, errors={errors}"
-            )
-
-            for response in responses:
-                logger.info(f"[DEBUG AGENTIC-6] Response: {response}")
-
-                if text := response.get("text"):
-                    logger.info("[DEBUG AGENTIC-7] Dispatching text response")
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot, sender_id, text, channel
-                    )
-
-                elif custom := response.get("custom"):
-                    logger.info("[DEBUG AGENTIC-7] Dispatching custom response")
-                    await ChannelMessageDispatcher.dispatch_message(
-                        bot, sender_id, custom, channel
-                    )
-
-            return responses, errors
-
-        logger.info("[DEBUG AGENTIC-8] Before asyncio.run")
-
-        result = asyncio.run(_run())
-
-        logger.info(f"[DEBUG AGENTIC-9] After asyncio.run result={result}")
+        logger.info(
+            f"AgenticFlow response: flow_name={flow_name}, "
+            f"bot={bot}, response={result}"
+        )
 
         return result
