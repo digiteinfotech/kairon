@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
 from requests import Response
@@ -60,9 +59,6 @@ class CallbackUtility:
         bot = predefined_objects.get("bot")
         channel = predefined_objects.get("channel")
         sender_id = predefined_objects.get("sender_id")
-
-        # DEBUG - remove after investigation
-        logger.info(f"[DEBUG execute_script] bot={repr(bot)} sender_id={repr(sender_id)} channel={repr(channel)} predefined_keys={list(predefined_objects.keys())}")
 
         predefined_objects['_getattr_'] = safer_getattr
         predefined_objects['requests']=requests

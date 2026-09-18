@@ -8,7 +8,6 @@ from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode, CallbackResponseType
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
