@@ -21,11 +21,23 @@ def test_kairon_event_serialization():
 
 def test_hmac_signature_calculation():
     secret = "my_secret_key_123"
+    timestamp = "1700000000"
     payload_bytes = b'{"event_type":"lead.qualified"}'
 
-    signature = KaironEventPublisher.calculate_signature(secret, payload_bytes)
+    signature = KaironEventPublisher.calculate_signature(secret, timestamp, payload_bytes)
     assert isinstance(signature, str)
     assert len(signature) == 64  # SHA-256 hex string length
+
+
+def test_hmac_signature_is_timestamp_bound():
+    """A different timestamp over the same body must produce a different signature,
+    so a captured (signature, body) pair can't be replayed under a forged timestamp."""
+    secret = "my_secret_key_123"
+    payload_bytes = b'{"event_type":"lead.qualified"}'
+
+    sig_a = KaironEventPublisher.calculate_signature(secret, "1700000000", payload_bytes)
+    sig_b = KaironEventPublisher.calculate_signature(secret, "1700000050", payload_bytes)
+    assert sig_a != sig_b
 
 
 @patch("requests.post")

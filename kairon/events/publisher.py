@@ -41,9 +41,14 @@ class KaironEventPublisher:
     """
 
     @staticmethod
-    def calculate_signature(secret: str, body_bytes: bytes) -> str:
-        """Calculates HMAC-SHA256 signature for request payload."""
-        return hmac.new(secret.encode('utf-8'), body_bytes, hashlib.sha256).hexdigest()
+    def calculate_signature(secret: str, timestamp: str, body_bytes: bytes) -> str:
+        """
+        Calculates HMAC-SHA256 signature over a timestamp-bound payload, so the
+        X-Kairon-Timestamp header cannot be swapped on a captured request without
+        invalidating the signature (signed_payload = "<timestamp>." + raw body bytes).
+        """
+        signed_payload = f"{timestamp}.".encode('utf-8') + body_bytes
+        return hmac.new(secret.encode('utf-8'), signed_payload, hashlib.sha256).hexdigest()
 
     @classmethod
     def publish_webhook(
@@ -54,16 +59,17 @@ class KaironEventPublisher:
         timeout_seconds: int = 10
     ) -> Dict[str, Any]:
         """
-        Dispatches a KaironEvent payload to a webhook URL with HMAC signature.
+        Dispatches a KaironEvent payload to a webhook URL with a timestamp-bound HMAC signature.
         """
         payload_dict = event.to_dict()
         body_bytes = json.dumps(payload_dict, separators=(',', ':')).encode('utf-8')
-        signature = cls.calculate_signature(secret, body_bytes)
+        timestamp = str(int(time.time()))
+        signature = cls.calculate_signature(secret, timestamp, body_bytes)
 
         headers = {
             "Content-Type": "application/json",
             "X-Kairon-Signature": f"sha256={signature}",
-            "X-Kairon-Timestamp": str(int(time.time())),
+            "X-Kairon-Timestamp": timestamp,
             "X-Kairon-Event-ID": event.event_id,
             "X-Correlation-ID": event.correlation_id
         }
