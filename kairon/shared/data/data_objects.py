@@ -40,7 +40,7 @@ from kairon.shared.models import (
 )
 from kairon.shared.utils import Utility
 from .constant import EVENT_STATUS, SLOT_MAPPING_TYPE, DEMO_REQUEST_STATUS
-from ..constants import WhatsappBSPTypes, LLMResourceProvider, STTProviderTypes, TTSProviderTypes
+from ..constants import WhatsappBSPTypes, LLMResourceProvider
 
 
 class Entity(EmbeddedDocument):
@@ -898,20 +898,6 @@ class Analytics(EmbeddedDocument):
     fallback_intent = StringField(default=DEFAULT_NLU_FALLBACK_INTENT_NAME)
 
 
-class VoiceIntegrationSettings(EmbeddedDocument):
-    """Bot-specific voice STT/TTS provider selection for the streaming voice channel.
-
-    (e.g. Exotel). Credentials are resolved from SpeechProviderConfig — bot-scoped
-    entries automatically override global ones.
-    """
-
-    stt_provider = StringField(default=STTProviderTypes.sarvam.value)
-    tts_provider = StringField(default=TTSProviderTypes.polly.value)
-    stt_fallback = ListField(StringField(), default=list)
-    tts_fallback = ListField(StringField(), default=list)
-    sample_rate = IntField(default=8000)
-
-
 @auditlogger.log
 @push_notification.apply
 class BotSettings(Auditlog):
@@ -952,7 +938,6 @@ class BotSettings(Auditlog):
     live_agent_enabled = BooleanField(default=False)
     pos_enabled = BooleanField(default=False)
     enable_voice = BooleanField(default=False)
-    voice = EmbeddedDocumentField(VoiceIntegrationSettings, default=VoiceIntegrationSettings())
     max_actions_per_parallel_action = IntField(default=5)
     catalog_sync_limit_per_day = IntField(default=5)
     max_instagram_user_posts = IntField(default=5)

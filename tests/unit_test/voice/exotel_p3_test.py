@@ -573,24 +573,22 @@ class TestExotelStreamHandler:
     def test_build_stt_returns_fallback_and_primary(self):
         from kairon.shared.voice.resilience import FallbackSTT
         h, _ = self._handler()
-        with patch.object(h, "_provider_chain", return_value=["sarvam"]):
+        with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.STTFactory"
+                   ".provider_metadata", return_value={"models": {"8000": "saarika:v2"}}):
             with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.STTFactory"
-                       ".provider_metadata", return_value={"models": {"8000": "saarika:v2"}}):
-                with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.STTFactory"
-                           ".get", return_value=MagicMock(return_value=MagicMock())):
-                    stt, primary = h._build_stt({"language": "en-IN"}, 8000, {})
+                       ".get", return_value=MagicMock(return_value=MagicMock())):
+                stt, primary = h._build_stt({"language": "en-IN"}, 8000, {}, ["sarvam"])
         assert isinstance(stt, FallbackSTT)
         assert primary == "sarvam"
 
     def test_build_tts_returns_fallback_and_primary_and_lang(self):
         from kairon.shared.voice.resilience import FallbackTTS
         h, _ = self._handler()
-        with patch.object(h, "_provider_chain", return_value=["polly"]):
+        with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.TTSFactory"
+                   ".provider_metadata", return_value={"engine": "neural", "default_voice": "Kajal"}):
             with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.TTSFactory"
-                       ".provider_metadata", return_value={"engine": "neural", "default_voice": "Kajal"}):
-                with patch("kairon.chat.handlers.channels.clients.voice.exotel_stream.TTSFactory"
-                           ".get", return_value=MagicMock(return_value=MagicMock())):
-                    tts, primary, lang, voice = h._build_tts({"language": "en-IN"}, 8000, {})
+                       ".get", return_value=MagicMock(return_value=MagicMock())):
+                tts, primary, lang, voice = h._build_tts({"language": "en-IN"}, 8000, {}, ["polly"])
         assert isinstance(tts, FallbackTTS)
         assert primary == "polly"
         assert lang == "en-IN"
@@ -1192,21 +1190,6 @@ class TestSarvamSTTAdditional:
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestSpeechProcessorHelpers:
-
-    def test_secret_fields_for_provider(self):
-        from kairon.shared.voice.processor import _secret_fields_for_provider
-        from kairon.shared.utils import Utility
-        Utility.system_metadata = {
-            "stt_providers": {"sarvam": {"secret_fields": ["api_key"]}},
-            "tts_providers": {},
-        }
-        fields = _secret_fields_for_provider("sarvam")
-        assert "api_key" in fields
-
-    def test_secret_fields_unknown_provider_returns_empty(self):
-        from kairon.shared.voice.processor import _secret_fields_for_provider
-        fields = _secret_fields_for_provider("unknown_provider_xyz")
-        assert fields == []
 
     def test_encrypt_secrets_roundtrip(self):
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor

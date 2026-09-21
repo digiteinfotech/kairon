@@ -111,18 +111,16 @@ class ExotelStreamHandler:
 
         return build
 
-    def _build_stt(self, config: dict, sample_rate: int, resolved: dict):
+    def _build_stt(self, config: dict, sample_rate: int, resolved: dict, chain: list):
         language = config.get("language", "en-IN")
-        chain = self._provider_chain(config, "stt", "sarvam")
         builders = [
             (p, self._stt_builder(p, language, sample_rate, resolved)) for p in chain
         ]
         return FallbackSTT(builders), chain[0]
 
-    def _build_tts(self, config: dict, sample_rate: int, resolved: dict):
+    def _build_tts(self, config: dict, sample_rate: int, resolved: dict, chain: list):
         language = config.get("language", "en-IN")
         voice_override = config.get("voice")
-        chain = self._provider_chain(config, "tts", "polly")
         builders = [
             (p, self._tts_builder(p, language, sample_rate, voice_override, resolved))
             for p in chain
@@ -179,8 +177,8 @@ class ExotelStreamHandler:
         resolved = SpeechProviderConfigProcessor.resolve(self.bot, list({*stt_chain, *tts_chain}))
 
         try:
-            stt, stt_provider = self._build_stt(config, sample_rate, resolved)
-            tts, tts_provider, tts_language, tts_voice = self._build_tts(config, sample_rate, resolved)
+            stt, stt_provider = self._build_stt(config, sample_rate, resolved, stt_chain)
+            tts, tts_provider, tts_language, tts_voice = self._build_tts(config, sample_rate, resolved, tts_chain)
         except Exception as e:
             logger.exception("Failed to build STT/TTS bot=%s: %s", self.bot, e)
             await self.websocket.close(code=1011)

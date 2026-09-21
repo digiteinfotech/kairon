@@ -145,18 +145,3 @@ class TestSTTTTSFactories:
         assert STTFactory.get("sarvam") is _DummySTT
         assert TTSFactory.get("polly") is _DummyTTS
 
-
-class TestBotVoiceSettings:
-
-    def test_voice_integration_settings_defaults(self):
-        from kairon.shared.data.data_objects import VoiceIntegrationSettings
-
-        v = VoiceIntegrationSettings()
-        assert v.stt_provider == "sarvam"
-        assert v.tts_provider == "polly"
-        assert v.sample_rate == 8000
-
-    def test_bot_settings_has_voice_field(self):
-        from kairon.shared.data.data_objects import BotSettings
-
-        assert "voice" in BotSettings._fields

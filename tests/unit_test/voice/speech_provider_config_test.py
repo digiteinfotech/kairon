@@ -67,7 +67,7 @@ class TestSpeechProviderConfigProcessorCrud:
             scope="global",
             secrets={"aws_access_key_id": "AKID", "aws_secret_access_key": "secret"},
         )
-        result = SpeechProviderConfigProcessor.get(doc_id, mask_secrets=True)
+        result = SpeechProviderConfigProcessor.get(doc_id, bot="any-bot", mask_secrets=True)
         assert result["secrets"]["aws_access_key_id"] == "**********"
         assert result["secrets"]["aws_secret_access_key"] == "**********"
         assert result["provider"] == "polly"
@@ -77,7 +77,7 @@ class TestSpeechProviderConfigProcessorCrud:
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor
 
         with pytest.raises(AppException, match="not found"):
-            SpeechProviderConfigProcessor.get("000000000000000000000000")
+            SpeechProviderConfigProcessor.get("000000000000000000000000", bot="any-bot")
 
     def test_save_upserts_existing(self):
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor
@@ -120,17 +120,26 @@ class TestSpeechProviderConfigProcessorCrud:
         from kairon.shared.voice.data_objects import SpeechProviderConfig
 
         doc_id = SpeechProviderConfigProcessor.save(
-            provider="google", scope="global", metadata={"url": "x"}
+            provider="google", scope="bot", bot_id="delete-test-bot", metadata={"url": "x"}
         )
-        SpeechProviderConfigProcessor.delete(doc_id)
+        SpeechProviderConfigProcessor.delete(doc_id, bot="delete-test-bot")
         doc = SpeechProviderConfig.objects(id=doc_id).first()
         assert doc.status is False
+
+    def test_delete_wrong_bot_raises(self):
+        from kairon.shared.voice.processor import SpeechProviderConfigProcessor
+
+        doc_id = SpeechProviderConfigProcessor.save(
+            provider="google-del-idor", scope="bot", bot_id="bot-owner", metadata={"url": "x"}
+        )
+        with pytest.raises(AppException, match="not found"):
+            SpeechProviderConfigProcessor.delete(doc_id, bot="bot-attacker")
 
     def test_delete_not_found_raises(self):
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor
 
         with pytest.raises(AppException, match="not found"):
-            SpeechProviderConfigProcessor.delete("000000000000000000000000")
+            SpeechProviderConfigProcessor.delete("000000000000000000000000", bot="any-bot")
 
     def test_list_available_returns_global_and_bot_scoped(self):
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor

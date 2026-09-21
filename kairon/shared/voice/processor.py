@@ -14,15 +14,6 @@ from kairon.shared.utils import Utility
 logger = logging.getLogger(__name__)
 
 
-def _secret_fields_for_provider(provider: str) -> List[str]:
-    """Return the union of secret_fields from stt_providers + tts_providers metadata."""
-    meta = getattr(Utility, "system_metadata", {}) or {}
-    fields: set = set()
-    for registry_key in ("stt_providers", "tts_providers"):
-        spec = (meta.get(registry_key) or {}).get(provider, {}) or {}
-        fields.update(spec.get("secret_fields") or [])
-    return list(fields)
-
 
 class SpeechProviderConfigProcessor:
 
@@ -129,12 +120,16 @@ class SpeechProviderConfigProcessor:
         return str(doc.id)
 
     @classmethod
-    def get(cls, doc_id: str, mask_secrets: bool = True) -> dict:
-        """Return one provider config document. Secrets are masked by default."""
+    def get(cls, doc_id: str, bot: str, mask_secrets: bool = True) -> dict:
+        """Return one provider config document. Secrets are masked by default.
+
+        Bot-scoped configs are only returned when bot matches the owning bot.
+        Global configs are accessible to any authenticated bot.
+        """
         from kairon.shared.voice.data_objects import SpeechProviderConfig
 
         doc = SpeechProviderConfig.objects(id=doc_id).first()
-        if not doc:
+        if not doc or (doc.scope == "bot" and doc.bot_id != bot):
             raise AppException(f"Voice provider config '{doc_id}' not found")
         return cls._to_dict(doc, mask_secrets)
 
@@ -161,11 +156,46 @@ class SpeechProviderConfigProcessor:
         return [cls._to_dict(doc, mask_secrets=True) for doc in docs]
 
     @classmethod
-    def delete(cls, doc_id: str) -> None:
-        """Soft-delete a provider config document (sets status=False)."""
+    def update(
+        cls,
+        doc_id: str,
+        bot: str,
+        provider: str,
+        metadata: Optional[dict] = None,
+        secrets: Optional[dict] = None,
+        user: str = "system",
+    ) -> None:
+        """Update metadata and/or secrets for a bot-scoped provider config by id.
+
+        Provider is immutable — pass the existing provider name to confirm intent.
+        """
         from kairon.shared.voice.data_objects import SpeechProviderConfig
 
-        updated = SpeechProviderConfig.objects(id=doc_id).update_one(set__status=False)
+        doc = SpeechProviderConfig.objects(id=doc_id, scope="bot", bot_id=bot, status=True).first()
+        if not doc:
+            raise AppException(f"Voice provider config '{doc_id}' not found")
+        if doc.provider != provider:
+            raise AppException(
+                f"Provider is immutable: expected '{doc.provider}', got '{provider}'"
+            )
+        doc.user = user
+        if metadata is not None:
+            doc.metadata = metadata
+        if secrets:
+            doc.secrets = cls._encrypt_secrets(provider, secrets)
+        doc.save()
+
+    @classmethod
+    def delete(cls, doc_id: str, bot: str) -> None:
+        """Soft-delete a bot-scoped provider config (sets status=False).
+
+        Only the owning bot can delete its own bot-scoped config.
+        """
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+
+        updated = SpeechProviderConfig.objects(id=doc_id, scope="bot", bot_id=bot).update_one(
+            set__status=False
+        )
         if not updated:
             raise AppException(f"Voice provider config '{doc_id}' not found")
 

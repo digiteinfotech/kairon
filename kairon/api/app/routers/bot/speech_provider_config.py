@@ -53,7 +53,8 @@ async def get_speech_provider_config(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS),
 ):
     """Get a single provider config document by id (secrets masked)."""
-    config = SpeechProviderConfigProcessor.get(config_id, mask_secrets=True)
+    bot = current_user.get_bot()
+    config = SpeechProviderConfigProcessor.get(config_id, bot=bot, mask_secrets=True)
     return Response(data=config)
 
 
@@ -63,17 +64,17 @@ async def update_speech_provider_config(
     request_data: SpeechProviderConfigRequest,
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
-    """Update metadata and/or secrets for a bot-scoped provider config."""
+    """Update metadata and/or secrets for a bot-scoped provider config by id."""
     bot = current_user.get_bot()
-    doc_id = SpeechProviderConfigProcessor.save(
+    SpeechProviderConfigProcessor.update(
+        doc_id=config_id,
+        bot=bot,
         provider=request_data.provider,
-        scope="bot",
-        bot_id=bot,
         metadata=request_data.metadata,
         secrets=request_data.secrets,
         user=current_user.get_user(),
     )
-    return Response(message="Voice provider config updated", data={"id": doc_id})
+    return Response(message="Voice provider config updated", data={"id": config_id})
 
 
 @router.delete("/{config_id}", response_model=Response)
@@ -82,5 +83,6 @@ async def delete_speech_provider_config(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """Soft-delete a bot-scoped provider config."""
-    SpeechProviderConfigProcessor.delete(config_id)
+    bot = current_user.get_bot()
+    SpeechProviderConfigProcessor.delete(config_id, bot=bot)
     return Response(message="Voice provider config deleted")
