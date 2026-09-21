@@ -28,12 +28,17 @@ class ProductItem(BaseModel):
     qty: int
     unit_price: float
     discount: float = 0
+    kitchen_note: Optional[str] = None
 
 
 class POSOrderRequest(BaseModel):
     products: List[ProductItem]
     partner_id: Optional[int] = None
     company_id: int = 1
+    order_type: Optional[str] = None
+    table_name: Optional[str] = None
+    kitchen_station: Optional[str] = None
+    note: Optional[str] = None
 
 
 class ResponseMessage(BaseModel):

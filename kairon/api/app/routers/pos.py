@@ -113,7 +113,11 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
         session_id=session_id,
         products=[p.dict() for p in req.products],
         partner_id=req.partner_id,
-        company_id=req.company_id
+        company_id=req.company_id,
+        order_type=req.order_type,
+        table_name=req.table_name,
+        kitchen_station=req.kitchen_station,
+        note=req.note,
     )
 
     if result["status"] == "created":
@@ -142,7 +146,8 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
                 "order_id": order.get("id"),
                 "pos_reference": order.get("pos_reference"),
                 "status": result.get("status"),
-                "branch_name": name
+                "branch_name": name,
+                "kot": result.get("kot", {}),
             },
             current_user.get_bot()
         )
