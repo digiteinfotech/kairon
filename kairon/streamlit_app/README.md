@@ -1,29 +1,85 @@
-# Kairon CRM Provisioning Dashboard
+# Kairon Platform — Tier 1: CRM & ERPNext Demo
 
-A modern, glassmorphism-styled Streamlit dashboard for Kairon administrators to provision and audit private ERPNext instances.
+A clean, tier-based Streamlit demo/orchestration UI for the Kairon ↔ Frappe CRM/ERPNext
+integration. This app is a **thin consumer of existing Kairon backend APIs** — it does not
+implement authentication, provisioning, or invitation logic itself.
 
-## Setup & Running
+## Architecture
 
-1. **Install Dependencies**
-   Navigate to this folder and install dependencies in your virtual environment:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```
+app.py                      Entry point: login gate + st.navigation shell
+components/
+  auth.py                   Login form + session-state helpers (calls services/crm.py)
+  ui.py                     CSS injection, sidebar (user/bot context), status badges
+views/
+  1_Tier_Selection.py       Landing dashboard — CRM tier available, others "Coming Soon"
+  2_CRM_Onboarding.py       is_crm check -> tenant form -> provisioning -> Tenant Ready
+  3_Invite_User.py          Native ERPNext user invitation
+services/
+  api.py                    Generic authenticated HTTP client (token in session_state)
+  crm.py                    Typed wrappers for every Kairon CRM REST endpoint used here
+config.py                  API_BASE_URL / TIMEOUT (env-overridable)
+```
 
-2. **Configure Environment**
-   Ensure the following environment variables are set if different from defaults:
-   - `API_BASE_URL`: Kairon API endpoint (default: `http://localhost:8000`)
-   - `TIMEOUT`: API requests timeout in seconds (default: `30`)
+`services/tenant_service.py`, `provisioning_service.py`, `health_service.py`,
+`logs_service.py` are **legacy files kept on disk only** because
+`tests/integration_test/test_uat_end_to_end.py` still imports them. They query MongoDB
+and `docker exec` the backend directly, bypassing the Kairon API — the new Tier 1 app
+does **not** import or use them.
 
-3. **Start the Application**
-   Run the Streamlit application:
-   ```bash
-   streamlit run app.py
-   ```
-   Open your browser to `http://localhost:8501`.
+## Responsibilities
 
-## Features
-- **Authentication**: Connects to Kairon Auth endpoints and securely manages session tokens.
-- **Aggregated Stats**: Lists all provisioned ERPNext sites and DB benches with live status color indicators.
-- **Onboarding Wizard**: Step-by-step form to launch, deploy, and monitor provisioning workflows.
-- **Diagnostics Dashboard**: Diagnostic pings to Postgres, Redis, MongoDB, and ERPNext APIs.
+- **Streamlit**: renders UI, calls Kairon REST APIs, never touches Mongo/Postgres/docker directly.
+- **Kairon backend** (`kairon/crm/*`, `kairon/api/app/routers/*`): authentication, `enable_crm`
+  enforcement, tenant provisioning state machine, ERPNext user invitation, secrets storage.
+- **ERPNext**: the actual CRM workspace, Administrator setup, native `UserInvitation` flow.
+
+## Backend API contract used
+
+| Purpose | Endpoint | Auth |
+|---|---|---|
+| Login | `POST /api/auth/login` | none (issues JWT) |
+| User + bots | `GET /api/user/details` | Bearer |
+| Bot settings (`enable_crm`) | `GET/PUT /api/bot/{bot}/settings` | Bearer, PUT needs admin scope |
+| Provision tenant | `POST /api/bot/{bot}/crm/onboard` | Bearer, admin scope |
+| Provisioning status | `GET /api/bot/{bot}/crm/status` | Bearer, admin scope |
+| Tenant details / site URL | `GET /api/bot/{bot}/crm/details` | Bearer, admin scope |
+| Invite user (native ERPNext) | `POST /api/bot/{bot}/crm/invite-user` | Bearer, admin scope |
+
+Tenant ownership and `enable_crm` are enforced **server-side** (`current_user.get_bot()` from
+the JWT, `MongoProcessor.is_crm_enabled` check in `CRMProcessor.onboard_company`) — the UI only
+reflects this, it does not gate access on its own.
+
+## Running
+
+```bash
+# 1. Kairon API (from kairon repo root)
+python3 -m uvicorn kairon.api.app.main:app --host 0.0.0.0 --port 8082
+
+# 2. Streamlit app (from kairon repo root)
+PYTHONPATH=. streamlit run kairon/streamlit_app/app.py --server.port 8501
+```
+
+Open `http://localhost:8501`. Requires MongoDB (`conversations` DB), the `frappe-backend-1` /
+`frappe-db-1` docker stack, and (optionally) Mailpit for invitation emails, all running.
+
+To create a demo login: `python3 create_demo_user.py --email you@x.local --password 'Pass@123' --bot-name MyBot`
+(creates the user/bot with `enable_crm=False`; enable it from the app itself, or via
+`PUT /api/bot/{bot}/settings`).
+
+## Tests
+
+```bash
+python3 -m pytest tests/unit_test/crm_test.py -q
+```
+
+## Known environment limitation
+
+This sandbox's Traefik reverse proxy (`frappe-proxy-1`, ports 80/443) force-redirects all
+plain-HTTP traffic to HTTPS, but has no TLS route for freshly provisioned tenant subdomains,
+so `http://<site>.localhost` (the URL the backend returns, and what `link_button` opens) 404s
+through Traefik in this environment. The site itself is fully live and reachable directly via
+`http://<site>.localhost:8080` (the `frappe-frontend-1` container's exposed port). This is a
+pre-existing local reverse-proxy configuration gap, not a Kairon/Streamlit code defect — the
+backend's `site_url` value is correct and portable to any environment where the proxy isn't
+forcing HTTPS on unregistered hosts.
