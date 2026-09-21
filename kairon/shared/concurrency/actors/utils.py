@@ -199,6 +199,12 @@ class PyscriptUtility:
         return requests.post(url=waba_url, headers=headers, data=orjson.dumps(payload)).json
 
     @staticmethod
+    def upload_media_to_bsp(bot: str, bsp_type: str, media_id: str):
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)
+        return asyncio.run(bsp_class.upload_media(bot, bsp_type, media_id))
+
+    @staticmethod
     def upload_media_to_360dialog(bot: str, bsp_type: str, media_id: str):
         external_media_id = asyncio.run(BSP360Dialog.upload_media(bot, bsp_type, media_id))
         return external_media_id

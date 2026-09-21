@@ -910,13 +910,15 @@ class BotSettings(Auditlog):
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
+    store_page_token_expiry = IntField(default=15)
     refresh_token_expiry = IntField(default=60)
     media_size_limit = IntField(default=10)
     whatsapp = StringField(
-        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
+        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value, WhatsappBSPTypes.bsp_gupshup.value]
     )
     notification_scheduling_limit = IntField(default=4)
     retry_broadcasting_limit = IntField(default=3)
+    max_template_per_broadcast = IntField(default=5)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
@@ -1092,6 +1094,7 @@ class UserMediaData(Auditlog):
     filesize = IntField(default=0)
     additional_info = DictField()
     sender_id = StringField(required=True)
+    user_id = StringField(default=None)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     external_upload_info = DictField()
@@ -1103,6 +1106,7 @@ class UserMediaData(Auditlog):
                 "bot",
                 ("bot", "media_id"),
                 ("bot", "sender_id"),
+                ("bot", "user_id"),
                 "media_id"
             ]
         }
@@ -1128,3 +1132,99 @@ class POSIntegrations(Auditlog):
     sync_options = GenericEmbeddedDocumentField(required=True)
 
     meta = {"indexes": [{"fields": ["bot", "provider"]}]}
+
+
+class StorePageMetadata(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    config = DictField()
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+
+ORDER_STATUS_TRANSITIONS = {
+    "placed": ["confirmed", "cancelled"],
+    "confirmed": ["in_progress", "cancelled"],
+    "in_progress": ["completed", "cancelled"],
+    "completed": [],
+    "cancelled": [],
+}
+
+
+def build_filterable_attrs(order_details: dict) -> list:
+    attrs = []
+    for k, v in (order_details or {}).items():
+        if isinstance(v, (str, int, float, bool)):
+            attrs.append({"k": k, "v": v})
+    return attrs
+
+
+class Address(EmbeddedDocument):
+    label = StringField()
+    address = StringField()
+    is_default = BooleanField(default=False)
+
+
+class CustomerDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    sender_id = StringField(required=True)
+    name = StringField()
+    mobile = StringField()
+    alternate_mobile = StringField()
+    email = StringField()
+    alternate_email = StringField()
+    address_list = ListField(EmbeddedDocumentField(Address), default=[])
+    persona_details = DictField()
+    additional_info = DictField()
+    status = BooleanField(default=True)
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id"], "unique": True},
+            {"fields": ["bot", "persona_type"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.updated_at = datetime.utcnow()
+
+
+class OrderDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    customer_id = StringField(required=True)
+    sender_id = StringField(required=True)
+    status = StringField(
+        required=True,
+        choices=["placed", "confirmed", "in_progress", "completed", "cancelled"],
+        default="placed",
+    )
+    order_details = DictField()
+    filterable_attrs = ListField(DictField(), default=[])
+    additional_info = DictField()
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id", "-created_at"]},
+            {"fields": ["bot", "persona_type", "status", "-created_at"]},
+            {"fields": ["bot", "persona_type", "filterable_attrs.k", "filterable_attrs.v"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.filterable_attrs = build_filterable_attrs(self.order_details)
+        self.updated_at = datetime.utcnow()

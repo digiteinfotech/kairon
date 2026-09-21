@@ -280,3 +280,6 @@ crm:
   bench:
     docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
+
+store_page:
+  url: ${STORE_PAGE_URL:"http://localhost:8080"}

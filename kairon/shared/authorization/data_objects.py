@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from mongoengine import (
+    Document,
     StringField,
     DateTimeField,
     ListField
@@ -32,3 +35,17 @@ class Integration(Auditlog):
     def validate(self, clean=True):
         if clean:
             self.clean()
+
+
+class UserSessions(Document):
+    user = StringField(required=True)
+    jti = StringField(required=True, unique=True)
+    invalidated_at = DateTimeField(default=datetime.utcnow)
+    expires_at = DateTimeField(required=True)
+
+    meta = {
+        "indexes": [
+            "jti",
+            {"fields": ["expires_at"], "expireAfterSeconds": 0},
+        ]
+    }

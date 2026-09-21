@@ -210,6 +210,7 @@ class TOKEN_TYPE(str, Enum):
     CHANNEL = "channel"
     REFRESH = "refresh"
     DATA_INTEGRATION = "data_integration"
+    STORE_PAGE = "store_page"
 
 
 class ModelTestType(str, Enum):

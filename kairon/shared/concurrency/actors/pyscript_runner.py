@@ -52,6 +52,11 @@ class PyScriptRunner(BaseActor):
         global_safe['delete_data'] = partial(PyscriptSharedUtility.delete_data, bot=bot)
         global_safe['update_data'] = partial(PyscriptSharedUtility.update_data, bot=bot)
         global_safe['get_crud_metadata'] = partial(PyscriptSharedUtility.get_crud_metadata, bot=bot)
+        global_safe['get_order_details'] = partial(PyscriptSharedUtility.get_order_details, bot=bot)
+        global_safe['get_customer_details'] = partial(PyscriptSharedUtility.get_customer_details, bot=bot)
+        global_safe['upsert_customer'] = partial(PyscriptSharedUtility.upsert_customer, bot=bot)
+        global_safe['update_order'] = partial(PyscriptSharedUtility.update_order, bot=bot)
+        global_safe['update_order_status'] = partial(PyscriptSharedUtility.update_order_status, bot=bot)
         global_safe['delete_schedule_job'] = partial(PyscriptSharedUtility.delete_schedule_job, bot=bot)
         global_safe['get_db_action_data'] = partial(PyscriptUtility.get_db_action_data, bot=bot,
                                                     predefined_objects=predefined_objects)
@@ -59,6 +64,7 @@ class PyScriptRunner(BaseActor):
                                           predefined_objects=predefined_objects)
         global_safe['send_waba_message'] = partial(PyscriptUtility.send_waba_message, bot=bot,
                                           predefined_objects=predefined_objects)
+        global_safe['upload_media_to_bsp'] = PyscriptUtility.upload_media_to_bsp
         global_safe['upload_media_to_360dialog'] = PyscriptUtility.upload_media_to_360dialog
         global_safe['get_media_content'] = partial(PyscriptUtility.get_media_content, bot=bot)
         global_safe['fetch_media_ids'] = partial(PyscriptUtility.fetch_media_ids, bot=bot)

@@ -33,6 +33,8 @@ class StoryStepType(str, Enum):
     schedule_action = "SCHEDULE_ACTION"
     parallel_action = "PARALLEL_ACTION"
     voice_call_action = "VOICE_CALL_ACTION"
+    kairon_voice_disconnect = "KAIRON_VOICE_DISCONNECT"
+    store_page_action = "STORE_PAGE_ACTION"
 
 
 class StoryType(str, Enum):

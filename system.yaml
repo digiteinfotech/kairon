@@ -216,6 +216,9 @@ cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
 channels:
+  gupshup:
+    partner_email: ${GUPSHUP_PARTNER_EMAIL}
+    partner_password: ${GUPSHUP_PARTNER_PASSWORD}
   360dialog:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
@@ -306,3 +309,6 @@ crm:
     app_name: ${BENCH_APP_NAME:"frappe"}
     invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
     reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}
+
+store_page:
+  url: ${STORE_PAGE_URL}

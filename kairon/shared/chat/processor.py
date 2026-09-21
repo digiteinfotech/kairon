@@ -39,11 +39,11 @@ class ChatDataProcessor:
                 raise AppException("Email configuration already exists for same email address and subject")
             input_interval = configuration["config"]["interval"]
             system_interval = int(Utility.environment['integrations']["email"]['interval'])
-            EventUtility.validate_cron(input_interval,system_interval)
+            EventUtility.validate_cron(input_interval, system_interval)
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
-            channel.config = ChatDataProcessor.__validate_config_for_update(channel,configuration["config"])
+            channel.config = ChatDataProcessor.__validate_config_for_update(channel, configuration["config"])
             primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
                 'is_primary') else False
         except DoesNotExist:
@@ -62,8 +62,7 @@ class ChatDataProcessor:
             if not MongoProcessor.is_voice_enabled(bot):
                 raise AppException("Voice is not enabled for this bot")
             endpoints = DataUtility.get_voice_channel_endpoints(channel)
-            channel.config.update(endpoints)
-            channel.save()
+            Channels.objects(id=channel.id).update_one(set__config={**channel.config, **endpoints})
             return {k: v for k, v in endpoints.items() if k in ("call_url", "status_url")}
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
@@ -91,6 +90,7 @@ class ChatDataProcessor:
             else:
                 merged[key] = val
         return merged
+
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
         filter_args = {"bot": bot, "connector_type": configuration['connector_type']}
@@ -236,7 +236,7 @@ class ChatDataProcessor:
         """
         campaign_id = None
         status = status_data.get('status')
-        msg_id = status_data.get('id')
+        msg_id = status_data.get('gs_id') or status_data.get('id')
 
         if msg_id and status in {"delivered", "read"}:
             campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
@@ -253,6 +253,7 @@ class ChatDataProcessor:
             bot=bot,
             user=user,
             recipient=recipient,
+            user_id=status_data.get('recipient_user_id'),
             campaign_id=campaign_id
         ).save()
 
@@ -355,7 +356,7 @@ class ChatDataProcessor:
         try:
             channel_config = ChatDataProcessor.get_channel_config(channel, bot)
             bsp_type = channel_config.get("config").get("bsp_type", "meta")
-            BusinessServiceProviderFactory.get_instance(bsp_type).delete_media_file(media_id, channel_config)
+            BusinessServiceProviderFactory.get_instance(bsp_type).delete_media_file(bot, media_id, channel_config)
             return "File deleted from meta"
         except DoesNotExist as e:
             logger.error(

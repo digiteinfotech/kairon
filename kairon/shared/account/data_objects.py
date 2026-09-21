@@ -71,6 +71,12 @@ class User(Auditlog):
         elif self.onboarding_status not in [status.value for status in ONBOARDING_STATUS]:
             raise ValidationError(f"{self.onboarding_status} is not a valid status")
 
+@auditlogger.log
+class UserSettings(Auditlog):
+    user = StringField(required=True)
+    default_bot = StringField(default=None)
+    is_fav = ListField(default=[])
+
 
 class BotMetaData(EmbeddedDocument):
     source_language = StringField(default=None)
@@ -160,6 +166,8 @@ class MailTemplates(EmbeddedDocument):
     button_template = StringField()
     leave_bot_owner_notification = StringField()
     catalog_sync_status = StringField()
+    password_reset_unverified = StringField()
+    action_failure = StringField()
 
 
 class SystemProperties(Document):
@@ -204,5 +212,4 @@ class Organization(Auditlog):
     timestamp = DateTimeField(default=datetime.utcnow)
     create_user = BooleanField(default=True)
     only_sso_login = BooleanField(default=False)
-
     meta = {"strict": False, "indexes": [{"fields": ["account", "name"]}]}

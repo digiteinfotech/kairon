@@ -4,11 +4,14 @@ from calendar import timegm
 from datetime import datetime, timedelta, timezone
 from typing import Text
 
+from uuid6 import uuid7
+
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import SecurityScopes
 from jwt import PyJWTError, encode
 from loguru import logger
 from mongoengine import DoesNotExist
+
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
@@ -50,6 +53,11 @@ class Authentication:
         )
         try:
             payload = Utility.decode_limited_access_token(token)
+            jti = payload.get("jti")
+            if jti and payload.get("type") == TOKEN_TYPE.LOGIN.value:
+                from kairon.shared.authorization.data_objects import UserSessions
+                if UserSessions.objects(jti=jti).first():
+                    raise credentials_exception
             username: str = payload.get("sub")
             Authentication.validate_limited_access_token(request, payload.get("access-limit"))
             if username is None:
@@ -148,6 +156,97 @@ class Authentication:
         return claims
 
     @staticmethod
+    def create_store_page_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.STORE_PAGE.value,
+                                token_expire: int = 15, access_limit: list = None):
+        from kairon.shared.data.data_objects import BotSettings
+        bot_settings = BotSettings.objects(bot=str(data.get("bot"))).get()
+        store_page_token_expiry = bot_settings.store_page_token_expiry
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        to_encode = data.copy()
+        if store_page_token_expiry:
+            expire = datetime.utcnow() + timedelta(minutes=store_page_token_expiry)
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=token_expire)
+        to_encode.update({"exp": expire})
+        if to_encode.get("iat") is None:
+            to_encode.update({"iat": datetime.utcnow()})
+        to_encode.update({"jti": str(uuid7())})
+
+        if access_limit:
+            to_encode["access-limit"] = access_limit
+        to_encode.update({"type": token_type})
+        encoded = Authentication.encrypt_token_claims(to_encode)
+        encoded_jwt = encode(encoded, secret_key, algorithm=algorithm)
+        return encoded_jwt
+
+    @staticmethod
+    async def get_current_user_or_store_page_token(
+        security_scopes: SecurityScopes,
+        request: Request,
+        token: str = Depends(DataUtility.oauth2_scheme),
+    ):
+        raw_token = (request.headers.get("authorization") or token or "")
+        if raw_token.lower().startswith("bearer "):
+            raw_token = raw_token[7:]
+        if raw_token:
+            try:
+                claims = Utility.decode_limited_access_token(raw_token)
+                if claims.get("type") == TOKEN_TYPE.STORE_PAGE.value:
+                    return Authentication.validate_store_page_token(request)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid token: {e}"
+                )
+        return await Authentication.get_current_user_and_bot(security_scopes, request, token)
+
+    @staticmethod
+    def validate_store_page_token(request: Request):
+        from kairon.shared.data.data_objects import CustomerDetails
+        token = (request.query_params.get("authorization") or
+                 request.headers.get("authorization", ""))
+        if token.lower().startswith("bearer "):
+            token = token[7:]
+        bot = request.path_params.get("bot")
+        if not token:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Store page token is missing"
+            )
+        try:
+            claims = Utility.decode_limited_access_token(token)
+        except PyJWTError:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail="Store page token is invalid or has expired"
+            )
+
+        if claims.get("type") != TOKEN_TYPE.STORE_PAGE.value:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token type '{claims.get('type')}'; expected store_page token"
+            )
+
+        Authentication.validate_limited_access_token(request, claims.get("access-limit"))
+
+        if claims.get("bot") != bot:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token is not valid for this bot",
+            )
+
+        try:
+            customer = CustomerDetails.objects(bot=bot, sender_id=claims.get("sub")).get()
+        except DoesNotExist:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Sender is not registered for this bot",
+            )
+
+        return customer
+
+    @staticmethod
     def create_access_token(*, data: dict, token_type: TOKEN_TYPE = TOKEN_TYPE.LOGIN.value, token_expire: int = 0):
         access_token_expire_minutes = Utility.environment['security']["token_expire"]
         secret_key = Utility.environment['security']["secret_key"]
@@ -167,6 +266,7 @@ class Authentication:
             to_encode.update({"exp": expire})
             if to_encode.get("iat") is None:
                 to_encode.update({"iat": datetime.utcnow()})
+            to_encode.update({"jti": str(uuid7())})
         to_encode.update({"type": token_type})
         to_encode = Authentication.encrypt_token_claims(to_encode)
         encoded_jwt = encode(to_encode, secret_key, algorithm=algorithm)
@@ -239,6 +339,20 @@ class Authentication:
             metric_type = UserActivityType.login_refresh_token.value
         UserActivityLogger.add_log(a_type=metric_type, account=user["account"], email=username, data={"username": username})
         return access_token, access_token_expiry.timestamp(), refresh_token, refresh_token_expiry.timestamp()
+
+    @staticmethod
+    def logout(token: str, user: str):
+        from kairon.shared.authorization.data_objects import UserSessions
+        payload = Utility.decode_limited_access_token(token)
+        jti = payload.get("jti")
+        if jti:
+            exp = payload.get("exp")
+            expires_at = (
+                datetime.utcfromtimestamp(exp)
+                if exp
+                else datetime.utcnow() + timedelta(minutes=Utility.environment["security"]["token_expire"])
+            )
+            UserSessions(jti=jti, user=user, expires_at=expires_at).save()
 
     @staticmethod
     def validate_limited_access_token(request: Request, access_limit: list):

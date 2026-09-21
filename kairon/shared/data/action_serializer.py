@@ -8,14 +8,15 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, KaironTwoStageFallbackAction, EmailActionConfig, \
     ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, PipedriveLeadsAction, \
     PromptAction, WebSearchAction, RazorpayAction, PyscriptActionConfig, DatabaseAction, LiveAgentActionConfig, \
-    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction
+    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction, StorePageAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
     JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, PipedriveActionRequest, \
     RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
-    CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest, VoiceCallActionRequest
+    CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest, VoiceCallActionRequest, \
+    StorePageActionRequest
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
@@ -125,6 +126,10 @@ class ActionSerializer:
         ActionType.voice_call_action.value: {
             "db_model": VoiceCallAction,
             "validation_model": VoiceCallActionRequest,
+        },
+        ActionType.store_page_action.value: {
+            "db_model": StorePageAction,
+            "validation_model": StorePageActionRequest,
         },
         str(CallbackConfig.__name__).lower(): {
             "db_model": CallbackConfig,
@@ -306,6 +311,11 @@ class ActionSerializer:
             if actions:
                 action_config[action_type] = actions
 
+        if Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).count() > 0:
+            action_config[ActionType.kairon_voice_disconnect.value] = [
+                {"name": ActionType.kairon_voice_disconnect.value}
+            ]
+
         for other_type, other_info in other_collections.items():
             other_model = other_info.get("db_model")
             other_collections = ActionSerializer.get_action_config_data_list(bot, other_model)
@@ -372,6 +382,17 @@ class ActionSerializer:
             for action_type, data in filtered_actions.items():
                 if data:
                     ActionSerializer.save_collection_data_list(action_type, bot, user, data)
+
+            if ActionType.kairon_voice_disconnect.value in actions:
+                if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+                    Actions(
+                        name=ActionType.kairon_voice_disconnect.value,
+                        type=ActionType.kairon_voice_disconnect.value,
+                        bot=bot,
+                        user=user,
+                        status=True,
+                    ).save()
+
         if other_collections_data:
             ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
 

@@ -1283,7 +1283,7 @@ def test_get_data_success(mock_fetch):
     expected_query = {
         "bot": bot,
         "collection_name": collection_name.lower(),
-        "data.field": "value"
+        "filterable_attrs": {"$elemMatch": {"k": "field", "v": "value"}},
     }
 
     mock_fetch.assert_called_once_with(expected_query)
@@ -1313,7 +1313,7 @@ def test_get_data_with_datetime_kwargs(mock_fetch):
             "bot": bot,
             "collection_name": collection_name.lower(),
             "timestamp": {"$gte": expected_time},
-            "data.field": "value"
+            "filterable_attrs": {"$elemMatch": {"k": "field", "v": "value"}},
         }
 
         mock_fetch.assert_called_with(expected_query)
@@ -2108,7 +2108,7 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
     )
 
     source_code = '''
-        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
         bot_response = external_media_id
         '''
     source_code = textwrap.dedent(source_code)
@@ -2151,7 +2151,7 @@ def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2210,7 +2210,7 @@ def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffe
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2293,7 +2293,7 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2374,7 +2374,7 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
     )
 
     source_code = '''
-            external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+            external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
             bot_response = external_media_id
             '''
     source_code = textwrap.dedent(source_code)
@@ -2459,7 +2459,7 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
     )
 
     source_code = '''
-        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        external_media_id = upload_media_to_bsp("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
         bot_response = external_media_id
         '''
     source_code = textwrap.dedent(source_code)
@@ -2481,6 +2481,85 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
       },
       "body": "Script execution error: Failure Test Case Simulation"
     }
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_get_buffer):
+    expected_external_media_id = "abc123"
+    bot = "test_bot"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5aa",
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/test/test.pdf",
+        output_filename="user_media/test/test.pdf",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="himanshu.gupta_@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf",
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    source_code = '''
+        external_media_id = upload_media_to_360dialog("test_bot", "360dialog", "0196c9efbf547b81a66ba2af7b72d5aa")
+        bot_response = external_media_id
+        '''
+    source_code = textwrap.dedent(source_code)
+    event = {'source_code': source_code,
+             'predefined_objects':
+                 {'bot': 'test_bot', 'sender_id': '917506075263',
+                  'user_message': 'test',
+                  'slot': {},
+                  'intent': 'test'
+                  }
+             }
+    data = CallbackUtility.pyscript_handler(event, None)
+    assert data['statusCode'] == 200
+    assert data['body']['bot_response'] == expected_external_media_id
     UserMediaData.objects().delete()
     BotSettings.objects().delete()
     Channels.objects().delete()
@@ -4612,4 +4691,209 @@ def test_create_vector_collection_embedding_size_from_process_instruction():
         schema_meta_call = mock_schema_meta.call_args
         assert schema_meta_call.kwargs.get("size") == 2048
         assert schema_meta_call.kwargs.get("model_id") == "qwen/qwen3-embedding-4b"
+
+
+class TestGetOrderDetails:
+
+    def test_get_order_details_success(self):
+        order_data = {
+            "_id": "order_abc123",
+            "bot": "test_bot",
+            "status": "placed",
+            "order_details": {"items": [{"name": "Pizza", "qty": 2}]},
+            "additional_info": {},
+        }
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.get_order",
+            return_value=order_data,
+        ) as mock_get:
+            result = PyscriptSharedUtility.get_order_details(order_id="order_abc123", bot="test_bot")
+        mock_get.assert_called_once_with(bot="test_bot", order_id="order_abc123")
+        assert result == order_data
+
+    def test_get_order_details_missing_bot_raises(self):
+        with pytest.raises(Exception, match="Missing bot id"):
+            PyscriptSharedUtility.get_order_details(order_id="order_abc123")
+
+    def test_get_order_details_not_found_raises(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.get_order",
+            side_effect=AppException("Order not found"),
+        ):
+            with pytest.raises(AppException, match="Order not found"):
+                PyscriptSharedUtility.get_order_details(order_id="nonexistent", bot="test_bot")
+
+
+class TestGetCustomerDetails:
+
+    def test_get_customer_details_success(self):
+        customer_data = {
+            "_id": "cust_xyz",
+            "bot": "test_bot",
+            "sender_id": "***masked***",
+            "persona_type": "fnb",
+            "additional_info": {"name": "Alice"},
+        }
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.get_customer",
+            return_value=customer_data,
+        ) as mock_get:
+            result = PyscriptSharedUtility.get_customer_details(sender_id="enc_sender_id", bot="test_bot")
+        mock_get.assert_called_once_with(bot="test_bot", sender_id="enc_sender_id")
+        assert result == customer_data
+
+    def test_get_customer_details_missing_bot_raises(self):
+        with pytest.raises(Exception, match="Missing bot id"):
+            PyscriptSharedUtility.get_customer_details(sender_id="enc_sender_id")
+
+    def test_get_customer_details_not_found_raises(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.get_customer",
+            side_effect=AppException("Customer not found"),
+        ):
+            with pytest.raises(AppException, match="Customer not found"):
+                PyscriptSharedUtility.get_customer_details(sender_id="enc_sender_id", bot="test_bot")
+
+
+class TestUpsertCustomer:
+
+    def test_upsert_customer_success(self):
+        customer_data = {
+            "_id": "cust_001",
+            "bot": "test_bot",
+            "sender_id": "***masked***",
+            "persona_type": "fnb",
+            "additional_info": {"name": "Alice"},
+        }
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.upsert_customer",
+            return_value=customer_data,
+        ) as mock_upsert:
+            result = PyscriptSharedUtility.upsert_customer(
+                sender_id="enc_id", persona_type="fnb",
+                payload={"name": "Alice"}, bot="test_bot"
+            )
+        mock_upsert.assert_called_once_with(
+            bot="test_bot", sender_id="enc_id", persona_type="fnb", payload={"name": "Alice"}
+        )
+        assert result == customer_data
+
+    def test_upsert_customer_default_empty_payload(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.upsert_customer",
+            return_value={"_id": "cust_002"},
+        ) as mock_upsert:
+            PyscriptSharedUtility.upsert_customer(sender_id="enc_id", bot="test_bot")
+        mock_upsert.assert_called_once_with(
+            bot="test_bot", sender_id="enc_id", persona_type=None, payload={}
+        )
+
+    def test_upsert_customer_missing_bot_raises(self):
+        with pytest.raises(Exception, match="Missing bot id"):
+            PyscriptSharedUtility.upsert_customer(sender_id="enc_id")
+
+    def test_upsert_customer_propagates_app_exception(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.upsert_customer",
+            side_effect=AppException("Customer with this identifier already exists for this bot"),
+        ):
+            with pytest.raises(AppException, match="already exists"):
+                PyscriptSharedUtility.upsert_customer(
+                    sender_id="enc_id", bot="test_bot", payload={}
+                )
+
+
+class TestUpdateOrder:
+
+    def test_update_order_success(self):
+        updated_order = {
+            "_id": "order_001",
+            "bot": "test_bot",
+            "status": "placed",
+            "order_details": {"items": [{"name": "Burger", "qty": 1}], "amount": 150},
+            "additional_info": {"notes": "no onions"},
+        }
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order",
+            return_value=updated_order,
+        ) as mock_update:
+            result = PyscriptSharedUtility.update_order(
+                order_id="order_001",
+                payload={"order_details": {"items": [{"name": "Burger", "qty": 1}], "amount": 150},
+                         "additional_info": {"notes": "no onions"}},
+                bot="test_bot",
+            )
+        mock_update.assert_called_once_with(
+            bot="test_bot", order_id="order_001",
+            payload={"order_details": {"items": [{"name": "Burger", "qty": 1}], "amount": 150},
+                     "additional_info": {"notes": "no onions"}},
+        )
+        assert result == updated_order
+
+    def test_update_order_partial_payload(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order",
+            return_value={"_id": "order_002"},
+        ) as mock_update:
+            PyscriptSharedUtility.update_order(
+                order_id="order_002",
+                payload={"additional_info": {"delivery": "asap"}},
+                bot="test_bot",
+            )
+        mock_update.assert_called_once_with(
+            bot="test_bot", order_id="order_002",
+            payload={"additional_info": {"delivery": "asap"}},
+        )
+
+    def test_update_order_missing_bot_raises(self):
+        with pytest.raises(Exception, match="Missing bot id"):
+            PyscriptSharedUtility.update_order(order_id="order_001", payload={})
+
+    def test_update_order_not_found_raises(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order",
+            side_effect=AppException("Order not found"),
+        ):
+            with pytest.raises(AppException, match="Order not found"):
+                PyscriptSharedUtility.update_order(
+                    order_id="nonexistent", payload={}, bot="test_bot"
+                )
+
+
+class TestUpdateOrderStatus:
+    def test_update_order_status_success(self):
+        expected = {"order_id": "order_001", "status": "confirmed"}
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order_status",
+            return_value=expected,
+        ) as mock_fn:
+            result = PyscriptSharedUtility.update_order_status(
+                order_id="order_001", new_status="confirmed", bot="test_bot"
+            )
+            mock_fn.assert_called_once_with(bot="test_bot", order_id="order_001", new_status="confirmed")
+            assert result == expected
+
+    def test_update_order_status_missing_bot_raises(self):
+        with pytest.raises(Exception, match="Missing bot id"):
+            PyscriptSharedUtility.update_order_status(order_id="order_001", new_status="confirmed")
+
+    def test_update_order_status_invalid_transition_raises(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order_status",
+            side_effect=AppException("Invalid transition: placed → completed. Allowed: ['confirmed', 'cancelled']"),
+        ):
+            with pytest.raises(AppException, match="Invalid transition"):
+                PyscriptSharedUtility.update_order_status(
+                    order_id="order_001", new_status="completed", bot="test_bot"
+                )
+
+    def test_update_order_status_not_found_raises(self):
+        with patch(
+            "kairon.shared.data.customer_order_processor.CustomerOrderProcessor.update_order_status",
+            side_effect=AppException("Order not found"),
+        ):
+            with pytest.raises(AppException, match="Order not found"):
+                PyscriptSharedUtility.update_order_status(
+                    order_id="nonexistent", new_status="confirmed", bot="test_bot"
+                )
 

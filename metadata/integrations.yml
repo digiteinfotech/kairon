@@ -58,6 +58,19 @@ channels:
     optional_fields:
       - phone_number_id
     business_providers:
+      gupshup:
+        partner_base_url: "https://partner.gupshup.io"
+        auth_header: "token"
+        required_fields:
+          - client_name
+        optional_fields:
+          - client_id
+          - channel_id
+          - api_key
+        disabled_fields:
+          - client_id
+          - channel_id
+          - api_key
       360dialog:
         required_fields:
           - client_name
@@ -102,11 +115,11 @@ voice_channels:
       - phone_number
     optional_fields:
       - voice_type
-      - voice_types
       - language
       - welcome_message
       - speech_timeout
       - reprompt_fallback_phrase
+      - timeout_message
     disabled_fields:
       - call_url
       - status_url

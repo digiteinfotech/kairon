@@ -68,7 +68,14 @@ class PyscriptSharedUtility:
         if data_filter.get("raw_query"):
             query.update(data_filter.get("raw_query"))
         else:
-            query.update({f"data.{key}": value for key, value in data_filter.items()})
+            attr_filters = [
+                {"filterable_attrs": {"$elemMatch": {"k": key, "v": value}}}
+                for key, value in data_filter.items() if key and value
+            ]
+            if len(attr_filters) > 1:
+                query["$and"] = attr_filters
+            elif attr_filters:
+                query.update(attr_filters[0])
         data = list(PyscriptSharedUtility.fetch_collection_data(query))
         return {"data": data}
 
@@ -119,6 +126,42 @@ class PyscriptSharedUtility:
             "message": f"Collection with ID {collection_id} has been successfully deleted.",
             "data": {"_id": collection_id}
         }
+
+    @staticmethod
+    def get_order_details(order_id: str, bot: Text = None) -> dict:
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
+        return CustomerOrderProcessor.get_order(bot=bot, order_id=order_id)
+
+    @staticmethod
+    def get_customer_details(sender_id: str, bot: Text = None) -> dict:
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
+        return CustomerOrderProcessor.get_customer(bot=bot, sender_id=sender_id)
+
+    @staticmethod
+    def upsert_customer(sender_id: str, persona_type: str = None, payload: dict = None, bot: Text = None) -> dict:
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
+        return CustomerOrderProcessor.upsert_customer(bot=bot, sender_id=sender_id,
+                                                      persona_type=persona_type, payload=payload or {})
+
+    @staticmethod
+    def update_order(order_id: str, payload: dict, bot: Text = None) -> dict:
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
+        return CustomerOrderProcessor.update_order(bot=bot, order_id=order_id, payload=payload)
+
+    @staticmethod
+    def update_order_status(order_id: str, new_status: str, bot: Text = None) -> dict:
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.shared.data.customer_order_processor import CustomerOrderProcessor
+        return CustomerOrderProcessor.update_order_status(bot=bot, order_id=order_id, new_status=new_status)
 
     @staticmethod
     def delete_schedule_job(event_id: Text, bot: Text):

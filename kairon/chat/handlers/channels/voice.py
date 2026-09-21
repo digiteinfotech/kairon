@@ -8,6 +8,7 @@ from starlette.requests import Request
 from kairon.chat.agent_processor import AgentProcessor
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
@@ -24,6 +25,7 @@ class VoiceOutput(OutputChannel):
     def __init__(self):
         """Initialise empty message accumulator for the voice turn."""
         self._messages: list = []
+        self._should_hangup: bool = False
 
     async def send_text_message(self, recipient_id: Text, text: Text, **kwargs):
         self._messages.append(text)
@@ -40,15 +42,21 @@ class VoiceOutput(OutputChannel):
         pass
 
     async def send_custom_json(self, recipient_id: Text, json_message, **kwargs):
-        text = json_message.get("text") or json_message.get("data", {}).get("text")
-        if text:
-            self._messages.append(text)
+        if json_message.get("disconnect"):
+            self._should_hangup = True
+        else:
+            text = json_message.get("text") or json_message.get("data", {}).get("text")
+            if text:
+                self._messages.append(text)
 
     def get_accumulated_text(self) -> Text:
         return " ".join(self._messages)
 
     def get_messages(self) -> list:
         return list(self._messages)
+
+    def should_hangup(self) -> bool:
+        return self._should_hangup
 
 
 class VoiceHandler(InputChannel, ChannelHandlerBase):
@@ -90,39 +98,96 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
             logger.warning("Invalid %s signature on /call — bot=%s provider=%s", self.provider, self.bot, self.provider)
             raise HTTPException(status_code=403, detail=f"Invalid {self.provider} signature")
 
-        call_status = form.get("CallStatus", "")
         speech_result = form.get("SpeechResult", "")
         sender_id = form.get("CallSid", "anonymous")
 
-        if call_status == "ringing" and not speech_result:
-            text = config.get("welcomeMessage", "Hello! How can I help you?")
-        elif speech_result:
-            text = speech_result
-        else:
-            text = None
+        metadata = {
+            "is_integration_user": True,
+            "bot": self.bot,
+            "account": self.user.account,
+            "channel_type": ChannelTypes.VOICE.value,
+            "tabname": "default",
+            "caller_phone": form.get("Called", form.get("To", "")),
+            "call_sid": sender_id,
+        }
 
-        out_channel = VoiceOutput()
-        if text is not None:
-            metadata = {
-                "is_integration_user": True,
-                "bot": self.bot,
-                "account": self.user.account,
-                "channel_type": ChannelTypes.VOICE.value,
-                "tabname": "default",
-            }
-            user_msg = UserMessage(
-                text=text,
-                output_channel=out_channel,
+        if not speech_result:
+            has_history = await self._has_prior_conversation(sender_id)
+            if not has_history:
+                welcome = config.get("welcome_message", "Hello! How can I help you?")
+                await self._record_welcome_conversation(sender_id, welcome, metadata, form)
+                return provider_impl.build_voice_response([welcome], config["call_url"])
+
+            noinput_count = await self._count_noinput(sender_id)
+            max_attempts = int(config.get("max_noinput_attempts", 1))
+
+            if noinput_count >= max_attempts:
+                timeout_msg = config.get(
+                    "timeout_message",
+                    "We didn't hear from you. Thanks for your time. Goodbye."
+                )
+                return provider_impl.build_hangup_response([timeout_msg])
+
+            noinput_channel = VoiceOutput()
+            noinput_msg = UserMessage(
+                text="noinput",
+                output_channel=noinput_channel,
                 sender_id=sender_id,
                 input_channel=self.name(),
                 metadata=metadata,
             )
-            await AgentProcessor.handle_channel_message(self.bot, user_msg)
-            messages = out_channel.get_messages()
-        else:
+            await AgentProcessor.handle_channel_message(self.bot, noinput_msg)
+            if noinput_channel.should_hangup():
+                messages = noinput_channel.get_messages() or [config.get(
+                    "timeout_message",
+                    "We didn't hear from you. Thanks for your time. Goodbye."
+                )]
+                return provider_impl.build_hangup_response(messages)
             messages = await self._get_reprompt(sender_id, config)
+            return provider_impl.build_voice_response(messages, config["call_url"])
+
+        out_channel = VoiceOutput()
+        user_msg = UserMessage(
+            text=speech_result,
+            output_channel=out_channel,
+            sender_id=sender_id,
+            input_channel=self.name(),
+            metadata=metadata,
+        )
+        await AgentProcessor.handle_channel_message(self.bot, user_msg)
+        messages = out_channel.get_messages()
+
+        if out_channel.should_hangup():
+            return provider_impl.build_hangup_response(messages)
 
         return provider_impl.build_voice_response(messages, config["call_url"])
+
+    async def _has_prior_conversation(self, sender_id: Text) -> bool:
+        """Check ChannelLogs for a welcome_sent entry — true means this call was already greeted."""
+        try:
+            return ChannelLogs.objects(
+                bot=self.bot, message_id=sender_id,
+                type=ChannelTypes.VOICE.value, status="welcome_sent"
+            ).count() > 0
+        except Exception:
+            return False
+
+    async def _count_noinput(self, sender_id: Text) -> int:
+        from rasa.shared.core.events import UserUttered
+        try:
+            agent = AgentProcessor.get_agent(self.bot)
+            tracker = await agent.tracker_store.retrieve(sender_id)
+            if not tracker:
+                return 0
+            count = 0
+            for event in reversed(tracker.events):
+                if isinstance(event, UserUttered) and event.text == "noinput":
+                    count += 1
+                elif isinstance(event, UserUttered):
+                    break
+            return count
+        except Exception:
+            return 0
 
     async def _get_reprompt(self, sender_id: Text, config: dict) -> List[str]:
         from rasa.shared.core.events import BotUttered
@@ -139,6 +204,19 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
         except Exception:
             pass
         return [fallback]
+
+    async def _record_welcome_conversation(self, sender_id: Text, welcome_msg: Text, metadata: dict, form: dict) -> None:
+        try:
+            ChannelLogs(
+                type=ChannelTypes.VOICE.value,
+                status="welcome_sent",
+                message_id=sender_id,
+                bot=self.bot,
+                user=self.user.get_user(),
+                data={**form, "provider": self.provider},
+            ).save()
+        except Exception:
+            pass
 
     async def handle_call_status(self) -> None:
         provider_impl, config = self._load_provider()

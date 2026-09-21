@@ -3,6 +3,7 @@ from mongoengine import Document, StringField, DateTimeField, DynamicDocument, E
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
 from kairon import Utility
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification
 from datetime import datetime
@@ -111,6 +112,7 @@ class MessageBroadcastSettings(Auditlog):
     collection_config = DictField(default=dict)
     pyscript = StringField()
     flowname = StringField()
+    bsp_type = StringField(default=WhatsappBSPTypes.bsp_360dialog.value)
     template_name = StringField(default=None)
     language_code = StringField(default=None)
     retry_count = IntField(default=0)

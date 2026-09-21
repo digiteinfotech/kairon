@@ -46,8 +46,6 @@ class WhatsappCloud(object):
 
         self.access_token = access_token
         self.from_phone_number_id = kwargs.get('from_phone_number_id')
-        if self.client_type == "meta" and Utility.check_empty_string(self.from_phone_number_id):
-            raise AppException("missing parameter 'from_phone_number_id'")
         self.session = kwargs.get('session', requests.Session())
         self.api_version = kwargs.get('api_version', DEFAULT_API_VERSION)
         self.app = 'https://graph.facebook.com/v{api_version}'.format(api_version=self.api_version)
@@ -57,6 +55,10 @@ class WhatsappCloud(object):
     @property
     def client_type(self):
         return "meta"
+
+    @staticmethod
+    def _recipient_field(to_phone_number: str) -> str:
+        return "recipient" if "." in to_phone_number else "to"
 
     @property
     def auth_args(self):
@@ -88,10 +90,10 @@ class WhatsappCloud(object):
         body = {
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number,
             "type": messaging_type,
             messaging_type: payload
         }
+        body[self._recipient_field(to_phone_number)] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -118,10 +120,10 @@ class WhatsappCloud(object):
         body = {
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number,
             "type": messaging_type,
             messaging_type: payload
         }
+        body[self._recipient_field(to_phone_number)] = to_phone_number
 
         if tag:
             body['tag'] = tag
@@ -141,7 +143,7 @@ class WhatsappCloud(object):
         payload.update({
             'messaging_product': "whatsapp",
             'recipient_type': recipient_type,
-            "to": to_phone_number
+            self._recipient_field(to_phone_number): to_phone_number
         })
 
         return self.send_action(payload)
@@ -154,6 +156,8 @@ class WhatsappCloud(object):
                 timeout: request timeout
             @outputs: response json
         """
+        if self.client_type == "meta" and Utility.check_empty_string(self.from_phone_number_id):
+            raise AppException("missing parameter 'from_phone_number_id'")
         r = self.session.post(
             '{app}/{from_phone_number_id}/messages'.format(app=self.app, from_phone_number_id=self.from_phone_number_id),
             params=self.auth_args,
@@ -223,6 +227,10 @@ class WhatsappCloud(object):
             payload.update({"components": components})
         return await self.send_async(payload, to_phone_number, messaging_type="template")
 
+    async def send_broadcast_template_async(self, template_id: str, recipient: str,
+                                            language_code: str, components, namespace: str = None):
+        return await self.send_template_message_async(template_id, recipient, language_code, components, namespace)
+
     async def send_action_async(self, payload: dict, timeout: float = WHATSAPP_REQUEST_TIMEOUT, attempts: int = 3,
                                 **kwargs) -> (bool, int, dict):
         """
@@ -236,6 +244,8 @@ class WhatsappCloud(object):
                 status_code: response status code
                 response: response json
         """
+        if self.client_type == "meta" and Utility.check_empty_string(self.from_phone_number_id):
+            raise AppException("missing parameter 'from_phone_number_id'")
         last_status_code = 500
         last_response = None
         try:
@@ -264,7 +274,7 @@ class WhatsappCloud(object):
         except Exception as e:
             return False, last_status_code, {"error": str(e), "response": last_response}
 
-    def get_media_info(self, whatsapp_media_id, config):
+    def get_media_info(self, whatsapp_media_id, config, media_data=None):
         import mimetypes
 
         endpoint = f"{self.app}/{whatsapp_media_id}"

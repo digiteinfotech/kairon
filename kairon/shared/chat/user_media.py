@@ -19,6 +19,7 @@ from kairon.shared.actions.data_objects import Actions, PromptAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.data_objects import UserMediaData, Rules, Intents
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
@@ -126,6 +127,7 @@ class UserMedia:
                                                        output_filename=output_filename,
                                                        filesize=filesize)
             logger.info(f"saved {media_id} successfully")
+            return url
         except ClientError as e:
             logger.exception(e)
             UserMedia.mark_user_media_data_upload_failed(media_id=media_id, reason=str(e))
@@ -136,49 +138,30 @@ class UserMedia:
             raise AppException(f"File upload for {media_id} failed")
 
     @staticmethod
-    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict):
+    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict, user_id: str = None, media_data: dict = None):
         """
-        Download media from 360 dialog or meta and save it to cloud storage via background task.
+        Download media from 360dialog, meta, or gupshup and save it to cloud storage via background task.
         :param bot: bot name
         :param sender_id: sender id
         :param whatsapp_media_id: whatsapp media id
-        :param config: configuration for 360 dialog or meta
+        :param config: channel config (bsp_type determines which provider path is used)
         :return: list of media ids
         """
-        download_url = None
-        file_path = None
-        headers = {}
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+
         provider = config.get("bsp_type", "meta")
-        if provider == '360dialog':
-            endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
-            headers = {
-                'D360-API-KEY': config.get('api_key'),
-            }
-            resp = requests.get(endpoint, headers=headers, stream=True)
-            if resp.status_code != 200:
-                raise AppException(f"Failed to download media from 360 dialog: {resp.status_code} - {resp.text}")
-            json_resp = resp.json()
-            download_url = json_resp.get("url")
-            download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
-        elif provider == 'meta':
-            endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
-            access_token = config.get('access_token')
-            headers = {'Authorization': f'Bearer {access_token}'}
-            media_info_resp = requests.get(
-                endpoint,
-                params={"fields": "url", "access_token": access_token},
-                timeout=10
-            )
-            if media_info_resp.status_code != 200:
-                raise AppException(f"Failed to get url from meta for media: {whatsapp_media_id}")
-            json_resp = media_info_resp.json()
-            download_url = json_resp.get("url")
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whatsapp_meta_{whatsapp_media_id}{extension}"
+        access_token_key_map = {
+            "meta": "access_token",
+            WhatsappBSPTypes.bsp_360dialog.value: "api_key",
+            WhatsappBSPTypes.bsp_gupshup.value: "partner_app_token",
+        }
+        access_token = config.get(access_token_key_map.get(provider, "access_token"))
+        client = WhatsappFactory.get_client(provider)
+        download_url, headers, file_path = client(
+            access_token=access_token,
+            from_phone_number_id=config.get("from_phone_number_id"),
+            config=config
+        ).get_media_info(whatsapp_media_id, config, media_data=media_data)
 
         media_resp = requests.get(
             download_url,
@@ -200,7 +183,8 @@ class UserMedia:
             media_id=media_id,
             filename=file_path,
             sender_id=sender_id,
-            upload_type=UserMediaUploadType.user_uploaded.value)
+            upload_type=UserMediaUploadType.user_uploaded.value,
+            user_id=user_id)
 
         def background_task():
             try:
@@ -551,6 +535,20 @@ class UserMedia:
             raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
 
     @staticmethod
+    def get_media_handle_id(bot: str, media_id: str):
+        try:
+            obj = UserMediaData.objects.get(
+                bot=bot,
+                media_id=media_id
+            )
+            media_data = obj.to_mongo().to_dict()
+            handle_id = media_data.get('external_upload_info', {}).get('handle_id')
+
+            return handle_id
+        except Exception as e:
+            raise AppException(f"Failed to get media handle_id:{str(e)}")
+
+    @staticmethod
     def delete_media(bot, media_id: str, bucket: str = None):
         """
         Deletes a media file from the database and S3.
@@ -580,6 +578,7 @@ class UserMedia:
             filename: str,
             extension: str,
             filesize: int,
+            bsp_type: str = WhatsappBSPTypes.bsp_360dialog.value,
     ) -> UserMediaData:
         """
         Create a media document in pending state, return the instance so it can be updated later.
@@ -598,7 +597,7 @@ class UserMedia:
             sender_id=sender_id,
             bot=bot,
             external_upload_info={
-                "bsp": "360dialog",
+                "bsp": bsp_type,
                 "external_media_id": "",
                 "error": "",
             },
@@ -640,7 +639,8 @@ class UserMedia:
             sender_id: str,
             whatsapp_media_id: str,
             config: dict,
-            description: str = None
+            description: str = None,
+            user_id: str = None
     ):
         """
         Download WhatsApp media, upload to S3, save DB, and return S3 URL
@@ -649,7 +649,12 @@ class UserMedia:
 
         file_path = None
         provider = config.get("bsp_type", "meta")
-        access_token = config.get("access_token") if provider == "meta" else config.get("api_key")
+        if provider == "meta":
+            access_token = config.get("access_token")
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
+            access_token = config.get("partner_app_token")
+        else:
+            access_token = config.get("api_key")
         from_phone_number_id = config.get("from_phone_number_id")
         client = WhatsappFactory.get_client(provider)
         download_url, headers, file_path = client(
@@ -683,6 +688,7 @@ class UserMedia:
                 "phone_number": sender_id,
                 "description": description
             },
+            user_id=user_id,
         )
 
         def background_task():
