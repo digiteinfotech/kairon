@@ -2968,4 +2968,5 @@ class MailUtility:
         body = body.replace("SLOT_VALUES", str(slot_values))
         body = body.replace("ACTION_URL", str(url))
         subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
+        subject = subject.replace("BOT_NAME", bot_name)
         return body, subject

@@ -1477,8 +1477,7 @@ class TestUtility:
             .replace("ACTION_URL", str(url))
         )
 
-        expected_subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
-
+        expected_subject = (Utility.email_conf["email"]["templates"]["action_failure_subject"].replace("BOT_NAME", bot_name))
         await MailUtility.format_and_send_mail(
             mail_type=mail_type,
             email=email,
