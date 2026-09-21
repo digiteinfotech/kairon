@@ -1,8 +1,10 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
+
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
@@ -20,6 +22,7 @@ from kairon.shared.constants import DESIGNER_ACCESS
 from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollectionDataRequest
 from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
+from kairon.shared.data.data_objects import CustomerDetails
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User, VaultSyncType
 from kairon.shared.utils import Utility
@@ -263,61 +266,67 @@ async def delete_collection_data(
 
 @router.get("/collection", response_model=Response)
 async def list_collection_data(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data of the bot
     """
-    return {"data": list(DataProcessor.list_collection_data(current_user.get_bot()))}
+    return {"data": list(DataProcessor.list_collection_data(bot))}
 
 
 @router.get("/collection/{collection_name}/metadata", response_model=Response)
 async def get_collection_metadata(
+        bot: str,
         collection_name: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data of the bot
     """
-    return {"data": DataProcessor.get_crud_metadata(bot=current_user.get_bot(), collection_name=collection_name)}
+    return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
+        bot: str,
         collection_name: str,
         key: List[str] = Query([]), value: List[str] = Query([]),
         start_idx: int = 0, page_size: int = 10,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    data = list(DataProcessor.get_collection_data(current_user.get_bot(),
+    data = list(DataProcessor.get_collection_data(bot,
                                                   collection_name=collection_name,
                                                   key=key, value=value, start_idx=start_idx,
                                                   page_size=page_size))
-    query = {
-        "bot": current_user.get_bot(),
-        "collection_name": collection_name.lower()
-    }
-    query.update({
-        f"data__{k}": v for k, v in zip(key, value) if k and v
-    })
-    total = CollectionData.objects(**query).count()
+    attr_filters = [
+        {"filterable_attrs": {"$elemMatch": {"k": k, "v": v}}}
+        for k, v in zip(key, value) if k and v
+    ]
+    raw_query = {"bot": bot, "collection_name": collection_name.lower()}
+    if len(attr_filters) > 1:
+        raw_query["$and"] = attr_filters
+    elif attr_filters:
+        raw_query.update(attr_filters[0])
+    total = CollectionData.objects(__raw__=raw_query).count()
     return {"data": {"logs": data, "total": total}}
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
 async def get_collection_data_with_timestamp(
+        bot: str,
         collection_name: str,
         filters = Query(default='{}'),
         start_time: str = Query(default=None),
         end_time: str = Query(default=None),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
+    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=bot,
                                                                                    data_filter=filters,
                                                                                  collection_name=collection_name,
                                                                                    start_time=start_time,
@@ -326,36 +335,39 @@ async def get_collection_data_with_timestamp(
 
 @router.get("/collection/data/{collection_id}", response_model=Response)
 async def get_collection_data_with_id(
+        bot: str,
         collection_id: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the collection_id provided
     """
-    return {"data": DataProcessor.get_collection_data_with_id(current_user.get_bot(),
+    return {"data": DataProcessor.get_collection_data_with_id(bot,
                                                                     collection_id=collection_id)}
 
 @router.get("/collections/all", response_model=Response)
 async def get_all_collections(
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
 ):
     """
     List all collection names for the bot.
     """
-    names = DataProcessor.get_all_collections(current_user.get_bot())
+    names = DataProcessor.get_all_collections(bot)
     return Response(data=names)
 
 @router.get("/collections/{collection_name}/filter/count", response_model=Response)
 async def get_collection_filter_count(
+    bot: str,
     collection_name: str,
     filters: Optional[str] = Query(None),
-    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+    current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
 ):
     """
     Count of filtered records
     """
     count = DataProcessor.get_collection_filter_data_count(
-        current_user.get_bot(),
+        bot,
         collection_name,
         filters
     )
@@ -608,7 +620,18 @@ async def get_media_ids(
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     try:
-        media_ids = UserMedia.get_media_ids(current_user.get_bot())
+        media_ids = MessageBroadcastProcessor.fetch_media_ids(current_user.get_bot(), current_user.get_user())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")
+
+
+@router.get("/broadcast/media/ids", response_model=Response)
+async def get_whatsapp_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = MessageBroadcastProcessor.fetch_broadcast_media_ids(current_user.get_bot(), current_user.get_user())
         return Response(message="List of media ids", data=media_ids)
     except Exception as e:
         raise AppException(f"Error while fetching media ids: {str(e)}")
@@ -638,3 +661,12 @@ async def fetch_media_url(
     media_url = CloudUtility.get_s3_media_url(filename, current_user.get_bot())
     return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
                                                                         "filename": f"{filename}"})
+
+
+@router.get("/fetch_handle_id/{media_id}")
+async def fetch_media_handle_id(
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_handle_id = UserMedia.get_media_handle_id(current_user.get_bot(), media_id)
+    return Response(message="Successfully fetched media details", data={"handle_id": media_handle_id})

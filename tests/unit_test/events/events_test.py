@@ -1292,6 +1292,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         logs[0][2].pop('timestamp')
         print(logs[0][2])
@@ -1479,6 +1480,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         print(logs[0][1])
         assert logs[0][1] == {
@@ -1676,6 +1678,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         print(logs[0][1])
         assert logs[0][1] == {
@@ -1878,6 +1881,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         print(logs[0][1])
         assert logs[0][1] == {
@@ -2075,6 +2079,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         print(logs[0][1])
         assert logs[0][1] == {
@@ -2272,6 +2277,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert logged_config == config
         print(logs[0][1])
         assert logs[0][1] == {
@@ -2757,6 +2763,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         config['collection_config'] = {}
         assert logged_config == config
         assert logs[0][1] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_message_broadcast', 'status': 'Completed',
@@ -2869,6 +2876,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         config['collection_config'] = {}
         assert logged_config == config
         assert logs[0][2] == {"event_id": event_id, 'log_type': 'common', 'bot': 'test_execute_dynamic_message_broadcast',
@@ -2953,6 +2961,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         assert not logged_config.pop("recipients_config")
         config.pop("recipients_config")
         config['collection_config'] = {}
@@ -3054,6 +3063,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         config['collection_config'] = {}
         assert logged_config == config
         exception = logs[0][0].pop("exception")
@@ -3187,6 +3197,7 @@ class TestEventExecution:
         reference_id = logs[0][1].pop("reference_id")
         logged_config = logs[0][1].pop("config")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
@@ -3358,6 +3369,7 @@ class TestEventExecution:
 
         logged_config.pop("status")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         logged_config.pop("timestamp")
         logged_config.pop("_id")
         config['collection_config'] = {}
@@ -3618,6 +3630,7 @@ class TestEventExecution:
 
         logged_config.pop("status")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         logged_config.pop("timestamp")
         logged_config.pop("_id")
         logged_config['collection_config'] = {}
@@ -3771,6 +3784,7 @@ class TestEventExecution:
         reference_id = logs[0][0].get("reference_id")
         logged_config = logs[0][0].pop("config")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         logged_config.pop("_id")
         logged_config.pop("status")
         logged_config.pop("timestamp")
@@ -3832,6 +3846,7 @@ class TestEventExecution:
         logged_config.pop("status")
         logged_config.pop("timestamp")
         logged_config.pop('pyscript_timeout')
+        logged_config.pop('bsp_type', None)
         logged_config['collection_config'] = {}
         assert logged_config.pop("template_config") == []
         assert logged_config == config
@@ -4156,6 +4171,7 @@ class TestEventExecution:
 
         logs[0][3].pop("timestamp")
         logs[0][3].get("config").pop("timestamp")
+        logs[0][3].get("config").pop("bsp_type", None)
         reference_id = logs[0][3].get("reference_id")
         logged_config = logs[0][3]
         print(logged_config)
@@ -4513,6 +4529,7 @@ class TestEventExecution:
 
         logs[0][3].pop("timestamp")
         logs[0][3].get("config").pop("timestamp")
+        logs[0][3].get("config").pop("bsp_type", None)
         reference_id = logs[0][3].get("reference_id")
         logs[0][3].pop("retry_1_timestamp")
         logged_config = logs[0][3]
@@ -4866,6 +4883,7 @@ class TestEventExecution:
 
         logs[0][3].pop("timestamp")
         logs[0][3].get("config").pop("timestamp")
+        logs[0][3].get("config").pop("bsp_type", None)
         reference_id = logs[0][3].get("reference_id")
         logs[0][3].pop("retry_1_timestamp")
         logged_config = logs[0][3]
@@ -5295,6 +5313,7 @@ class TestEventExecution:
 
         logs[0][4].pop("timestamp")
         logs[0][4].get("config").pop("timestamp")
+        logs[0][4].get("config").pop("bsp_type", None)
         reference_id = logs[0][4].get("reference_id")
         logs[0][4].pop("retry_1_timestamp")
         logged_config = logs[0][4]
@@ -5846,6 +5865,7 @@ class TestEventExecution:
 
         logs[0][5].pop("timestamp")
         logs[0][5].get("config").pop("timestamp")
+        logs[0][5].get("config").pop("bsp_type", None)
         reference_id = logs[0][5].get("reference_id")
         logs[0][5].pop("retry_2_timestamp")
         logged_config = logs[0][5]
@@ -6403,6 +6423,7 @@ class TestEventExecution:
 
         logs[0][5].pop("timestamp")
         logs[0][5].get("config").pop("timestamp")
+        logs[0][5].get("config").pop("bsp_type", None)
         reference_id = logs[0][5].get("reference_id")
         logs[0][5].pop("retry_2_timestamp")
         logged_config = logs[0][5]

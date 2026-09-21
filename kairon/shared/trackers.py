@@ -114,6 +114,13 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
 
         rasa_events = []
 
+        user_id = None
+        for ev in additional_events:
+            ev_dict = ev.as_dict()
+            if ev_dict.get("event") == "user":
+                user_id = ev_dict.get("metadata", {}).get("from_user_id")
+                break
+
         flattened_conversation = {
             "type": "flattened",
             "bot": self.collection,
@@ -122,6 +129,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
             "data": {},
             "tag": "tracker_store",
         }
+        if user_id:
+            flattened_conversation["user_id"] = user_id
         rid = get_request_id()
         if rid:
             flattened_conversation["request_id"] = rid
@@ -144,6 +153,8 @@ class KMongoTrackerStore(TrackerStore, SerializedTrackerAsText):
                 "tag": "tracker_store",
                 "type": "bot",
             }
+            if user_id:
+                raw_event["user_id"] = user_id
             if rid:
                 raw_event["request_id"] = rid
             rasa_events.append(raw_event)

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Path, Security
 from starlette.requests import Request
 from kairon.shared.constants import ADMIN_ACCESS, TESTER_ACCESS, OWNER_ACCESS, AGENT_ACCESS
 from kairon.shared.data.constant import ACCESS_ROLES, ACTIVITY_STATUS
-from kairon.shared.data.data_models import ConsentRequest
+from kairon.shared.data.data_models import ConsentRequest, DictData
 from kairon.shared.multilingual.utils.translator import Translator
 from kairon.shared.pos.processor import POSProcessor
 from kairon.shared.utils import Utility, MailUtility
@@ -28,6 +28,16 @@ async def get_users_details(current_user: User = Depends(Authentication.get_curr
     )
     return {"data": {"user": user_details}}
 
+
+@router.get("/user/settings", response_model=Response)
+async def get_user_settings(current_user: User = Depends(Authentication.get_current_user)):
+    return {"data": AccountProcessor.get_user_settings(current_user.email)}
+
+
+@router.post("/user/settings", response_model=Response)
+async def update_user_settings(request_data: DictData,
+                               current_user: User = Depends(Authentication.get_current_user)):
+    return {"data": AccountProcessor.update_user_settings(current_user.email, request_data.data)}
 
 @router.post("/consent/details", response_model=Response)
 async def add_user_consent_details(

@@ -10,6 +10,37 @@ from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
 from loguru import logger
 
+_CONDITION_OPERATOR_MAP = {
+    "gte": "$gte", "lte": "$lte", "gt": "$gt", "lt": "$lt",
+    "ne": "$ne", "in": "$in", "nin": "$nin",
+}
+
+_REGEX_CONDITION_MAP = {
+    "exact":       lambda v: re.escape(str(v)),
+    "iexact":      lambda v: f"^{re.escape(str(v))}$",
+    "contains":    lambda v: re.escape(str(v)),
+    "icontains":   lambda v: re.escape(str(v)),
+    "startswith":  lambda v: f"^{re.escape(str(v))}",
+    "istartswith": lambda v: f"^{re.escape(str(v))}",
+    "endswith":    lambda v: f"{re.escape(str(v))}$",
+    "iendswith":   lambda v: f"{re.escape(str(v))}$",
+}
+
+_CASE_INSENSITIVE = {"iexact", "icontains", "istartswith", "iendswith"}
+
+
+def _build_filterable_attr_elem_match(column: str, value, condition: str = None) -> dict:
+    if condition and condition in _REGEX_CONDITION_MAP:
+        v_expr = {"$regex": _REGEX_CONDITION_MAP[condition](value)}
+        if condition in _CASE_INSENSITIVE:
+            v_expr["$options"] = "i"
+    elif condition and condition in _CONDITION_OPERATOR_MAP:
+        v_expr = {_CONDITION_OPERATOR_MAP[condition]: value}
+    else:
+        v_expr = value
+    return {"filterable_attrs": {"$elemMatch": {"k": column, "v": v_expr}}}
+
+
 class DataProcessor:
 
     @staticmethod
@@ -140,20 +171,14 @@ class DataProcessor:
     def get_broadcast_collection_data(bot: Text, collection_name: str, filters: List[Dict]) -> List[Dict]:
         from more_itertools import unique_everseen
 
-        filters_dict = {
-            "bot": bot,
-            "collection_name": collection_name
-        }
-
-        for f in filters:
-            column = f.get("column")
-            condition = f.get("condition")
-            value = f.get("value")
-
-            field_name = f"data__{column}" + (f"__{condition}" if condition else "")
-            filters_dict[field_name] = value
-
-        qs = CollectionData.objects(**filters_dict)
+        attr_filters = [
+            _build_filterable_attr_elem_match(f["column"], f.get("value"), f.get("condition"))
+            for f in filters if f.get("column")
+        ]
+        qs = CollectionData.objects(bot=bot, collection_name=collection_name)
+        if attr_filters:
+            raw = {"$and": attr_filters} if len(attr_filters) > 1 else attr_filters[0]
+            qs = qs.filter(__raw__=raw)
 
         data = list(unique_everseen(qs, key=lambda doc: json.dumps(doc.data, sort_keys=True)))
         data = [doc.data for doc in data]
@@ -163,22 +188,16 @@ class DataProcessor:
     @staticmethod
     def get_collection_filter(bot, collection_name, filters):
         """
-        Build a MongoEngine-style filter dictionary for broadcast collection queries.
+        Build a raw MongoDB filter dict for collection queries using filterable_attrs index.
         """
-        filters_dict = {
-            "bot": bot,
-            "collection_name": collection_name
-        }
-
-        for f in filters:
-            column = f.get("column")
-            condition = f.get("condition")
-            value = f.get("value")
-
-            field_name = f"data__{column}" + (f"__{condition}" if condition else "")
-            filters_dict[field_name] = value
-
-        return filters_dict
+        raw = {"bot": bot, "collection_name": collection_name}
+        attr_filters = [
+            _build_filterable_attr_elem_match(f["column"], f.get("value"), f.get("condition"))
+            for f in filters if f.get("column")
+        ]
+        if attr_filters:
+            raw["$and"] = attr_filters
+        return raw
 
     @staticmethod
     def get_collection_filter_data_count(bot: Text, collection_name: str, filters):
@@ -186,9 +205,8 @@ class DataProcessor:
         Return the count of documents in the collection matching the broadcast filters.
         """
         parsed_filter = DataProcessor.get_decoded_data(filters)
-        filter_data_dict = DataProcessor.get_collection_filter(bot, collection_name, parsed_filter)
-        filter_data_count = CollectionData.objects(**filter_data_dict).count()
-        return filter_data_count
+        raw = DataProcessor.get_collection_filter(bot, collection_name, parsed_filter)
+        return CollectionData.objects(__raw__=raw).count()
 
     @staticmethod
     def get_decoded_data(data):
@@ -267,16 +285,18 @@ class DataProcessor:
         if len(keys) != len(values):
             raise AppException("Keys and values lists must be of the same length.")
 
-        query = {"bot": bot, "collection_name": collection_name}
-        query.update({
-            f"data__{key}": value for key, value in zip(keys, values) if key and value
-        })
+        attr_filters = [
+            _build_filterable_attr_elem_match(key, value)
+            for key, value in zip(keys, values) if key and value
+        ]
         result_limit = kwargs.pop("result_limit", None)
-
         page_size = kwargs.pop("page_size", None)
         start_idx = kwargs.pop("start_idx", None)
 
-        mongo_query = CollectionData.objects(**query)
+        mongo_query = CollectionData.objects(bot=bot, collection_name=collection_name)
+        if attr_filters:
+            raw = {"$and": attr_filters} if len(attr_filters) > 1 else attr_filters[0]
+            mongo_query = mongo_query.filter(__raw__=raw)
 
         if page_size is not None and start_idx is not None:
             mongo_query = mongo_query.order_by("-timestamp").skip(start_idx).limit(page_size)
@@ -314,17 +334,20 @@ class DataProcessor:
         data_filter = kwargs.pop("data_filter", {}) if isinstance(kwargs.get("data_filter"), dict) else json.loads(
             kwargs.pop("data_filter", "{}"))
 
-        query = {"bot": bot, "collection_name": collection_name}
+        attr_filters = [
+            _build_filterable_attr_elem_match(key, val)
+            for key, val in data_filter.items() if key and val
+        ]
+        qs = CollectionData.objects(bot=bot, collection_name=collection_name)
         if start_time:
-            query["timestamp__gte"] = start_time
+            qs = qs.filter(timestamp__gte=start_time)
         if end_time:
-            query["timestamp__lte"] = end_time
+            qs = qs.filter(timestamp__lte=end_time)
+        if attr_filters:
+            raw = {"$and": attr_filters} if len(attr_filters) > 1 else attr_filters[0]
+            qs = qs.filter(__raw__=raw)
 
-        query.update({
-            f"data__{key}": value for key, value in data_filter.items() if key and value
-        })
-
-        for value in CollectionData.objects(**query):
+        for value in qs:
             final_data = {}
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
@@ -381,6 +404,7 @@ class DataProcessor:
                     user=user,
                     bot=bot,
                 )
+                collection_obj.clean()
                 collection_docs.append(collection_obj)
             except Exception as e:
                 errors.append({

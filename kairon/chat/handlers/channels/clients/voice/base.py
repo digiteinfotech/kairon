@@ -31,3 +31,7 @@ class VoiceProviderBase(ABC):
     @abstractmethod
     def validate_config(self, config: dict) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def build_hangup_response(self, messages: List[str]) -> str:
+        raise NotImplementedError

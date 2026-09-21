@@ -10,6 +10,7 @@ from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs, MessageBroadcastSettings
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.data.constant import STATUSES
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 
 
@@ -212,13 +213,13 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         settings[1].pop("timestamp")
-        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
+        assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp', 'bsp_type': '360dialog',
                              "broadcast_type": "dynamic", 'retry_count': 0, 'collection_config': {},
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *',
                                                   "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", "template_config": [],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True},
-                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {},
+                            {'name': 'second_scheduler', 'connector_type': 'slack', 'collection_config': {}, 'bsp_type': '360dialog',
                             'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              "broadcast_type": "static", 'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -227,7 +228,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(setting.pop("_id"), str)
         setting.pop("timestamp")
         assert setting == {'name': 'second_scheduler', 'connector_type': 'slack', 'retry_count': 0,
-                           'collection_config': {},
+                           'collection_config': {}, 'bsp_type': '360dialog',
                            'recipients_config': {'recipients': '918958030541,'}, 'broadcast_type': 'static',
                            'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                            'bot': 'test_achedule', 'user': 'test_user', 'status': True}
@@ -249,7 +250,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(config_id, str)
         settings[0].pop("timestamp")
         assert settings == [{'name': 'second_scheduler', 'connector_type': 'slack',
-                             "broadcast_type": "static", 'collection_config': {},
+                             "broadcast_type": "static", 'collection_config': {}, 'bsp_type': '360dialog',
                              'recipients_config': {'recipients': '918958030541,'}, 'retry_count': 0,
                              'template_config': [{'template_id': 'brochure_pdf', "language": "en"}],
                              'bot': 'test_achedule', 'user': 'test_user', 'status': True}]
@@ -260,6 +261,7 @@ class TestMessageBroadcastProcessor:
         settings[0].pop("timestamp")
         assert settings == [{'name': 'first_scheduler', 'connector_type': 'whatsapp',
                              "broadcast_type": "dynamic", "template_config": [], 'collection_config': {},
+                             'bsp_type': '360dialog',
                              'scheduler_config': {'expression_type': 'cron', 'schedule': '30 22 5 * *', "timezone": "Asia/Kolkata"},
                              "pyscript": "send_msg('template_name', '9876543210')", 'retry_count': 0,
                              'bot': 'test_achedule', 'user': 'test_user', 'status': False}]
@@ -301,6 +303,7 @@ class TestMessageBroadcastProcessor:
                 'connector_type': 'whatsapp',
                 "broadcast_type": "dynamic",
                 'collection_config': {},
+                'bsp_type': '360dialog',
                 'retry_count': 0,
                 'scheduler_config': {
                     'expression_type': 'cron',
@@ -323,6 +326,7 @@ class TestMessageBroadcastProcessor:
             'connector_type': 'whatsapp',
             "broadcast_type": "dynamic",
             'collection_config': {},
+            'bsp_type': '360dialog',
             'retry_count': 0,
             'scheduler_config': {
                 'expression_type': 'cron',
@@ -468,175 +472,184 @@ class TestMessageBroadcastProcessor:
                     retry_count=retry_count
                 )
 
-def test_discovers_dynamic_numbered_params():
-    bot = "test_bot_01"
-    timestamp = datetime.utcnow()
-    config = {
-        "name": "test_broadcast", "broadcast_type": "static",
-        "connector_type": "whatsapp",
-        "recipients_config": {
-            "recipients": "919876543211,919012345678,919012341234"
-        },
-        "template_config": [
-            {
-                'language': 'hi',
-                "template_id": "brochure_pdf",
-            }
-        ],
-        "status": False,
-        "retry_count": 1,
-        "bot": bot,
-        "user": "test_user"
-    }
-    template = [
-        {
-            "format": "TEXT",
-            "text": "Kisan Suvidha Program Follow-up",
-            "type": "HEADER"
-        },
-        {
-            "text": "Hello! As a part of our Kisan Suvidha program, I am dedicated to supporting farmers like you in maximizing your crop productivity and overall yield.\n\nI wanted to reach out to inquire if you require any assistance with your current farming activities. Our team of experts, including our skilled agronomists, are here to lend a helping hand wherever needed.",
-            "type": "BODY"
-        },
-        {
-            "text": "reply with STOP to unsubscribe",
-            "type": "FOOTER"
-        },
-        {
-            "buttons": [
-                {
-                    "text": "Connect to Agronomist",
-                    "type": "QUICK_REPLY"
-                }
-            ],
-            "type": "BUTTONS"
+    def test_get_broadcast_logs_uses_bot_settings_limit(self):
+        bot = "test_broadcast_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user="test_user", max_template_per_broadcast=3).save()
+
+        with patch.object(MessageBroadcastProcessor, "get_excluded_projection",
+                          wraps=MessageBroadcastProcessor.get_excluded_projection) as spy:
+            MessageBroadcastProcessor.get_broadcast_logs(bot)
+            spy.assert_called_once_with(bot)
+
+    def test_get_broadcast_logs_default_limit_when_no_bot_settings(self):
+        bot = "test_no_settings_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+
+        assert MessageBroadcastProcessor._get_max_template_limit(bot) == 5
+
+        with patch.object(MessageBroadcastProcessor, "get_excluded_projection",
+                          wraps=MessageBroadcastProcessor.get_excluded_projection) as spy:
+            MessageBroadcastProcessor.get_broadcast_logs(bot)
+            spy.assert_called_once_with(bot)
+
+    def test_get_excluded_projection_default_limit(self):
+        bot = "test_proj_default_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        projection = MessageBroadcastProcessor.get_excluded_projection(bot)
+        assert projection["_id"] == 0
+        assert projection["recipients"] == 0
+        assert projection["template_params"] == 0
+        for i in range(1, 6):
+            assert f"template_params_{i}" in projection
+        assert "template_params_6" not in projection
+
+    def test_get_excluded_projection_custom_bot_settings_limit(self):
+        bot = "test_proj_custom_limit_bot"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user="test_user", max_template_per_broadcast=3).save()
+        projection = MessageBroadcastProcessor.get_excluded_projection(bot)
+        for i in range(1, 4):
+            assert f"template_params_{i}" in projection
+        assert "template_params_4" not in projection
+
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduled_task_template_limit_exceeded(self, mock_channel_config):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        BotSettings.objects(bot=bot).delete()
+        BotSettings(bot=bot, user=user, max_template_per_broadcast=2).save()
+        config = {
+            "name": "limit_test_broadcast", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+                {"template_id": "t3"},
+            ]
         }
-    ]
-    msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-    MessageBroadcastLogs(
-        **{
-            "reference_id": "667bed955bfdaf3466b19de7",
-            "log_type": "common",
-            "bot": bot,
-            "status": "Completed",
-            "user": "test_user",
-            "total": 3,
-            "resend_count_1": 2,
-            "skipped_count_1": 0,
-            "event_id": msg_broadcast_id,
-            "timestamp": timestamp,
+        with pytest.raises(AppException, match="Max template limit per broadcast is 2!"):
+            MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
 
+    @patch("kairon.shared.utils.Utility.is_exist", autospec=True)
+    def test_add_scheduled_task_template_limit_at_boundary(self, mock_channel_config):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        config = {
+            "name": "limit_boundary_broadcast", "broadcast_type": "static",
+            "connector_type": "whatsapp",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+            ]
         }
-    ).save()
-    timestamp = timestamp + timedelta(minutes=2)
-    MessageBroadcastLogs(
-        **{
-            "reference_id": "667bed955bfdaf3466b19de7",
-            "log_type": "send",
-            "bot": bot,
-            "status": STATUSES.SUCCESS.value,
-            "template_name": "brochure_pdf",
-            "template": template,
-            "namespace": "54500467_f322_4595_becd_419af88spm4",
-            "language_code": "hi",
-            "errors": [],
-            "api_response": {
-                "messaging_product": "whatsapp",
-                "contacts": [
-                    {
-                        "input": "919012345678",
-                        "wa_id": "919012345678"
-                    }
-                ],
-                "messages": [
-                    {
-                        "id": "wamid.HBgLMTIxMTU1NTc5NDcVAgARGBIyRkQxREUxRDJFQUJGMkQ3NDIZ"
-                    }
-                ]
-            },
-            "recipient": "919012345678",
-            "template_params": [
-                {
-                    "type": "header",
-                    "parameters": [
-                        {
-                            "type": "document",
-                            "document": {
-                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                "filename": "Brochure.pdf",
-                            },
-                        }
-                    ],
-                }
-            ],
-            "timestamp": timestamp,
-            "retry_count": 0
+        assert MessageBroadcastProcessor.add_scheduled_task(bot, user, config)
+
+    def test_update_scheduled_task_template_limit_exceeded(self):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        settings = list(MessageBroadcastProcessor.list_settings(bot))
+        notification_id = settings[0]["_id"]
+        config = {
+            "name": settings[0]["name"],
+            "connector_type": "whatsapp",
+            "broadcast_type": "static",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+                {"template_id": "t3"},
+            ]
         }
-    ).save()
-    timestamp = timestamp + timedelta(minutes=2)
-    MessageBroadcastLogs(
-        **{
-            "reference_id": "667bed955bfdaf3466b19de7",
-            "log_type": "send",
-            "bot": bot,
-            "status": STATUSES.SUCCESS.value,
-            "template_name": "brochure_pdf",
-            "template": template,
-            "namespace": "54500467_f322_4595_becd_419af88spm4",
-            "language_code": "hi",
-            "errors": [
-                {
-                    "code": 130472,
-                    "title": "User's number is part of an experiment",
-                    "message": "User's number is part of an experiment",
-                    "error_data": {
-                        "details": "Failed to send message because this user's phone number is part of an experiment"
-                    },
-                    "href": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes/"
-                }
-            ],
-            "api_response": {
-                "messaging_product": "whatsapp",
-                "contacts": [
-                    {
-                        "input": "919876543211",
-                        "wa_id": "919876543211"
-                    }
-                ],
-                "messages": [
-                    {
-                        "id": "wamid.HBgMOTE5NTE1OTkxNjg1FQIAERgSODFFNEM0QkM5MEJBODM4MjI4AA=="
-                    }
-                ]
-            },
-            "recipient": "919876543211",
-            "template_params_1": [
-                {
-                    "type": "header",
-                    "parameters": [
-                        {
-                            "type": "document",
-                            "document": {
-                                "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                "filename": "Brochure.pdf",
-                            },
-                        }
-                    ],
-                }
-            ],
-            "timestamp": timestamp,
-            "retry_count": 0
+        with pytest.raises(AppException, match="Max template limit per broadcast is 2!"):
+            MessageBroadcastProcessor.update_scheduled_task(notification_id, bot, user, config)
+
+    def test_update_scheduled_task_template_limit_at_boundary(self):
+        bot = "test_template_limit_bot"
+        user = "test_user"
+        settings = list(MessageBroadcastProcessor.list_settings(bot))
+        notification_id = settings[0]["_id"]
+        config = {
+            "name": settings[0]["name"],
+            "connector_type": "whatsapp",
+            "broadcast_type": "static",
+            "scheduler_config": {"expression_type": "cron", "schedule": "57 22 * * *", "timezone": "Asia/Kolkata"},
+            "recipients_config": {"recipients": "919876543210"},
+            "template_config": [
+                {"template_id": "t1"},
+                {"template_id": "t2"},
+            ]
         }
-    ).save()
+        MessageBroadcastProcessor.update_scheduled_task(notification_id, bot, user, config)
+        updated = MessageBroadcastProcessor.get_settings(notification_id, bot)
+        assert len(updated["template_config"]) == 2
 
-    keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot)
+    def test_fetch_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = ["media_001", "media_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "360dialog"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        assert result == ["media_001", "media_002"]
+        mock_bsp.fetch_media_ids.assert_called_once_with(bot)
 
-    assert "template_params_1" in keys
-    assert "bot" in keys
+    def test_fetch_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
 
-def test_handles_no_logs_gracefully():
-    bot_id = "non_existent_bot"
-    keys = MessageBroadcastProcessor.get_all_dynamic_keys(bot_id)
+    def test_fetch_broadcast_media_ids_delegates_to_bsp(self):
+        bot = "test_fetch_broadcast_media_ids_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = ["bcast_001", "bcast_002"]
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {"bsp_type": "gupshup"}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ):
+            result = MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        assert result == ["bcast_001", "bcast_002"]
+        mock_bsp.fetch_broadcast_media_ids.assert_called_once_with(bot)
 
-    assert isinstance(keys, list)
-    assert len(keys) == 0
+    def test_fetch_broadcast_media_ids_defaults_bsp_type(self):
+        bot = "test_fetch_broadcast_media_ids_default_bot"
+        user = "test_user"
+        mock_bsp = MagicMock()
+        mock_bsp.fetch_broadcast_media_ids.return_value = []
+        with patch(
+            "kairon.shared.chat.processor.ChatDataProcessor.get_channel_config",
+            return_value={"config": {}},
+        ), patch(
+            "kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+            return_value=lambda b, u: mock_bsp,
+        ) as mock_factory:
+            MessageBroadcastProcessor.fetch_broadcast_media_ids(bot, user)
+        mock_factory.assert_called_once_with("360dialog")
+
+
+

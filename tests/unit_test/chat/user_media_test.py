@@ -442,24 +442,25 @@ def test_mark_user_media_data_upload_failed_not_found(mock_objects):
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
 @patch("kairon.shared.chat.user_media.uuid7")
 @patch("kairon.shared.chat.user_media.requests.get")
-async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid, mock_create):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+async def test_save_whatsapp_media_content_360dialog_success(mock_get_client, mock_requests_get, mock_uuid, mock_create):
     bot = "bot1"
     sender_id = "user1"
     whatsapp_media_id = "media123"
     config = {"bsp_type": "360dialog", "api_key": "key123"}
 
-    resp_info = MagicMock()
-    resp_info.status_code = 200
-    resp_info.json.return_value = {
-        "url": "https://lookaside.fbsbx.com/path/file.jpg",
-        "mime_type": "image/jpeg"
-    }
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "https://waba-v2.360dialog.io/path/file.jpg",
+        {"D360-API-KEY": "key123"},
+        "whatsapp_360_media123.jpg",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
-    resp_media = MagicMock()
-    resp_media.status_code = 200
-    resp_media.iter_content = MagicMock(return_value=[b"chunk1", b"chunk2"])
-
-    mock_get.side_effect = [resp_info, resp_media]
+    mock_download_resp = MagicMock()
+    mock_download_resp.status_code = 200
+    mock_download_resp.iter_content = MagicMock(return_value=[b"chunk1", b"chunk2"])
+    mock_requests_get.return_value = mock_download_resp
 
     mock_uuid.return_value.hex = "uuid123"
 
@@ -468,13 +469,14 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid123"]
-    mock_get.assert_called()
+    mock_client_instance.get_media_info.assert_called_once_with(whatsapp_media_id, config, media_data=None)
     mock_create.assert_called_once_with(
         bot=bot,
         media_id="uuid123",
-        filename="whataspp_360_media123.jpg",
+        filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
-        upload_type=UserMediaUploadType.user_uploaded.value
+        upload_type=UserMediaUploadType.user_uploaded.value,
+        user_id=None
     )
     assert len(created) == 1
 
@@ -482,23 +484,25 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get, mock_uuid
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
 @patch("kairon.shared.chat.user_media.uuid7")
 @patch("kairon.shared.chat.user_media.requests.get")
-async def test_save_whatsapp_media_content_meta_success(mock_get, mock_uuid, mock_create):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+async def test_save_whatsapp_media_content_meta_success(mock_get_client, mock_requests_get, mock_uuid, mock_create):
     bot = "bot2"
     sender_id = "user2"
     whatsapp_media_id = "media456"
     config = {"bsp_type": "meta", "access_token": "token456"}
 
-    media_info = MagicMock()
-    media_info.status_code = 200
-    media_info.json.return_value = {
-        "url": "https://graph.facebook.com/path/file.mp4",
-        "mime_type": "video/mp4"
-    }
-    media_resp = MagicMock()
-    media_resp.status_code = 200
-    media_resp.iter_content = MagicMock(return_value=[b"data1", b"data2"])
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "https://graph.facebook.com/path/file.mp4",
+        {"Authorization": "Bearer token456"},
+        "whatsapp_meta_media456.mp4",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
-    mock_get.side_effect = [media_info, media_resp]
+    mock_download_resp = MagicMock()
+    mock_download_resp.status_code = 200
+    mock_download_resp.iter_content = MagicMock(return_value=[b"data1", b"data2"])
+    mock_requests_get.return_value = mock_download_resp
 
     mock_uuid.return_value.hex = "uuid456"
 
@@ -507,11 +511,7 @@ async def test_save_whatsapp_media_content_meta_success(mock_get, mock_uuid, moc
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid456"]
-    mock_get.assert_any_call(
-        f"https://graph.facebook.com/v22.0/{whatsapp_media_id}",
-        params={"fields": "url", "access_token": config['access_token']},
-        timeout=10
-    )
+    mock_client_instance.get_media_info.assert_called_once_with(whatsapp_media_id, config, media_data=None)
     mock_create.assert_called_once()
 
 
@@ -520,28 +520,93 @@ def created_coros(coros):
 
 
 @pytest.mark.asyncio
-@patch("kairon.shared.chat.user_media.requests.get")
-def test_save_whatsapp_media_content_360dialog_failure(mock_get):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+def test_save_whatsapp_media_content_360dialog_failure(mock_get_client):
     config = {"bsp_type": "360dialog", "api_key": "key"}
-    resp = MagicMock(status_code=500, text="error")
-    mock_get.return_value = resp
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.side_effect = AppException("Failed to download media from 360 dialog: 500")
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
     with pytest.raises(AppException) as exc:
-        UserMedia.save_whatsapp_media_content("b","s","id", config)
+        UserMedia.save_whatsapp_media_content("b", "s", "id", config)
     assert "Failed to download media from 360 dialog" in str(exc.value)
 
 
 @pytest.mark.asyncio
-@patch("kairon.shared.chat.user_media.requests.get")
-def test_save_whatsapp_media_content_meta_failure(mock_get):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+def test_save_whatsapp_media_content_meta_failure(mock_get_client):
     config = {"bsp_type": "meta", "access_token": "token"}
-    resp = MagicMock(status_code=400)
-    mock_get.return_value = resp
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.side_effect = AppException("Failed to get url from meta for media: id")
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
     with pytest.raises(AppException) as exc:
-        UserMedia.save_whatsapp_media_content("b","s","id", config)
+        UserMedia.save_whatsapp_media_content("b", "s", "id", config)
     assert "Failed to get url from meta" in str(exc.value)
 
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.requests.get")
+@patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+@patch("kairon.shared.chat.user_media.uuid7")
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+async def test_save_whatsapp_media_content_gupshup_success(mock_get_client, mock_uuid, mock_create, mock_requests_get):
+    bot = "bot_gs"
+    sender_id = "user_gs"
+    whatsapp_media_id = "gs_media_001"
+    config = {
+        "bsp_type": "gupshup",
+        "partner_app_token": "gs_token_abc",
+        "app_id": "gs_app_123"
+    }
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "https://media.gupshup.com/gs_media_001.pdf",
+        {"Authorization": "gs_token_abc"},
+        "whatsapp_gupshup_gs_media_001.pdf",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
+
+    mock_download_resp = MagicMock()
+    mock_download_resp.status_code = 200
+    mock_download_resp.iter_content = MagicMock(return_value=[b"pdfdata1", b"pdfdata2"])
+    mock_requests_get.return_value = mock_download_resp
+
+    mock_uuid.return_value.hex = "uuid_gs_001"
+
+    called = []
+    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+        result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
+
+    assert result == ["uuid_gs_001"]
+    mock_client_instance.get_media_info.assert_called_once_with(whatsapp_media_id, config, media_data=None)
+    mock_create.assert_called_once_with(
+        bot=bot,
+        media_id="uuid_gs_001",
+        filename="whatsapp_gupshup_gs_media_001.pdf",
+        sender_id=sender_id,
+        upload_type=UserMediaUploadType.user_uploaded.value,
+        user_id=None
+    )
+    assert len(called) == 1
+
+
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+def test_save_whatsapp_media_content_gupshup_download_failure(mock_get_client):
+    config = {
+        "bsp_type": "gupshup",
+        "partner_app_token": "gs_token_abc",
+        "app_id": "gs_app_123"
+    }
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.side_effect = AppException("Failed to get media info from Gupshup: 403")
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
+
+    with pytest.raises(AppException) as exc:
+        UserMedia.save_whatsapp_media_content("b", "s", "bad_id", config)
+    assert "Failed to get media info from Gupshup" in str(exc.value)
 
 
 
@@ -670,21 +735,25 @@ async def test_extract_media_information_exceptions(mock_objects, mock_agentic_f
 @patch("kairon.shared.chat.user_media.asyncio.create_task")
 @patch("kairon.shared.chat.user_media.requests.get")
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
-def test_save_whatsapp_media_content_background_task_failure(mock_create_user_media_data, mock_requests_get, mock_create_task):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+def test_save_whatsapp_media_content_background_task_failure(mock_get_client, mock_create_user_media_data, mock_requests_get, mock_create_task):
     bot = "test_bot"
     sender_id = "user123"
     whatsapp_media_id = "media123"
     config = {"bsp_type": "meta", "access_token": "test_token"}
 
-    mock_media_info_resp = MagicMock()
-    mock_media_info_resp.status_code = 200
-    mock_media_info_resp.json.return_value = {"url": "http://example.com/media", "mime_type": "image/png"}
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "http://example.com/media",
+        {"Authorization": "Bearer test_token"},
+        "whatsapp_meta_media123.png",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
     mock_media_resp = MagicMock()
     mock_media_resp.status_code = 200
     mock_media_resp.iter_content.return_value = [b"chunk1", b"chunk2"]
-
-    mock_requests_get.side_effect = [mock_media_info_resp, mock_media_resp]
+    mock_requests_get.return_value = mock_media_resp
 
     def mock_background_task(*args, **kwargs):
         raise Exception("Background task failed")
@@ -703,21 +772,25 @@ def test_save_whatsapp_media_content_background_task_failure(mock_create_user_me
 @patch("kairon.shared.chat.user_media.asyncio.create_task")
 @patch("kairon.shared.chat.user_media.requests.get")
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
-def test_save_whatsapp_media_content_success(mock_create_user_media_data, mock_requests_get, mock_create_task):
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+def test_save_whatsapp_media_content_success(mock_get_client, mock_create_user_media_data, mock_requests_get, mock_create_task):
     bot = "test_bot"
     sender_id = "user123"
     whatsapp_media_id = "media123"
     config = {"bsp_type": "meta", "access_token": "test_token"}
 
-    mock_media_info_resp = MagicMock()
-    mock_media_info_resp.status_code = 200
-    mock_media_info_resp.json.return_value = {"url": "http://example.com/media", "mime_type": "image/png"}
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "http://example.com/media",
+        {"Authorization": "Bearer test_token"},
+        "whatsapp_meta_media123.png",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
 
     mock_media_resp = MagicMock()
     mock_media_resp.status_code = 200
     mock_media_resp.iter_content.return_value = [b"chunk1", b"chunk2"]
-
-    mock_requests_get.side_effect = [mock_media_info_resp, mock_media_resp]
+    mock_requests_get.return_value = mock_media_resp
 
     mock_create_task.return_value = None
 
@@ -838,7 +911,8 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
         filename="whatsapp_360_media123.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"phone_number": "user1", "description": description}
+        additional_info={"phone_number": "user1", "description": description},
+        user_id=None
     )
 
 
@@ -915,7 +989,8 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
         filename="whatsapp_meta_media456.jpg",
         sender_id=sender_id,
         upload_type=UserMediaUploadType.user_uploaded.value,
-        additional_info={"phone_number": "user2", "description": description}
+        additional_info={"phone_number": "user2", "description": description},
+        user_id=None
     )
 
 
@@ -980,6 +1055,67 @@ def test_save_whatsapp_media_and_get_url_download_failure(mock_get):
         )
 
     assert "Failed to download media" in str(exc.value)
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.requests.get")
+@patch("kairon.shared.chat.user_media.UserMedia.save_media_content")
+@patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+@patch("kairon.shared.chat.user_media.uuid7")
+@patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
+async def test_save_whatsapp_media_and_get_url_gupshup_success(
+    mock_get_client,
+    mock_uuid,
+    mock_create,
+    mock_save_media,
+    mock_requests_get
+):
+    bot = "bot_gs"
+    sender_id = "user_gs"
+    whatsapp_media_id = "gs_media_doc_001"
+    config = {
+        "bsp_type": "gupshup",
+        "partner_app_token": "gs_partner_token",
+        "app_id": "gs_app_456"
+    }
+    description = "Patient document"
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get_media_info.return_value = (
+        "https://media.gupshup.com/gs_media_doc_001.pdf",
+        {"Authorization": "gs_partner_token"},
+        "whatsapp_gupshup_gs_media_doc_001.pdf",
+    )
+    mock_get_client.return_value = MagicMock(return_value=mock_client_instance)
+
+    mock_download_resp = MagicMock()
+    mock_download_resp.status_code = 200
+    mock_download_resp.iter_content = MagicMock(return_value=[b"docchunk1", b"docchunk2"])
+    mock_requests_get.return_value = mock_download_resp
+
+    mock_uuid.return_value.hex = "uuid_gs_doc_001"
+    mock_save_media.return_value = "https://s3.aws/test/doc.pdf"
+
+    called = []
+    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+        result = UserMedia.save_whatsapp_media_and_get_url(
+            bot, sender_id, whatsapp_media_id, config, description
+        )
+
+    assert result == ["uuid_gs_doc_001"]
+    # Verify partner_app_token — not api_key — is used to construct the client
+    mock_get_client.assert_called_once_with("gupshup")
+    mock_client_instance.get_media_info.assert_called_once_with(whatsapp_media_id, config)
+    mock_create.assert_called_once_with(
+        bot=bot,
+        media_id="uuid_gs_doc_001",
+        filename="whatsapp_gupshup_gs_media_doc_001.pdf",
+        sender_id=sender_id,
+        upload_type=UserMediaUploadType.user_uploaded.value,
+        additional_info={"phone_number": sender_id, "description": description},
+        user_id=None
+    )
+
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")

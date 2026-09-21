@@ -1,5 +1,3 @@
-import ujson as json
-from ujson import JSONDecodeError
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -161,6 +159,9 @@ class ActionHTTP(ActionsBase):
             api_call_log.update({"exception": exception})
             bot_response = bot_response if bot_response else "I have failed to process your request"
             response_log.update({"exception": bot_response})
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)

@@ -30,6 +30,8 @@ async def startup(app: Application):
 
 async def shutdown(app: Application):
     """Disconnect MongoDB on shutdown"""
+    from kairon.async_callback.processor import async_task_executor
+    async_task_executor.shutdown(wait=False)
     disconnect()
     print("Disconnecting from MongoDB...")
     await asyncio.sleep(1)

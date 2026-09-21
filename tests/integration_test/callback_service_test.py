@@ -391,10 +391,10 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
     json_response = await response.json()
     print(json_response)
     assert json_response["success"]
-    assert not json_response["data"]
+    assert json_response["data"] == {"message": "Request Acknowledged"}
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": None, "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": {"message": "Request Acknowledged"}, "error_code": 0, "success": True}
     assert mock_run_pyscript_async.called_once()
     assert mock_dispatch_message.called_once()
 

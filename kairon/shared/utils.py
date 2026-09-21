@@ -1348,13 +1348,6 @@ class Utility:
             )
 
     @staticmethod
-    def validate_create_template_request(data: Dict):
-        required_keys = ["name", "category", "components", "language"]
-        missing_keys = [key for key in required_keys if key not in data]
-        if missing_keys:
-            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
-
-    @staticmethod
     def validate_edit_template_request(data: Dict):
         non_editable_keys = ["name", "category", "language"]
         if any(key in data for key in non_editable_keys):
@@ -1745,75 +1738,75 @@ class Utility:
                             [0.0s, 0.2s, 0.4s, 0.8s, …] between retries. No backoff will ever be longer than backoff_max.
         :return: dict/response object
         """
-        session = requests.Session()
-        max_retries = kwargs.get("max_retries", 0)
-        status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
-        backoff_factor = kwargs.get("backoff_factor", 0)
-        retries = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=status_forcelist,
-            read=False,
-        )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        if not headers:
-            headers = {}
+        with requests.Session() as session:
+            max_retries = kwargs.get("max_retries", 0)
+            status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
+            backoff_factor = kwargs.get("backoff_factor", 0)
+            retries = Retry(
+                total=max_retries,
+                backoff_factor=backoff_factor,
+                status_forcelist=status_forcelist,
+                read=False,
+            )
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            if not headers:
+                headers = {}
 
-        if request_body is None:
-            request_body = {}
-        try:
-            logger.info(f"Event started: {http_url}")
-            if request_method.lower() in ["get", "delete"]:
-                response = requests.request(
-                    request_method.upper(),
-                    http_url,
-                    params=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            elif request_method.lower() in ["post", "put", "patch"]:
-                response = session.request(
-                    request_method.upper(),
-                    http_url,
-                    json=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            else:
-                raise AppException("Invalid request method!")
-            logger.debug("raw response: " + str(response.text))
-            logger.debug("status " + str(response.status_code))
-        except (
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError,
-        ):
-            _, _, host, _, _, _, _ = parse_url(http_url)
-            raise AppException(f"Failed to connect to service: {host}")
-        except Exception as e:
-            logger.exception(e)
-            raise AppException(f"Failed to execute the url: {str(e)}")
-
-        if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
-            "expected_status_code", 200
-        ):
-            if Utility.check_empty_string(kwargs.get("err_msg")):
-                raise AppException("err_msg cannot be empty")
-            error_message = f"{kwargs['err_msg']}{response.reason}"
+            if request_body is None:
+                request_body = {}
             try:
-                resp_json = response.json()
-                if resp_json.get("meta"):
-                    developer_message = resp_json.get("meta", {}).get("developer_message")
-                    error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                logger.info(f"Event started: {http_url}")
+                if request_method.lower() in ["get", "delete"]:
+                    response = requests.request(
+                        request_method.upper(),
+                        http_url,
+                        params=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                elif request_method.lower() in ["post", "put", "patch"]:
+                    response = session.request(
+                        request_method.upper(),
+                        http_url,
+                        json=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                else:
+                    raise AppException("Invalid request method!")
+                logger.debug("raw response: " + str(response.text))
+                logger.debug("status " + str(response.status_code))
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError,
+            ):
+                _, _, host, _, _, _, _ = parse_url(http_url)
+                raise AppException(f"Failed to connect to service: {host}")
             except Exception as e:
                 logger.exception(e)
+                raise AppException(f"Failed to execute the url: {str(e)}")
+
+            if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
+                "expected_status_code", 200
+            ):
+                if Utility.check_empty_string(kwargs.get("err_msg")):
+                    raise AppException("err_msg cannot be empty")
                 error_message = f"{kwargs['err_msg']}{response.reason}"
-            raise AppException(f"{error_message}")
+                try:
+                    resp_json = response.json()
+                    if resp_json.get("meta"):
+                        developer_message = resp_json.get("meta", {}).get("developer_message")
+                        error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                except Exception as e:
+                    logger.exception(e)
+                    error_message = f"{kwargs['err_msg']}{response.reason}"
+                raise AppException(f"{error_message}")
 
-        if return_json:
-            response = response.json()
+            if return_json:
+                response = response.json()
 
-        return response
+            return response
 
     @staticmethod
     def get_event_server_url():
@@ -2639,6 +2632,7 @@ class MailUtility:
     ):
         mail_actions_dict = {
             "password_reset": MailUtility.__handle_password_reset,
+            "password_reset_unverified": MailUtility.__handle_password_reset_unverified,
             "password_reset_confirmation": MailUtility.__handle_password_reset_confirmation,
             "verification": MailUtility.__handle_verification,
             "verification_confirmation": MailUtility.__handle_verification_confirmation,
@@ -2652,7 +2646,8 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
             "member_left_bot": MailUtility.__handle_member_left_bot,
-            "catalog_sync_status": MailUtility.__handle_catalog_sync_status
+            "catalog_sync_status": MailUtility.__handle_catalog_sync_status,
+            "action_failure": MailUtility.__handle_action_failure
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2765,6 +2760,14 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["password_reset"]
         body = body.replace("FIRST_NAME", first_name.capitalize())
         subject = Utility.email_conf["email"]["templates"]["password_reset_subject"]
+        return body, subject
+
+    @staticmethod
+    def __handle_password_reset_unverified(**kwargs):
+        first_name = kwargs.get("first_name")
+        body = Utility.email_conf["email"]["templates"]["password_reset_unverified"]
+        body = body.replace("FIRST_NAME", first_name.capitalize())
+        subject = Utility.email_conf["email"]["templates"]["password_reset_unverified_subject"]
         return body, subject
 
     @staticmethod
@@ -2950,3 +2953,20 @@ class MailUtility:
         subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject
 
+    def __handle_action_failure(**kwargs):
+        bot_name = kwargs.get("bot_name", "NA")
+        action_name = kwargs.get("action_name", "NA")
+        stack_trace = kwargs.get("stack_trace", "NA")
+        user_query_history = kwargs.get("user_query_history", {})
+        slot_values = kwargs.get("slot_values", {})
+        url = Utility.environment.get("action",{}).get("url")
+        body = Utility.email_conf["email"]["templates"]["action_failure"]
+        body = body.replace("BOT_NAME", bot_name)
+        body = body.replace("ACTION_NAME", action_name)
+        body = body.replace("STACK_TRACE", str(stack_trace))
+        body = body.replace("USER_QUERY_HISTORY", str(user_query_history))
+        body = body.replace("SLOT_VALUES", str(slot_values))
+        body = body.replace("ACTION_URL", str(url))
+        subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
+        subject = subject.replace("BOT_NAME", bot_name)
+        return body, subject

@@ -126,6 +126,9 @@ class ActionPrompt(ActionsBase):
             exception = str(e)
             status = STATUSES.FAIL.value
             bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             total_time_elapsed = time_taken_llm_response + time_taken_slots
             events_to_extend = [llm_response_log, final_slots]

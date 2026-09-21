@@ -727,3 +727,14 @@ def test_verify_auth_token_invalid():
     token = "VABBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM="
     with pytest.raises(AppException, match="Invalid token!"):
         CallbackConfig.verify_auth_token(token)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_calls_executor_shutdown_and_disconnect():
+    from kairon.async_callback.main import shutdown
+    mock_app = MagicMock()
+    with patch('kairon.async_callback.processor.async_task_executor') as mock_executor, \
+         patch('kairon.async_callback.main.disconnect') as mock_disconnect:
+        await shutdown(mock_app)
+        mock_executor.shutdown.assert_called_once_with(wait=False)
+        mock_disconnect.assert_called_once()

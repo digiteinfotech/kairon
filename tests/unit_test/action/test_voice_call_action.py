@@ -253,3 +253,83 @@ class TestActionVoiceCall:
                 bot="bot",
                 user="user",
             ).validate()
+
+
+class TestActionVoiceDisconnect:
+
+    @pytest.fixture(autouse=True, scope="class")
+    def setup(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+
+    @pytest.fixture
+    def tracker(self):
+        t = MagicMock()
+        t.sender_id = "CA_test_sid"
+        t.get_intent_of_latest_message.return_value = "end_call"
+        t.latest_message = {"text": "goodbye"}
+        return t
+
+    @pytest.fixture
+    def dispatcher(self):
+        from rasa_sdk.executor import CollectingDispatcher
+        return CollectingDispatcher()
+
+    def test_retrieve_config_returns_empty_dict(self):
+        from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+        action = ActionVoiceDisconnect("bot1", "kairon_voice_disconnect")
+        assert action.retrieve_config() == {}
+
+    @pytest.mark.asyncio
+    async def test_execute_sends_disconnect_signal(self, tracker, dispatcher):
+        from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+        with patch("kairon.actions.definitions.voice_disconnect.ActionServerLogs.save"):
+            result = await ActionVoiceDisconnect("bot1", "kairon_voice_disconnect").execute(
+                dispatcher, tracker, {}, action_call={}
+            )
+        assert result == {}
+        assert any(m.get("custom", {}).get("disconnect") for m in dispatcher.messages)
+
+    @pytest.mark.asyncio
+    async def test_execute_logs_success_status(self, tracker, dispatcher):
+        from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+        from kairon.shared.data.constant import STATUSES
+        with patch("kairon.actions.definitions.voice_disconnect.ActionServerLogs") as mock_log:
+            mock_log.return_value.save = MagicMock()
+            await ActionVoiceDisconnect("bot1", "kairon_voice_disconnect").execute(
+                dispatcher, tracker, {}, action_call={}
+            )
+        call_kwargs = mock_log.call_args[1]
+        assert call_kwargs["status"] == STATUSES.SUCCESS.value
+        assert call_kwargs["exception"] is None
+
+    @pytest.mark.asyncio
+    async def test_execute_logs_failure_on_dispatcher_error(self, tracker):
+        from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+        from kairon.shared.data.constant import STATUSES
+        bad_dispatcher = MagicMock()
+        bad_dispatcher.utter_custom_json.side_effect = Exception("dispatcher broke")
+        with patch("kairon.actions.definitions.voice_disconnect.ActionServerLogs") as mock_log:
+            mock_log.return_value.save = MagicMock()
+            await ActionVoiceDisconnect("bot1", "kairon_voice_disconnect").execute(
+                bad_dispatcher, tracker, {}, action_call={}
+            )
+        call_kwargs = mock_log.call_args[1]
+        assert call_kwargs["status"] == STATUSES.FAIL.value
+        assert "dispatcher broke" in call_kwargs["exception"]
+
+    @pytest.mark.asyncio
+    async def test_execute_logs_bot_response_as_disconnect_json(self, tracker, dispatcher):
+        from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+        with patch("kairon.actions.definitions.voice_disconnect.ActionServerLogs") as mock_log:
+            mock_log.return_value.save = MagicMock()
+            await ActionVoiceDisconnect("bot1", "kairon_voice_disconnect").execute(
+                dispatcher, tracker, {}, action_call={}
+            )
+        call_kwargs = mock_log.call_args[1]
+        assert call_kwargs["bot_response"] == str({"disconnect": True})
+
+    def test_action_type_enum_has_kairon_voice_disconnect(self):
+        assert hasattr(ActionType, "kairon_voice_disconnect")
+        assert ActionType.kairon_voice_disconnect.value == "kairon_voice_disconnect"
