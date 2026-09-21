@@ -3695,8 +3695,6 @@ class TestActions:
                                 'data_generation_limit_per_day': 3,
                                 'data_importer_limit_per_day': 5,
                                 'enable_voice': False,
-                                'voice': {'stt_provider': 'sarvam', 'tts_provider': 'polly',
-                                          'stt_fallback': [], 'tts_fallback': [], 'sample_rate': 8000},
                                 'force_import': False,
                                 'ignore_utterances': False,
                                 'llm_settings': {'enable_faq': True, 'provider': 'openai'},
@@ -5035,8 +5033,6 @@ class TestActions:
                                 'max_template_per_broadcast': 5,
                                 'media_size_limit': 10,
                                 'enable_voice': False,
-                                'voice': {'stt_provider': 'sarvam', 'tts_provider': 'polly',
-                                          'stt_fallback': [], 'tts_fallback': [], 'sample_rate': 8000},
                                 'store_page_token_expiry': 15}
 
 
