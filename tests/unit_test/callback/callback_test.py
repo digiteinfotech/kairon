@@ -859,6 +859,29 @@ def test_validate_redirect_config_missing_value():
             }
         )
 
+def test_resolve_redirect_url_invalid_scheme():
+    redirect = {
+        "type": ActionParameterType.value.value,
+        "value": "ftp://example.com"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect URL!"):
+        CallbackUtility.resolve_redirect_url(redirect, {})
+
+def test_resolve_redirect_url_slot_invalid_scheme():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "redirect_url"
+    }
+
+    metadata = {
+        "redirect_url": "ftp://example.com",
+        "bot": "test_bot"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect URL!"):
+        CallbackUtility.resolve_redirect_url(redirect, metadata)
+
 #not needed already covered in other tests
 # @patch('kairon.shared.callback.data_objects.CallbackConfig.objects')
 # @patch('kairon.shared.callback.data_objects.xor_decrypt_secret')

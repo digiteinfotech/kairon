@@ -15,6 +15,7 @@ from kairon.api.app.routers.bot.data import CognitionDataProcessor
 from kairon.shared.callback.data_objects import CallbackResponseType
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
 from kairon.shared.constants import ActorType
+from urllib.parse import urlparse
 
 
 from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
@@ -212,6 +213,11 @@ class CallbackUtility:
 
         if not redirect_url:
             raise AppException("Redirect URL could not be resolved!")
+
+        parsed_url = urlparse(redirect_url)
+
+        if parsed_url.scheme not in ("http", "https"):
+            raise AppException("Invalid redirect URL!")
 
         return redirect_url
 
