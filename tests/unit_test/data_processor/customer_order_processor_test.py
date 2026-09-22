@@ -68,7 +68,7 @@ class TestCustomerUpsert:
             persona_type="fnb",
             payload={
                 "mobile": "9000000003",
-                "address_list": [{"label": "home", "address": "123 Main St", "is_default": True}],
+                "address_list": [{"label": "home", "address": {"street": "123 Main St", "city": "Mumbai", "pincode": "400001"}, "is_default": True}],
             },
         )
         assert len(result["address_list"]) == 1
@@ -82,7 +82,7 @@ class TestCustomerUpsert:
             persona_type="fnb",
             payload={
                 "mobile": "9000000099",
-                "address_list": [{"label": "home", "address": "Old", "is_default": True}],
+                "address_list": [{"label": "home", "address": {"street": "Old Street"}, "is_default": True}],
             },
         )
         result = CustomerOrderProcessor.upsert_customer(
@@ -90,7 +90,7 @@ class TestCustomerUpsert:
             persona_type="fnb",
             payload={
                 "mobile": "9000000099",
-                "address_list": [{"label": "office", "address": "New", "is_default": False}],
+                "address_list": [{"label": "office", "address": {"street": "New Street"}, "is_default": False}],
             },
         )
         assert len(result["address_list"]) == 1
@@ -232,13 +232,13 @@ class TestUpdateAddress:
         CustomerOrderProcessor.upsert_customer(
             bot=self.bot, sender_id=self.enc,
             persona_type="fnb",
-            payload={"mobile": "9500000001", "address_list": [{"label": "home", "address": "Old Home"}]},
+            payload={"mobile": "9500000001", "address_list": [{"label": "home", "address": {"street": "Old Home Rd"}}]},
         )
 
     def test_update_address_add_new_label(self):
         result = CustomerOrderProcessor.update_address(
             bot=self.bot, sender_id=self.enc,
-            address_payload={"label": "office", "address": "Work St", "is_default": False},
+            address_payload={"label": "office", "address": {"street": "Work St"}, "is_default": False},
         )
         labels = {a["label"] for a in result["address_list"]}
         assert "home" in labels
@@ -248,17 +248,17 @@ class TestUpdateAddress:
     def test_update_address_replace_existing_label(self):
         result = CustomerOrderProcessor.update_address(
             bot=self.bot, sender_id=self.enc,
-            address_payload={"label": "home", "address": "New Home", "is_default": True},
+            address_payload={"label": "home", "address": {"street": "New Home Ave"}, "is_default": True},
         )
         home_entries = [a for a in result["address_list"] if a["label"] == "home"]
         assert len(home_entries) == 1
-        assert home_entries[0]["address"] == "New Home"
+        assert home_entries[0]["address"] == {"street": "New Home Ave"}
 
     def test_update_address_customer_not_found(self):
         with pytest.raises(AppException, match="Customer not found"):
             CustomerOrderProcessor.update_address(
                 bot=self.bot, sender_id=_enc("no_such_user"),
-                address_payload={"label": "home", "address": "Anywhere"},
+                address_payload={"label": "home", "address": {"street": "Anywhere"}},
             )
 
 

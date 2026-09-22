@@ -1584,7 +1584,7 @@ class AnalyticsPipelineEventRequest(BaseModel):
 
 class AddressRequest(BaseModel):
     label: str
-    address: str
+    address: Dict[str, Any]
     is_default: bool = False
 
 
