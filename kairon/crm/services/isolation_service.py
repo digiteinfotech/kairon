@@ -25,8 +25,12 @@ class ProductIsolationService:
         role_profile_to_assign = None
 
         for mod in selected_modules:
-            if mod in matrix:
-                config = matrix[mod]
+            # BUSINESS_MODULE_CATALOG keys are capitalized ("POS", "CRM"); matrix
+            # keys are lowercase ("pos", "crm"), same as FeatureAppResolver.resolve
+            # already normalizes before its own matrix lookup.
+            matrix_key = mod.lower().strip()
+            if matrix_key in matrix:
+                config = matrix[matrix_key]
                 if "allowed_modules" in config:
                     allowed_frappe_modules.update(config["allowed_modules"])
                 if "workspaces" in config:

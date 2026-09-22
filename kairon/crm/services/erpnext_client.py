@@ -13,8 +13,6 @@ from kairon.crm.constants import (
     INFRASTRUCTURE_MODULE_NAMES,
 )
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 class WorkspaceVerificationEntry(BaseModel):
     module_key: str
@@ -61,7 +59,15 @@ class ERPNextClient:
         self.host_header = host_header
         self.site_name = host_header
         self.session = requests.Session()
-        self.session.verify = False
+        # Defaults to verifying certs; only disable when the operator explicitly
+        # opts out via crm.bench.ssl_verify (e.g. a self-signed local bench). A
+        # hardcoded `verify = False` would silently accept any certificate on a
+        # remote HTTPS deployment, exposing credentials to an active attacker.
+        crm_config = Utility.environment.get("crm", {})
+        ssl_verify = crm_config.get("bench", {}).get("ssl_verify", True)
+        self.session.verify = ssl_verify
+        if not ssl_verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.session.headers.update({
             "Host": self.host_header,
             "Accept": "application/json"
@@ -250,7 +256,7 @@ print(json.dumps(keys))
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", script
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if res.returncode == 0:
                 out = res.stdout.strip()
                 if "{" in out and "}" in out:
@@ -268,8 +274,10 @@ print(json.dumps(keys))
 
         raise AppException(f"Failed to generate API keys for '{email}'")
 
-    def ensure_invitation_webhook(self, kairon_url: str, site_name: str, webhook_secret: str) -> str:
-        request_url = f"{kairon_url.rstrip('/')}/api/crm/webhook/invitation-accepted"
+    def ensure_invitation_webhook(self, kairon_url: str, site_name: str, webhook_secret: str, bot: str) -> str:
+        # Route is mounted under /api/bot/{bot}/crm (see kairon/api/app/main.py's
+        # crm_router prefix) -- the /bot/{bot} segment is required, not optional.
+        request_url = f"{kairon_url.rstrip('/')}/api/bot/{bot}/crm/webhook/invitation-accepted"
 
         # Check for existing webhook
         filters = json.dumps([
@@ -283,6 +291,14 @@ print(json.dumps(keys))
             existing = check_resp.json().get("data", [])
             if existing:
                 name = existing[0]["name"]
+                # Update the secret on the existing webhook -- ProvisioningService
+                # generates and persists a fresh webhook_secret on every run, so a
+                # reused webhook must be kept in sync or its signature checks fail.
+                self.session.put(
+                    f"{self.base_url}/api/resource/Webhook/{name}",
+                    json={"webhook_secret": webhook_secret},
+                    timeout=15,
+                )
                 self._log_api_op("ensure_webhook", name, True, check_resp.status_code, "Reusing existing webhook")
                 return name
 
@@ -483,7 +499,7 @@ print(json.dumps(keys))
                 f"{{'is_hidden': {is_hidden}, 'public': {public}}}); frappe.db.commit(); frappe.clear_cache()"
             )
             cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             success = res.returncode == 0
         except Exception as e:
             logger.debug(f"[ERPNextClient] {label} container fallback failed: {e}")
@@ -513,7 +529,7 @@ print(json.dumps(keys))
                 "docker", "exec", container_name,
                 "bench", "--site", self.site_name, "clear-cache"
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             self._log_api_op("clear_cache", self.site_name, res.returncode == 0, 200 if res.returncode == 0 else 500)
             return res.returncode == 0
         except Exception as e:
@@ -563,7 +579,7 @@ frappe.db.commit()
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", script
             ]
-            subprocess.run(cmd, capture_output=True, text=True)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         except Exception as e:
             logger.warning(f"[ERPNextClient] Failed to set default workspace for users: {e}")
 

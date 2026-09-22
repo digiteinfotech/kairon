@@ -114,12 +114,12 @@ class CRMProcessor:
         record.save()
 
     @staticmethod
-    def delete_crm_details(company_name: str):
+    def delete_crm_details(bot: str, company_name: str):
         if Utility.check_empty_string(company_name):
             raise AppException("Company name cannot be empty.")
 
         record = CRMClientDetails.objects(
-            company_name__iexact=company_name.strip()
+            bot=bot, company_name__iexact=company_name.strip()
         ).first()
         if not record:
             raise HTTPException(
@@ -223,10 +223,14 @@ class CRMProcessor:
             
         except Exception as e:
             logger.exception(f"[{provisioning_id}] Unhandled exception in ProvisioningService: {e}")
-            # Ensure lock is released on catastrophic unhandled exception
+            # Ensure lock is released on catastrophic unhandled exception. Do NOT
+            # force a specific onboarding_status here -- ProvisioningService already
+            # records the correct stage-specific FAILED_* status for every error it
+            # catches internally, and overwriting that with a fixed value breaks the
+            # step guards in execute_onboarding_workflow on the next retry (each step
+            # only runs when the status matches its expected prior state).
             CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).update_one(
                 set__lock=False,
-                set__onboarding_status=CRMOnboardingStatus.FAILED_VERIFICATION.value,
                 set__last_error=str(e)
             )
             raise e

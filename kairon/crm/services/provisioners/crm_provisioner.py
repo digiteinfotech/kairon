@@ -1,5 +1,7 @@
+import subprocess
 from typing import Dict, Any
 from loguru import logger
+from kairon.exceptions import AppException
 from kairon.crm.models import CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -29,8 +31,21 @@ class CRMProvisioner(BaseProvisioner):
         # Database name resolution
         db_name = f"frappe_crm_{clean_name}"[:63].rstrip('_')
 
-        self._bench_new_site(site_name, db_name, admin_password, "crm", self.LABEL)
+        # ProvisionerFactory also routes "helpdesk"/"standalone" strategies here,
+        # so the app to install must come from the resolved plan, not a fixed "crm".
+        primary_app = self.plan.apps[0] if self.plan.apps else "crm"
+        self._bench_new_site(site_name, db_name, admin_password, primary_app, self.LABEL)
         self._install_kairon_connector(site_name, self.LABEL)
+
+        for app in self.plan.apps[1:]:
+            logger.info(f"[{self.LABEL}] Installing additional Tier 1 app '{app}' on {site_name}...")
+            install_cmd = [
+                "docker", "exec", self.container_name,
+                "bench", "--site", site_name, "install-app", app
+            ]
+            res = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
+            if res.returncode != 0:
+                raise AppException(f"[{self.LABEL}] install-app '{app}' failed: {res.stderr or res.stdout}")
 
         # Post-creation setup: Encryption key, setup wizard bypass, homepage, migrate & user creation
         self.prelock_encryption_key(site_name)
