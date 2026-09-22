@@ -17,6 +17,10 @@ from kairon.crm.services.crm_client import CRMClient
 from kairon.crm.services.erpnext_client import ERPNextClient
 
 
+@unittest.skipUnless(
+    os.getenv("KAIRON_RUN_LIVE_E2E_TESTS") == "1",
+    "Requires a live frappe-backend-1 Docker container; set KAIRON_RUN_LIVE_E2E_TESTS=1 to run.",
+)
 class TestHybridE2EIntegration(unittest.TestCase):
     """
     Live Integration Test Suite against frappe-backend-1 Docker container.
@@ -30,7 +34,11 @@ class TestHybridE2EIntegration(unittest.TestCase):
         from kairon.shared.utils import Utility
         try:
             import mongomock
-            mongoengine.connect('kairon_test', is_mock=True)
+            mongoengine.connect(
+                'kairon_test',
+                host='mongodb://localhost',
+                mongo_client_class=mongomock.MongoClient,
+            )
         except Exception:
             mongoengine.connect('kairon_test', host='mongodb://localhost:27017/kairon_test')
 

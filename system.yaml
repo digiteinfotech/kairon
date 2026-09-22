@@ -303,7 +303,7 @@ crm:
     db_host: ${BENCH_DB_HOST:"db"}
     db_port: ${BENCH_DB_PORT:5432}
     db_user: ${BENCH_DB_USER:"postgres"}
-    db_password: ${BENCH_DB_PASSWORD:"beb703c0c"}
+    db_password: ${BENCH_DB_PASSWORD}
     smtp_enabled: ${BENCH_SMTP_ENABLED:false}
     base_url: ${BENCH_BASE_URL:"http://localhost:8080"}
     app_name: ${BENCH_APP_NAME:"frappe"}

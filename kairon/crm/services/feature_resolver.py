@@ -59,8 +59,20 @@ class FeatureAppResolver:
         for feature in selected_features:
             key = feature.lower().strip()
             if key not in matrix:
-                logger.warning(f"[FeatureAppResolver] Unknown feature '{key}', ignoring.")
-                continue
+                # BUSINESS_MODULE_CATALOG (kairon/crm/constants.py) advertises more
+                # modules (Buying, Manufacturing, Projects, Assets, Support, Quality,
+                # Payroll, Maintenance) than provisioning_matrix.yaml currently maps.
+                # Silently ignoring an unmapped selection used to fall through to the
+                # "if not resolved_apps: resolved_apps = ['crm']" default below --
+                # a tenant selecting only unmapped modules got a Tier 1 CRM-only site
+                # with none of the ERPNext functionality they actually asked for, with
+                # only a log line (never surfaced to the caller) as evidence. Fail
+                # loudly instead so the gap is visible at request time, not discovered
+                # by an admin days later.
+                raise AppException(
+                    f"Selected feature '{feature}' has no provisioning_matrix.yaml entry. "
+                    f"Available: {', '.join(sorted(matrix.keys()))}."
+                )
 
             config = matrix[key]
             tier = config.get("tier", 1)

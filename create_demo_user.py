@@ -86,7 +86,6 @@ def create_user_and_bot(email: str, password: str, bot_name: str):
     print("      PROVISIONED DEMO USER & BOT SUCCESSFULLY         ")
     print("=======================================================")
     print(f" User Email       : {email}")
-    print(f" Password         : {password}")
     print(f" Bot Name         : {bot_name}")
     print(f" Bot ID           : {bot_id}")
     print(f" DB enable_crm    : {db_enable_crm}")

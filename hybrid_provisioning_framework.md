@@ -312,7 +312,7 @@ sequenceDiagram
 
 *Scenario: User clicks "Create Tenant" selecting "Helpdesk" and "CRM".*
 
-1. **UI Action**: User submits the Streamlit form on `2_Provision_New_Tenant.py`.
+1. **UI Action**: User submits the Streamlit form on `2_CRM_Onboarding.py`.
 2. **Service Invocation**: UI calls `tenant_service.create_tenant(features=["crm", "helpdesk"])`.
 3. **Pre-flight Validation**: `PreflightValidator` checks if the tenant name is valid and available.
 4. **Database Initialization**: A new record is inserted into MongoDB with status `Provisioning`.
@@ -320,9 +320,10 @@ sequenceDiagram
 6. **Factory Delegation**: `ProvisionerFactory` receives the plan and instantiates a `CRMProvisioner`.
 7. **Execution Starts**: `CRMProvisioner.execute()` begins.
 8. **Bench Commands**:
-   - Executes `bench new-site {tenant_url} --admin-password {pwd}` via `BenchExecutor`.
+   - Executes `bench new-site {tenant_url} --admin-password {pwd}` via `BaseProvisioner._bench_new_site`.
    - Executes `bench --site {tenant_url} install-app crm`.
    - Executes `bench --site {tenant_url} install-app helpdesk`.
+   - **Known limitation**: `--admin-password` is passed as a `subprocess.run` argv entry (not via a shell string, so it is not exposed through shell history), but it is still visible for the command's duration to anything reading the container's process list (e.g. `docker top`, `ps aux` inside the container). This is a real, currently-open gap -- Frappe's `bench new-site` CLI does not document a stdin/env-var alternative to `--admin-password` as of this writing. Track and re-evaluate if/when `bench` adds one.
 9. **Post-Provisioning Config**: The provisioner uses API calls to set up the default Administrator user profile and assigns standard CRM roles.
 10. **Validation**: `ProvisionVerifier` attempts to ping the new Frappe site's API to ensure it responds with `200 OK`.
 11. **Finalization**: `ProvisioningService` catches the success event and updates MongoDB: `status="Active"`, `tier=1`, `installed_apps=["crm", "helpdesk"]`.

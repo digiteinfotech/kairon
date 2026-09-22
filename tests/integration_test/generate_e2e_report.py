@@ -19,10 +19,11 @@ def run_e2e_suite_and_generate_report():
     overall_start = time.time()
     
     from kairon.shared.utils import Utility
-    try:
-        Utility.load_environment("/home/geet_more/Desktop/kairon/system.yaml")
-    except Exception:
-        pass
+    # Utility.load_environment() takes an env-VARIABLE name (it calls
+    # os.getenv(env, "./system.yaml")), not a file path -- passing a path here
+    # was always a no-op (looked up as a var name, always missed, silently fell
+    # back to ./system.yaml) and leaked a developer-specific machine path.
+    Utility.load_environment()
 
     from mongoengine import connect
     try:
@@ -213,6 +214,35 @@ def run_e2e_suite_and_generate_report():
     total_execution_time = round(time.time() - overall_start, 2)
 
     # Generate visual HTML report
+    checkpoint_labels = [
+        ("test_env_prepared", "Test environment prepared"),
+        ("invitation_created", "Invitation created"),
+        ("email_delivered", "Invitation email delivered"),
+        ("exactly_one_email", "Exactly one email generated"),
+        ("link_valid", "Invitation link valid"),
+        ("password_setup_completed", "Password setup completed"),
+        ("login_successful", "Login successful"),
+        ("session_verified", "Session verified"),
+        ("erpnext_user_exists", "ERPNext User exists"),
+        ("roles_assigned", "Required roles assigned"),
+        ("company_permission_created", "Company User Permission created"),
+        ("company_access_enforced", "Company access enforced"),
+        ("other_company_access_denied", "Other company access denied"),
+        ("webhook_received", "Webhook received"),
+        ("hmac_verified", "HMAC verified"),
+        ("duplicate_webhook_ignored", "Duplicate webhook ignored"),
+        ("crm_invitation_updated", "CRMInvitation updated"),
+        ("idempotency_verified", "Idempotency verified"),
+        ("test_data_cleaned", "Test data cleaned successfully"),
+    ]
+    checkpoints_passed = sum(1 for key, _ in checkpoint_labels if checkmarks.get(key))
+    checkpoints_total = len(checkpoint_labels)
+    all_passed = checkpoints_passed == checkpoints_total
+    checkpoints_html = "\n".join(
+        f'<div class="checkpoint-item"><span class="icon-check">{"✓" if checkmarks.get(key) else "✗"}</span> {label}</div>'
+        for key, label in checkpoint_labels
+    )
+
     html_report_path = os.path.join(os.path.dirname(__file__), "e2e_invitation_report.html")
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -361,7 +391,7 @@ def run_e2e_suite_and_generate_report():
                 <p>Real Integration Test Suite Execution Results</p>
             </div>
             <div class="badge">
-                ✓ 100% VERIFIED PASSED
+                {"✓ 100% VERIFIED PASSED" if all_passed else f"✗ FAILED ({checkpoints_passed}/{checkpoints_total})"}
             </div>
         </div>
 
@@ -388,32 +418,14 @@ def run_e2e_suite_and_generate_report():
             </div>
             <div class="card">
                 <div class="card-label">Resource Teardown</div>
-                <div class="card-value">Deleted: {resources_deleted} | Leftover: 0</div>
+                <div class="card-value">Deleted: {resources_deleted} | Leftover: {len(leftover_resources)}</div>
             </div>
         </div>
 
         <div class="section">
-            <div class="section-title">✓ Verified Verification Checkpoints (19/19)</div>
+            <div class="section-title">{"✓ Verified" if all_passed else "✗ Failed"} Verification Checkpoints ({checkpoints_passed}/{checkpoints_total})</div>
             <div class="checkpoints-grid">
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Test environment prepared</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Invitation created</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Invitation email delivered</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Exactly one email generated</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Invitation link valid</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Password setup completed</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Login successful</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Session verified</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> ERPNext User exists</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Required roles assigned</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Company User Permission created</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Company access enforced</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Other company access denied</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Webhook received</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> HMAC verified</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Duplicate webhook ignored</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> CRMInvitation updated</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Idempotency verified</div>
-                <div class="checkpoint-item"><span class="icon-check">✓</span> Test data cleaned successfully</div>
+                {checkpoints_html}
             </div>
         </div>
 

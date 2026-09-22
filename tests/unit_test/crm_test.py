@@ -1,4 +1,10 @@
 import os
+
+# Must be set before importing kairon.api.app.main -- app import triggers
+# environment loading, which would otherwise fall back to the default
+# ./system.yaml instead of the test fixture config.
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+
 from unittest.mock import patch, MagicMock
 # pyrefly: ignore [missing-import]
 import pytest
@@ -26,7 +32,6 @@ mock_user = User(
 
 @pytest.fixture(autouse=True, scope="module")
 def setup_module():
-    os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
     connect(
         **Utility.mongoengine_connection(Utility.environment["database"]["url"])
@@ -137,11 +142,11 @@ def test_update_onboarding_status():
 
 
 def test_delete_crm_details():
-    res = CRMProcessor.delete_crm_details("My Company")
+    res = CRMProcessor.delete_crm_details("test_crm_bot", "My Company")
     assert res["success"] is True
 
     with pytest.raises(HTTPException):
-        CRMProcessor.delete_crm_details("My Company")
+        CRMProcessor.delete_crm_details("test_crm_bot", "My Company")
 
 
 @patch("kairon.crm.services.bench_executor.BenchExecutor._database_exists")
@@ -782,8 +787,9 @@ def test_ensure_invitation_webhook_idempotency():
     mock_check.status_code = 200
     mock_check.json.return_value = {"data": [{"name": "HOOK-00001"}]}
 
-    with patch.object(client_obj.session, "get", return_value=mock_check):
-        name = client_obj.ensure_invitation_webhook("http://localhost:8000", "invite_corp.localhost", "secret")
+    with patch.object(client_obj.session, "get", return_value=mock_check), \
+         patch.object(client_obj.session, "put", return_value=MagicMock(status_code=200)):
+        name = client_obj.ensure_invitation_webhook("http://localhost:8000", "invite_corp.localhost", "secret", bot="test_crm_bot")
         assert name == "HOOK-00001"
 
     # 2. Absent webhook case -> creates new
@@ -797,7 +803,7 @@ def test_ensure_invitation_webhook_idempotency():
 
     with patch.object(client_obj.session, "get", return_value=mock_absent), \
          patch.object(client_obj.session, "post", return_value=mock_create):
-        name = client_obj.ensure_invitation_webhook("http://localhost:8000", "invite_corp.localhost", "secret")
+        name = client_obj.ensure_invitation_webhook("http://localhost:8000", "invite_corp.localhost", "secret", bot="test_crm_bot")
         assert name == "HOOK-00002"
 
 

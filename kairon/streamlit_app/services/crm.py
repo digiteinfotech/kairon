@@ -42,12 +42,12 @@ class CrmService:
     @staticmethod
     def enable_crm(bot_id: str, enable: bool = True) -> Dict[str, Any]:
         """Enable or disable CRM capabilities for a bot."""
-        # Get current settings first to preserve analytics model
-        try:
-            current_settings = CrmService.get_bot_settings(bot_id)
-            analytics_payload = current_settings.get("analytics", {})
-        except Exception:
-            analytics_payload = {"enable": False}
+        # Get current settings first to preserve analytics model. If this read fails,
+        # abort rather than silently defaulting analytics_payload to {"enable": False}
+        # -- that default would then overwrite the bot's real analytics config on the
+        # PUT below, purely because of a transient read failure.
+        current_settings = CrmService.get_bot_settings(bot_id)
+        analytics_payload = current_settings.get("analytics", {})
 
         payload = {
             "analytics": analytics_payload,

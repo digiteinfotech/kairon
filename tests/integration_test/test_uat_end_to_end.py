@@ -1,3 +1,4 @@
+import os
 import unittest
 import time
 import subprocess
@@ -15,6 +16,10 @@ from kairon.crm.services.base_frappe_client import BaseFrappeClient
 from kairon.exceptions import AppException
 
 
+@unittest.skipUnless(
+    os.getenv("KAIRON_RUN_LIVE_E2E_TESTS") == "1",
+    "Requires a live frappe-backend-1 Docker container + Mongo; set KAIRON_RUN_LIVE_E2E_TESTS=1 to run.",
+)
 class TestUATEndToEnd(unittest.TestCase):
 
     @classmethod

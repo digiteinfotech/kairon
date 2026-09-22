@@ -158,20 +158,25 @@ class BaseProvisioner(ABC):
 
             # Ensure CRM frontend assets exist in Nginx frontend container.
             # Piped directly between two subprocesses (no shell=True) to avoid
-            # invoking a shell to interpret a command string.
+            # invoking a shell to interpret a command string. Uses the resolved
+            # backend container name (self.container_name) instead of a hardcoded
+            # "frappe-backend-1" -- a deployment using a different Compose project
+            # name would otherwise silently fail this sync (swallowed below into a
+            # warning) and leave the tenant's CRM frontend broken.
+            frontend_container = self.bench_config.get("frontend_container_name", "frappe-frontend-1")
             try:
                 tar_out = subprocess.Popen(
-                    ["docker", "exec", "frappe-backend-1", "tar", "-cf", "-", "-C", "/home/frappe/frappe-bench/apps", "crm"],
+                    ["docker", "exec", self.container_name, "tar", "-cf", "-", "-C", "/home/frappe/frappe-bench/apps", "crm"],
                     stdout=subprocess.PIPE
                 )
                 tar_in = subprocess.Popen(
-                    ["docker", "exec", "-i", "frappe-frontend-1", "tar", "-xf", "-", "-C", "/home/frappe/frappe-bench/apps"],
+                    ["docker", "exec", "-i", frontend_container, "tar", "-xf", "-", "-C", "/home/frappe/frappe-bench/apps"],
                     stdin=tar_out.stdout, stdout=subprocess.PIPE
                 )
                 tar_out.stdout.close()
                 tar_in.communicate(timeout=15)
                 subprocess.run([
-                    "docker", "exec", "frappe-frontend-1", "ln", "-sfn",
+                    "docker", "exec", frontend_container, "ln", "-sfn",
                     "/home/frappe/frappe-bench/apps/crm/crm/public", "/home/frappe/frappe-bench/assets/crm"
                 ], capture_output=True, timeout=15)
             except Exception as fe_err:

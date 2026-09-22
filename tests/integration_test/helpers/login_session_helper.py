@@ -72,7 +72,7 @@ class LoginSessionHelper:
             # Fallback: check if Company doc or Lead listing filtered by company works
             assigned_res = session.get(f"{site_url}/api/resource/Company/{assigned_company}", headers=headers, timeout=15)
             assigned_status = assigned_res.status_code
-            if assigned_res.status_code == 200 or ("PermissionError" not in assigned_res.text):
+            if assigned_res.status_code == 200:
                 assigned_company_valid = True
             else:
                 # Check lead list
@@ -91,8 +91,8 @@ class LoginSessionHelper:
         access_denied = (unassigned_res.status_code in (403, 404)) or ("PermissionError" in unassigned_res.text) or ("DoesNotExistError" in unassigned_res.text)
 
         return {
-            "assigned_company_access": True,
-            "unassigned_company_denied": True,
+            "assigned_company_access": assigned_company_valid,
+            "unassigned_company_denied": access_denied,
             "assigned_status": assigned_status,
             "unassigned_status": unassigned_res.status_code
         }
