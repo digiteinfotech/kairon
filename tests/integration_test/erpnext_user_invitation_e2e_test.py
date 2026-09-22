@@ -1,3 +1,4 @@
+import os
 import time
 import pytest
 import requests
@@ -12,6 +13,15 @@ from helpers.login_session_helper import LoginSessionHelper
 from helpers.webhook_idempotency_helper import WebhookIdempotencyHelper
 from helpers.invite_idempotency_helper import InviteIdempotencyHelper
 from helpers.test_cleanup import TestCleanup
+
+# This suite needs a live Kairon API + provisioned ERPNext bench + Mailpit
+# reachable at localhost -- infrastructure plain `pytest tests/` in CI does not
+# provision. Without this guard, the default pytest discovery pattern (test_*.py
+# AND *_test.py) collects and fails/errors every one of these tests there.
+pytestmark = pytest.mark.skipif(
+    os.getenv("KAIRON_RUN_LIVE_E2E_TESTS") != "1",
+    reason="Requires a live Kairon API + ERPNext bench + Mailpit stack; set KAIRON_RUN_LIVE_E2E_TESTS=1 to run.",
+)
 
 
 class TestERPNextUserInvitationE2E:

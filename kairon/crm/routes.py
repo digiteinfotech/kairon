@@ -325,6 +325,6 @@ def delete_project(
     - **Response Schema**: `Response` wrapping `{ success: True }`
     - **Security Note**: High privilege admin operation (`ADMIN_ACCESS`).
     """
-    result = CRMProcessor.delete_crm_details(company_name)
+    result = CRMProcessor.delete_crm_details(current_user.get_bot(), company_name)
     return Response(data=result)
 

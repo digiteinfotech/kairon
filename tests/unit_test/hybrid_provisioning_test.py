@@ -60,7 +60,7 @@ class TestHybridProvisioning(unittest.TestCase):
     @patch("subprocess.run")
     def test_preflight_validator_infrastructure_success(self, mock_run):
         # Mock successful bench --version and directory checks
-        def side_effect(cmd, capture_output=True, text=False):
+        def side_effect(cmd, capture_output=True, text=False, timeout=None):
             res = MagicMock()
             cmd_str = " ".join(cmd)
             if "test -d sites/" in cmd_str:

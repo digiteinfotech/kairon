@@ -36,7 +36,7 @@ class WebhookIdempotencyHelper:
             "bench", "--site", site_name, "execute",
             "frappe.db.count", "--args", f"['User Permission', {{'user': '{recipient_email}'}}]"
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if res.returncode == 0 and res.stdout.strip().isdigit():
             return int(res.stdout.strip())
         return 0

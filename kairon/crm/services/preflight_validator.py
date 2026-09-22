@@ -44,6 +44,11 @@ class PreFlightValidator:
         db_port = bench_config.get("db_port", 5432)
         if not db_host or not db_port:
             raise AppException("Pre-flight config failure: Database host or port misconfigured.")
+        if not bench_config.get("db_password"):
+            raise AppException(
+                "Pre-flight config failure: BENCH_DB_PASSWORD is not set. Bench provisioning "
+                "requires an explicit deployment secret and will not fall back to a default."
+            )
 
         logger.info("[PreFlightValidator] Application configuration validated successfully.")
         return plan
@@ -61,7 +66,10 @@ class PreFlightValidator:
 
         # 1. Verify backend container running via docker exec test
         test_cmd = ["docker", "exec", container_name, "bench", "--version"]
-        res = subprocess.run(test_cmd, capture_output=True, text=True)
+        try:
+            res = subprocess.run(test_cmd, capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
         if res.returncode != 0:
             raise AppException(
                 f"Pre-flight infrastructure failure: Container '{container_name}' is not running or 'bench' CLI unavailable. "
@@ -73,14 +81,20 @@ class PreFlightValidator:
         # 2. Check site existence
         if not is_upgrade:
             check_site_cmd = ["docker", "exec", container_name, "test", "-d", f"sites/{site_name}"]
-            site_res = subprocess.run(check_site_cmd, capture_output=True)
+            try:
+                site_res = subprocess.run(check_site_cmd, capture_output=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
             if site_res.returncode == 0:
                 raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
 
         # 3. Verify required apps exist in container apps directory & sites/apps.txt
         for app in plan.apps:
             check_app_cmd = ["docker", "exec", container_name, "test", "-d", f"apps/{app}"]
-            app_res = subprocess.run(check_app_cmd, capture_output=True)
+            try:
+                app_res = subprocess.run(check_app_cmd, capture_output=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
             if app_res.returncode != 0:
                 raise AppException(
                     f"Pre-flight infrastructure failure: Required application repository '{app}' is missing from container apps directory. "
@@ -92,7 +106,10 @@ class PreFlightValidator:
                 "docker", "exec", container_name, "bash", "-c",
                 f"grep -q '^{app}$' sites/apps.txt || echo '{app}' >> sites/apps.txt"
             ]
-            subprocess.run(ensure_apps_cmd, capture_output=True)
+            try:
+                subprocess.run(ensure_apps_cmd, capture_output=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
 
         logger.info("[PreFlightValidator] Infrastructure pre-flight validation completed successfully.")
 

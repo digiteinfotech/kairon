@@ -30,15 +30,19 @@ class AppUpgradeProvisioner(BaseProvisioner):
         if not site_name:
             raise AppException(f"No existing bench site found to upgrade for company {company_name}")
 
-        # Check atomic lock
-        if doc.lock:
+        # Acquire lock atomically -- the previous read-then-write (`if doc.lock: raise`
+        # followed by a separate `doc.save()`) let two concurrent upgrade calls both
+        # pass the check and run `bench install-app` against the same site.
+        updated_count = CRMClientDetails.objects(
+            company_name__iexact=company_name.strip(), lock=False
+        ).update_one(
+            set__lock=True,
+            set__lock_timestamp=datetime.utcnow(),
+            set__onboarding_status=CRMOnboardingStatus.UPGRADING_TO_TIER_2.value,
+        )
+        if updated_count == 0:
             raise AppException(f"Upgrade operation already in progress for site '{site_name}'. Please wait or retry.")
-
-        # Acquire lock & set status
-        doc.lock = True
-        doc.lock_timestamp = datetime.utcnow()
-        doc.onboarding_status = CRMOnboardingStatus.UPGRADING_TO_TIER_2.value
-        doc.save()
+        doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
 
         try:
             # Phase 0: Infrastructure & Container Readiness Check
@@ -89,6 +93,16 @@ class AppUpgradeProvisioner(BaseProvisioner):
                 "site_name": site_name,
                 "message": "Site upgraded from Tier 1 Standalone to Tier 2 ERPNext Suite successfully."
             }
+
+        except Exception as e:
+            # Guarantee a terminal state on any failure -- including ones that never
+            # reach the explicit FAILED_UPGRADE assignment above (e.g. a pre-flight
+            # failure or subprocess.TimeoutExpired) -- so the record doesn't stay
+            # stuck in the non-terminal UPGRADING_TO_TIER_2 state forever.
+            if doc.onboarding_status == CRMOnboardingStatus.UPGRADING_TO_TIER_2.value:
+                doc.onboarding_status = CRMOnboardingStatus.FAILED_UPGRADE.value
+                doc.last_error = str(e)
+            raise
 
         finally:
             # Release lock

@@ -29,7 +29,7 @@ ABBR_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]{1,4}$")
 
 FAILED_STATES = {
     "FAILED_PROJECT", "FAILED_BENCH", "FAILED_HEALTH",
-    "FAILED_COMPANY", "FAILED_USER", "FAILED_VERIFICATION",
+    "FAILED_COMPANY", "FAILED_USER", "FAILED_VERIFICATION", "FAILED_UPGRADE",
 }
 STATUS_STEPS = [
     "PENDING", "PROJECT_CREATED", "BENCH_RUNNING", "SITE_CREATED",
@@ -194,7 +194,13 @@ def _run_onboarding(company_name, abbr, country, currency):
                 selected_modules=["CRM"],
             )
             data = res.get("data", res) or {}
+            # Keep the temporary_password out of the persisted provisioning_result --
+            # that dict survives reruns/page revisits, which would silently redisplay
+            # the credential every time despite the "shown once" message below.
+            temp_password = data.pop("temporary_password", None)
             st.session_state["provisioning_result"] = data
+            if temp_password:
+                st.session_state["provisioning_temp_password"] = temp_password
             st.session_state["last_onboard_request_key"] = request_key
             final_status = data.get("status")
             if final_status == "COMPLETED":
@@ -212,10 +218,9 @@ def _run_onboarding(company_name, abbr, country, currency):
 # Step 3: Route to the correct screen based on real backend state.
 # ---------------------------------------------------------------------------
 if current_status == "COMPLETED":
-    temp_pw = None
-    result = st.session_state.get("provisioning_result")
-    if result and result.get("status") == "COMPLETED":
-        temp_pw = result.get("temporary_password")
+    # pop(), not get() -- read the one-time password exactly once, then it's gone
+    # from session state so a later rerun/page revisit can't redisplay it.
+    temp_pw = st.session_state.pop("provisioning_temp_password", None)
     render_ready(existing, temp_password=temp_pw)
 
 elif current_status in FAILED_STATES:

@@ -2,8 +2,7 @@ import json
 import requests
 import urllib3
 from loguru import logger
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from kairon.shared.utils import Utility
 
 
 class ProvisionVerifier:
@@ -16,7 +15,12 @@ class ProvisionVerifier:
         self.base_url = base_url.rstrip("/")
         self.host_header = host_header
         self.session = requests.Session()
-        self.session.verify = False
+        # See ERPNextClient.__init__ for why this defaults to verifying certs.
+        crm_config = Utility.environment.get("crm", {})
+        ssl_verify = crm_config.get("bench", {}).get("ssl_verify", True)
+        self.session.verify = ssl_verify
+        if not ssl_verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.session.headers.update({
             "Host": self.host_header,
             "Accept": "application/json"

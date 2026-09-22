@@ -60,7 +60,7 @@ class ProvisioningService:
         Validates and updates the state of the provisioning workflow.
         Ensures strict state machine transitions.
         """
-        doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+        doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         if not doc:
             raise AppException("CRMClientDetails not found for status update.")
 
@@ -99,7 +99,7 @@ class ProvisioningService:
             doc.site_name = f"{clean_name}.localhost"
             doc.save()
             self.update_onboarding_status(CRMOnboardingStatus.PROJECT_CREATED)
-            doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc
 
     def _phase_bench_execution(self, doc):
@@ -123,7 +123,7 @@ class ProvisioningService:
             )
 
             # Fetch updated doc
-            doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
             self.update_onboarding_status(CRMOnboardingStatus.SITE_CREATED)
         return doc, admin_password
 
@@ -142,7 +142,7 @@ class ProvisioningService:
                 raise AppException("ERPNext health check timeout.")
 
             self.update_onboarding_status(CRMOnboardingStatus.SITE_HEALTHY)
-            doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc
 
     def _phase_company_and_integration(self, doc, client, admin_password: str, crm_config: dict):
@@ -192,7 +192,8 @@ class ProvisioningService:
             client.ensure_invitation_webhook(
                 kairon_url=kairon_base_url,
                 site_name=doc.site_name,
-                webhook_secret=webhook_secret
+                webhook_secret=webhook_secret,
+                bot=self.bot
             )
             doc.webhook_secret = Utility.encrypt_message(webhook_secret)
 
@@ -218,7 +219,7 @@ class ProvisioningService:
             doc.save()
 
             self.update_onboarding_status(CRMOnboardingStatus.COMPANY_CREATED)
-            doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc
 
     def _phase_create_user(self, doc, client, admin_password: str, smtp_enabled: bool, current_user_email: str, first_name: str, last_name: str):
@@ -251,8 +252,11 @@ class ProvisioningService:
             catalog = {m["key"]: m for m in client.discover_business_modules()["modules"]}
             target_role_profile = None
             for mod_key in selected_mods:
-                if mod_key in matrix and matrix[mod_key].get("role_profile_name"):
-                    target_role_profile = matrix[mod_key]["role_profile_name"]
+                # matrix keys are lowercase ("pos", "crm"); selected_mods holds
+                # BUSINESS_MODULE_CATALOG keys, which are capitalized ("POS", "CRM").
+                matrix_key = mod_key.lower().strip()
+                if matrix_key in matrix and matrix[matrix_key].get("role_profile_name"):
+                    target_role_profile = matrix[matrix_key]["role_profile_name"]
                     break
 
             logger.info(f"[{self.provisioning_id}] Assigning Roles, Company & Module Profile '{doc.module_profile_name}'...")
@@ -261,11 +265,12 @@ class ProvisioningService:
 
             # Check matrix for explicit home_page workspace override
             for mod_key in selected_mods:
-                if mod_key in matrix and "home_page" in matrix[mod_key]:
-                    hp = matrix[mod_key]["home_page"]
+                matrix_key = mod_key.lower().strip()
+                if matrix_key in matrix and "home_page" in matrix[matrix_key]:
+                    hp = matrix[matrix_key]["home_page"]
                     if hp.startswith("workspace/"):
                         target_default_ws = hp.replace("workspace/", "")
-                    break
+                        break
 
             client.assign_roles_and_company(
                 current_user_email,
@@ -287,7 +292,7 @@ class ProvisioningService:
             doc.save()
 
             self.update_onboarding_status(CRMOnboardingStatus.USER_CREATED)
-            doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc, temp_password
 
     def _phase_verification(self, doc, client, verifier, admin_password: str, temp_password, smtp_enabled: bool, current_user_email: str):
@@ -322,7 +327,7 @@ class ProvisioningService:
         RETRYABLE_STATES); phase bodies live in the `_phase_*` methods above so this
         orchestrator only handles sequencing and failure reporting per phase.
         """
-        doc = CRMClientDetails.objects(bot=self.bot, company_name=self.company_name).first()
+        doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         if not doc:
             return ProvisioningResult(status="FAILED", error="CRM record not found.")
 

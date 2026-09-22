@@ -1,6 +1,7 @@
 import subprocess
 from typing import Dict, Any
 from loguru import logger
+from kairon.exceptions import AppException
 from kairon.crm.models import CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -44,7 +45,9 @@ class ERPNextProvisioner(BaseProvisioner):
                     "docker", "exec", self.container_name,
                     "bench", "--site", site_name, "install-app", app
                 ]
-                subprocess.run(install_cmd, capture_output=True)
+                res = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
+                if res.returncode != 0:
+                    raise AppException(f"[{self.LABEL}] install-app '{app}' failed: {res.stderr or res.stdout}")
 
         # Setup user, roles, password, company, fiscal year, and migrate
         user_email = doc.user if doc.user else "Administrator"

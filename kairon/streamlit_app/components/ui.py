@@ -45,11 +45,16 @@ def render_sidebar():
         bots = CrmService.get_bots()
         if bots:
             bot_options = {b["_id"]: b["name"] for b in bots}
+            bot_ids = list(bot_options.keys())
+            saved_bot_id = st.session_state.get("selected_bot_id")
+            # Bot may have been deleted/access-revoked since it was saved -- fall
+            # back to index 0 instead of letting list.index() raise ValueError.
+            default_index = bot_ids.index(saved_bot_id) if saved_bot_id in bot_ids else 0
             selected_bot_id = st.sidebar.selectbox(
                 "Active Bot Context",
-                options=list(bot_options.keys()),
+                options=bot_ids,
                 format_func=lambda x: bot_options[x],
-                index=0 if "selected_bot_id" not in st.session_state else list(bot_options.keys()).index(st.session_state["selected_bot_id"])
+                index=default_index
             )
             st.session_state["selected_bot_id"] = selected_bot_id
             st.session_state["selected_bot_name"] = bot_options[selected_bot_id]

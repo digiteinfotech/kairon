@@ -34,6 +34,10 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
     new user-configured action doctype.
     """
 
+    # Not a KaironSystemSlots enum member: add_system_required_slots() bulk-provisions
+    # every enum member for every bot unconditionally, which would leak this
+    # CRM-specific slot onto bots that never enable CRM. It's provisioned only for
+    # CRM-enabled bots instead, via MongoProcessor.edit_bot_settings.
     ALREADY_QUALIFIED_SLOT = "kairon_lead_qualified_sent"
     # A lead needs at least one real contact channel to be actionable for sales;
     # everything else (name/company/budget/etc.) is best-effort from tracker slots.

@@ -24,10 +24,10 @@ During site provisioning, Kairon provisions a dedicated system integration user 
 ### D. Multi-Layered Access Control: Module Profiles vs. Workspace Hiding
 Kairon implements a **two-layered defense**:
 1. **Layer 1 (UI Hiding via Workspace `is_hidden`)**: Hides navigation cards and sidebar links in Frappe Desk UI for unselected modules (e.g., `Stock`, `Selling`, `Manufacturing`). This provides a clean UX and prevents redirection loops.
-2. **Layer 2 (Backend Security via Module Profile & DocType Permissions)**: Assigns a `Module Profile` to users containing only selected business modules. Frappe's permission engine blocks REST API access and database queries to DocTypes belonging to unselected modules.
+2. **Layer 2 (Backend Security via Roles, Role Permissions & User Permissions)**: Assigns roles and configures `Role Permissions` for DocType access. `User Permissions` restrict records within allowed DocTypes. `Module Profiles` control module and UI visibility only; they do not block direct API or URL access to the underlying DocTypes.
 
 ### E. UI-Only Visibility vs. Server Security Model
-> **IMPORTANT SECURITY NOTE**: Workspace hiding (`is_hidden = 1`) is strictly a **UI layout directive** rendered by Frappe Desk JavaScript. It does NOT enforce backend data security. True tenant security and permission enforcement are guaranteed by **Roles**, **User Permissions** (e.g., Company permission filters), and **Module Profiles**.
+> **IMPORTANT SECURITY NOTE**: Workspace hiding (`is_hidden = 1`) and Module Profiles are strictly **UI layout / visibility directives**. Neither enforces backend data security or blocks direct API/URL access to a DocType. True tenant security and permission enforcement are guaranteed by **Roles**, **Role Permissions**, and **User Permissions** (e.g., Company permission filters).
 
 ---
 
@@ -76,7 +76,11 @@ In the event of a critical deployment rollback:
 1. **Disable CRM Integration**: Update `system.yaml` setting `crm.enabled: false`.
 2. **Revert Backend Microservice**: Redeploy the previous Kairon API docker image.
 3. **Database Metadata Preservation**: `CRMClientDetails` records in MongoDB do not modify existing non-CRM Kairon bot settings and can remain safely in place.
-4. **ERPNext Site Isolation**: Dedicated tenant databases created during testing (`erpnext_<company>`) are isolated and can be removed via `bench drop-site <site_name> --force`.
+4. **Restore or Remove Already-Provisioned/Upgraded Sites**: Disabling the API and rolling back its image does NOT undo work already done inside a tenant's Frappe site (e.g. `bench install-app erpnext` from an in-place upgrade). For any site provisioned or upgraded before the rollback, either:
+   - **Restore from backup**: `AppUpgradeProvisioner` takes a `bench backup` immediately before `install-app erpnext` and records the path in `CRMClientDetails.latest_backup_path`. Restore it with `bench --site <site_name> restore <backup_path> --force`, then run `bench --site <site_name> migrate` to reconcile schema state.
+   - **Accept forward-compatibility**: if the upgrade completed successfully before rollback, leave the site as-is (it is now Tier 2/ERPNext-installed) and update `CRMClientDetails.tier`/`installed_apps` to match, so future reads of that record aren't inconsistent with the site's real state.
+   Do not just delete the site without one of the above -- that discards tenant data with no recovery path.
+5. **ERPNext Site Isolation**: Dedicated tenant databases created during testing (`erpnext_<company>`) are isolated and can be removed via `bench drop-site <site_name> --force`.
 
 ---
 
