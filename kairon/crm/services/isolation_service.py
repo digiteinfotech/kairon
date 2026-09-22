@@ -1,8 +1,5 @@
-import os
-import yaml
 from typing import Dict, Any, List
 from loguru import logger
-from kairon.exceptions import AppException
 
 
 class ProductIsolationService:
