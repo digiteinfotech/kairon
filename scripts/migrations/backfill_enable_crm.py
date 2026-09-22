@@ -1,7 +1,6 @@
 import os
 import sys
 import logging
-from pymongo import UpdateOne
 from mongoengine import connect
 
 # Ensure the root of the project is in the path to import kairon modules

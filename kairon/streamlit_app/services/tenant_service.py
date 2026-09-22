@@ -1,6 +1,10 @@
+import json
+import re
+import secrets
+import subprocess
 import mongoengine
 from typing import List, Dict, Any, Optional
-from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
+from kairon.crm.models import CRMClientDetails
 from kairon.shared.utils import Utility
 
 
@@ -17,13 +21,64 @@ def ensure_mongo_connection():
             mongoengine.connect("conversations", host="mongodb://localhost:27017/conversations")
         except Exception:
             try:
-                import mongomock
+                import importlib
+                importlib.import_module("mongomock")  # registers the mongoengine mock backend as a side effect
                 mongoengine.connect("conversations_mock", is_mock=True)
-            except Exception:
-                pass
+            except Exception as mock_err:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to establish any MongoDB connection: {mock_err}")
 
 
 class TenantService:
+
+    DOCKER_EXEC_PREFIX = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "frappe-backend-1"]
+    BENCH_PYTHON = "/home/frappe/frappe-bench/env/bin/python"
+
+    @staticmethod
+    def _run_bench_python(py_script: str, default=None, surface_errors: bool = False):
+        """Runs a Python script inside the tenant bench container and parses its last
+        stdout line as JSON. Shared by the tenant/table/user inspection helpers below.
+
+        With surface_errors=True, returns {"status": "error", "message": <stderr or
+        exception>} instead of `default` on failure, for callers that report errors
+        back to the caller (e.g. invite_user_to_tenant) rather than just listing data.
+        """
+        try:
+            res = subprocess.run(
+                TenantService.DOCKER_EXEC_PREFIX + [TenantService.BENCH_PYTHON, "-c", py_script],
+                capture_output=True, text=True
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                lines = res.stdout.strip().split("\n")
+                return json.loads(lines[-1])
+            if surface_errors:
+                return {"status": "error", "message": res.stderr or "Command failed."}
+        except Exception as e:
+            if surface_errors:
+                return {"status": "error", "message": str(e)}
+        return default
+
+    @staticmethod
+    def _tenant_summary_dict(d, include_secrets: bool = False) -> Dict[str, Any]:
+        """Builds the common tenant summary dict shared by get_all_tenants/get_tenant_by_company."""
+        summary = {
+            "company_name": d.company_name,
+            "abbr": d.abbr,
+            "site_name": d.site_name,
+            "tier": getattr(d, "tier", 1),
+            "installed_apps": getattr(d, "installed_apps", ["crm"]),
+            "onboarding_status": d.onboarding_status,
+            "bot": d.bot,
+            "user": d.user,
+            "country": d.country,
+            "default_currency": d.default_currency,
+            "latest_backup_path": getattr(d, "latest_backup_path", None),
+            "created_at": str(d.id.generation_time) if hasattr(d, "id") and hasattr(d.id, "generation_time") else "N/A"
+        }
+        if include_secrets:
+            summary["api_key"] = getattr(d, "api_key", None)
+            summary["api_secret"] = getattr(d, "api_secret", None)
+        return summary
 
     @staticmethod
     def _authorize_tenant_access(site_name: str, user_email: str) -> bool:
@@ -48,24 +103,8 @@ class TenantService:
                 docs = CRMClientDetails.objects(user=user_email.strip()).all()
             else:
                 docs = CRMClientDetails.objects().all()
-            results = []
-            for d in docs:
-                results.append({
-                    "company_name": d.company_name,
-                    "abbr": d.abbr,
-                    "site_name": d.site_name,
-                    "tier": getattr(d, "tier", 1),
-                    "installed_apps": getattr(d, "installed_apps", ["crm"]),
-                    "onboarding_status": d.onboarding_status,
-                    "bot": d.bot,
-                    "user": d.user,
-                    "country": d.country,
-                    "default_currency": d.default_currency,
-                    "latest_backup_path": getattr(d, "latest_backup_path", None),
-                    "created_at": str(d.id.generation_time) if hasattr(d, "id") and hasattr(d.id, "generation_time") else "N/A"
-                })
-            return results
-        except Exception as e:
+            return [TenantService._tenant_summary_dict(d) for d in docs]
+        except Exception:
             return []
 
     @staticmethod
@@ -75,27 +114,12 @@ class TenantService:
             d = CRMClientDetails.objects(company_name=company_name).first()
             if not d:
                 return None
-            
+
             if user_email and user_email.strip().lower() != "admin@kairon.io":
                 if getattr(d, 'user', None) != user_email.strip():
                     return None
-            
-            return {
-                "company_name": d.company_name,
-                "abbr": d.abbr,
-                "site_name": d.site_name,
-                "tier": getattr(d, "tier", 1),
-                "installed_apps": getattr(d, "installed_apps", ["crm"]),
-                "onboarding_status": d.onboarding_status,
-                "bot": d.bot,
-                "user": d.user,
-                "country": d.country,
-                "default_currency": d.default_currency,
-                "latest_backup_path": getattr(d, "latest_backup_path", None),
-                "api_key": getattr(d, "api_key", None),
-                "api_secret": getattr(d, "api_secret", None),
-                "created_at": str(d.id.generation_time) if hasattr(d, "id") and hasattr(d.id, "generation_time") else "N/A"
-            }
+
+            return TenantService._tenant_summary_dict(d, include_secrets=True)
         except Exception:
             return None
 
@@ -231,36 +255,23 @@ class TenantService:
         """Fetch all database table names for a tenant site."""
         if not TenantService._authorize_tenant_access(site_name, user_email):
             raise PermissionError("Access Denied: You are not authorized to view this tenant's data.")
-        try:
-            import subprocess, json
-            py_script = f"""
+        py_script = f"""
 import frappe, json
-frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site={json.dumps(site_name)}, sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
 tables = frappe.db.get_tables()
 print(json.dumps(tables))
 """
-            res = subprocess.run([
-                "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "frappe-backend-1",
-                "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
-            ], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                lines = res.stdout.strip().split("\n")
-                return json.loads(lines[-1])
-            return []
-        except Exception:
-            return []
+        return TenantService._run_bench_python(py_script, default=[])
 
     @staticmethod
     def get_tenant_users(site_name: str, user_email: str) -> List[Dict[str, Any]]:
         """Fetch all users and their assigned roles for a tenant site."""
         if not TenantService._authorize_tenant_access(site_name, user_email):
             raise PermissionError("Access Denied: You are not authorized to view this tenant's users.")
-        try:
-            import subprocess, json
-            py_script = f"""
+        py_script = f"""
 import frappe, json
-frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site={json.dumps(site_name)}, sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
 users = frappe.get_all('User', fields=['name', 'email', 'first_name', 'enabled', 'creation', 'user_type'])
 res = []
@@ -280,29 +291,22 @@ for u in users:
     }})
 print(json.dumps(res))
 """
-            res = subprocess.run([
-                "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "frappe-backend-1",
-                "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
-            ], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                lines = res.stdout.strip().split("\n")
-                return json.loads(lines[-1])
-            return []
-        except Exception:
-            return []
+        return TenantService._run_bench_python(py_script, default=[])
 
     @staticmethod
     def get_table_data(site_name: str, table_name: str, limit: int = 50, user_email: str = None) -> List[Dict[str, Any]]:
         """Fetch raw rows for a specific database table in a tenant site."""
         if not user_email or not TenantService._authorize_tenant_access(site_name, user_email):
             raise PermissionError("Access Denied: You are not authorized to view this tenant's database.")
-        try:
-            import subprocess, json
-            py_script = f"""
+        if not re.match(r'^[A-Za-z0-9_]+$', table_name or ""):
+            raise ValueError("Invalid table name format.")
+        limit = int(limit)
+
+        py_script = f"""
 import frappe, json
-frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site={json.dumps(site_name)}, sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
-data = frappe.db.sql("SELECT * FROM \\\"{table_name}\\\" LIMIT {limit}", as_dict=True)
+data = frappe.db.sql('SELECT * FROM "{table_name}" LIMIT {limit}', as_dict=True)
 clean_data = []
 for row in data:
     clean_row = {{}}
@@ -311,33 +315,26 @@ for row in data:
     clean_data.append(clean_row)
 print(json.dumps(clean_data))
 """
-            res = subprocess.run([
-                "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "frappe-backend-1",
-                "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
-            ], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                lines = res.stdout.strip().split("\n")
-                return json.loads(lines[-1])
-            return []
-        except Exception:
-            return []
+        return TenantService._run_bench_python(py_script, default=[])
 
     @staticmethod
-    def invite_user_to_tenant(site_name: str, email: str, roles: List[str], password: str = "Password@123", user_email: str = None) -> Dict[str, Any]:
-        """Invites / creates a user with specified roles and password on a tenant site."""
+    def invite_user_to_tenant(site_name: str, email: str, roles: List[str], password: str = None, user_email: str = None) -> Dict[str, Any]:
+        """Invites / creates a user with the given roles on a tenant site. If no password is
+        supplied, a fresh one is generated and returned in the result (never hardcoded)."""
         if not user_email or not TenantService._authorize_tenant_access(site_name, user_email):
             return {"status": "error", "message": "Access Denied: You are not authorized to modify this tenant."}
+        if not password:
+            password = secrets.token_urlsafe(12)
         try:
-            import subprocess, json
             roles_repr = repr(roles)
             py_script = f"""
 import frappe, json
 from frappe.utils.password import update_password
 
-frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site={json.dumps(site_name)}, sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
 
-user_email = '{email.strip()}'
+user_email = {json.dumps(email.strip())}
 if not frappe.db.exists('User', user_email):
     u = frappe.get_doc({{
         'doctype': 'User',
@@ -356,17 +353,15 @@ else:
             u.append('roles', {{'role': r}})
     u.save(ignore_permissions=True)
 
-update_password(user_email, '{password}')
+update_password(user_email, {json.dumps(password)})
 frappe.db.commit()
 print(json.dumps({{'status': 'success', 'message': 'User ' + user_email + ' successfully created/invited on {site_name}'}}))
 """
-            res = subprocess.run([
-                "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "frappe-backend-1",
-                "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
-            ], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                lines = res.stdout.strip().split("\n")
-                return json.loads(lines[-1])
-            return {"status": "error", "message": res.stderr or "Failed to invite user."}
+            result = TenantService._run_bench_python(
+                py_script, default={"status": "error", "message": "Failed to invite user."}, surface_errors=True
+            )
+            if result.get("status") == "success":
+                result.setdefault("temporary_password", password)
+            return result
         except Exception as e:
             return {"status": "error", "message": str(e)}

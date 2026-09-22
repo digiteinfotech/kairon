@@ -1,5 +1,4 @@
 from loguru import logger
-from kairon.exceptions import AppException
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.provisioners.crm_provisioner import CRMProvisioner

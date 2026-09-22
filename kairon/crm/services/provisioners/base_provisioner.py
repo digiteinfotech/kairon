@@ -1,13 +1,12 @@
 import json
 import subprocess
-import signal
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 from loguru import logger
 from cryptography.fernet import Fernet
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
-from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
+from kairon.crm.models import CRMClientDetails
+from kairon.crm.services.docker_utils import resolve_container_name
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 
 
@@ -21,23 +20,76 @@ class BaseProvisioner(ABC):
     def __init__(self, plan: ProvisioningPlan, bench_config: dict):
         self.plan = plan
         self.bench_config = bench_config
-        self.container_name = self._resolve_container_name(bench_config)
+        self.container_name = resolve_container_name(bench_config, self.__class__.__name__)
 
-    def _resolve_container_name(self, bench_config: dict) -> str:
-        container_name = bench_config.get("container_name")
-        if not container_name:
-            cmd = [
-                "docker", "ps",
-                "--filter", "label=com.docker.compose.service=backend",
-                "--filter", "label=com.docker.compose.project=frappe",
-                "--format", "{{.Names}}"
-            ]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                container_name = res.stdout.strip()
-            else:
-                container_name = "frappe-backend-1"
-        return container_name
+    @staticmethod
+    def _clean_site_name(company_name: str) -> tuple:
+        """Derives a docker/bench-safe site slug from a company name."""
+        clean_name = "".join(c if c.isalnum() else "_" for c in company_name.lower())
+        return clean_name, f"{clean_name}.localhost"
+
+    @staticmethod
+    def _load_client_doc(company_name: str) -> CRMClientDetails:
+        doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
+        if not doc:
+            raise AppException(f"CRMClientDetails record not found for company: {company_name}")
+        return doc
+
+    def _bench_new_site(self, site_name: str, db_name: str, admin_password: str, install_app: str, label: str):
+        """Runs `bench new-site` installing the given app. Raises AppException on failure."""
+        cmd = [
+            "docker", "exec", self.container_name,
+            "bench", "new-site", site_name,
+            "--db-name", db_name,
+            "--db-host", self.bench_config.get("db_host", "db"),
+            "--db-port", str(self.bench_config.get("db_port", 5432)),
+            "--db-type", "postgres",
+            "--db-root-username", self.bench_config.get("db_user", "postgres"),
+            "--db-root-password", self.bench_config.get("db_password", ""),
+            "--admin-password", admin_password,
+            "--install-app", install_app,
+            "--force"
+        ]
+        logger.info(f"[{label}] Running command: docker exec {self.container_name} bench new-site {site_name} --install-app {install_app}")
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            raise AppException(f"[{label}] Bench new-site failed: {res.stderr or res.stdout}")
+
+    def _install_kairon_connector(self, site_name: str, label: str):
+        """Installs the kairon_connector app used for webhook/lead-sync integration. Raises AppException on failure."""
+        connector_cmd = [
+            "docker", "exec", self.container_name,
+            "bench", "--site", site_name, "install-app", "kairon_connector"
+        ]
+        logger.info(f"[{label}] Installing kairon_connector on {site_name}")
+        c_res = subprocess.run(connector_cmd, capture_output=True, text=True)
+        if c_res.returncode != 0:
+            raise AppException(f"[{label}] kairon_connector install failed: {c_res.stderr or c_res.stdout}")
+
+    def _bypass_setup_wizard(self, site_name: str, app_names: list, label: str):
+        """Marks the given apps + System Settings as setup-complete, clears cache, and switches bench context to the site."""
+        try:
+            for app_name in app_names:
+                subprocess.run([
+                    "docker", "exec", self.container_name,
+                    "bench", "--site", site_name, "execute", "frappe.db.set_value",
+                    "--args", f"['Installed Application', {{'app_name': '{app_name}'}}, 'is_setup_complete', 1]"
+                ], capture_output=True)
+            subprocess.run([
+                "docker", "exec", self.container_name,
+                "bench", "--site", site_name, "execute", "frappe.db.set_single_value",
+                "--args", "['System Settings', 'setup_complete', 1]"
+            ], capture_output=True)
+            subprocess.run([
+                "docker", "exec", self.container_name,
+                "bench", "--site", site_name, "clear-cache"
+            ], capture_output=True)
+            subprocess.run([
+                "docker", "exec", self.container_name,
+                "bench", "use", site_name
+            ], capture_output=True)
+        except Exception as e:
+            logger.warning(f"[{label}] Setup wizard bypass warning: {e}")
 
     def reload_gunicorn_workers(self):
         """
@@ -81,7 +133,7 @@ class BaseProvisioner(ABC):
             subprocess.run([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "execute", "frappe.db.set_default",
-                "--args", f"['desktop:home_page', '{home_page}']"
+                "--args", json.dumps(["desktop:home_page", home_page])
             ], capture_output=True)
             subprocess.run([
                 "docker", "exec", self.container_name,
@@ -104,10 +156,24 @@ class BaseProvisioner(ABC):
             logger.info(f"[BaseProvisioner] Running bench migrate on site '{site_name}'...")
             subprocess.run(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
 
-            # Ensure CRM frontend assets exist in Nginx frontend container
+            # Ensure CRM frontend assets exist in Nginx frontend container.
+            # Piped directly between two subprocesses (no shell=True) to avoid
+            # invoking a shell to interpret a command string.
             try:
-                cmd_sync = "docker exec frappe-backend-1 tar -cf - -C /home/frappe/frappe-bench/apps crm | docker exec -i frappe-frontend-1 tar -xf - -C /home/frappe/frappe-bench/apps && docker exec frappe-frontend-1 ln -sfn /home/frappe/frappe-bench/apps/crm/crm/public /home/frappe/frappe-bench/assets/crm"
-                subprocess.run(cmd_sync, shell=True, capture_output=True, timeout=15)
+                tar_out = subprocess.Popen(
+                    ["docker", "exec", "frappe-backend-1", "tar", "-cf", "-", "-C", "/home/frappe/frappe-bench/apps", "crm"],
+                    stdout=subprocess.PIPE
+                )
+                tar_in = subprocess.Popen(
+                    ["docker", "exec", "-i", "frappe-frontend-1", "tar", "-xf", "-", "-C", "/home/frappe/frappe-bench/apps"],
+                    stdin=tar_out.stdout, stdout=subprocess.PIPE
+                )
+                tar_out.stdout.close()
+                tar_in.communicate(timeout=15)
+                subprocess.run([
+                    "docker", "exec", "frappe-frontend-1", "ln", "-sfn",
+                    "/home/frappe/frappe-bench/apps/crm/crm/public", "/home/frappe/frappe-bench/assets/crm"
+                ], capture_output=True, timeout=15)
             except Exception as fe_err:
                 logger.warning(f"[BaseProvisioner] Frontend asset sync warning: {fe_err}")
 
@@ -137,7 +203,7 @@ admin_doc.save(ignore_permissions=True)
 # never-returned Administrator admin_password would race that decision and leave the
 # tenant owner with a password nobody is ever told -- so this only touches the user
 # if create_erpnext_user already ran in a prior resumed attempt and the user exists.
-user_email = '{admin_email.strip()}'
+user_email = {json.dumps(admin_email.strip())}
 if user_email and user_email.lower() != 'administrator' and frappe.db.exists('User', user_email):
     u = frappe.get_doc('User', user_email)
     for role in ['System Manager', 'Sales Manager', 'Sales User', 'Desk User']:
@@ -157,7 +223,7 @@ if user_email and user_email.lower() != 'administrator' and frappe.db.exists('Us
         except Exception:
             pass
 
-comp_title = '{c_name}'
+comp_title = {json.dumps(c_name)}
 if comp_title:
     if frappe.db.exists('DocType', 'CRM Organization'):
         if not frappe.db.exists('CRM Organization', {{'organization_name': comp_title}}):
@@ -175,9 +241,9 @@ if comp_title:
             c = frappe.get_doc({{
                 'doctype': 'Company',
                 'company_name': comp_title,
-                'abbr': '{c_abbr}',
-                'default_currency': '{c_currency}',
-                'country': '{c_country}'
+                'abbr': {json.dumps(c_abbr)},
+                'default_currency': {json.dumps(c_currency)},
+                'country': {json.dumps(c_country)}
             }})
             c.insert(ignore_permissions=True)
 

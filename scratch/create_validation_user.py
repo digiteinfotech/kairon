@@ -1,4 +1,5 @@
 import asyncio
+import secrets
 from kairon.shared.utils import Utility
 from kairon.shared.account.processor import AccountProcessor
 from pydantic import SecretStr
@@ -7,10 +8,11 @@ from mongoengine import connect
 async def main():
     connect('conversations', host='mongodb://localhost:27017/conversations')
     Utility.load_environment()
-    
+
     email = "final_test@kairon.ai"
-    password = "Password@123"
-    
+    password = secrets.token_urlsafe(12)
+    print(f"Generated validation user password: {password}")
+
     # 1. Cleanup existing user if any to make it truly fresh
     try:
         from kairon.shared.account.data_objects import User as MongoUser

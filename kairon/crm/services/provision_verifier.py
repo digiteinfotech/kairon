@@ -2,7 +2,6 @@ import json
 import requests
 import urllib3
 from loguru import logger
-from kairon.exceptions import AppException
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -137,7 +136,7 @@ class ProvisionVerifier:
             if u_login.status_code != 200:
                 logger.error(f"[ProvisionVerifier] Newly created user '{email}' could not authenticate with temporary password.")
                 return False
-            logger.info(f"[ProvisionVerifier] Verified that the newly created User can log in successfully.")
+            logger.info("[ProvisionVerifier] Verified that the newly created User can log in successfully.")
 
         return True
 
