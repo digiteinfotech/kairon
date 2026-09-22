@@ -157,6 +157,26 @@ class WhatsappBSPTypes(str, Enum):
 
 class VoiceProviderTypes(str, Enum):
     twilio = "twilio"
+    exotel = "exotel"
+
+
+class VoiceServiceType(str, Enum):
+    stt = "stt"
+    tts = "tts"
+
+
+class STTProviderTypes(str, Enum):
+    sarvam = "sarvam"
+    aws_transcribe = "aws_transcribe"
+    google = "google"
+    deepgram = "deepgram"
+
+
+class TTSProviderTypes(str, Enum):
+    polly = "polly"
+    sarvam = "sarvam"
+    google = "google"
+    elevenlabs = "elevenlabs"
 
 
 class GPT3ResourceTypes(str, Enum):
