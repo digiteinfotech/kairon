@@ -58,9 +58,12 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         logger.info(f"Data from request: {data}")
         print(request_source)
 
-        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
             token, identifier, data, request_source
         )
+
+        if redirect_url:
+            return CallbackUtility.redirect_response(redirect_url)
 
         return CallbackUtility.return_response(data, message, error_code, response_type)
     except AppException as ae:

@@ -3,12 +3,12 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Text
 
+from kairon.shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
-from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.callback.data_objects import CallbackData, CallbackLog, CallbackExecutionMode, CallbackResponseType
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
@@ -124,6 +124,9 @@ class CallbackProcessor:
                                              metadata=ent.get("metadata"),
                                              callback_url=ent.get("callback_url"),
                                              callback_source=c_src)
+            ActionUtility.trigger_action_failure_mail(slot_values=ent.get('metadata'), bot_name=bot_id,
+                                                      action_name=ent.get("action_name"),
+                                                      user_query_history=rd.get('body'))
 
     @staticmethod
     async def process_async_callback_request(token: str,
@@ -145,6 +148,9 @@ class CallbackProcessor:
         bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
+        redirect = callback.get("redirect")
+        redirect_enabled = callback.get("redirect_enabled", False)
+        redirect_url = None
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
@@ -157,10 +163,14 @@ class CallbackProcessor:
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
                                                          predefined_objects=predefined_objects,
                                                          callback=callback_function)
-                return {"message": "Request Acknowledged"}, message, error_code, response_type
+                return {"message": "Request Acknowledged"}, message, error_code, response_type, None
 
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
+
+                if redirect_enabled and redirect:
+                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, entry.get('metadata'))
+
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
                                                         predefined_objects=predefined_objects)
                 bot_response, state, invalidate, dispatch_bot_response = CallbackProcessor.parse_pyscript_data(result)
@@ -184,6 +194,7 @@ class CallbackProcessor:
         except AppException as e:
             error_code = 400
             message = str(e)
+            redirect_url = None
             CallbackLog.create_failure_entry(name=entry.get("action_name"),
                                              bot=bot,
                                              channel=entry.get("channel"),
@@ -195,5 +206,8 @@ class CallbackProcessor:
                                              metadata=entry.get("metadata"),
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
+            ActionUtility.trigger_action_failure_mail(slot_values=entry.get('metadata'), bot_name=bot,
+                                                      action_name=entry.get("action_name"),
+                                                      user_query_history=request_data.get('body'))
 
-        return data, message, error_code, response_type
+        return data, message, error_code, response_type, redirect_url
