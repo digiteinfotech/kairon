@@ -2605,6 +2605,11 @@ def test_create_pos_order_success():
     assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2690,6 +2695,11 @@ def test_create_pos_order_success_with_cid():
     assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2814,6 +2824,11 @@ def test_create_pos_order_create_new_session():
         "account_move": False
     }
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
