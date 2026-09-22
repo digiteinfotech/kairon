@@ -1,15 +1,22 @@
 import time
 from typing import List, Dict, Any
-from loguru import logger
 
+from kairon.shared.utils import Utility
 from kairon.crm.services.feature_resolver import FeatureAppResolver
 from kairon.crm.services.preflight_validator import PreFlightValidator
 from kairon.crm.services.provisioners.factory import ProvisionerFactory
 from kairon.crm.services.provisioning_models import ProvisioningPlan
-from kairon.crm.services.bench_executor import BenchExecutor
 
 
 class StreamlitProvisioningService:
+
+    @staticmethod
+    def _get_bench_config() -> Dict[str, Any]:
+        """Reads the real crm.bench section from system.yaml, same as the rest of the
+        CRM provisioning stack (BenchExecutor.provision_site, etc.) does -- rather than
+        hardcoded fallback defaults that would silently diverge from actual config."""
+        crm_config = Utility.environment.get("crm", {})
+        return crm_config.get("bench", {})
 
     @staticmethod
     def resolve_plan(selected_features: List[str]) -> ProvisioningPlan:
@@ -20,16 +27,16 @@ class StreamlitProvisioningService:
     def validate_preflight(site_name: str, plan: ProvisioningPlan, selected_features: List[str] = None, is_upgrade: bool = False) -> List[str]:
         """Runs Phase 0 pre-flight validation and returns step log messages."""
         logs = []
-        logs.append(f"[PreFlightValidator] Validating configuration & matrix schema...")
+        logs.append("[PreFlightValidator] Validating configuration & matrix schema...")
         if selected_features is None:
             selected_features = ["crm"]
         PreFlightValidator.validate_configuration(selected_features)
-        logs.append(f"[PreFlightValidator] Configuration schema valid.")
+        logs.append("[PreFlightValidator] Configuration schema valid.")
 
-        container_name = getattr(BenchExecutor, "CONTAINER_NAME", "frappe-backend-1")
+        container_name = StreamlitProvisioningService._get_bench_config().get("container_name", "frappe-backend-1")
         logs.append(f"[PreFlightValidator] Validating container '{container_name}' infrastructure...")
         PreFlightValidator.validate_infrastructure(container_name, site_name, plan, is_upgrade=is_upgrade)
-        logs.append(f"[PreFlightValidator] Infrastructure pre-flight check passed successfully.")
+        logs.append("[PreFlightValidator] Infrastructure pre-flight check passed successfully.")
         return logs
 
     @staticmethod
@@ -45,14 +52,7 @@ class StreamlitProvisioningService:
     ) -> Dict[str, Any]:
         """Calls the backend strategy provisioner service directly."""
         plan = FeatureAppResolver.resolve(selected_features)
-        bench_config = {
-            "container_name": getattr(BenchExecutor, "CONTAINER_NAME", "frappe-backend-1"),
-            "db_host": getattr(BenchExecutor, "DB_HOST", "db"),
-            "db_port": getattr(BenchExecutor, "DB_PORT", 5432),
-            "db_user": getattr(BenchExecutor, "DB_USER", "postgres"),
-            "db_password": getattr(BenchExecutor, "DB_PASSWORD", "beb703c0c"),
-            "base_url": getattr(BenchExecutor, "BASE_URL", "http://localhost")
-        }
+        bench_config = StreamlitProvisioningService._get_bench_config()
 
         from kairon.streamlit_app.services.tenant_service import ensure_mongo_connection
         from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
@@ -100,21 +100,14 @@ class StreamlitProvisioningService:
     ) -> Dict[str, Any]:
         """Calls the backend upgrade provisioner strategy directly."""
         from kairon.streamlit_app.services.tenant_service import TenantService
-        
+
         # Verify ownership
         tenant_doc = TenantService.get_tenant_by_company(company_name, user_email)
         if not tenant_doc:
             return {"status": "error", "message": "Access Denied: You do not have permission to upgrade this tenant."}
 
         upgrade_plan = ProvisioningPlan(strategy_key="in_place_upgrade", tier=2, apps=["crm", "erpnext"])
-        bench_config = {
-            "container_name": getattr(BenchExecutor, "CONTAINER_NAME", "frappe-backend-1"),
-            "db_host": getattr(BenchExecutor, "DB_HOST", "db"),
-            "db_port": getattr(BenchExecutor, "DB_PORT", 5432),
-            "db_user": getattr(BenchExecutor, "DB_USER", "postgres"),
-            "db_password": getattr(BenchExecutor, "DB_PASSWORD", "beb703c0c"),
-            "base_url": getattr(BenchExecutor, "BASE_URL", "http://localhost")
-        }
+        bench_config = StreamlitProvisioningService._get_bench_config()
 
         provisioner = ProvisionerFactory.create(upgrade_plan, bench_config)
         start_time = time.time()

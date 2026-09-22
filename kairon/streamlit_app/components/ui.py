@@ -37,7 +37,7 @@ def render_sidebar():
         email = user_info.get("email", "User")
         name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip() or email
         
-        st.sidebar.write(f"Logged in as:")
+        st.sidebar.write("Logged in as:")
         st.sidebar.subheader(name)
         st.sidebar.caption(email)
 

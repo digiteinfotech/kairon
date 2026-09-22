@@ -1,6 +1,6 @@
+import logging
 import os
-import glob
-from typing import List, Dict, Any
+from typing import List
 
 
 class LogsService:
@@ -29,8 +29,8 @@ class LogsService:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         lines.extend(f.readlines())
-                except Exception:
-                    pass
+                except Exception as e:
+                    logging.getLogger(__name__).debug(f"Failed to read log file '{path}': {e}")
 
         if not lines:
             # Fallback default synthetic log stream if log file hasn't accumulated lines yet

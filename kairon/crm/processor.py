@@ -94,10 +94,9 @@ class CRMProcessor:
 
         if data.get("erpnext_password"):
             try:
-                from kairon.shared.utils import Utility
                 data["erpnext_password"] = Utility.decrypt_message(data["erpnext_password"])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"[CRMProcessor] Failed to decrypt stored erpnext_password: {e}")
 
         return data
 
@@ -249,8 +248,12 @@ class CRMProcessor:
             api_secret = Utility.decrypt_message(doc.kairon_api_secret)
             client.authenticate_with_token(api_key, api_secret)
         else:
-            user = doc.erpnext_user or "Administrator"
-            pwd = Utility.decrypt_message(doc.erpnext_password) if doc.erpnext_password else "Password@123"
+            if not doc.erpnext_password:
+                raise AppException(
+                    f"No stored credentials for tenant '{doc.site_name}' and no API key/secret on file; "
+                    "cannot authenticate as the integration client."
+                )
+            pwd = Utility.decrypt_message(doc.erpnext_password)
             client.login(pwd)
         return client
 
@@ -403,7 +406,6 @@ class CRMProcessor:
         # Extract invitation data
         status = payload.get("status")
         email = payload.get("email")
-        app_name = payload.get("app_name", "frappe")
 
         if status != "Accepted" or not email:
             logger.info(f"[CRMProcessor] Webhook ignored: status={status}, email={email}")

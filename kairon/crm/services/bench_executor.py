@@ -1,13 +1,14 @@
-import subprocess
-import secrets
-import string
-import time
+import ast
 import json
 import re
+import secrets
+import subprocess
+import time
 from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
+from kairon.crm.models import CRMClientDetails
+from kairon.crm.services.docker_utils import resolve_container_name
 from kairon.crm.services.preflight_validator import PreFlightValidator
 from kairon.crm.services.provisioners.factory import ProvisionerFactory
 
@@ -41,21 +42,19 @@ class BenchExecutor:
         db_port = str(bench_config.get("db_port", 5432))
         db_user = bench_config.get("db_user", "postgres")
         db_password = bench_config.get("db_password", "")
-        
-        safe_password = db_password.replace("'", "\\'")
-        
+
         script = f"""
 import psycopg2
 try:
     conn = psycopg2.connect(
-        host='{db_host}',
+        host={json.dumps(db_host)},
         port={db_port},
-        user='{db_user}',
-        password='{safe_password}',
+        user={json.dumps(db_user)},
+        password={json.dumps(db_password)},
         database='postgres'
     )
     cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM pg_database WHERE datname='{db_name}'")
+    cursor.execute("SELECT 1 FROM pg_database WHERE datname=%s", ({json.dumps(db_name)},))
     exists = cursor.fetchone() is not None
     conn.close()
     print("EXISTS" if exists else "NOT_EXISTS")
@@ -78,22 +77,7 @@ except Exception as e:
         Resolves the backend container name dynamically from configuration,
         falling back to docker ps resolution if empty.
         """
-        container_name = bench_config.get("container_name")
-        if not container_name:
-            cmd = [
-                "docker", "ps",
-                "--filter", "label=com.docker.compose.service=backend",
-                "--filter", "label=com.docker.compose.project=frappe",
-                "--format", "{{.Names}}"
-            ]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                container_name = res.stdout.strip()
-                logger.info(f"[BenchExecutor] Dynamically resolved container name: {container_name}")
-            else:
-                container_name = "frappe-backend-1"
-                logger.warning(f"[BenchExecutor] Failed to resolve container name. Using fallback: {container_name}")
-        return container_name
+        return resolve_container_name(bench_config, "BenchExecutor")
 
     def provision_site(
         self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str = None, selected_features: list = None
@@ -141,6 +125,10 @@ except Exception as e:
             raise AppException(f"Failed to set admin password on retry: {result.stderr or result.stdout}")
 
     def create_crm_user(self, bot: str, email: str, role: str):
+        """
+        Creates (or updates) a user inside the tenant's bench site and returns
+        a freshly generated, never-hardcoded temporary password for it.
+        """
         logger.info(
             f"BenchExecutor.create_crm_user: bot={bot}, email={email}, role={role}"
         )
@@ -157,13 +145,15 @@ except Exception as e:
         bench_config = crm_config.get("bench", {})
         container_name = self._resolve_container_name(bench_config)
 
+        temp_password = secrets.token_urlsafe(12)
+
         script = f"""
 import frappe
 from frappe.utils.password import update_password
-frappe.init(site='{site_name}')
+frappe.init(site={json.dumps(site_name)})
 frappe.connect()
-email = '{email}'
-role = '{role}'
+email = {json.dumps(email)}
+role = {json.dumps(role)}
 if not frappe.db.exists('User', email):
     user = frappe.get_doc({{
         'doctype': 'User',
@@ -173,7 +163,7 @@ if not frappe.db.exists('User', email):
         'send_welcome_email': 0
     }})
     user.insert(ignore_permissions=True)
-    update_password(email, 'Password@123')
+    update_password(email, {json.dumps(temp_password)})
 user = frappe.get_doc('User', email)
 user.add_roles(role)
 frappe.db.commit()
@@ -191,13 +181,13 @@ frappe.db.commit()
             "message": "User created successfully inside bench site.",
             "email": email,
             "role": role,
+            "temporary_password": temp_password,
         }
 
     def get_db_tables(self, site_name: str) -> list:
         """
         Retrieves all table names from the PostgreSQL database of a given bench site.
         """
-        import ast
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
         container_name = self._resolve_container_name(bench_config)
@@ -222,6 +212,7 @@ frappe.db.commit()
         """
         if not re.match(r'^[A-Za-z0-9_]+$', table_name):
             raise AppException("Invalid table name format.")
+        limit = int(limit)
 
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
@@ -230,12 +221,12 @@ frappe.db.commit()
         script = f"""
 import frappe
 import json
-frappe.init(site='{site_name}')
+frappe.init(site={json.dumps(site_name)})
 frappe.connect()
 try:
     rows = frappe.db.sql('SELECT * FROM "{table_name}" LIMIT {limit}', as_dict=True)
     print(json.dumps(rows, default=str))
-except Exception as e:
+except Exception:
     print(json.dumps([]))
 """
         cmd = [
@@ -266,9 +257,7 @@ except Exception as e:
                 "import os, signal; os.kill(1, signal.SIGHUP)"
             ]
             subprocess.run(cmd, capture_output=True, timeout=10)
-            import time
             time.sleep(2)
             logger.info(f"Triggered Gunicorn worker reload (SIGHUP) in {container_name}")
         except Exception as e:
             logger.warning(f"Failed to reload Gunicorn workers: {e}")
-

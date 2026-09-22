@@ -238,9 +238,9 @@ class ERPNextClient:
 
             script = f"""
 import frappe, json
-frappe.init(site='{self.site_name}')
+frappe.init(site={json.dumps(self.site_name)})
 frappe.connect()
-user = '{email}'
+user = {json.dumps(email)}
 from frappe.core.doctype.user.user import generate_keys
 keys = generate_keys(user)
 frappe.db.commit()
@@ -259,8 +259,8 @@ print(json.dumps(keys))
                     if data.get("api_key") and data.get("api_secret"):
                         try:
                             BenchExecutor().reload_gunicorn_workers(container_name)
-                        except Exception:
-                            pass
+                        except Exception as reload_err:
+                            logger.debug(f"[ERPNextClient] Worker reload after key generation failed: {reload_err}")
                         self._log_api_op("generate_keys", email, True, 200, "Generated via container python")
                         return {"api_key": data["api_key"], "api_secret": data["api_secret"]}
         except Exception as e:
@@ -465,43 +465,38 @@ print(json.dumps(keys))
             result[item["name"]] = bool(item.get("is_hidden", 0))
         return result
 
-    def hide_workspace(self, workspace_name: str) -> bool:
-        """Sets is_hidden = 1 and public = 0 on Workspace document."""
+    def _set_workspace_visibility(self, workspace_name: str, is_hidden: int, public: int, label: str) -> bool:
+        """Shared implementation for hide_workspace/show_workspace: sets is_hidden/public via
+        REST, falling back to a direct DB write inside the bench container if the REST call
+        doesn't stick (e.g. cached bootinfo)."""
         url = f"{self.base_url}/api/resource/Workspace/{workspace_name}"
-        resp = self.session.put(url, json={"is_hidden": 1, "public": 0}, timeout=15)
+        resp = self.session.put(url, json={"is_hidden": is_hidden, "public": public}, timeout=15)
         success = resp.status_code == 200
         try:
             from kairon.crm.services.bench_executor import BenchExecutor
             crm_config = Utility.environment.get("crm", {})
             bench_config = crm_config.get("bench", {})
             container_name = BenchExecutor()._resolve_container_name(bench_config)
-            script = f"import frappe; frappe.init(site='{self.site_name}'); frappe.connect(); frappe.db.set_value('Workspace', '{workspace_name}', {{'is_hidden': 1, 'public': 0}}); frappe.db.commit(); frappe.clear_cache()"
+            script = (
+                f"import frappe; frappe.init(site={json.dumps(self.site_name)}); frappe.connect(); "
+                f"frappe.db.set_value('Workspace', {json.dumps(workspace_name)}, "
+                f"{{'is_hidden': {is_hidden}, 'public': {public}}}); frappe.db.commit(); frappe.clear_cache()"
+            )
             cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
             res = subprocess.run(cmd, capture_output=True, text=True)
             success = res.returncode == 0
-        except Exception:
-            pass
-        self._log_api_op("hide_workspace", workspace_name, success, resp.status_code if not success else 200)
+        except Exception as e:
+            logger.debug(f"[ERPNextClient] {label} container fallback failed: {e}")
+        self._log_api_op(label, workspace_name, success, resp.status_code if not success else 200)
         return success
+
+    def hide_workspace(self, workspace_name: str) -> bool:
+        """Sets is_hidden = 1 and public = 0 on Workspace document."""
+        return self._set_workspace_visibility(workspace_name, 1, 0, "hide_workspace")
 
     def show_workspace(self, workspace_name: str) -> bool:
         """Sets is_hidden = 0 and public = 1 on Workspace document."""
-        url = f"{self.base_url}/api/resource/Workspace/{workspace_name}"
-        resp = self.session.put(url, json={"is_hidden": 0, "public": 1}, timeout=15)
-        success = resp.status_code == 200
-        try:
-            from kairon.crm.services.bench_executor import BenchExecutor
-            crm_config = Utility.environment.get("crm", {})
-            bench_config = crm_config.get("bench", {})
-            container_name = BenchExecutor()._resolve_container_name(bench_config)
-            script = f"import frappe; frappe.init(site='{self.site_name}'); frappe.connect(); frappe.db.set_value('Workspace', '{workspace_name}', {{'is_hidden': 0, 'public': 1}}); frappe.db.commit(); frappe.clear_cache()"
-            cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            success = res.returncode == 0
-        except Exception:
-            pass
-        self._log_api_op("show_workspace", workspace_name, success, resp.status_code if not success else 200)
-        return success
+        return self._set_workspace_visibility(workspace_name, 0, 1, "show_workspace")
 
 
     def clear_cache(self) -> bool:
@@ -559,9 +554,9 @@ print(json.dumps(keys))
 
             script = f"""
 import frappe
-frappe.init(site='{self.site_name}')
+frappe.init(site={json.dumps(self.site_name)})
 frappe.connect()
-frappe.db.set_default('desktop:home_page', 'workspace/{workspace_name}')
+frappe.db.set_default('desktop:home_page', {json.dumps(f'workspace/{workspace_name}')})
 frappe.db.commit()
 """
             cmd = [
@@ -890,7 +885,7 @@ frappe.db.commit()
         perm_response = self.session.post(user_perm_url, json=perm_payload, timeout=15)
         if perm_response.status_code not in (200, 201):
             if "already exists" in perm_response.text or perm_response.status_code == 409:
-                logger.info(f"[ERPNextClient] User Permission already exists (conflict). Skipping.")
+                logger.info("[ERPNextClient] User Permission already exists (conflict). Skipping.")
                 return
             self._log_api_op("assign_company_permission", email, False, perm_response.status_code, perm_response.text)
             raise AppException(f"Failed to set default company for User {email}.")
