@@ -1161,7 +1161,7 @@ def build_filterable_attrs(order_details: dict) -> list:
 
 class Address(EmbeddedDocument):
     label = StringField()
-    address = StringField()
+    address = DictField()
     is_default = BooleanField(default=False)
 
 

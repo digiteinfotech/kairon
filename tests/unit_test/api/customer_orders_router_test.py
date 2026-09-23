@@ -135,7 +135,7 @@ class TestUpdateAddressRouter:
 
     @pytest.mark.asyncio
     async def test_update_address_success(self):
-        addr = AddressRequest(label="home", address="123 St", is_default=True)
+        addr = AddressRequest(label="home", address={"street": "123 St"}, is_default=True)
         expected = {"_id": "c1", "address_list": [{"label": "home"}]}
         with patch(
             "kairon.api.app.routers.bot.customer_orders.CustomerOrderProcessor.update_address",
@@ -147,7 +147,7 @@ class TestUpdateAddressRouter:
         mock_proc.assert_called_once_with(
             bot=BOT,
             sender_id="enc_u1",
-            address_payload={"label": "home", "address": "123 St", "is_default": True},
+            address_payload={"label": "home", "address": {"street": "123 St"}, "is_default": True},
         )
         assert result.data == expected
 
