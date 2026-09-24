@@ -3352,7 +3352,7 @@ class TestAccountProcessor:
         fake_sp_dict = {"mail_templates": fake_templates}
 
         mock_qs = MagicMock()
-        mock_qs.get.return_value.to_mongo.return_value.to_dict.return_value = fake_sp_dict
+        mock_qs.first.return_value.to_mongo.return_value.to_dict.return_value = fake_sp_dict
 
         expected_html = "<html>FIRST_NAME reset unverified</html>"
         with patch('kairon.shared.account.processor.SystemProperties') as mock_sp, \

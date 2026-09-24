@@ -222,6 +222,7 @@ class AccountProcessor:
             bot_setting_obj = BotSettings.objects(bot=bot["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot["pos_enabled"] = bot_setting.get("pos_enabled")
+            bot["enable_crm"] = bot_setting.get("enable_crm", False)
             yield bot
 
     @staticmethod
@@ -343,6 +344,7 @@ class AccountProcessor:
             bot_setting_obj = BotSettings.objects(bot=bot_details["_id"]).first()
             bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
             bot_details["pos_enabled"] = bot_setting.get("pos_enabled")
+            bot_details["enable_crm"] = bot_setting.get("enable_crm", False)
             shared_bots.append(bot_details)
         return {"account_owned": account_bots, "shared": shared_bots}
 
@@ -966,7 +968,10 @@ class AccountProcessor:
     @staticmethod
     def load_system_properties():
         try:
-            system_properties = SystemProperties.objects().get().to_mongo().to_dict()
+            properties = SystemProperties.objects().first()
+            if not properties:
+                raise DoesNotExist()
+            system_properties = properties.to_mongo().to_dict()
         except DoesNotExist:
             mail_templates = MailTemplates(
                 password_reset=open("template/emails/passwordReset.html", "r").read(),

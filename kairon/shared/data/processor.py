@@ -6174,9 +6174,36 @@ class MongoProcessor:
 
         settings = BotSettings.objects(bot=bot, status=True).get()
         analytics = Analytics(**bot_settings.get("analytics"))
-        settings.update(
-            set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow()
-        )
+        update_kwargs = {
+            "set__analytics": analytics,
+            "set__user": user,
+            "set__timestamp": datetime.utcnow()
+        }
+        if bot_settings.get("enable_crm") is not None:
+            update_kwargs["set__enable_crm"] = bot_settings["enable_crm"]
+
+        settings.update(**update_kwargs)
+
+        if bot_settings.get("enable_crm"):
+            # Scoped to CRM-enabled bots only. Not a KaironSystemSlots enum member --
+            # add_system_required_slots() bulk-provisions every enum member for every
+            # bot unconditionally (both its "non_conversational" and "conversational"
+            # loops iterate the whole enum), so making this an enum member would leak
+            # it onto bots that never enable CRM. This is required so
+            # ActionERPNextCRMLeadQualified's idempotency guard
+            # (tracker.get_slot(ALREADY_QUALIFIED_SLOT)) actually persists across turns
+            # instead of silently no-oping on an undeclared slot.
+            MongoProcessor().add_slot(
+                {
+                    "name": "kairon_lead_qualified_sent",
+                    "type": "any",
+                    "initial_value": None,
+                    "influence_conversation": False,
+                },
+                bot,
+                user,
+                raise_exception_if_exists=False,
+            )
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
@@ -8657,6 +8684,11 @@ class MongoProcessor:
     def is_pos_enabled(bot: str):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
         return bot_setting.get("pos_enabled")
+
+    @staticmethod
+    def is_crm_enabled(bot: str):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        return bot_setting.get("enable_crm", False)
 
     @staticmethod
     def is_voice_enabled(bot: str):

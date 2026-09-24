@@ -300,5 +300,19 @@ pos:
     odoo_master_password: ${ODOO_MASTER_PASSWORD}
     odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}
 
+crm:
+  bench:
+    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
+    container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
+    db_host: ${BENCH_DB_HOST:"db"}
+    db_port: ${BENCH_DB_PORT:5432}
+    db_user: ${BENCH_DB_USER:"postgres"}
+    db_password: ${BENCH_DB_PASSWORD}
+    smtp_enabled: ${BENCH_SMTP_ENABLED:false}
+    base_url: ${BENCH_BASE_URL:"http://localhost:8080"}
+    app_name: ${BENCH_APP_NAME:"frappe"}
+    invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
+    reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}
+
 store_page:
   url: ${STORE_PAGE_URL}
