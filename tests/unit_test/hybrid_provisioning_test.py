@@ -20,18 +20,20 @@ class TestHybridProvisioning(unittest.TestCase):
         assert plan.strategy_key == "crm"
         assert plan.apps == ["crm"]
         assert plan.home_page == "crm"
-        assert "CRM Admin" in plan.default_roles
+        # "CRM Admin"/"CRM User" are not real Frappe roles; the Tier 1 admin gets the same roles
+        # BaseProvisioner.setup_user_and_migrate assigns (see provisioning_matrix.yaml).
+        assert plan.default_roles == ["System Manager", "Sales Manager", "Sales User"]
 
     def test_feature_app_resolver_pos_only(self):
         plan = FeatureAppResolver.resolve(["pos"])
         assert plan.tier == 2
         assert plan.strategy_key == "erpnext_suite"
         assert plan.apps == ["erpnext"]
-        assert plan.home_page == "workspace/Point of Sale Workspace"
+        assert plan.home_page == "workspace/Restaurant POS"
 
-        assert "POS User" in plan.default_roles
-        assert "POS Manager" in plan.default_roles
-        assert "Stock User" in plan.default_roles
+        # The POS tenant is a full ERPNext suite: "POS User"/"POS Manager" are not Frappe roles.
+        for role in ("System Manager", "Stock User", "Accounts User", "Sales User", "Sales Manager"):
+            assert role in plan.default_roles
 
 
 
@@ -119,7 +121,8 @@ class TestHybridProvisioning(unittest.TestCase):
         assert "Manufacturing" in res["blocked_modules"]
         mock_client.configure_workspace_visibility.assert_called_once()
         mock_client.create_or_update_module_profile.assert_called_once()
-        mock_client.ensure_role_profile.assert_called_once_with("POS Admin", ["System Manager", "Desk User", "POS User", "POS Manager", "Stock User", "Accounts User"])
+        mock_client.ensure_role_profile.assert_called_once_with(
+            "POS Admin", FeatureAppResolver.resolve(["pos"]).default_roles)
 
 
 

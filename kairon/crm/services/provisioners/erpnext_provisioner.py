@@ -1,7 +1,5 @@
-import subprocess
 from typing import Dict, Any
 from loguru import logger
-from kairon.exceptions import AppException
 from kairon.crm.models import CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -30,7 +28,14 @@ class ERPNextProvisioner(BaseProvisioner):
         # Database name resolution
         db_name = f"erpnext_{clean_name}"[:63].rstrip('_')
 
-        self._bench_new_site(site_name, db_name, admin_password, "erpnext", self.LABEL)
+        # ERPNext v16 ships a standard "CRM" Desktop Icon. The Frappe CRM app inserts an icon with
+        # the same primary key on install, so installing it *after* erpnext aborts with a
+        # UniqueViolation (bench install-app crm -> FAILED_BENCH). ERPNext's own icon sync is an
+        # upsert, so installing crm first and erpnext second works on the same bench.
+        first_app = "crm" if "crm" in self.plan.apps else "erpnext"
+        self._bench_new_site(site_name, db_name, admin_password, first_app, self.LABEL)
+        if first_app != "erpnext":
+            self._bench_install_app(site_name, "erpnext", self.LABEL)
         self._install_kairon_connector(site_name, self.LABEL)
 
         # Post-creation setup: Encryption key, homepage
@@ -39,15 +44,9 @@ class ERPNextProvisioner(BaseProvisioner):
 
         # Install additional Tier 2 apps if requested (e.g. HRMS)
         for app in self.plan.apps:
-            if app not in ("frappe", "erpnext"):
+            if app not in ("frappe", "erpnext", first_app):
                 logger.info(f"[{self.LABEL}] Installing additional Tier 2 app '{app}' on {site_name}...")
-                install_cmd = [
-                    "docker", "exec", self.container_name,
-                    "bench", "--site", site_name, "install-app", app
-                ]
-                res = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
-                if res.returncode != 0:
-                    raise AppException(f"[{self.LABEL}] install-app '{app}' failed: {res.stderr or res.stdout}")
+                self._bench_install_app(site_name, app, self.LABEL)
 
         # Setup user, roles, password, company, fiscal year, and migrate
         user_email = doc.user if doc.user else "Administrator"

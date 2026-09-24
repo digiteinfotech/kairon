@@ -156,7 +156,41 @@ class ERPNextClient:
             raise AppException(f"Failed to create integration user '{email}': HTTP {response.status_code}")
         self._log_api_op("create_integration_user", email, True, response.status_code)
 
-    def validate_integration_permissions(self) -> bool:
+    # Frappe's Document.save() checks write permission *before* link/mandatory validation, so
+    # these errors on a PUT prove the permission check passed and the stored document itself is
+    # what fails validation (upstream apps ship workspaces with e.g. an empty mandatory `type`).
+    _VALIDATION_EXC_TYPES = ("MandatoryError", "LinkValidationError", "ValidationError")
+
+    @classmethod
+    def _is_document_validation_error(cls, response) -> bool:
+        if response.status_code != 417:
+            return False
+        try:
+            return response.json().get("exc_type") in cls._VALIDATION_EXC_TYPES
+        except ValueError:
+            return False
+
+    def _installed_workspaces(self, apps: Optional[List[str]]) -> List[str]:
+        """Names of the Workspaces that belong to `apps` (all of them when `apps` is None)."""
+        ws_resp = self.session.get(
+            f"{self.base_url}/api/resource/Workspace",
+            params={"fields": json.dumps(["name", "module"]), "limit_page_length": 500},
+            timeout=10)
+        if ws_resp.status_code != 200:
+            return []
+        workspaces = ws_resp.json().get("data", [])
+        if apps is None:
+            return [w["name"] for w in workspaces]
+        mod_resp = self.session.get(
+            f"{self.base_url}/api/resource/Module Def",
+            params={"fields": json.dumps(["name", "app_name"]), "limit_page_length": 500},
+            timeout=10)
+        if mod_resp.status_code != 200:
+            return []
+        modules = {m["name"] for m in mod_resp.json().get("data", []) if m.get("app_name") in apps}
+        return [w["name"] for w in workspaces if w.get("module") in modules]
+
+    def validate_integration_permissions(self, apps: Optional[List[str]] = None) -> bool:
         """
         Validates that the currently authenticated integration user has all required permissions:
         - GET Module Def
@@ -164,6 +198,14 @@ class ERPNextClient:
         - PUT Workspace
         - GET/POST/PUT Module Profile
         - PUT User
+
+        `apps` are the Frappe apps the tenant's provisioning plan installs. The PUT Workspace
+        probe only targets a workspace belonging to one of them: every tenant also carries
+        workspaces from apps outside its plan (e.g. kairon_connector's "Restaurant POS", whose
+        links point at ERPNext doctypes a CRM-only site does not have), and saving such a
+        workspace fails link validation (HTTP 417) regardless of the user's permissions.
+        A 417 validation error on the probe itself still counts as "write permitted" (see
+        `_is_document_validation_error`); a 403 or any other failure does not.
 
         Aborts provisioning immediately if any permission check fails.
         """
@@ -177,16 +219,18 @@ class ERPNextClient:
             r2 = self.session.get(f"{self.base_url}/api/resource/Workspace?limit=1", timeout=10)
             ops.append(("GET", "Workspace", r2.status_code == 200, r2.status_code, r2.text if r2.status_code != 200 else None))
 
-            # 3. PUT Workspace (dry-run update on existing workspace)
-            if r2.status_code == 200 and r2.json().get("data"):
-                ws_name = r2.json()["data"][0]["name"]
+            # 3. PUT Workspace (dry-run update on a workspace of an installed app)
+            ws_names = self._installed_workspaces(apps) if r2.status_code == 200 else []
+            if ws_names:
+                ws_name = ws_names[0]
                 # GET detailed workspace
                 r_detail = self.session.get(f"{self.base_url}/api/resource/Workspace/{ws_name}", timeout=10)
                 if r_detail.status_code == 200:
                     d_val = r_detail.json().get("data", {})
                     curr_hidden = d_val.get("is_hidden", 0) if isinstance(d_val, dict) else 0
                     r3 = self.session.put(f"{self.base_url}/api/resource/Workspace/{ws_name}", json={"is_hidden": curr_hidden}, timeout=10)
-                    ops.append(("PUT", f"Workspace/{ws_name}", r3.status_code == 200, r3.status_code, r3.text if r3.status_code != 200 else None))
+                    put_ok = r3.status_code == 200 or self._is_document_validation_error(r3)
+                    ops.append(("PUT", f"Workspace/{ws_name}", put_ok, r3.status_code, r3.text if not put_ok else None))
                 else:
                     ops.append(("PUT", f"Workspace/{ws_name}", False, r_detail.status_code, r_detail.text))
             else:
