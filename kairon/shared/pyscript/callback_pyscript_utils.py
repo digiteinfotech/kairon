@@ -8,6 +8,7 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
+from kairon.shared.data.constant import TOKEN_TYPE
 from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
@@ -30,6 +31,9 @@ import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
+from urllib.parse import urljoin
+from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.auth import Authentication
 
 
 class CallbackScriptUtility:
@@ -632,3 +636,47 @@ class CallbackScriptUtility:
         return {
             "message": "collection created successfully"
         }
+
+    @staticmethod
+    def invoke_agentic_flow(
+            flow_name: str,
+            slot_vals: Dict = None,
+            bot: str = None,
+            sender_id: str = None,
+            channel: str = None
+    ):
+        if not flow_name:
+            raise AppException("Agentic flow name is required")
+
+        agent_url = Utility.environment["model"]["agent"].get("url")
+
+        bot_owner = AccountProcessor.get_bot_owner(bot)
+        email = bot_owner["accessor_email"]
+
+        token, _ = Authentication.generate_integration_token(
+            bot,
+            email,
+            expiry=5,
+            token_type=TOKEN_TYPE.CHANNEL.value
+        )
+
+        response = Utility.http_request(
+            "post",
+            urljoin(agent_url, f"/api/bot/{bot}/exec/flow"),
+            token,
+            email,
+            json_dict={
+                "name": flow_name,
+                "slot_vals": slot_vals or {},
+                "sender_id": sender_id
+            }
+        )
+
+        result = jsond.loads(response)
+
+        logger.info(
+            f"AgenticFlow response: flow_name={flow_name}, "
+            f"bot={bot}, response={result}"
+        )
+
+        return result
