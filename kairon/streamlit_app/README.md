@@ -23,7 +23,7 @@ config.py                  API_BASE_URL / TIMEOUT (env-overridable)
 
 `services/tenant_service.py`, `provisioning_service.py`, `health_service.py`,
 `logs_service.py` are **legacy files kept on disk only** because
-`tests/integration_test/test_uat_end_to_end.py` still imports them. They query MongoDB
+`tests/integration_test/test_crm_e2e.py` still imports them. They query MongoDB
 and `docker exec` the backend directly, bypassing the Kairon API — the new Tier 1 app
 does **not** import or use them.
 
@@ -63,14 +63,17 @@ PYTHONPATH=. streamlit run kairon/streamlit_app/app.py --server.port 8501
 Open `http://localhost:8501`. Requires MongoDB (`conversations` DB), the `frappe-backend-1` /
 `frappe-db-1` docker stack, and (optionally) Mailpit for invitation emails, all running.
 
-To create a demo login: `python3 create_demo_user.py --email you@x.local --password 'Pass@123' --bot-name MyBot`
-(creates the user/bot with `enable_crm=False`; enable it from the app itself, or via
-`PUT /api/bot/{bot}/settings`).
+Log in with any Kairon account. CRM is off by default: enable it from the app itself, or via
+`PUT /api/bot/{bot}/settings` with `{"enable_crm": true}`.
 
 ## Tests
 
 ```bash
-python3 -m pytest tests/unit_test/crm_test.py -q
+# Unit tests (hermetic, no Docker needed)
+python3 -m pytest tests/unit_test/crm_test.py tests/unit_test/hybrid_provisioning_test.py -q
+
+# Real end-to-end suite (live Kairon API + ERPNext bench + Mailpit + MongoDB; uses disposable e2e_* tenants)
+KAIRON_RUN_LIVE_E2E_TESTS=1 KAIRON_E2E_USER=... KAIRON_E2E_PASSWORD=... BENCH_DB_PASSWORD=... python3 -m pytest tests/integration_test/test_crm_e2e.py -q
 ```
 
 ## Known environment limitation

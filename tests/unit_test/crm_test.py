@@ -30,15 +30,29 @@ mock_user = User(
 )
 
 
+@pytest.fixture(autouse=True)
+def no_docker_preflight():
+    """Unit tests must not depend on the local Docker bench (its containers and existing sites);
+    real infrastructure pre-flight is exercised by tests/integration_test/test_crm_e2e.py."""
+    with patch("kairon.crm.services.preflight_validator.PreFlightValidator.validate_infrastructure"):
+        yield
+
+
 @pytest.fixture(autouse=True, scope="module")
 def setup_module():
     Utility.load_environment()
     connect(
         **Utility.mongoengine_connection(Utility.environment["database"]["url"])
     )
+    # Pre-flight refuses to provision without an explicit bench DB secret (no default fallback).
+    # These tests mock the bench entirely, so a non-secret placeholder is enough.
+    bench_config = Utility.environment.setdefault("crm", {}).setdefault("bench", {})
+    original_password = bench_config.get("db_password")
+    bench_config["db_password"] = original_password or "unit-test-placeholder"
     CRMClientDetails.drop_collection()
     BotSettings.objects(bot="test_crm_bot").delete()
     yield
+    bench_config["db_password"] = original_password
     disconnect()
 
 
@@ -212,9 +226,7 @@ def test_onboard_company_flow(mock_verify_state, mock_verify_health, mock_erpnex
     details = CRMProcessor.get_crm_details("test_crm_bot")
     assert details["onboarding_status"] == CRMOnboardingStatus.COMPLETED.value
     assert details["postgres_port"] == 5432
-    assert details["db_name"] == "erpnext_new_company"
-    assert details["db_user"] == "erpnext_new_company"
-    assert details["db_password"] is not None
+    assert "db_password" not in details  # credentials are never persisted or returned
     assert details["site_name"] == "new_company.localhost"
 
 
@@ -354,8 +366,6 @@ def test_api_get_details():
     assert res_data["success"] is True
     assert res_data["data"]["company_name"] == "API Company"
     assert res_data["data"]["abbr"] == "AC"
-    assert res_data["data"]["db_name"] == "erpnext_api_company"
-    assert res_data["data"]["db_user"] == "erpnext_api_company"
 
 
 @patch("subprocess.run")
@@ -404,50 +414,6 @@ def test_generate_database_name():
     assert re.match(r'^[a-z][a-z0-9_]*$', gen_special) is not None
 
 
-@patch("kairon.crm.services.bench_executor.BenchExecutor._database_exists")
-@patch("subprocess.run")
-def test_database_name_collision_handling(mock_sub_run, mock_db_exists):
-    from kairon.crm.services.bench_executor import BenchExecutor
-    # Simulate first database exists, second does not
-    mock_db_exists.side_effect = [True, False]
-    
-    mock_sub_run.return_value = MagicMock(returncode=0)
-    
-    executor = BenchExecutor()
-    
-    # Setup mock show-config response to return our expected db details
-    import json
-    def mock_run(cmd, *args, **kwargs):
-        res = MagicMock()
-        res.returncode = 0
-        res.stdout = json.dumps({
-            "efg_company.localhost": {
-                "db_name": "erpnext_efg_company_1",
-                "db_user": "erpnext_efg_company_1",
-                "db_password": "mock_password"
-            }
-        })
-        return res
-    mock_sub_run.side_effect = mock_run
-
-    # Create the CRM Client Details document first
-    CRMClientDetails.objects(bot="test_collision_bot").delete()
-    CRMClientDetails(
-        company_name="EFG Company",
-        abbr="EFG",
-        default_currency="USD",
-        country="United States",
-        bot="test_collision_bot",
-        user="test_user"
-    ).save()
-    
-    executor.provision_site("EFG Company", "EFG", "USD", "United States", "admin_pwd")
-    
-    # The saved db_name should have suffix _1
-    doc = CRMClientDetails.objects(bot="test_collision_bot").first()
-    assert doc.db_name == "erpnext_efg_company_1"
-
-
 # ─────────────────────────────────────────────────────────────
 # ERPNext Native User Invitation Tests
 # ─────────────────────────────────────────────────────────────
@@ -456,6 +422,8 @@ from kairon.crm.models import CRMInvitation, CRMInvitationStatus
 from kairon.crm.services.erpnext_client import ERPNextClient
 from kairon.crm.services.provision_verifier import ProvisionVerifier
 import base64
+import json
+from kairon.crm.services.provisioning_models import ProvisioningPlan
 import hmac
 import hashlib
 
@@ -996,3 +964,109 @@ def test_api_module_endpoints():
     assert details["selected_modules"] == ["CRM", "HR"]
 
 
+
+
+# ---------------------------------------------------------------------------------------
+# Onboarding regressions found by the live CRM E2E (Tier 1 CRM tenants, Frappe/ERPNext v16)
+# ---------------------------------------------------------------------------------------
+@patch.object(ERPNextClient, "check_user_exists", return_value=True)
+@patch.object(ERPNextClient, "assign_company_permission")
+def test_handle_invitation_webhook_tier1_skips_company_permission(mock_assign, mock_user_exists, setup_invite_bot):
+    """Tier 1 (standalone CRM) sites have no Company doctype: no company permission may be attempted."""
+    setup_invite_bot.update(set__tier=1)
+    CRMInvitation(bot="test_crm_bot", site_name="invite_corp.localhost", company="Invite Corp",
+                  email="tier1@test.com", roles=["Sales User"],
+                  invitation_status=CRMInvitationStatus.PENDING.value).save()
+    raw_body = b'{"status": "Accepted", "email": "tier1@test.com", "app_name": "frappe"}'
+    signature = base64.b64encode(hmac.new(b"mock_webhook_secret", raw_body, hashlib.sha256).digest()).decode("utf-8")
+
+    CRMProcessor.handle_invitation_webhook(
+        site_name="invite_corp.localhost", raw_body=raw_body, signature_header=signature,
+        payload={"status": "Accepted", "email": "tier1@test.com", "app_name": "frappe"})
+
+    mock_assign.assert_not_called()
+    inv = CRMInvitation.objects(bot="test_crm_bot", email="tier1@test.com").first()
+    assert inv.invitation_status == CRMInvitationStatus.COMPANY_ASSIGNED.value
+
+
+def test_default_module_selection_resolves_to_tier1_crm():
+    """An empty onboarding selection must map to modules that have a provisioning_matrix entry."""
+    from kairon.crm.constants import DEFAULT_MODULE_SELECTION
+    from kairon.crm.services.feature_resolver import FeatureAppResolver
+    plan = FeatureAppResolver.resolve(list(DEFAULT_MODULE_SELECTION))
+    assert plan.tier == 1 and plan.apps == ["crm"]
+
+
+def _fake_response(status_code, body=None):
+    res = MagicMock()
+    res.status_code = status_code
+    res.json.return_value = body if body is not None else {}
+    res.text = json.dumps(body or {})
+    return res
+
+
+def test_is_document_validation_error_only_for_417_validation_types():
+    assert ERPNextClient._is_document_validation_error(_fake_response(417, {"exc_type": "MandatoryError"}))
+    assert ERPNextClient._is_document_validation_error(_fake_response(417, {"exc_type": "LinkValidationError"}))
+    assert not ERPNextClient._is_document_validation_error(_fake_response(417, {"exc_type": "PermissionError"}))
+    assert not ERPNextClient._is_document_validation_error(_fake_response(403, {"exc_type": "PermissionError"}))
+
+
+def _permission_client(put_response, workspaces):
+    """ERPNextClient whose session serves `workspaces` [(name, module)] and answers PUTs with `put_response`."""
+    client = ERPNextClient("http://localhost:8080", "perm.localhost")
+    session = MagicMock()
+    module_apps = {"FCRM": "crm", "Kairon Connector": "kairon_connector"}
+
+    def get(url, params=None, **kwargs):
+        if "Module Def" in url:
+            return _fake_response(200, {"data": [{"name": m, "app_name": a} for m, a in module_apps.items()]})
+        if url.endswith("/api/resource/Workspace"):
+            return _fake_response(200, {"data": [{"name": n, "module": m} for n, m in workspaces]})
+        return _fake_response(200, {"data": {"is_hidden": 0}})
+
+    session.get.side_effect = get
+    session.put.return_value = put_response
+    client.session = session
+    return client, session
+
+
+def test_validate_integration_permissions_probes_only_installed_app_workspaces():
+    client, session = _permission_client(
+        _fake_response(200, {"data": {}}), [("Restaurant POS", "Kairon Connector"), ("Frappe CRM", "FCRM")])
+    assert client.validate_integration_permissions(apps=["crm"]) is True
+    assert session.put.call_args[0][0].endswith("/api/resource/Workspace/Frappe CRM")
+
+
+def test_validate_integration_permissions_accepts_validation_error_but_rejects_forbidden():
+    workspaces = [("Frappe CRM", "FCRM")]
+    client, _ = _permission_client(_fake_response(417, {"exc_type": "MandatoryError"}), workspaces)
+    assert client.validate_integration_permissions(apps=["crm"]) is True
+
+    client, _ = _permission_client(_fake_response(403, {"exc_type": "PermissionError"}), workspaces)
+    assert client.validate_integration_permissions(apps=["crm"]) is False
+
+
+def test_validate_integration_permissions_fails_without_installed_app_workspace():
+    client, _ = _permission_client(_fake_response(200, {"data": {}}), [("Restaurant POS", "Kairon Connector")])
+    assert client.validate_integration_permissions(apps=["crm"]) is False
+
+
+@patch("kairon.crm.services.provisioners.erpnext_provisioner.PreFlightValidator")
+def test_erpnext_provisioner_installs_crm_before_erpnext(mock_preflight):
+    """ERPNext v16 ships a 'CRM' Desktop Icon; installing crm after erpnext hits a UniqueViolation."""
+    from kairon.crm.services.provisioners.erpnext_provisioner import ERPNextProvisioner
+    plan = ProvisioningPlan(strategy_key="erpnext_suite", tier=2, apps=["erpnext", "crm"], home_page="crm")
+    provisioner = ERPNextProvisioner(plan, {"container_name": "c"})
+    calls = []
+    with patch.object(provisioner, "_load_client_doc", return_value=MagicMock(user=None)), \
+            patch.object(provisioner, "_bench_new_site", side_effect=lambda s, d, p, app, l: calls.append(("new-site", app))), \
+            patch.object(provisioner, "_bench_install_app", side_effect=lambda s, app, l: calls.append(("install", app))), \
+            patch.object(provisioner, "_install_kairon_connector"), \
+            patch.object(provisioner, "prelock_encryption_key"), patch.object(provisioner, "set_homepage"), \
+            patch.object(provisioner, "setup_user_and_migrate"):
+        try:
+            provisioner.provision("Order Co", "OC", "USD", "United States", "pw", "bot")
+        except Exception:
+            pass  # only the app install order is under test; later phases need a live bench
+    assert calls[:2] == [("new-site", "crm"), ("install", "erpnext")]

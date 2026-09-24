@@ -55,6 +55,15 @@ class BaseProvisioner(ABC):
         if res.returncode != 0:
             raise AppException(f"[{label}] Bench new-site failed: {res.stderr or res.stdout}")
 
+    def _bench_install_app(self, site_name: str, app: str, label: str):
+        """Runs `bench install-app` for one app. Raises AppException on failure."""
+        res = subprocess.run(
+            ["docker", "exec", self.container_name, "bench", "--site", site_name, "install-app", app],
+            capture_output=True, text=True, timeout=600,
+        )
+        if res.returncode != 0:
+            raise AppException(f"[{label}] install-app '{app}' failed: {res.stderr or res.stdout}")
+
     def _install_kairon_connector(self, site_name: str, label: str):
         """Installs the kairon_connector app used for webhook/lead-sync integration. Raises AppException on failure."""
         connector_cmd = [
