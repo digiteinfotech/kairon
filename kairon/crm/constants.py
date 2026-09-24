@@ -97,6 +97,13 @@ BUSINESS_MODULE_CATALOG = {
     },
 }
 
+# Module selection used when a tenant is onboarded without choosing any modules.
+# It must match what the bench step provisions for an empty selection
+# (FeatureAppResolver.resolve([]) -> Tier 1 "crm"); defaulting to *every* catalog
+# module instead made isolation/role setup resolve modules (e.g. Buying) that have no
+# provisioning_matrix.yaml entry and that were never installed on the site.
+DEFAULT_MODULE_SELECTION = ("CRM",)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Infrastructure Modules — always enabled, never user-selectable

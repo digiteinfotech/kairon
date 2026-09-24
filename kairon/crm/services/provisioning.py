@@ -10,7 +10,7 @@ from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
 from kairon.crm.services.bench_executor import BenchExecutor
 from kairon.crm.services.erpnext_client import ERPNextClient
 from kairon.crm.services.provision_verifier import ProvisionVerifier
-from kairon.crm.constants import BUSINESS_MODULE_CATALOG
+from kairon.crm.constants import DEFAULT_MODULE_SELECTION
 from kairon.shared.utils import Utility
 
 
@@ -182,7 +182,9 @@ class ProvisioningService:
 
             # 4e: Fail-fast Integration Permission Check
             logger.info(f"[{self.provisioning_id}] Validating integration user permissions...")
-            if not client.validate_integration_permissions():
+            from kairon.crm.services.feature_resolver import FeatureAppResolver
+            installed_apps = FeatureAppResolver.resolve(doc.selected_modules or list(DEFAULT_MODULE_SELECTION)).apps
+            if not client.validate_integration_permissions(apps=installed_apps):
                 raise AppException("Integration user permission validation failed. Aborting provisioning.")
 
             # 4d: Idempotently create the User Invitation webhook in ERPNext
@@ -209,7 +211,7 @@ class ProvisioningService:
 
             selected_mods = doc.selected_modules
             if not selected_mods:
-                selected_mods = list(BUSINESS_MODULE_CATALOG.keys())
+                selected_mods = list(DEFAULT_MODULE_SELECTION)
                 doc.selected_modules = selected_mods
 
             logger.info(f"[{self.provisioning_id}] Applying ProductIsolationService for selection: {selected_mods}")
@@ -248,7 +250,7 @@ class ProvisioningService:
             from kairon.crm.services.feature_resolver import FeatureAppResolver
             matrix = FeatureAppResolver.load_matrix()
             plan = FeatureAppResolver.resolve(doc.selected_modules)
-            selected_mods = doc.selected_modules or list(BUSINESS_MODULE_CATALOG.keys())
+            selected_mods = doc.selected_modules or list(DEFAULT_MODULE_SELECTION)
             catalog = {m["key"]: m for m in client.discover_business_modules()["modules"]}
             target_role_profile = None
             for mod_key in selected_mods:

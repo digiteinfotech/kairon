@@ -426,7 +426,10 @@ class CRMProcessor:
             return {"action": "deferred", "reason": "user_not_found"}
 
         try:
-            client.assign_company_permission(email, company)
+            # Tier 1 (standalone CRM) sites have no ERPNext Company doctype, so there is no company
+            # to scope the user to (provisioning likewise skips company assignment for Tier 1).
+            if doc.tier == 2:
+                client.assign_company_permission(email, company)
         except AppException as e:
             # Log and record the error; the reconciler will retry
             inv = CRMInvitation.objects(site_name=site_name, email=email, invitation_status=CRMInvitationStatus.PENDING.value).first()
@@ -499,7 +502,8 @@ class CRMProcessor:
 
                     if erpnext_status == "Accepted":
                         if client.check_user_exists(inv.email):
-                            client.assign_company_permission(inv.email, company)
+                            if site_doc.tier == 2:  # Tier 1 sites have no Company doctype
+                                client.assign_company_permission(inv.email, company)
                             inv.update(
                                 set__invitation_status=CRMInvitationStatus.COMPANY_ASSIGNED.value,
                                 set__accepted_at=now,
@@ -564,8 +568,8 @@ class CRMProcessor:
         if not doc:
             raise AppException("No CRM configuration found for this bot.")
 
-        from kairon.crm.constants import BUSINESS_MODULE_CATALOG
-        selected = list(doc.selected_modules) if doc.selected_modules else list(BUSINESS_MODULE_CATALOG.keys())
+        from kairon.crm.constants import DEFAULT_MODULE_SELECTION
+        selected = list(doc.selected_modules) if doc.selected_modules else list(DEFAULT_MODULE_SELECTION)
         return {
             "bot": bot,
             "company_name": doc.company_name,
@@ -622,10 +626,10 @@ class CRMProcessor:
         if not doc.site_name or doc.onboarding_status != CRMOnboardingStatus.COMPLETED.value:
             raise AppException(f"ERPNext site is not yet provisioned for this bot. Current status: {doc.onboarding_status}")
 
-        from kairon.crm.constants import BUSINESS_MODULE_CATALOG
+        from kairon.crm.constants import DEFAULT_MODULE_SELECTION
 
         client = CRMProcessor._get_integration_client(doc)
-        selected_mods = list(doc.selected_modules) if doc.selected_modules else list(BUSINESS_MODULE_CATALOG.keys())
+        selected_mods = list(doc.selected_modules) if doc.selected_modules else list(DEFAULT_MODULE_SELECTION)
 
         # 1. Verify current configuration
         report = client.verify_module_configuration(selected_mods, profile_name=doc.module_profile_name, user_email=doc.erpnext_owner_email)
