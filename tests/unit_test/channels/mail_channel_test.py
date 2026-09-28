@@ -194,11 +194,17 @@ class TestMailChannel:
 
         MailResponseLog.objects().delete()
 
+        from email import message_from_string
         mock_smtp_instance.sendmail.assert_called_once()
-        assert mock_smtp_instance.sendmail.call_args[0][0] == "mail_channel_test_user_acc@testuser.com"
-        assert mock_smtp_instance.sendmail.call_args[0][1] == "recipient@test.com"
-        assert "Test Subject" in mock_smtp_instance.sendmail.call_args[0][2]
-        assert "Test Body" in mock_smtp_instance.sendmail.call_args[0][2]
+        call_args = mock_smtp_instance.sendmail.call_args[0]
+        assert call_args[0] == "mail_channel_test_user_acc@testuser.com"
+        assert call_args[1] == ["recipient@test.com"]
+        parsed = message_from_string(call_args[2])
+        assert "Test_Subject" in str(parsed['Subject'])
+        body_part = parsed.get_payload()
+        if isinstance(body_part, list):
+            body_part = body_part[0].get_payload(decode=True).decode('utf-8')
+        assert "Test Body" in body_part
 
     @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
@@ -419,6 +425,10 @@ class TestMailChannel:
         mock_mail_message.date = "2023-10-10"
         mock_mail_message.text = "Test Body"
         mock_mail_message.html = None
+        mock_mail_message.uid = "99000"
+        mock_mail_message.headers = MagicMock()
+        mock_mail_message.headers.get.return_value = ['<test@example.com>']
+        mock_mail_message.attachments = []
 
         mock_mailbox_instance.login.return_value = mock_mailbox_instance
         mock_mailbox_instance.fetch.return_value = [mock_mail_message]
@@ -702,3 +712,211 @@ class TestMailChannel:
         }]
         result = MailProcessor.check_email_config_exists('test', config_dict)
         assert result == True
+
+    @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_send_mail_with_cc(self, mock_get_channel_config, mock_smtp):
+        mock_smtp_instance = MagicMock()
+        mock_smtp.return_value = mock_smtp_instance
+        mail_response_log = MailResponseLog(bot=self.bot_id, sender_id="cc_recipient@test.com",
+                                            user="mail_channel_test_user_acc", uid=300)
+        mail_response_log.save()
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'smtp_server': "smtp.testuser.com",
+                'smtp_port': 587
+            }
+        }
+        mp = MailProcessor(bot=self.bot_id)
+        mp.login_smtp()
+        await mp.send_mail("cc_recipient@test.com", "CC Subject", "CC Body", mail_response_log.id,
+                           cc=["cc1@example.com", "cc2@example.com"])
+        mock_smtp_instance.sendmail.assert_called_once()
+        call_args = mock_smtp_instance.sendmail.call_args[0]
+        assert call_args[1] == ["cc_recipient@test.com", "cc1@example.com", "cc2@example.com"]
+        assert "cc1@example.com" in call_args[2]
+        MailResponseLog.objects().delete()
+
+    @patch("kairon.shared.channels.mail.processor.smtplib.SMTP")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_send_mail_with_message_id(self, mock_get_channel_config, mock_smtp):
+        mock_smtp_instance = MagicMock()
+        mock_smtp.return_value = mock_smtp_instance
+        mail_response_log = MailResponseLog(bot=self.bot_id, sender_id="thread_recipient@test.com",
+                                            user="mail_channel_test_user_acc", uid=301)
+        mail_response_log.save()
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'smtp_server': "smtp.testuser.com",
+                'smtp_port': 587
+            }
+        }
+        mp = MailProcessor(bot=self.bot_id)
+        mp.login_smtp()
+        original_msg_id = "<original123@testserver.com>"
+        await mp.send_mail("thread_recipient@test.com", "Re: Thread", "Reply body", mail_response_log.id,
+                           message_id=original_msg_id)
+        mock_smtp_instance.sendmail.assert_called_once()
+        msg_str = mock_smtp_instance.sendmail.call_args[0][2]
+        assert "In-Reply-To:" in msg_str
+        assert "References:" in msg_str
+        assert original_msg_id in msg_str
+        MailResponseLog.objects().delete()
+
+    @patch("kairon.shared.chat.user_media.UserMedia.save_media_content")
+    @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
+    @patch("kairon.shared.channels.mail.processor.MailBox")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_read_mails_with_attachment_success(self, mock_get_channel_config,
+                                                       mock_mailbox, mock_process_message_task,
+                                                       mock_logout_imap,
+                                                       mock_create_media, mock_save_media):
+        bot_id = self.bot_id
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+        mock_mailbox_instance = MagicMock()
+        mock_mailbox.return_value = mock_mailbox_instance
+
+        mock_att = MagicMock()
+        mock_att.filename = "document.pdf"
+        mock_att.payload = b"pdf_content"
+
+        mock_mail_message = MagicMock(spec=MailMessage)
+        mock_mail_message.subject = "Attachment Mail"
+        mock_mail_message.from_ = "sender@example.com"
+        mock_mail_message.date = "2024-01-15"
+        mock_mail_message.text = "Mail with attachment"
+        mock_mail_message.uid = "99100"
+        mock_mail_message.html = None
+        mock_mail_message.attachments = [mock_att]
+        mock_mail_message.headers = MagicMock()
+        mock_mail_message.headers.get.return_value = ['<att-test@example.com>']
+
+        mock_mailbox_instance.login.return_value = mock_mailbox_instance
+        mock_mailbox_instance.fetch.return_value = [mock_mail_message]
+
+        mails, user = MailProcessor.read_mails(bot_id)
+
+        assert len(mails) == 1
+        assert len(mails[0]["media_ids"]) == 1
+        mock_create_media.assert_called_once()
+        mock_save_media.assert_called_once()
+        MailResponseLog.objects().delete()
+
+    @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_imap")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.process_message_task")
+    @patch("kairon.shared.channels.mail.processor.MailBox")
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @pytest.mark.asyncio
+    async def test_read_mails_with_attachment_failure(self, mock_get_channel_config,
+                                                       mock_mailbox, mock_process_message_task,
+                                                       mock_logout_imap, mock_create_media):
+        bot_id = self.bot_id
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+        mock_mailbox_instance = MagicMock()
+        mock_mailbox.return_value = mock_mailbox_instance
+
+        mock_att = MagicMock()
+        mock_att.filename = "broken.pdf"
+        mock_att.payload = b"data"
+
+        mock_mail_message = MagicMock(spec=MailMessage)
+        mock_mail_message.subject = "Failing Attachment"
+        mock_mail_message.from_ = "fail@example.com"
+        mock_mail_message.date = "2024-01-15"
+        mock_mail_message.text = "Body"
+        mock_mail_message.uid = "99200"
+        mock_mail_message.html = None
+        mock_mail_message.attachments = [mock_att]
+        mock_mail_message.headers = MagicMock()
+        mock_mail_message.headers.get.return_value = ['<att-fail@example.com>']
+
+        mock_mailbox_instance.login.return_value = mock_mailbox_instance
+        mock_mailbox_instance.fetch.return_value = [mock_mail_message]
+        mock_create_media.side_effect = Exception("Storage unavailable")
+
+        mails, user = MailProcessor.read_mails(bot_id)
+
+        assert len(mails) == 1
+        assert mails[0]["media_ids"] == []
+        MailResponseLog.objects().delete()
+
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_smtp")
+    @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
+    @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule")
+    @pytest.mark.asyncio
+    async def test_process_messages_with_cc_and_message_id(self, mock_execute_rule, mock_send_mail,
+                                                            mock_logout_smtp, mock_login_smtp,
+                                                            mock_get_channel_config):
+        mail_response_log = MailResponseLog(bot=self.bot_id, sender_id="cc_test@test.com",
+                                            user="mail_channel_test_user_acc", uid=302)
+        mail_response_log.save()
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+        batch = [{
+            "mail_id": "cc_test@test.com",
+            "subject": "CC Subject",
+            "date": "2024-01-15",
+            "body": "Body",
+            "log_id": str(mail_response_log.id),
+            "cc": ["cc@example.com"],
+            "message_id": "<original@test.com>"
+        }]
+        mock_execute_rule.return_value = [{"text": "Response"}], []
+        await MailProcessor.process_messages(self.bot_id, batch)
+        mock_send_mail.assert_called_once()
+        send_kwargs = mock_send_mail.call_args[1]
+        assert send_kwargs.get("cc") == ["cc@example.com"]
+        assert send_kwargs.get("message_id") == "<original@test.com>"
+        MailResponseLog.objects().delete()
+
+    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+    def test_update_event_id(self, mock_get_channel_config):
+        mock_get_channel_config.return_value = {
+            'config': {
+                'email_account': "mail_channel_test_user_acc@testuser.com",
+                'email_password': "password",
+                'imap_server': "imap.testuser.com",
+            }
+        }
+        mock_state = MagicMock()
+        mock_state.event_id = None
+        with patch.object(MailProcessor, 'get_mail_channel_state_data', return_value=mock_state):
+            mp = MailProcessor(bot=self.bot_id)
+            mp.update_event_id("evt_abc123")
+        assert mock_state.event_id == "evt_abc123"
+        mock_state.save.assert_called_once()
+
+    @patch("asyncio.run")
+    def test_process_message_task(self, mock_run):
+        batch = [{"mail_id": "t@t.com", "subject": "S", "date": "d", "body": "b"}]
+        MailProcessor.process_message_task(self.bot_id, batch)
+        mock_run.assert_called_once()

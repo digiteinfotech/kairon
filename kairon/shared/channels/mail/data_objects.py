@@ -35,6 +35,9 @@ class MailResponseLog(Auditlog):
     user = StringField(required=True)
     timestamp = FloatField(required=True)
     status = StringField(required=True, default=MailStatus.Processing.value)
+    message_id = StringField()
+    media_ids = ListField()
+    cc = ListField()
 
     meta = {"indexes": ["bot"]}
 

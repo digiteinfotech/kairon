@@ -17,9 +17,11 @@ from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.data_objects import BotSettings
+from email.header import Header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
+from uuid6 import uuid7
 from croniter import croniter
 import pytz
 
@@ -135,13 +137,16 @@ class MailProcessor:
             logger.error(str(e))
             return False
 
-    async def send_mail(self, to: str, subject: str, body: str, log_id: str):
+    async def send_mail(self, to: str, subject: str, body: str, log_id: str,
+                        cc: list = None, message_id: str = None):
         """
         Send mail to a user
         :param to: str - email address
         :param subject: str - email subject
         :param body: str - email body
         :param log_id: str - log id
+        :param cc: list - CC email addresses
+        :param message_id: str - original Message-ID for threading headers
         """
         exception = None
         try:
@@ -150,9 +155,15 @@ class MailProcessor:
                 msg = MIMEMultipart()
                 msg['From'] = email_account
                 msg['To'] = to
-                msg['Subject'] = subject
-                msg.attach(MIMEText(body, 'html'))
-                self.smtp.sendmail(email_account, to, msg.as_string())
+                msg['Subject'] = Header(subject, 'utf-8')
+                if cc:
+                    msg['CC'] = ', '.join(cc)
+                if message_id:
+                    msg['In-Reply-To'] = message_id
+                    msg['References'] = message_id
+                msg.attach(MIMEText(body, 'html', 'utf-8'))
+                recipients = [to] + (cc or [])
+                self.smtp.sendmail(email_account, recipients, msg.as_string())
         except Exception as e:
             logger.error(f"Error sending mail to {to}: {str(e)}")
             exception = str(e)
@@ -229,7 +240,9 @@ class MailProcessor:
                         'mail_id': mail['mail_id'],
                         'subject': mail['subject'],
                         'date': mail['date'],
-                        'body': mail['body']
+                        'body': mail['body'],
+                        'media_ids': mail.get('media_ids', []),
+                        'cc': mail.get('cc', [])
                     }
                     user_msg = mp.intent
                     user_messages.append(user_msg)
@@ -249,7 +262,9 @@ class MailProcessor:
                         'to': mail['mail_id'],
                         'subject': subject,
                         'body': mp.process_mail(chat_response, log_id=mail['log_id']),
-                        'log_id': mail['log_id']
+                        'log_id': mail['log_id'],
+                        'cc': mail.get('cc', []),
+                        'message_id': mail.get('message_id')
                     })
 
                 except AppException as e:
@@ -378,20 +393,57 @@ class MailProcessor:
                 sender_id = msg.from_
                 date = msg.date
                 body = msg.text or msg.html or ""
-                #attachments = msg.attachments
-                mail_log = MailResponseLog(sender_id = sender_id,
-                                            uid = last_processed_uid,
-                                            bot = bot,
-                                            user = mp.bot_settings.user,
-                                            status=MailStatus.Processing.value,
-                                            timestamp = time.time())
+                cc = list(msg.cc) if msg.cc else []
+                message_id = (msg.headers.get('message-id') or [''])[0]
+                mail_log = MailResponseLog(sender_id=sender_id,
+                                           uid=last_processed_uid,
+                                           bot=bot,
+                                           user=mp.bot_settings.user,
+                                           status=MailStatus.Processing.value,
+                                           timestamp=time.time(),
+                                           message_id=message_id,
+                                           cc=cc)
                 mail_log.save()
+
+                media_ids = []
+                for att in msg.attachments:
+                    try:
+                        from kairon.shared.chat.user_media import UserMedia
+                        att_media_id = str(uuid7())
+                        filename = att.filename or f"attachment_{att_media_id}"
+                        UserMedia.create_user_media_data(
+                            bot=bot,
+                            media_id=att_media_id,
+                            filename=filename,
+                            sender_id=sender_id,
+                            upload_type='user',
+                            channel='email'
+                        )
+                        UserMedia.save_media_content(
+                            bot=bot,
+                            sender_id=sender_id,
+                            media_id=att_media_id,
+                            binary_data=att.payload,
+                            filename=filename,
+                            is_validation_required=False
+                        )
+                        media_ids.append(att_media_id)
+                    except Exception as att_err:
+                        logger.warning(f"Failed to process attachment {att.filename} for mail {message_id}: {att_err}")
+
+                if media_ids:
+                    mail_log.media_ids = media_ids
+                    mail_log.save()
+
                 message_entry = {
                     'mail_id': sender_id,
                     'subject': subject,
                     'date': str(date),
                     'body': body,
-                    'log_id': str(mail_log.id)
+                    'log_id': str(mail_log.id),
+                    'cc': cc,
+                    'message_id': message_id,
+                    'media_ids': media_ids
                 }
                 messages.append(message_entry)
             mp.logout_imap()

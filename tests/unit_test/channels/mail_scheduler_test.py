@@ -181,3 +181,10 @@ def test_request_stop_no_channel_exist_exception(mock_execute_http_request, mock
     with pytest.raises(AppException):
         MailScheduler.request_stop(bot)
 
+
+def test_mail_status_values():
+    from kairon.shared.channels.mail.data_objects import MailStatus
+    assert MailStatus.SUCCESS.value == "Success"
+    assert MailStatus.FAILED.value == "Failed"
+    assert MailStatus.Processing.value == "processing"
+
