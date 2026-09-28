@@ -6,13 +6,14 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, CallbackActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, CallbackActionConfig, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.callback.data_objects import CallbackData
 from kairon.shared.constants import ChannelTypes
-
+from kairon.shared.data.constant import STATUSES
 
 CONST_AVAILABLE_CHANNEL_NAME_MAP = {
     'TelegramHandler': ChannelTypes.TELEGRAM.value,
@@ -26,7 +27,7 @@ class ActionCallback(ActionsBase):
 
     def __init__(self, bot: Text, name: Text):
         """
-        Initialize cakkback action.
+        Initialize callback action.
 
         @param bot: bot id
         @param name: action name
@@ -50,7 +51,7 @@ class ActionCallback(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No Async Callback action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -60,11 +61,13 @@ class ActionCallback(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         bot_response = None
         exception = None
         filled_slots = {}
         dispatch_bot_response = True
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         msg_logger = []
         callback_url = None
         metadata_log = []
@@ -100,8 +103,12 @@ class ActionCallback(ActionsBase):
             exception = e
             self.__is_success = False
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = bot_response if bot_response else "Sorry, I am unable to process your request at the moment."
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
+
         finally:
             if dispatch_bot_response:
                 if bot_response and callback_url:
@@ -109,6 +116,8 @@ class ActionCallback(ActionsBase):
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, DispatchType.text.value, bot_response)
                 if message:
                     msg_logger.append(message)
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.callback_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -123,7 +132,9 @@ class ActionCallback(ActionsBase):
                 callback_url=callback_url,
                 callback_url_slot=dynamic_url_slot_name,
                 identifier=identifier,
-                metadata=metadata_log
+                metadata=metadata_log,
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         return filled_slots
 

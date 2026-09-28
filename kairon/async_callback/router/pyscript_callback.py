@@ -1,11 +1,17 @@
 from typing import Optional
-from blacksheep import Router, Request, Response as BSResponse, TextContent
+from blacksheep import Router, Request, Response as BSResponse, json
 from blacksheep.contents import JSONContent
 
 from loguru import logger
+
+from kairon.async_callback.auth import CallbackAuthenticator
+from kairon.async_callback.exceptions import CallbackException
 from kairon.async_callback.processor import CallbackProcessor
 from kairon.async_callback.utils import CallbackUtility
 from kairon.exceptions import AppException
+from kairon.shared.callback.data_objects import PyscriptPayload
+from kairon.shared.callback.data_objects import CallbackRequest
+
 
 router = Router()
 
@@ -52,33 +58,23 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         logger.info(f"Data from request: {data}")
         print(request_source)
 
-        data, message, error_code, response_type = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
             token, identifier, data, request_source
         )
+
+        if redirect_url:
+            return CallbackUtility.redirect_response(redirect_url)
 
         return CallbackUtility.return_response(data, message, error_code, response_type)
     except AppException as ae:
         logger.error(f"AppException: {ae}")
-        return BSResponse(
-            status=400,
-            content=JSONContent({
-                "message": str(ae),
-                "error_code": 400,
-                "data": None,
-                "success": False,
-            })
-        )
+        return CallbackUtility.error_response(str(ae), 400)
+    except CallbackException as cbe:
+        logger.error(f"CallbackException: {cbe.error_message}")
+        return CallbackUtility.error_response(str(cbe.error_message), cbe.status_code)
     except Exception as e:
         logger.exception(e)
-        return BSResponse(
-            status=500,
-            content=JSONContent({
-                "message": str(e),
-                "error_code": 400,
-                "data": None,
-                "success": False
-            })
-        )
+        return CallbackUtility.error_response(str(e), 500)
 
 
 @router.route("/callback/d/{identifier}/{token}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
@@ -89,3 +85,30 @@ async def execute_async_action(request: Request, identifier: str, token: str) ->
 @router.route("/callback/s/{token}", methods=["POST", "PUT", "PATCH"])
 async def execute_async_action_standalone(request: Request, token: str) -> BSResponse:
     return await process_router_message(token, None, request.method, request)
+
+@router.post("/main_pyscript/execute-python")
+async def trigger_restricted_python(payload: PyscriptPayload):
+    try:
+        result = CallbackUtility.main_pyscript_handler({
+            "source_code": payload.source_code,
+            "predefined_objects": payload.predefined_objects or {}
+        }, None)
+        return {"success": True, **result}
+    except Exception as e:
+        return json({"success": False, "error": str(e)}, status=422)
+
+@router.post("/callback/handle_event")
+async def handle_callback(
+    request: Request,
+    body: CallbackRequest
+):
+    await CallbackAuthenticator.verify(request)
+    payload = body.data
+    try:
+        result = CallbackUtility.execute_script(
+            payload.get("source_code"),
+            payload.get("predefined_objects", {})
+        )
+        return {"statusCode": 200, "body": result}
+    except Exception as e:
+        return {"statusCode": 422, "body": str(e)}

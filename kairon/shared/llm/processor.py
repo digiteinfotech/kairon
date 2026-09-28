@@ -1,11 +1,12 @@
 import os
 import time
 import urllib.parse
+import asyncio
+import json
 from secrets import randbelow, choice
 from typing import Text, Dict, List, Tuple, Union
 from urllib.parse import urljoin
 
-import litellm
 from fastembed import SparseTextEmbedding, LateInteractionTextEmbedding
 from loguru import logger as logging
 from mongoengine.base import BaseList
@@ -13,21 +14,20 @@ from tiktoken import get_encoding
 from tqdm import tqdm
 
 from kairon.exceptions import AppException
+from kairon.shared.request_context import get_request_id, REQUEST_ID_HEADER
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.admin.processor import Sysadmin
-from kairon.shared.cognition.data_objects import CognitionData
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema
 from kairon.shared.cognition.processor import CognitionDataProcessor
-from kairon.shared.data.constant import DEFAULT_LLM
+from kairon.shared.data.constant import DEFAULT_LLM, ExcludedLLMTypes
 from kairon.shared.data.constant import DEFAULT_SYSTEM_PROMPT, DEFAULT_CONTEXT_PROMPT
 from kairon.shared.llm.base import LLMBase
 from kairon.shared.llm.data_objects import LLMLogs
-from kairon.shared.llm.logger import LiteLLMLogger
 from kairon.shared.models import CognitionDataType
 from kairon.shared.rest_client import AioRestClient
 from kairon.shared.utils import Utility
 from http import HTTPStatus
-litellm.callbacks = [LiteLLMLogger()]
 
 
 class LLMProcessor(LLMBase):
@@ -47,7 +47,7 @@ class LLMProcessor(LLMBase):
         # self.vectors_config = {}
         # self.sparse_vectors_config = {}
         self.llm_secret = Sysadmin.get_llm_secret(llm_type, bot)
-        if llm_type != DEFAULT_LLM:
+        if (llm_type != DEFAULT_LLM and llm_type not in {e.value for e in ExcludedLLMTypes}):
             self.llm_secret_embedding = Sysadmin.get_llm_secret(DEFAULT_LLM, bot)
         else:
             self.llm_secret_embedding = self.llm_secret
@@ -66,41 +66,44 @@ class LLMProcessor(LLMBase):
         collection_groups = {}
         for content in collections_data:
             content_dict = content.to_mongo()
-            collection_name = content_dict.get('collection') or ""
+            collection_name = content_dict.get('collection', '')
             if collection_name not in collection_groups:
                 collection_groups[collection_name] = []
             collection_groups[collection_name].append(content_dict)
 
         for collection_name, contents in collection_groups.items():
             collection = f"{self.bot}_{collection_name}{self.suffix}" if collection_name else f"{self.bot}{self.suffix}"
-            await self.__create_collection__(collection)
+            EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+            training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+            if training_needed or collection_name == '':
+                await self.__create_collection__(collection)
 
-            for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
-                batch_contents = contents[i:i + batch_size]
+                for i in tqdm(range(0, len(contents), batch_size), desc="Training FAQ"):
+                    batch_contents = contents[i:i + batch_size]
 
-                embedding_payloads = []
-                search_payloads = []
-                vector_ids = []
+                    embedding_payloads = []
+                    search_payloads = []
+                    vector_ids = []
 
-                for content in batch_contents:
-                    if content['content_type'] == CognitionDataType.json.value:
-                        metadata = processor.find_matching_metadata(self.bot, content['data'],
-                                                                    content.get('collection'))
-                        search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
-                            content['data'], metadata)
-                    else:
-                        search_payload, embedding_payload = {'content': content["data"]}, content["data"]
+                    for content in batch_contents:
+                        if content['content_type'] == CognitionDataType.json.value:
+                            metadata = processor.find_matching_metadata(self.bot, content['data'],
+                                                                        content.get('collection'))
+                            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
+                                content['data'], metadata)
+                        else:
+                            search_payload, embedding_payload = {'content': content["data"]}, content["data"]
 
-                    embedding_payloads.append(embedding_payload)
-                    search_payloads.append(search_payload)
-                    vector_ids.append(content['vector_id'])
+                        embedding_payloads.append(embedding_payload)
+                        search_payloads.append(search_payload)
+                        vector_ids.append(content['vector_id'])
 
-                embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation)
-                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
-                          for idx in range(len(vector_ids))]
-                await self.__collection_upsert__(collection, {'points': points},
-                                                 err_msg="Unable to train FAQ! Contact support")
-                count += len(batch_contents)
+                    embeddings = await self.get_embedding(embedding_payloads, user, invocation=invocation, collection = collection)
+                    points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                              for idx in range(len(vector_ids))]
+                    await self.__collection_upsert__(collection, {'points': points},
+                                                     err_msg="Unable to train FAQ! Contact support")
+                    count += len(batch_contents)
 
         return {"faq": count}
 
@@ -109,18 +112,25 @@ class LLMProcessor(LLMBase):
         embeddings_created = False
         invocation = kwargs.pop('invocation', None)
         llm_type = kwargs.pop('llm_type', DEFAULT_LLM)
+        collection = kwargs.pop("collection")
         try:
-            query_embedding = await self.get_embedding(query, user, invocation=invocation)
+            query_embedding = await self.get_embedding(query, user, invocation=invocation,
+                                                       collection = collection)
             embeddings_created = True
 
             system_prompt = kwargs.pop('system_prompt', DEFAULT_SYSTEM_PROMPT)
             context_prompt = kwargs.pop('context_prompt', DEFAULT_CONTEXT_PROMPT)
             media_ids = kwargs.pop('media_ids', None)
+            should_process_media = kwargs.pop('should_process_media', False)
 
             context = await self.__attach_similarity_prompt_if_enabled(query_embedding, context_prompt, **kwargs)
             answer = await self.__get_answer(query, system_prompt, context, user, invocation=invocation,llm_type = llm_type,
-                                             media_ids=media_ids, **kwargs)
-            response = {"content": answer, "similarity_context": context}
+                                             media_ids=media_ids, should_process_media=should_process_media, **kwargs)
+            response = {
+                "content": answer.get("content"),
+                "similarity_context": context,
+                "litellm_call_id": answer.get("litellm_call_id")
+            }
         except Exception as e:
             logging.exception(e)
             if embeddings_created:
@@ -149,27 +159,42 @@ class LLMProcessor(LLMBase):
     async def get_embedding(self, texts: Union[Text, List[Text]], user, **kwargs):
         """
         Get embeddings for a batch of texts.
+        Truncates text in Kairon before sending to LiteLLM.
         """
         is_single_text = isinstance(texts, str)
         if is_single_text:
             texts = [texts]
-
+        collection_name = kwargs.get("collection", None)
+        EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+        training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+        if training_needed:
+            kwargs.pop("collection")
+        else:
+            kwargs["model"] = EmbeddingMetaData.schema_metadata.model_id
         truncated_texts = self.truncate_text(texts)
-
-        result = await litellm.aembedding(
-            model="text-embedding-3-large",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': self.bot, 'invocation': kwargs.get("invocation")},
-            api_key=self.llm_secret_embedding.get('api_key'),
-            num_retries=3
+        kwargs["truncated_texts"] = truncated_texts
+        kwargs["api_key"] = self.llm_secret_embedding.get("api_key")
+        body = {
+            "text": texts,
+            "user": user,
+            "kwargs": kwargs,
+        }
+        rid = get_request_id()
+        headers = {REQUEST_ID_HEADER: rid} if rid else None
+        timeout = Utility.environment["llm"].get("request_timeout", 30)
+        http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(
+            http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/aembedding/{self.llm_type}",
+            request_method="POST",
+            request_body=body,
+            headers=headers,
+            timeout=timeout,
         )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        if is_single_text:
-            return embeddings[0]
-
-        return embeddings
+        logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
+        if status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(status_code).phrase)
+        if is_single_text and isinstance(http_response, list):
+            return http_response[0]
+        return http_response
 
     async def __parse_completion_response(self, response, **kwargs):
         if kwargs.get("stream"):
@@ -184,6 +209,7 @@ class LLMProcessor(LLMBase):
 
     async def __get_completion(self, messages, hyperparameters, user, **kwargs):
         media_ids = kwargs.pop('media_ids')
+        should_process_media = kwargs.pop('should_process_media', False)
         if not media_ids:
             media_ids = []
         body = {
@@ -191,13 +217,16 @@ class LLMProcessor(LLMBase):
             'hyperparameters': hyperparameters,
             'user': user,
             'invocation': kwargs.get("invocation"),
-            'media_ids': media_ids
+            'media_ids': media_ids,
+            'should_process_media': should_process_media
         }
-
+        rid = get_request_id()
+        headers = {REQUEST_ID_HEADER: rid} if rid else None
         timeout = Utility.environment['llm'].get('request_timeout', 30)
         http_response, status_code, elapsed_time, _ = await ActionUtility.execute_request_async(http_url=f"{Utility.environment['llm']['url']}/{urllib.parse.quote(self.bot)}/completion/{self.llm_type}",
                                                                      request_method="POST",
                                                                      request_body=body,
+                                                                     headers=headers,
                                                                      timeout=timeout)
         logging.info(f"LLM request completed in {elapsed_time} for bot: {self.bot}")
         if status_code not in [200, 201, 202, 203, 204]:
@@ -214,6 +243,7 @@ class LLMProcessor(LLMBase):
         query_prompt = ''
         invocation = kwargs.pop('invocation')
         media_ids = kwargs.pop('media_ids')
+        should_process_media = kwargs.pop('should_process_media')
         llm_type = kwargs.get('llm_type')
         if kwargs.get('query_prompt', {}):
             query_prompt_dict = kwargs.pop('query_prompt')
@@ -241,10 +271,12 @@ class LLMProcessor(LLMBase):
                                                                hyperparameters=hyperparameters,
                                                                user=user,
                                                                invocation=invocation,
-                                                               media_ids=media_ids)
+                                                               media_ids=media_ids,
+                                                               should_process_media=should_process_media)
         self.__logs.append({'messages': messages, 'raw_completion_response': raw_response,
                             'type': 'answer_query', 'hyperparameters': hyperparameters})
-        return completion
+        litellm_call_id = raw_response.get("litellm_call_id") or raw_response.get("openrouter_call_id") if isinstance(raw_response, dict) else None
+        return {"content": completion, "litellm_call_id": litellm_call_id}
 
     async def __rephrase_query(self, query, system_prompt: Text, query_prompt: Text, user, **kwargs):
         invocation = kwargs.pop('invocation')
@@ -272,12 +304,30 @@ class LLMProcessor(LLMBase):
                                             timeout=5)
             if response.get('result'):
                 for collection in response['result'].get('collections') or []:
-                    if collection['name'].startswith(self.bot):
+                    name = collection.get('name')
+                    parts = name.split("_")
+                    collection_name = "_".join(parts[1:-2])
+                    EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection_name).first()
+                    training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else 0
+                    if collection['name'].startswith(self.bot) and (training_needed or collection_name == ''):
                         await client.request(http_url=urljoin(self.db_url, f"/collections/{collection['name']}"),
                                              request_method="DELETE",
                                              headers=self.headers,
                                              return_json=False,
                                              timeout=5)
+        finally:
+            await client.cleanup()
+
+    async def _delete_single_collection(self, collection_name: str):
+        client = AioRestClient(False)
+        try:
+            await client.request(
+                http_url=urljoin(self.db_url, f"/collections/{collection_name}"),
+                request_method="DELETE",
+                headers=self.headers,
+                return_json=False,
+                timeout=5
+            )
         finally:
             await client.cleanup()
 
@@ -330,6 +380,22 @@ class LLMProcessor(LLMBase):
             timeout=5)
         return response
 
+    async def __delete_collection_points__(self, collection_name: Text, point_ids: List, err_msg: Text,
+                                           raise_err=True):
+        client = AioRestClient()
+        response = await client.request(http_url=urljoin(self.db_url, f"/collections/{collection_name}/points/delete"),
+                                        request_method="POST",
+                                        headers=self.headers,
+                                        request_body={"points": point_ids},
+                                        return_json=True,
+                                        timeout=5)
+        if not response.get('result'):
+            if "status" in response:
+                logging.exception(response['status'].get('error'))
+                if raise_err:
+                    raise AppException(err_msg)
+
+
     async def __collection_hybrid_query__(self, collection_name: Text, embeddings: Dict, limit: int, score_threshold: float):
         client = AioRestClient()
         request_body = {
@@ -371,35 +437,59 @@ class LLMProcessor(LLMBase):
     def logs(self):
         return self.__logs
 
-    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
-        similarity_prompt = kwargs.pop('similarity_prompt')
-        for similarity_context_prompt in similarity_prompt:
-            use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
-            similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
-            similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
-            limit = similarity_context_prompt.get('top_results', 10)
-            score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
-            extracted_values = []
-            if use_similarity_prompt:
-                if similarity_context_prompt.get('collection') == 'default':
-                    collection_name = f"{self.bot}{self.suffix}"
-                else:
-                    collection_name = f"{self.bot}_{similarity_context_prompt.get('collection')}{self.suffix}"
-                search_result = await self.__collection_search__(collection_name, vector=query_embedding, limit=limit,
-                                                                 score_threshold=score_threshold)
+    async def _process_similarity_prompt(self, similarity_context_prompt, query_embedding):
+        use_similarity_prompt = similarity_context_prompt.get('use_similarity_prompt')
 
-                for entry in search_result['result']:
-                    if 'content' not in entry['payload']:
-                        extracted_payload = {}
-                        for key, value in entry['payload'].items():
-                            if key != 'collection_name':
-                                extracted_payload[key] = value
-                        extracted_values.append(extracted_payload)
-                    else:
-                        extracted_values.append(entry['payload']['content'])
-                if extracted_values:
-                    similarity_context = f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
-                    context_prompt = f"{context_prompt}\n{similarity_context}"
+        if not use_similarity_prompt:
+            return None
+
+        similarity_prompt_name = similarity_context_prompt.get('similarity_prompt_name')
+        similarity_prompt_instructions = similarity_context_prompt.get('similarity_prompt_instructions')
+        limit = similarity_context_prompt.get('top_results', 10)
+        score_threshold = similarity_context_prompt.get('similarity_threshold', 0.70)
+
+        collection = similarity_context_prompt.get('collection')
+        if collection == 'default':
+            collection_name = f"{self.bot}{self.suffix}"
+        else:
+            collection_name = f"{self.bot}_{collection}{self.suffix}"
+
+        search_result = await self.__collection_search__(
+            collection_name,
+            vector=query_embedding,
+            limit=limit,
+            score_threshold=score_threshold
+        )
+
+        extracted_values = []
+        for entry in search_result['result']:
+            payload = entry.get('payload', {})
+            if 'content' in payload:
+                extracted_values.append(payload['content'])
+            else:
+                extracted_values.append({
+                    k: v for k, v in payload.items() if k != 'collection_name'
+                })
+
+        if extracted_values:
+            return f"Instructions on how to use {similarity_prompt_name}:\n{extracted_values}\n{similarity_prompt_instructions}\n"
+
+        return None
+
+    async def __attach_similarity_prompt_if_enabled(self, query_embedding, context_prompt, **kwargs):
+        similarity_prompt = kwargs.pop('similarity_prompt', [])
+
+        tasks = [
+            self._process_similarity_prompt(sp, query_embedding)
+            for sp in similarity_prompt
+        ]
+
+        results = await asyncio.gather(*tasks)
+
+        for similarity_context in results:
+            if similarity_context:
+                context_prompt = f"{context_prompt}\n{similarity_context}"
+
         return context_prompt
 
     @staticmethod
@@ -426,30 +516,64 @@ class LLMProcessor(LLMBase):
         return LLMLogs.objects(metadata__bot=bot).count()
 
     @staticmethod
-    def fetch_llm_metadata(bot: str):
+    def fetch_llms_metadata(bot: str):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is metadata.
+        """
+        metadata_docs = LLMMetadata.objects()
+        final_metadata = {}
+        for metadata in metadata_docs:
+            llm_type = metadata.provider
+            models = LLMProcessor.get_llm_metadata(bot, llm_type)
+
+            if models:
+                metadata_dict = {
+                    "$schema": metadata.schema,
+                    "type": metadata.type,
+                    "description": metadata.description,
+                    "properties": json.loads(json.dumps(metadata.properties))
+                }
+
+                metadata_dict['properties']['model']['enum'] = models
+                final_metadata[llm_type] = metadata_dict
+
+        return final_metadata
+
+    @staticmethod
+    def get_llm_metadata(bot: str, llm_type):
         """
         Fetches the llm_type and corresponding models for a particular bot.
         :param bot: bot id
         :return: dictionary where each key is a llm_type and the value is a list of models.
         """
-        metadata = Utility.llm_metadata
-        llm_types = metadata.keys()
-        final_metadata = {}
-        for llm_type in llm_types:
-            secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
-            if not secret:
-                secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
+        secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
+        if not secret:
+            secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
 
-            if secret:
-                models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
-            else:
-                models = []
+        if secret:
+            models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+        else:
+            models = []
 
-            if models:
-                metadata[llm_type]['properties']['model']['enum'] = models
-                final_metadata[llm_type] = metadata[llm_type]
+        return models
 
-        return final_metadata
+    @staticmethod
+    def get_llm_metadata_default(llm_type):
+        """
+        Fetches the llm_type and corresponding models for a particular bot.
+        :param bot: bot id
+        :return: dictionary where each key is a llm_type and the value is a list of models.
+        """
+        secret = LLMSecret.objects(llm_type=llm_type, bot__exists=False).first()
+
+        if secret:
+            models = list(secret.models) if isinstance(secret.models, BaseList) else secret.models
+        else:
+            models = []
+
+        return models
 
     @staticmethod
     def modify_user_message_for_perplexity(user_msg: str, llm_type: str, hyperparameters: Dict) -> str:

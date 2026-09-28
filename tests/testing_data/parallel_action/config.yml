@@ -1,0 +1,29 @@
+language: en
+pipeline:
+- name: WhitespaceTokenizer
+- name: RegexEntityExtractor
+- from_pt: true
+  model_name: bert
+  model_weights: google/bert_uncased_L-2_H-128_A-2
+  name: kairon.shared.nlu.featurizer.lm_featurizer.LanguageModelFeaturizer
+- name: LexicalSyntacticFeaturizer
+- name: CountVectorsFeaturizer
+- epochs: 50
+  name: DIETClassifier
+- name: EntitySynonymMapper
+- name: FallbackClassifier
+  threshold: 0.7
+- epochs: 100
+  name: ResponseSelector
+policies:
+- max_history: 10
+  name: MemoizationPolicy
+- epochs: 100
+  max_history: 10
+  name: TEDPolicy
+- core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.5
+  enable_fallback_prediction: false
+  max_history: 10
+  name: RulePolicy
+recipe: default.v1

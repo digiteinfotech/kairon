@@ -8,17 +8,19 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, KaironTwoStageFallbackAction, EmailActionConfig, \
     ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, PipedriveLeadsAction, \
     PromptAction, WebSearchAction, RazorpayAction, PyscriptActionConfig, DatabaseAction, LiveAgentActionConfig, \
-    CallbackActionConfig, ScheduleAction, Actions
+    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction, StorePageAction
 from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
     JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, PipedriveActionRequest, \
     RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
-    CallbackConfigRequest, PromptActionConfigUploadValidation
+    CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest, VoiceCallActionRequest, \
+    StorePageActionRequest
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
+from kairon.shared.live_agent.live_agent import LiveAgentHandler
 
 
 class ReconfigarableProperty(Enum):
@@ -117,6 +119,18 @@ class ActionSerializer:
             "db_model": ScheduleAction,
             "validation_model": ScheduleActionRequest,
         },
+        ActionType.parallel_action.value:{
+            "db_model": ParallelActionConfig,
+            "validation_model": ParallelActionRequest,
+        },
+        ActionType.voice_call_action.value: {
+            "db_model": VoiceCallAction,
+            "validation_model": VoiceCallActionRequest,
+        },
+        ActionType.store_page_action.value: {
+            "db_model": StorePageAction,
+            "validation_model": StorePageActionRequest,
+        },
         str(CallbackConfig.__name__).lower(): {
             "db_model": CallbackConfig,
             "validation_model": CallbackConfigRequest,
@@ -171,6 +185,10 @@ class ActionSerializer:
                 error_summary[action_type] = [f"Invalid action type: {action_type}."]
                 is_data_invalid = True
                 continue
+
+            if action_type == ActionType.live_agent_action.value and not LiveAgentHandler.is_live_agent_service_available(bot):
+                    error_summary[action_type].append("Please Enable Live Agent for bot before uploading")
+                    is_data_invalid = True
 
             if not isinstance(actions_list, list):
                 error_summary[action_type] = [f"Expected list of actions for {action_type}."]
@@ -293,6 +311,11 @@ class ActionSerializer:
             if actions:
                 action_config[action_type] = actions
 
+        if Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).count() > 0:
+            action_config[ActionType.kairon_voice_disconnect.value] = [
+                {"name": ActionType.kairon_voice_disconnect.value}
+            ]
+
         for other_type, other_info in other_collections.items():
             other_model = other_info.get("db_model")
             other_collections = ActionSerializer.get_action_config_data_list(bot, other_model)
@@ -359,6 +382,17 @@ class ActionSerializer:
             for action_type, data in filtered_actions.items():
                 if data:
                     ActionSerializer.save_collection_data_list(action_type, bot, user, data)
+
+            if ActionType.kairon_voice_disconnect.value in actions:
+                if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+                    Actions(
+                        name=ActionType.kairon_voice_disconnect.value,
+                        type=ActionType.kairon_voice_disconnect.value,
+                        bot=bot,
+                        user=user,
+                        status=True,
+                    ).save()
+
         if other_collections_data:
             ActionSerializer.save_other_collections(other_collections_data, bot, user, overwrite)
 

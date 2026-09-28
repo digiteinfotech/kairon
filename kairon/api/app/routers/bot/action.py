@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path, Security, Depends, Request
 
 from kairon.shared.callback.data_objects import CallbackConfig
+from kairon.shared.data.data_models import ParallelActionRequest
 from kairon.shared.utils import Utility
 from kairon.shared.auth import Authentication
 from kairon.api.models import (
@@ -9,7 +10,7 @@ from kairon.api.models import (
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
     WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
-    ScheduleActionRequest
+    ScheduleActionRequest, VoiceCallActionRequest, StorePageActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -749,6 +750,15 @@ async def list_available_actions(
     actions = list(mongo_processor.list_all_actions(bot=current_user.get_bot()))
     return Response(data=actions)
 
+@router.get("/parallel/actions", response_model=Response)
+async def list_existing__actions_for_parallel_action(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of all actions for bot.
+    """
+    actions = list(mongo_processor.list_existing_actions_for_parallel_action(bot=current_user.get_bot()))
+    return Response(data=actions)
+
 
 @router.post("/schedule", response_model=Response)
 async def add_schedule_action(
@@ -781,3 +791,141 @@ async def list_schedule_actions(current_user: User = Security(Authentication.get
     """
     actions = list(mongo_processor.list_schedule_action(current_user.get_bot()))
     return Response(data=actions)
+
+
+@router.post("/parallel", response_model=Response)
+async def add_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Add the parallel action
+    """
+    action_id = mongo_processor.add_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action added!")
+
+
+@router.put("/parallel", response_model=Response)
+async def update_parallel_actions(
+        request_data: ParallelActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Update the parallel action
+    """
+    action_id = mongo_processor.update_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    return Response(data={"_id": action_id}, message="Action updated!")
+
+
+@router.get("/parallel", response_model=Response)
+async def list_parallel_actions(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)):
+    """
+    Returns list of parallel actions for bot.
+    """
+    actions = list(mongo_processor.list_parallel_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.post("/voicecall", response_model=Response)
+async def add_voice_call_action(
+        request_data: VoiceCallActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the voice call action config.
+    """
+    mongo_processor.add_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/voicecall", response_model=Response)
+async def list_voice_call_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of voice call actions for bot.
+    """
+    actions = list(mongo_processor.list_voice_call_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/voicecall", response_model=Response)
+async def edit_voice_call_action(
+        request_data: VoiceCallActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the voice call action config.
+    """
+    mongo_processor.edit_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.post("/voice_disconnect", response_model=Response)
+async def add_kairon_voice_disconnect(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Registers the kairon_voice_disconnect built-in action for this bot.
+    Once registered, it can be added to flows to gracefully end a voice call.
+    """
+    mongo_processor.add_kairon_voice_disconnect(current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/voice_disconnect", response_model=Response)
+async def list_kairon_voice_disconnect(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns whether kairon_voice_disconnect action is registered for this bot.
+    """
+    actions = mongo_processor.list_kairon_voice_disconnect(current_user.get_bot())
+    return Response(data=actions)
+
+
+@router.post("/store_page", response_model=Response)
+async def add_store_page_action(
+        request_data: StorePageActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the store page action config.
+    """
+    mongo_processor.add_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/store_page", response_model=Response)
+async def list_store_page_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of store page actions for bot.
+    """
+    actions = list(mongo_processor.list_store_page_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/store_page", response_model=Response)
+async def edit_store_page_action(
+        request_data: StorePageActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the store page action config.
+    """
+    mongo_processor.edit_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/store_page/{action_name}", response_model=Response)
+async def delete_store_page_action(
+        action_name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the store page action config.
+    """
+    mongo_processor.delete_store_page_action(action_name, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')

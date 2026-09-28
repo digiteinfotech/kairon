@@ -1,0 +1,270 @@
+{
+    "success": "1",
+    "message": "Menu items are successfully listed.",
+    "restaurants": [
+        {
+            "restaurantid": "4639",
+            "active": "1",
+            "details": {
+                "menusharingcode": "nu0wisf4",
+                "currency_html": "&#8377;",
+                "country": "India",
+                "country_id": "97",
+                "images": [],
+                "restaurantname": "Indisubb Foods Private Limited",
+                "address": "Ahmedabad",
+                "contact": "1234567890",
+                "latitude": "1",
+                "longitude": "1",
+                "landmark": "",
+                "city": "Ahmedabad",
+                "city_id": "1321851",
+                "state": "Gujarat",
+                "state_id": "1612",
+                "minimumorderamount": "0",
+                "minimumdeliverytime": "30 Minutes",
+                "deliverycharge": "0",
+                "deliveryhoursfrom1": "",
+                "deliveryhoursto1": "",
+                "deliveryhoursfrom2": "",
+                "deliveryhoursto2": "",
+                "calculatetaxonpacking": 0,
+                "calculatetaxondelivery": 0,
+                "dc_taxes_id": "",
+                "pc_taxes_id": "",
+                "packaging_applicable_on": "NONE",
+                "packaging_charge": "",
+                "packaging_charge_type": ""
+            }
+        }
+    ],
+    "ordertypes": [
+        {
+            "ordertypeid": 1,
+            "ordertype": "Delivery"
+        },
+        {
+            "ordertypeid": 2,
+            "ordertype": "Pick Up"
+        },
+        {
+            "ordertypeid": 3,
+            "ordertype": "Dine In"
+        }
+    ],
+    "categories": [
+        {
+            "categoryid": "77583",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Add Ons",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77581",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Beverages",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77585",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Chicken",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77578",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Chicken Meal",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77584",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Desserts",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77582",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Hot Coffees",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77579",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Seafood Meal",
+            "categorytimings": "",
+            "category_image_url": ""
+        },
+        {
+            "categoryid": "77580",
+            "active": "1",
+            "categoryrank": "1",
+            "parent_category_id": "0",
+            "categoryname": "Side Orders",
+            "categorytimings": "",
+            "category_image_url": ""
+        }
+    ],
+    "parentcategories": [],
+    "items": [
+        {
+            "itemid": "10539634",
+            "itemallowvariation": "0",
+            "itemrank": "1",
+            "item_categoryid": "77578",
+            "item_ordertype": "1,2,3",
+            "item_packingcharges": "0",
+            "itemallowaddon": "0",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "cuisine": [],
+            "variation_groupname": "",
+            "variation": [],
+            "addon": [],
+            "is_recommend": "0",
+            "itemname": "Potter 4",
+            "item_attributeid": "1",
+            "itemdescription": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+            "minimumpreparationtime": "",
+            "price": "8700.00",
+            "active": "1",
+            "item_image_url": "",
+            "item_tax": "2524,2525",
+            "gst_type": "services"
+        },
+        {
+            "itemid": "10539699",
+            "itemallowvariation": "0",
+            "itemrank": "1",
+            "item_categoryid": "77578",
+            "item_ordertype": "1,2,3",
+            "item_packingcharges": "0",
+            "itemallowaddon": "0",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "cuisine": [],
+            "variation_groupname": "",
+            "variation": [],
+            "addon": [],
+            "is_recommend": "0",
+            "itemname": "Potter 99",
+            "item_attributeid": "1",
+            "itemdescription": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+            "minimumpreparationtime": "",
+            "price": "3426.00",
+            "active": "1",
+            "item_image_url": "",
+            "item_tax": "2524,2525",
+            "gst_type": "services"
+        },
+        {
+            "itemid": "10539580",
+            "itemallowvariation": "0",
+            "itemrank": "1",
+            "item_categoryid": "77578",
+            "item_ordertype": "1,2,3",
+            "item_packingcharges": "0",
+            "itemallowaddon": "1",
+            "itemaddonbasedon": "0",
+            "item_favorite": "0",
+            "ignore_taxes": "0",
+            "ignore_discounts": "0",
+            "in_stock": "2",
+            "cuisine": [],
+            "variation_groupname": "",
+            "variation": [],
+            "addon": [
+                {
+                    "addon_group_id": "11425",
+                    "addon_item_selection_min": "1",
+                    "addon_item_selection_max": "1"
+                }
+            ],
+            "is_recommend": "0",
+            "itemname": "Potter 5",
+            "item_attributeid": "1",
+            "itemdescription": "chicken fillet  nuggets come with a sauce of your choice (nugget\/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust",
+            "minimumpreparationtime": "",
+            "price": "3159.00",
+            "active": "1",
+            "item_image_url": "",
+            "item_tax": "2524,2525",
+            "gst_type": "services"
+        }
+    ],
+    "variations": [],
+    "addongroups": [],
+    "attributes": [
+        {
+            "attributeid": "1",
+            "attribute": "veg",
+            "active": "1"
+        },
+        {
+            "attributeid": "2",
+            "attribute": "non-veg",
+            "active": "1"
+        }
+    ],
+    "taxes": [
+        {
+            "taxid": "2524",
+            "taxname": "CGST",
+            "tax": "2.5",
+            "taxtype": "1",
+            "tax_ordertype": "",
+            "active": "1",
+            "tax_coreortotal": "2",
+            "tax_taxtype": "1",
+            "rank": "1",
+            "consider_in_core_amount": "0",
+            "description": ""
+        },
+        {
+            "taxid": "2525",
+            "taxname": "SGST",
+            "tax": "2.5",
+            "taxtype": "1",
+            "tax_ordertype": "",
+            "active": "1",
+            "tax_coreortotal": "2",
+            "tax_taxtype": "1",
+            "rank": "2",
+            "consider_in_core_amount": "0",
+            "description": ""
+        }
+    ],
+    "discounts": [],
+    "serverdatetime": "2024-08-05 16:40:42",
+    "db_version": "1.0",
+    "application_version": "4.0",
+    "http_code": 200,
+    "error": ""
+}

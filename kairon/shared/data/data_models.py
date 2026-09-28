@@ -1,13 +1,18 @@
-from typing import List, Any, Dict, Optional, Text, Union
+from datetime import datetime
+import json
+from typing import List, Any, Dict, Optional, Text, Union, Literal
 
+import pytz
+from croniter import croniter
 from validators import url
 from validators.utils import ValidationError as ValidationFailure
 from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
+from kairon import Utility
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import ScheduleActionType
+from kairon.shared.actions.data_objects import ScheduleActionType, Actions
 from kairon.shared.data.constant import (
     EVENT_STATUS,
     SLOT_MAPPING_TYPE,
@@ -16,19 +21,19 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM
+    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes
 )
 from kairon.shared.actions.models import (
     ActionParameterType,
     EvaluationType,
     DispatchType,
     DbQueryValueType,
-    DbActionOperationType, UserMessageType, HttpRequestContentType
+    DbActionOperationType, UserMessageType, HttpRequestContentType, ActionType
 )
 from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr
+from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
 from kairon.shared.models import (
     StoryStepType,
     StoryType,
@@ -162,6 +167,7 @@ class ListData(BaseModel):
 class ConsentRequest(BaseModel):
     accepted_privacy_policy: bool
     accepted_terms: bool
+    accepted_ai_guidelines: bool
 
 
 class RegisterAccount(RecaptchaVerifiedRequest):
@@ -174,6 +180,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     fingerprint: str = None
     accepted_privacy_policy: bool
     accepted_terms: bool
+    accepted_ai_guidelines: bool
 
     @validator("email")
     def validate_email(cls, v, values, **kwargs):
@@ -1001,7 +1008,27 @@ class EmailActionRequest(BaseModel):
     custom_text: CustomActionParameter = None
     to_email: CustomActionParameterModel
     response: str
+    dispatch_bot_response: bool = True
     tls: bool = False
+
+
+class VoiceCallActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    to_phone_number: CustomActionParameter
+    telephony_provider: str = "twilio"
+    response: str = None
+    dispatch_bot_response: bool = True
+
+
+class StorePageMetadataRequest(BaseModel):
+    config: Dict[str, Any]
+
+
+class StorePageActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    page_name: str
+    identifier_slot: str
+    callback_identifier: Optional[str] = None
 
 
 class JiraActionRequest(BaseModel):
@@ -1094,6 +1121,12 @@ class PromptHyperparameters(BaseModel):
         return values
 
 
+class CrudConfigRequest(BaseModel):
+    collections: Optional[List[str]] = None
+    query: Optional[Any] = None
+    result_limit: int = 10
+    query_source: Optional[Literal["value", "slot"]] = None
+
 class LlmPromptRequest(BaseModel, use_enum_values=True):
     name: str
     hyperparameters: PromptHyperparameters = None
@@ -1102,14 +1135,34 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
+    crud_config: Optional[CrudConfigRequest] = None
 
     @root_validator
     def check(cls, values):
         from kairon.shared.utils import Utility
+        if values.get('source') == LlmPromptSource.crud.value:
+            crud_config = values.get('crud_config')
+            if not crud_config:
+                raise ValueError("crud_config is required when source is 'crud'")
 
-        if (values.get('source') == LlmPromptSource.bot_content.value and
-                Utility.check_empty_string(values.get('data'))):
+            query_source = crud_config.query_source
+            if query_source == 'value':
+                if isinstance(crud_config.query, str):
+                    try:
+                        crud_config.query = json.loads(crud_config.query)
+                    except json.JSONDecodeError:
+                        raise ValueError(f"Invalid JSON format in query: {crud_config.query}")
+                elif not isinstance(crud_config.query, dict):
+                    raise ValueError("When query_source is 'value', query must be a valid JSON object or JSON string.")
+            elif query_source == 'slot':
+                if not isinstance(crud_config.query, str):
+                    raise ValueError("When query_source is 'slot', query must be a valid slot name.")
+        else:
+            values.pop('crud_config', None)
+
+        if values.get('source') == LlmPromptSource.bot_content.value and Utility.check_empty_string(values.get('data')):
             values['data'] = "default"
+
         return values
 
 
@@ -1142,6 +1195,7 @@ class PromptActionConfigRequest(BaseModel):
     instructions: List[str] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
     dispatch_response: bool = True
+    process_media: bool = False
     bot: str
 
     @validator("llm_type", pre=True, always=True)
@@ -1171,7 +1225,7 @@ class PromptActionConfigRequest(BaseModel):
         from kairon.shared.utils import Utility
         bot = values.get('bot')
         llm_type = values.get('llm_type')
-        if llm_type and v:
+        if llm_type and v and llm_type not in {e.value for e in ExcludedLLMTypes}:
             Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
         return v
 
@@ -1208,6 +1262,7 @@ class CognitionSchemaRequest(BaseModel):
 class CollectionDataRequest(BaseModel):
     data: dict
     is_secure: list = []
+    is_non_editable: list = []
     collection_name: constr(to_lower=True, strip_whitespace=True)
 
     @root_validator
@@ -1231,8 +1286,28 @@ class CollectionDataRequest(BaseModel):
 
             if not is_secure_set.issubset(data_keys):
                 raise ValueError("is_secure contains keys that are not present in data")
+
+        non_editable = values.get("is_non_editable")
+        if not isinstance(non_editable, list):
+            raise ValueError("is_non_editable should be a list of keys!")
+
+        if non_editable:
+            non_editable_set = set(non_editable)
+            data_keys = set(data.keys())
+            if not non_editable_set.issubset(data_keys):
+                raise ValueError("is_non_editable contains keys that are not present in data")
+
         return values
 
+class BulkCollectionDataRequest(BaseModel):
+    payload: List[CollectionDataRequest]
+
+    @root_validator(skip_on_failure=True)
+    def check(cls, values):
+        payload = values.get("payload") or []
+        if not payload:
+            raise ValueError("payload must contain at least one item")
+        return values
 
 class CognitiveDataRequest(BaseModel):
     data: Any
@@ -1351,7 +1426,8 @@ class CallbackConfigRequest(BaseModel):
     standalone_id_path: Optional[str] = None
     expire_in: int = 0
     response_type: str = CallbackResponseType.KAIRON_JSON.value
-
+    redirect_enabled: bool = False
+    redirect: Optional[Dict[str, Any]] = None
 
 class CallbackActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
@@ -1390,3 +1466,154 @@ class FlowTagChangeRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     tag: str
     type: str
+
+class PetpoojaMetaConfig(BaseModel):
+    access_token: str
+    catalog_id: str
+
+class PetpoojaSyncOptions(BaseModel):
+    process_push_menu: bool
+    process_item_toggle: bool
+
+class POSIntegrationRequest(BaseModel):
+    provider: str = Field(..., alias="connector_type")
+    config: dict
+    meta_config: Optional[PetpoojaMetaConfig]
+    smart_catalog_enabled: bool
+    meta_enabled: bool
+    sync_options: Union[PetpoojaSyncOptions]
+
+    @root_validator(pre=True)
+    def validate_sync_options_by_provider(cls, values):
+        provider = values.get("connector_type")
+        sync_options = values.get("sync_options")
+
+        if provider == "petpooja":
+            try:
+                values["sync_options"] = PetpoojaSyncOptions(**sync_options)
+            except Exception as e:
+                raise ValueError(f"Invalid sync_options for petpooja: {e}")
+
+        return values
+
+class ParallelActionRequest(BaseModel):
+    """
+    Model to store the configuration for parallel actions.
+    """
+    name: constr(to_lower=True, strip_whitespace=True)
+    dispatch_response_text: bool = False
+    response_text: Optional[str]
+    actions: List[str]
+
+    #Add validation for actions should not be empty
+    @root_validator
+    def validate_no_nested_parallel_actions(cls, values):
+        action_names = values.get("actions", [])
+
+        if not action_names:
+            raise ValueError("The 'actions' field must contain at least one action.")
+
+        existing = Actions.objects(name__in=action_names, type=ActionType.parallel_action.value).only("name") # Check if any of the actions are of type 'parallel_action'
+        if existing:
+            names = [a.name for a in existing]
+            raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
+        return values
+
+class AnalyticsSchedulerConfig(BaseModel):
+    expression_type: str
+    schedule: Any
+    timezone: Optional[str] = "UTC"
+
+    @root_validator
+    def validate_schedule(cls, values):
+        expression_type = values.get("expression_type")
+        schedule = values.get("schedule")
+        tz = values.get("timezone")
+
+        if not expression_type or expression_type not in ["cron", "epoch"]:
+            raise ValueError("expression_type must be either cron or epoch")
+
+        if not tz or not tz.strip():
+            raise ValueError("timezone is required for all schedules!")
+
+        if not schedule or (isinstance(schedule, str) and not schedule.strip()):
+            raise ValueError("schedule time is required for all schedules!")
+
+        if expression_type == "cron":
+            if not croniter.is_valid(schedule):
+                raise ValueError(f"Invalid cron expression: '{schedule}'")
+
+            first_occurrence = croniter(schedule).get_next(ret_type=datetime)
+            second_occurrence = croniter(schedule).get_next(ret_type=datetime, start_time=first_occurrence)
+
+            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
+                raise ValueError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
+
+        elif expression_type == "epoch":
+            try:
+                epoch_time = int(schedule)
+            except ValueError:
+                raise ValueError("schedule must be a valid integer epoch time for 'epoch' expression_type")
+
+            try:
+                user_tz = pytz.timezone(tz)
+            except pytz.UnknownTimeZoneError:
+                raise ValueError(f"Unknown timezone: {tz}")
+
+            current_epoch_in_tz = int(datetime.now(user_tz).timestamp())
+
+            if epoch_time <= current_epoch_in_tz:
+                raise ValueError("epoch time (schedule) must be in the future relative to the provided timezone")
+
+            values["schedule"] = epoch_time
+
+        return values
+
+
+class AnalyticsPipelineEventRequest(BaseModel):
+    pipeline_name: str
+    callback_name: str
+    scheduler_config: AnalyticsSchedulerConfig = None
+    timestamp: str
+    data_deletion_policy: Optional[List[Any]] = []
+    triggers: Optional[List[Dict[str, Any]]] = []
+
+
+class AddressRequest(BaseModel):
+    label: str
+    address: Dict[str, Any]
+    is_default: bool = False
+
+
+class UpsertCustomerRequest(BaseModel):
+    sender_id: str
+    persona_type: Optional[str] = None
+    name: Optional[str] = None
+    mobile: Optional[str] = None
+    alternate_mobile: Optional[str] = None
+    email: Optional[str] = None
+    alternate_email: Optional[str] = None
+    address_list: Optional[List[Dict[str, Any]]] = None
+    persona_details: Optional[Dict[str, Any]] = None
+    additional_info: Optional[Dict[str, Any]] = None
+
+
+class CreateOrderRequest(BaseModel):
+    callback_identifier: str
+    sender_id: str
+    persona_type: Optional[str] = None
+    order_details: Dict[str, Any]
+
+
+class UpdateOrderStatusRequest(BaseModel):
+    status: str
+
+
+class FilterOrdersRequest(BaseModel):
+    persona_type: Optional[str] = None
+    filters: Dict[str, Any] = {}
+    page: int = 1
+    page_size: int = 20

@@ -1,0 +1,22 @@
+version: "3.1"
+nlu:
+- intent: bye
+  examples: |
+    - good bye
+    - bye
+    - See you later!
+    - Goodbye!
+- intent: greet
+  examples: |
+    - Hi
+    - Hello
+    - Greetings
+    - Hi there
+    - Good day
+    - Howdy
+    - Hey there
+    - What's up?
+    - Hullo
+- intent: parallel_test
+  examples: |
+    - /parallel_test

@@ -1,8 +1,8 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional, Dict, Text
+from typing import List, Optional, Dict, Text, Union
 
-from fastapi import APIRouter, BackgroundTasks, Path, Security, Request
+from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from pydantic import constr
@@ -26,6 +26,8 @@ from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.auth import Authentication
+from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
+from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
 from kairon.shared.channels.mail.processor import MailProcessor
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS, CHAT_ACCESS, UserActivityType, ADMIN_ACCESS, \
     EventClass, AGENT_ACCESS
@@ -34,9 +36,9 @@ from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.assets_processor import AssetsProcessor
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import ENDPOINT_TYPE, ModelTestType, \
-    AuditlogActions
-from kairon.shared.data.data_models import FlowTagChangeRequest
-from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules
+    AuditlogActions, LogTypes
+from kairon.shared.data.data_objects import TrainingExamples, ModelTraining, Rules, CustomerDetails
+from kairon.shared.data.data_models import StorePageMetadataRequest
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.events.processor import ExecutorProcessor
@@ -687,6 +689,50 @@ async def model_testing_logs(
     }
     return Response(data=data)
 
+@router.get("/logs/metadata", response_model=Response)
+async def fetch_metadata_for_logs(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Metdata of logs fetch endpoint.
+    """
+
+    metadata = mongo_processor.get_metadata_for_any_log_type(current_user.get_bot())
+    return Response(data={"metadata": metadata})
+
+@router.get("/logs/{log_type}", response_model=Response)
+async def fetch_logs(
+    log_type: LogTypes,
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Unified logs fetch endpoint.
+    """
+    query_params = mongo_processor.prepare_log_query_params(request, current_user.bot_account)
+
+    logs, row_cnt = mongo_processor.get_logs_for_any_type(
+        current_user.get_bot(),
+        log_type=log_type,
+        **query_params
+    )
+    return Response(data={"logs": logs, "total": row_cnt})
+
+
+@router.get("/logs/{log_type}/search", response_model=Response)
+async def search_logs(
+    log_type: LogTypes,
+    request: Request,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    query = mongo_processor.sanitize_query_filter(log_type, request)
+    logs, row_cnt = mongo_processor.get_logs_for_search_query(
+        current_user.get_bot(),
+        log_type=log_type,
+        **query
+    )
+    return Response(data={"logs": logs, "total": row_cnt})
+
 
 @router.get("/endpoint", response_model=Response)
 async def get_endpoint(current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)):
@@ -831,12 +877,24 @@ async def get_action_server_logs(start_idx: int = 0, page_size: int = 10,
     Retrieves action server logs for the bot.
     """
     logs = list(mongo_processor.get_action_server_logs(current_user.get_bot(), start_idx, page_size))
-    row_cnt = mongo_processor.get_row_count(ActionServerLogs, current_user.get_bot())
+    row_cnt = mongo_processor.get_row_count(ActionServerLogs, current_user.get_bot(),trigger_info__trigger_id="")
     data = {
         "logs": logs,
         "total": row_cnt
     }
     return Response(data=data)
+
+@router.get("/parallel/{parallel_action_id}/logs", response_model=Response)
+async def get_parallel_action_logs(
+    parallel_action_id: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Fetch all ActionServerLogs for a given parallel action
+    """
+    logs = mongo_processor.fetch_action_logs_for_parallel_action(parallel_action_id, current_user.get_bot())
+    return Response(data=logs, message="Fetched logs successfully.")
+
 
 
 @router.get("/slots", response_model=Response)
@@ -936,6 +994,21 @@ async def get_content_importer_logs(
     }
     return Response(data=data)
 
+@router.get("/catalog/logs", response_model=Response)
+async def get_catalog_sync_logs(
+        start_idx: int = 0, page_size: int = 10,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Get data importer event logs.
+    """
+    logs = list(CatalogSyncLogProcessor.get_logs(current_user.get_bot(), start_idx, page_size))
+    row_cnt = mongo_processor.get_row_count(CatalogSyncLogs, current_user.get_bot())
+    data = {
+        "logs": logs,
+        "total": row_cnt
+    }
+    return Response(data=data)
 
 @router.post("/validate", response_model=Response)
 async def validate_training_data(
@@ -1647,7 +1720,7 @@ async def get_llm_metadata(
     """
     Returns a list of LLMs and their corresponding models available for the bot.
     """
-    llm_models = LLMProcessor.fetch_llm_metadata(current_user.get_bot())
+    llm_models = LLMProcessor.fetch_llms_metadata(current_user.get_bot())
     return Response(data=llm_models)
 
 
@@ -1699,4 +1772,32 @@ async def get_flow_tag(
     """
     flows = mongo_processor.get_flows_by_tag(current_user.get_bot(), tag)
     return Response(data=flows)
+
+
+@router.get("/store_page/metadata", response_model=Response)
+async def get_store_page_metadata(
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=TESTER_ACCESS)
+):
+    """
+    Fetches store page metadata for the bot
+    """
+    metadata = mongo_processor.get_store_page_metadata(bot)
+    return Response(data=metadata)
+
+
+@router.post("/store_page/metadata", response_model=Response)
+async def save_store_page_metadata(
+        request: StorePageMetadataRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Creates or updates store page metadata for the bot
+    """
+    mongo_processor.save_store_page_metadata(
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        config=request.config,
+    )
+    return Response(message="Store page metadata saved successfully")
 

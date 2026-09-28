@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from typing import Text, Dict, List
 
@@ -11,14 +12,17 @@ from rasa.core.tracker_store import SerializedTrackerAsDict
 
 from .agent_processor import AgentProcessor
 from .. import Utility
+from ..exceptions import AppException
 from ..live_agent.factory import LiveAgentFactory
 from ..shared.account.activity_log import UserActivityLogger
 from ..shared.actions.utils import ActionUtility
+from ..shared.chat.agent.agent_flow import AgenticFlow
 from ..shared.chat.user_media import UserMedia
 from ..shared.constants import UserActivityType
 from ..shared.live_agent.processor import LiveAgentsProcessor
 from ..shared.metering.constants import MetricType
 from ..shared.metering.metering_processor import MeteringProcessor
+from ..shared.request_context import get_request_id
 
 
 class ChatUtils:
@@ -36,7 +40,9 @@ class ChatUtils:
         metadata = ChatUtils.get_metadata(account, bot, is_integration_user, metadata)
         msg = UserMessage(data, sender_id=user, metadata=metadata)
         if files:
-            media_ids = await UserMedia.upload_media_contents(bot=bot, sender_id=user, files=files)
+            media_ids, filenames = await UserMedia.upload_media_contents(bot=bot, sender_id=user, files=files)
+            metadata["media_ids"] = media_ids
+            metadata["filenames"] = filenames
         else:
             media_ids = None
         chat_response = await AgentProcessor.handle_channel_message(bot, msg, media_ids=media_ids)
@@ -166,6 +172,7 @@ class ChatUtils:
             metadata["initiate"] = False
         finally:
             if not Utility.check_empty_string(exception) or should_initiate_handoff:
+                rid = get_request_id()
                 MeteringProcessor.add_metrics(
                     bot,
                     account,
@@ -174,6 +181,7 @@ class ChatUtils:
                     agent_type=metadata.get("type"),
                     bot_predictions=bot_predictions,
                     exception=exception,
+                    **({"request_id": rid} if rid else {}),
                 )
 
         bot_predictions["agent_handoff"] = metadata
@@ -327,3 +335,17 @@ class ChatUtils:
             metadata["telemetry-sid"] = x_telemetry_sid
         return metadata
 
+    @staticmethod
+    async def handle_media_agentic_flow(bot: str, sender_id: str, name: str, files: List[File], slot_vals: str = None):
+        mids, _ = await UserMedia.upload_media_content_sync(bot, sender_id, files)
+        slots = {}
+        if slot_vals:
+            try:
+                slots = json.loads(slot_vals)
+            except json.JSONDecodeError:
+                raise AppException("Invalid slot values format. Must be a valid JSON string.")
+        if mids:
+            slots['media_ids'] = mids
+        flow = AgenticFlow(bot, slots, sender_id)
+        responses, errors = await flow.execute_rule(name)
+        return responses, errors

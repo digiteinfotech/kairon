@@ -2,7 +2,9 @@ from enum import Enum
 
 from kairon.shared.data.constant import ACCESS_ROLES
 
-DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback'}
+DEFAULT_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start', 'nlu_fallback',"k_multimedia_msg"}
+
+EXCLUDED_INTENTS = {'restart', 'back', 'out_of_scope', 'session_start'}
 
 DEFAULT_ACTIONS = {'action_listen', 'action_restart', 'action_session_start', 'action_default_fallback',
                    'action_deactivate_loop', 'action_revert_fallback_events', 'action_default_ask_affirmation',
@@ -26,6 +28,9 @@ AGENT_ACCESS = [ACCESS_ROLES.OWNER.value, ACCESS_ROLES.ADMIN.value, ACCESS_ROLES
 
 
 KAIRON_USER_MSG_ENTITY = "kairon_user_msg"
+
+FLATTENED_CONVERSATIONS = "flattened_conversations"
+
 
 FAQ_DISABLED_ERR = "Faq feature is disabled for the bot! Please contact support."
 
@@ -83,20 +88,29 @@ class EventClass(str, Enum):
     content_importer = "content_importer"
     mail_channel_read_mails = "email_channel_read_mails"
     agentic_flow = "agentic_flow"
+    catalog_integration = "catalog_integration"
+    upload_file_handler = "upload_file_handler"
+    analytics_pipeline = "analytics_pipeline"
 
+class CatalogSyncClass(str, Enum):
+    petpooja = "petpooja"
+
+class UploadHandlerClass(str, Enum):
+    broadcast = "broadcast"
+    crud_data = "crud_data"
 
 class EventRequestType(str, Enum):
     trigger_async = "trigger_async"
     update_schedule = "update_schedule"
     add_schedule = "add_schedule"
+    add_one_time_schedule = "add_one_time_schedule"
     resend_broadcast = "resend_broadcast"
-
 
 class EventExecutor(str, Enum):
     aws_lambda = "aws_lambda"
     dramatiq = "dramatiq"
     standalone = "standalone"
-
+    callback="callback"
 
 class MaskingStrategy(str, Enum):
     from_right = "from_right"
@@ -119,6 +133,10 @@ class ChannelTypes(str, Enum):
     BUSINESS_MESSAGES = "business_messages"
     LINE = "line"
     MAIL = "mail"
+    VOICE = "voice"
+
+class CatalogProvider(str, Enum):
+    PETPOOJA = "petpooja"
 
 class ElementTypes(str, Enum):
     LINK = "link"
@@ -133,6 +151,32 @@ class ElementTypes(str, Enum):
 
 class WhatsappBSPTypes(str, Enum):
     bsp_360dialog = "360dialog"
+    bsp_gupshup = "gupshup"
+    meta = "meta"
+
+
+class VoiceProviderTypes(str, Enum):
+    twilio = "twilio"
+    exotel = "exotel"
+
+
+class VoiceServiceType(str, Enum):
+    stt = "stt"
+    tts = "tts"
+
+
+class STTProviderTypes(str, Enum):
+    sarvam = "sarvam"
+    aws_transcribe = "aws_transcribe"
+    google = "google"
+    deepgram = "deepgram"
+
+
+class TTSProviderTypes(str, Enum):
+    polly = "polly"
+    sarvam = "sarvam"
+    google = "google"
+    elevenlabs = "elevenlabs"
 
 
 class GPT3ResourceTypes(str, Enum):
@@ -164,6 +208,15 @@ class KaironSystemSlots(str, Enum):
     subject = "subject"
     body = "body"
     media_ids = 'media_ids'
+    flow_dos='flow_docs'
+    flow_images='flow_images'
+    flow_data='flow_data'
+    user_identifier = 'user_identifier'
+    temp_token = 'temp_token'
+    store_page_name = 'store_page_name'
+    callback_identifier = 'callback_identifier'
+    llm_call_id = "llm_call_id"
+    redirect_url = "redirect_url"
 
 
 
@@ -174,3 +227,8 @@ class VectorEmbeddingsDatabases(str, Enum):
 class ActorType(str, Enum):
     pyscript_runner = "pyscript_runner"
     callable_runner = "callable_runner"
+    analytics_runner = "analytics_runner"
+
+class TriggerCondition(str, Enum):
+    success = "success"
+    failure = "failure"

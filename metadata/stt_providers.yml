@@ -1,0 +1,66 @@
+# Speech-to-Text provider registry (provider-agnostic voice layer).
+# New providers are added here (v1 -> v2 -> v3) plus one adapter class each.
+# `secret_fields` are encrypted when credentials are stored per-bot.
+# `models` maps sample-rate (Hz, as string) -> the provider's model/variant.
+stt_providers:
+  sarvam:
+    streaming: true
+    required_fields:
+      - api_key
+    secret_fields:
+      - api_key
+    languages:
+      - hi-IN
+      - en-IN
+      - ta-IN
+      - te-IN
+      - kn-IN
+      - ml-IN
+      - bn-IN
+      - mr-IN
+      - gu-IN
+      - pa-IN
+    models:
+      "8000": saarika:v2
+      "16000": saarika:v2
+  aws_transcribe:
+    streaming: true
+    required_fields:
+      - aws_access_key_id
+      - aws_secret_access_key
+      - region
+    secret_fields:
+      - aws_access_key_id
+      - aws_secret_access_key
+    languages:
+      - hi-IN
+      - en-IN
+      - en-US
+    models:
+      "8000": telephony
+      "16000": standard
+  google:
+    streaming: true
+    required_fields:
+      - service_account_json
+    secret_fields:
+      - service_account_json
+    languages:
+      - hi-IN
+      - en-IN
+    models:
+      "8000": telephony
+      "16000": latest_long
+  deepgram:
+    streaming: true
+    required_fields:
+      - api_key
+    secret_fields:
+      - api_key
+    languages:
+      - hi
+      - en-IN
+      - en-US
+    models:
+      "8000": nova-2-phonecall
+      "16000": nova-2

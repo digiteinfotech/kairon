@@ -1,6 +1,11 @@
 import ast
+import asyncio
+import io
+import os
+from datetime import datetime, timedelta
 from typing import Text, Dict
 
+import requests
 from loguru import logger
 from mongoengine import DoesNotExist
 
@@ -8,8 +13,12 @@ from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import WhatsappBSPTypes, ChannelTypes, UserActivityType
+from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class BSP360Dialog(WhatsappBusinessServiceProviderBase):
@@ -87,7 +96,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
 
     def add_template(self, data: Dict, bot: Text, user: Text):
         try:
-            Utility.validate_create_template_request(data)
+            self.validate_template_request(data)
             config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, self.bot, mask_characters=False)
             api_key = config.get("config", {}).get("api_key")
             base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
@@ -166,6 +175,40 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             logger.exception(e)
             raise AppException(str(e))
 
+    def get_template_for_broadcast(self, name: Text, language: Text):
+        """Fetch template components matching name+language for broadcast use."""
+        template_exception = None
+        template = []
+        try:
+            for t in self.list_templates(**{"business_templates.name": name}):
+                if t.get("language") == language:
+                    template = t.get("components")
+                    break
+        except Exception as e:
+            logger.exception(e)
+            template_exception = str(e)
+        return template, template_exception
+
+    def to_log_template(self, raw_template):
+        """360Dialog raw template is already in components format — return as-is."""
+        return raw_template
+
+    def normalize_raw_template(self, raw_template):
+        return raw_template
+
+    def get_template_params_for_broadcast(self, raw_template, template_config, recipients, default_params):
+        params = default_params if default_params else [default_params] * len(recipients)
+        return params
+
+    def get_broadcast_namespace_and_language(self, raw_template, namespace, lang):
+        return namespace, lang
+
+    def validate_template_request(self, data: Dict):
+        required_keys = ["name", "category", "components", "language"]
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
+
     @staticmethod
     def get_partner_auth_token():
         base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["hub_base_url"]
@@ -203,3 +246,218 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
                                             request_body=request_body, headers=headers, validate_status=True,
                                             err_msg="Failed to set webhook url: ")
         return resp.get("url")
+
+    @staticmethod
+    async def upload_media(bot: str, bsp_type: str, media_id: str) -> str:
+        """
+        Uploads the PDF to 360dialog and returns the external media ID.
+        """
+        connector_type = "whatsapp"
+        try:
+            media_doc = UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = Channels.objects(bot=bot, connector_type=connector_type).first()
+        if not channel_config or "config" not in channel_config or channel_config.config.get("bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        access_token = channel_config.config.get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        try:
+            file_stream, filename, _ = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            pdf_bytes = file_stream.read()
+
+            base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "waba_base_url"]
+            auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"][
+                "auth_header"]
+
+            files = [
+                ('file', (filename, io.BytesIO(pdf_bytes), 'application/pdf'))
+            ]
+            headers = {
+                auth_header: access_token
+            }
+
+            payload = {'messaging_product': 'whatsapp'}
+
+            response = requests.post(f"{base_url}/media", headers=headers, data=payload, files=files)
+
+            if response.status_code != 200:
+                media_doc.external_upload_info = {
+                    "bsp": bsp_type,
+                    "external_media_id": "",
+                    "error": response.text
+                }
+                media_doc.save()
+                raise AppException(response.text)
+
+            external_media_id = response.json().get("id")
+
+            media_doc.external_upload_info = {
+                "bsp": bsp_type,
+                "external_media_id": external_media_id,
+                "error": ""
+            }
+            media_doc.save()
+
+            return external_media_id
+
+        except Exception as e:
+            media_doc.external_upload_info = {
+                "bsp": bsp_type,
+                "error": str(e)
+            }
+            media_doc.save()
+            raise e
+
+
+    @staticmethod
+    async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
+                           filesize: int = 0) -> str:
+
+        access_token = channel_config.get("config").get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        auth_header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+
+        headers = {auth_header: access_token}
+        payload = {"messaging_product": "whatsapp"}
+        content_dir = os.path.join("media_upload_records", bot)
+        os.makedirs(content_dir, exist_ok=True)
+        file_path = os.path.join(content_dir, filename)
+
+        media_doc = UserMedia.create_media_doc(
+            bot=bot,
+            sender_id = sender_id,
+            filename = filename,
+            extension = extension,
+            filesize = filesize,
+        )
+
+
+        async def _post():
+            def _do():
+                with open(file_path, "rb") as f:
+                    files = {"file": (filename, f, f"{extension}")}
+
+                    return requests.post(
+                            f"{base_url}/media",
+                            headers=headers,
+                            data = payload,
+                            files = files,
+                            timeout = (5, 60),
+                            )
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, _do)
+
+
+        try:
+            response = await _post()
+        except requests.RequestException as e:
+                    media_doc.update(
+                        set__upload_status = UserMediaUploadStatus.failed.value,
+                        set__additional_info ={"message": "Upload failed: network error"},
+                        set__external_upload_info__error = str(e),
+                    )
+                    raise AppException(f"Upload request failed: {e}") from e
+
+        if response.status_code not in (200, 201):
+            media_doc.update(
+                set__upload_status = UserMediaUploadStatus.failed.value,
+                set__additional_info ={"message": "Upload failed"},
+                set__external_upload_info__error = response.text,
+            )
+            raise AppException(response.text)
+
+        external_media_id = response.json().get("id")
+        expiration_date = datetime.utcnow() + timedelta(days = 30)
+
+        media_doc.update(
+            set__media_id = external_media_id,
+            set__upload_status = UserMediaUploadStatus.completed.value,
+            set__upload_type = UserMediaUploadType.broadcast.value,
+            set__additional_info ={"message": "Upload successful"},
+            set__external_upload_info__external_media_id = external_media_id,
+            set__external_upload_info__expiry_date = expiration_date,
+        )
+
+        output_filename = f"template_media/{bot}/{filename}"
+        bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+        with open(file_path, "rb") as f:
+            binary_data = f.read()
+            UserMedia.save_media_content(bot, sender_id, external_media_id, binary_data, filename, file_path,
+                                         output_filename, bucket, False)
+        return external_media_id
+
+    @staticmethod
+    def fetch_media_ids(bot: str):
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value,
+                timestamp__gte=thirty_days_ago,
+                external_upload_info__bsp=WhatsappBSPTypes.bsp_360dialog.value,
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
+            return [
+                {
+                    "filename": doc.filename,
+                    "media_id": doc.media_id,
+                    "upload_status": doc.upload_status,
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                }
+                for doc in media_data
+            ]
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: str):
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            media_data = UserMediaData.objects(
+                bot=bot,
+                upload_status=UserMediaUploadStatus.completed.value,
+                media_id__ne="",
+                upload_type=UserMediaUploadType.broadcast.value,
+                timestamp__gte=thirty_days_ago,
+                external_upload_info__bsp=WhatsappBSPTypes.bsp_360dialog.value,
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
+            return [
+                {
+                    "filename": doc.filename,
+                    "media_id": doc.media_id,
+                    "upload_status": doc.upload_status,
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                }
+                for doc in media_data
+            ]
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
+
+    @staticmethod
+    def delete_media_file(bot: str, media_id: str, channel_config):
+        api_key = channel_config.get("config", {}).get("api_key")
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        url = f"{base_url}/{media_id}"
+        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+        headers = {header: api_key}
+        Utility.execute_http_request(request_method="DELETE", http_url=url, headers=headers,
+                                     validate_status=True,
+                                     err_msg="media file does not exist for this media id.")
+        return "Media file deleted successfully"

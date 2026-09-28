@@ -68,6 +68,7 @@ class KaironAgent(Agent):
         self.tracker_store.domain = self.domain
         if isinstance(self.nlg, TemplatedNaturalLanguageGenerator):
             self.nlg.responses = self.domain.responses if self.domain else {}
+        self.processor.nlg = self.nlg
 
     async def handle_message(
         self, message: UserMessage, enable_metering=True, media_ids: list[str] = None

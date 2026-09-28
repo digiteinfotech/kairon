@@ -140,3 +140,47 @@ def test_get_channel():
     user_message.output_channel.name.return_value = 'facebook'
     ch = LiveAgentHandler.get_channel(user_message)
     assert ch == 'instagram'
+
+# ============================================================
+# Request ID — request_live_agent payload
+# ============================================================
+import kairon.shared.request_context as _rc_la
+from kairon.shared.request_context import set_request_id as _set_la_rid
+
+
+@pytest.mark.asyncio
+async def test_request_live_agent_includes_request_id_when_bound(mock_environment, bot_id, sender_id):
+    _rc_la._request_id.set(None)
+    _set_la_rid("live-id")
+    captured = {}
+
+    async def _mock_exec(url, method, data, headers):
+        captured["data"] = data
+        return {"data": None}, 200, None, None
+
+    with patch.object(Utility, "environment", mock_environment), \
+         patch.object(LiveAgentHandler, "is_live_agent_service_available", return_value=True), \
+         patch("kairon.shared.live_agent.live_agent.ActionUtility.execute_request_async",
+               side_effect=_mock_exec):
+        await LiveAgentHandler.request_live_agent(bot_id, sender_id, "web")
+
+    assert captured["data"]["request_id"] == "live-id"
+    _rc_la._request_id.set(None)
+
+
+@pytest.mark.asyncio
+async def test_request_live_agent_no_request_id_when_unbound(mock_environment, bot_id, sender_id):
+    _rc_la._request_id.set(None)
+    captured = {}
+
+    async def _mock_exec(url, method, data, headers):
+        captured["data"] = data
+        return {"data": None}, 200, None, None
+
+    with patch.object(Utility, "environment", mock_environment), \
+         patch.object(LiveAgentHandler, "is_live_agent_service_available", return_value=True), \
+         patch("kairon.shared.live_agent.live_agent.ActionUtility.execute_request_async",
+               side_effect=_mock_exec):
+        await LiveAgentHandler.request_live_agent(bot_id, sender_id, "web")
+
+    assert "request_id" not in captured["data"]

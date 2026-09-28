@@ -282,7 +282,7 @@ class TestExecutorProcessor:
         assert logs[0]["event_class"] == "pyscript_evaluator"
         assert logs[0]["status"] == "Completed"
         assert logs[0]["data"] == {
-            'source_code': 'bot_response = "test - this is from callback test"',
+
             'predefined_objects': {
                 'req': {'type': 'GET', 'body': None, 'params': {}},
                 'req_host': '127.0.0.1', 'action_name': 'clbk1',

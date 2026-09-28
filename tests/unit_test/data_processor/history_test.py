@@ -1,6 +1,6 @@
 import ujson as json
 import os
-from datetime import datetime
+from datetime import datetime, timezone, date
 
 from unittest import mock
 import mongomock
@@ -8,6 +8,7 @@ import pytest
 
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.utils import Utility
 from mongoengine import connect
@@ -20,6 +21,19 @@ def load_history_data():
     db_url = "mongodb://test_kairon:27016/conversation"
     client = MongoClient(db_url)
     collection = client.get_database().get_collection("tests")
+    items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
+    for item in items:
+        item['event']['timestamp'] = time.time()
+        if item.get('timestamp'):
+            item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
+def load_conversations_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = MongoClient(db_url)
+    collection = client.get_database().get_collection("flattened_conversations")
     items = json.load(open("./tests/testing_data/history/conversations_history.json", "r"))
     for item in items:
         item['event']['timestamp'] = time.time()
@@ -51,8 +65,21 @@ def load_flattened_history_data():
     return db_url, client
 
 
+def load_flattened_conversations_history_data():
+    db_url = "mongodb://test_kairon:27016/conversation"
+    client = MongoClient(db_url)
+    collection = client.get_database().get_collection("flattened_conversations")
+    items = json.load(open("./tests/testing_data/history/flattened_conversations.json", "r"))
+    for item in items:
+        item['timestamp'] = time.time()
+    collection.insert_many(items)
+    return db_url, client
+
+
 db_url, mongoclient = load_history_data()
+conversations_history_db_url, conversations_history_mongoclient = load_conversations_history_data()
 db_url_flattened, mongoclient_flattened = load_flattened_history_data()
+db_url_flattened_conversations, mongoclient_flattened_conversations = load_flattened_conversations_history_data()
 db_url_jumbled_events, mongoclient_jumbled_events = load_jumbled_events_data()
 
 
@@ -87,6 +114,40 @@ class TestHistory:
         HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
         assert True
 
+    @mock.patch('kairon.history.processor.HistoryProcessor.archive_user_history', autospec=True)
+    @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
+    @mock.patch('kairon.history.processor.Utility.get_timestamp_from_date', autospec=True)
+    def test_delete_user_history_deletes_till_end_of_given_date(
+            self,
+            mock_get_timestamp_from_date,
+            mock_delete_user_conversations,
+            mock_archive_user_history,
+    ):
+
+        collection = "5ebc195d5b04bcbaa45c70cc"
+        sender_id = "fshaikh@digite.com"
+        till_date = date(2025, 11, 4)
+
+        start_of_day = datetime(till_date.year, till_date.month, till_date.day, 0, 0, 0,
+                                tzinfo=timezone.utc).timestamp()
+        mock_get_timestamp_from_date.return_value = start_of_day
+        HistoryProcessor.delete_user_history(
+            collection=collection,
+            sender_id=sender_id,
+            till_date=till_date,
+        )
+        mock_archive_user_history.assert_called_once()
+        mock_delete_user_conversations.assert_called_once()
+        called_args = mock_delete_user_conversations.call_args.kwargs
+        end_timestamp = called_args["till_date_timestamp"]
+
+        result_dt = datetime.fromtimestamp(end_timestamp, tz=timezone.utc)
+        assert result_dt.date() == till_date, "Date mismatch — should delete till same date"
+        assert (result_dt.hour, result_dt.minute, result_dt.second) == (18, 29, 59), \
+            "Should delete till end of given date (18:29:59)"
+        assert called_args["collection"] == collection
+        assert called_args["sender_id"] == sender_id
+
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_conversations(self, mock_history):
         till_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
@@ -95,6 +156,7 @@ class TestHistory:
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
                                                    till_date_timestamp=till_date_timestamp)
         assert True
+
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
@@ -111,13 +173,13 @@ class TestHistory:
     def test_is_event_in_progress_with_aborted(self, get_connection_delete_history):
         till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
-                                            till_date, status='Aborted')
+                                            till_date, status=EVENT_STATUS.ABORTED.value)
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
     def test_is_event_in_progress_failure(self, get_connection_delete_history):
         till_date = datetime.utcnow().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
-                                            till_date, status='In progress')
+                                            till_date, status=EVENT_STATUS.INPROGRESS.value)
         assert HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
         with pytest.raises(AppException, match='Event already in progress! Check logs.'):
@@ -160,7 +222,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_fetch_chat_history(self, mock_client):
-        mock_client.return_value = mongoclient_flattened
+        mock_client.return_value = mongoclient_flattened_conversations
 
         history, message = HistoryProcessor.fetch_chat_history(
             sender='mathew.anil@digite.com', collection="tests_flattened"
@@ -191,24 +253,24 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations")
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_action_not_configured(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations")
         assert hit_fall_back["fallback_count"] == 2
         assert hit_fall_back["total_count"] == 273
         assert message is None is None
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_custom_action(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations",
                                                                        fallback_intent="utter_location_query")
         assert hit_fall_back["fallback_count"] == 0
         assert hit_fall_back["total_count"] == 273
@@ -216,8 +278,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_visitor_hit_fallback_nlu_fallback_configured(self, mock_client):
-        mock_client.return_value = mongoclient
-        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("tests",
+        mock_client.return_value = conversations_history_mongoclient
+        hit_fall_back, message = HistoryProcessor.visitor_hit_fallback("flattened_conversations",
                                                                        fallback_intent="utter_please_rephrase")
 
         assert hit_fall_back["fallback_count"] == 100
@@ -247,8 +309,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_user_with_metrics(self, mock_client):
-        mock_client.return_value = mongoclient
-        users, message = HistoryProcessor.user_with_metrics("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        users, message = HistoryProcessor.user_with_metrics("flattened_conversations")
         assert users
         assert users[0]['latest_event_time']
         assert users[0]['steps']
@@ -292,8 +354,8 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_successful_conversation(self, mock_client):
-        mock_client.return_value = mongoclient
-        conversation_steps, message = HistoryProcessor.successful_conversations("tests")
+        mock_client.return_value = conversations_history_mongoclient
+        conversation_steps, message = HistoryProcessor.successful_conversations("flattened_conversations")
         assert conversation_steps['successful_conversations'] == 271
         assert message is None
 
@@ -404,7 +466,7 @@ class TestHistory:
                 conversation['timestamp'] = timestamp
                 timestamp += 200
             mock_client.return_value = mongomock.MongoClient(Utility.environment['tracker']['url'])
-            collection = mock_client().get_database().get_collection("tests_flattened")
+            collection = mock_client().get_database().get_collection("flattened_conversations")
             collection.insert_many(conversations)
             r_dict, message = HistoryProcessor.flatten_conversations("tests_flattened")
 
@@ -417,7 +479,7 @@ class TestHistory:
             assert message is None
             r_dict["conversation_data"][0].pop('timestamp')
             assert r_dict["conversation_data"][0] == {
-                'type': 'flattened', 'sender_id': 'mathew.anil@digite.com',
+                'type': 'flattened', 'sender_id': 'mathew.anil@digite.com', 'bot': 'tests_flattened',
                 'data': {
                     'user_input': 'Hi',
                     'intent': 'nlu_fallback',

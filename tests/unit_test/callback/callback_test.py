@@ -1,11 +1,13 @@
-import json
 import os
-from datetime import time
 
 import pytest
 from unittest.mock import patch, MagicMock
+
+from kairon.async_callback.utils import CallbackUtility
+from kairon.shared.actions.models import ActionParameterType
 from mongoengine import connect
 from kairon import Utility
+from kairon.async_callback.exceptions import CallbackException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -21,7 +23,7 @@ from kairon.shared.callback.data_objects import (
     CallbackConfig,
     CallbackData,
     CallbackRecordStatusType,
-    CallbackLog,
+    CallbackLog, validate_redirect_config,
 )
 from uuid6 import uuid7
 
@@ -148,12 +150,12 @@ def test_get_value_from_json():
 
     json_obj = {"key1": {"key2": {"key3": "value"}}}
     path = "key1.key2.key4"
-    with pytest.raises(AppException, match="Cannot find identifier at path 'key1.key2.key4' in request data!"):
+    with pytest.raises(CallbackException,match=r"Cannot find identifier at path 'key1\.key2\.key4' in request data!"):
         CallbackData.get_value_from_json(json_obj, path)
 
     json_obj = "invalid_json"
     path = "key1.key2.key3"
-    with pytest.raises(AppException):
+    with pytest.raises(CallbackException):
         CallbackData.get_value_from_json(json_obj, path)
 
 
@@ -516,9 +518,9 @@ async def test_run_pyscript_async_submit_exception(mock_script, mock_predefined_
 @patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
 @patch('kairon.shared.callback.data_objects.CallbackData.update_state')
 async def test_async_callback(mock_update_state, mock_failure_entry, mock_success_entry, mock_dispatch_message):
-    obj = {'result': {'bot_response': 'Test result'}}
+    obj = {'result': {'bot_response': 'Test result', 'dispatch_bot_response':True}}
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',  'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -531,8 +533,102 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
     mock_success_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id,
                                                channel=chnl,
                                                identifier=ent['identifier'],
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, log=obj['result']['bot_response'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['name'], sender_id=sid, log=obj['result']['bot_response'], request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
     mock_failure_entry.assert_not_called()
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackProcessor.async_callback', new_callable=AsyncMock)
+@patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript_async')
+async def test_process_async_callback_request_async_triggers_callback(
+    mock_run_pyscript_async,
+    mock_async_callback
+):
+    token = "test_token"
+    identifier = "test_identifier"
+    request_data = {"body": {"key": "value"}}
+    callback_source = "test_source"
+
+    # Fake entry + callback returned by validate_entry
+    entry = {
+        "bot": "TestBot",
+        "action_name": "TestAction",
+        "identifier": identifier,
+        "channel": "TestChannel",
+        "sender_id": "TestSender",
+        "metadata": "TestMetadata",
+        "callback_url": "http://test.com",
+    }
+    callback = {
+        "execution_mode": "async",
+        "pyscript_code": "Test code",
+    }
+
+    with patch('kairon.async_callback.processor.CallbackData.validate_entry', return_value=(entry, callback)):
+
+        def fake_run_pyscript_async(script, predefined_objects, callback):
+            rsp = {"result": {"bot_response": "hi async", "dispatch_bot_response": True}}
+            return asyncio.ensure_future(callback(rsp))
+
+        mock_run_pyscript_async.side_effect = fake_run_pyscript_async
+
+        from kairon.async_callback.processor import CallbackProcessor
+        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
+            token, identifier, request_data, callback_source
+        )
+
+        mock_run_pyscript_async.assert_called_once()
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript')
+@patch('kairon.async_callback.processor.CallbackProcessor.parse_pyscript_data')
+@patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
+@patch('kairon.async_callback.processor.CallbackLog.create_success_entry')
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+@patch('kairon.shared.callback.data_objects.CallbackData.update_state')
+async def test_process_async_callback_request_sync(
+    mock_update_state,
+    mock_failure_entry,
+    mock_success_entry,
+    mock_dispatch_message,
+    mock_parse_pyscript_data,
+    mock_run_pyscript,
+):
+    token = "test_token"
+    identifier = "test_identifier"
+    request_data = {"body": {"key": "value"}}
+    callback_source = "test_source"
+
+    entry = {
+        "bot": "TestBot",
+        "action_name": "TestAction",
+        "identifier": identifier,
+        "channel": "TestChannel",
+        "sender_id": "TestSender",
+        "metadata": "TestMetadata",
+        "callback_url": "http://test.com",
+    }
+    callback = {
+        "execution_mode": "sync",
+        "pyscript_code": "Test code')",
+    }
+
+    with patch('kairon.async_callback.processor.CallbackData.validate_entry', return_value=(entry, callback)):
+
+        mock_run_pyscript.return_value = {"response": "ok"}
+
+        mock_parse_pyscript_data.return_value = ("Test Bot", {"state": "updated"}, False, True)
+
+        data, message, error_code, response_type, redirect_url = await CallbackProcessor.process_async_callback_request(
+            token, identifier, request_data, callback_source
+        )
+
+        mock_run_pyscript.assert_called_once()
+        mock_parse_pyscript_data.assert_called_once()
+        mock_update_state.assert_called_once_with(entry['bot'], entry['identifier'], {"state": "updated"}, False)
+
+        mock_dispatch_message.assert_called_once_with(entry["bot"], entry["sender_id"], "Test Bot", entry["channel"])
+        mock_success_entry.assert_called_once()
+        mock_failure_entry.assert_not_called()
 
 @pytest.mark.asyncio
 @patch('kairon.async_callback.processor.ChannelMessageDispatcher.dispatch_message')
@@ -541,7 +637,7 @@ async def test_async_callback(mock_update_state, mock_failure_entry, mock_succes
 async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_dispatch_message):
     obj = {'error': 'Test error'}
     ent = {'action_name': 'Test action', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',   'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -554,7 +650,7 @@ async def test_async_callback_fail(mock_failure_entry, mock_success_entry, mock_
     mock_success_entry.assert_not_called()
     mock_failure_entry.assert_called_once_with(name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
                                                channel=chnl,
-                                               pyscript_code=cb['pyscript_code'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
+                                               pyscript_code=cb['name'], sender_id=sid, error_log=f"Error while executing pyscript: {obj['error']}", request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src)
 
 
 @pytest.mark.asyncio
@@ -564,7 +660,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier',
            'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata',
            'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',  'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -574,7 +670,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
-        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        channel=chnl, pyscript_code=cb['name'], sender_id=sid,
         error_log="No response received from callback script",
         request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
     )
@@ -584,7 +680,7 @@ async def test_async_callback_no_response_none(mock_failure_entry):
 async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     obj = {}  # Simulating an empty dictionary response
     ent = {'action_name': 'Test action', 'bot': 'Test bot', 'identifier': 'Test identifier', 'pyscript_code': 'Test code', 'sender_id': 'Test sender', 'metadata': 'Test metadata', 'callback_url': 'Test url', 'callback_source': 'Test source'}
-    cb = {'pyscript_code': 'Test code'}
+    cb = {'pyscript_code': 'Test code',   'name': 'Test callback script'}
     c_src = 'Test source'
     bot_id = 'Test bot'
     sid = 'Test sender'
@@ -594,10 +690,197 @@ async def test_async_callback_no_response_empty_dict(mock_failure_entry):
     await CallbackProcessor.async_callback(obj, ent, cb, c_src, bot_id, sid, chnl, rd)
     mock_failure_entry.assert_called_once_with(
         name=ent['action_name'], bot=bot_id, identifier=ent['identifier'],
-        channel=chnl, pyscript_code=cb['pyscript_code'], sender_id=sid,
+        channel=chnl, pyscript_code=cb['name'], sender_id=sid,
         error_log="No response received from callback script",
         request_data=rd, metadata=ent['metadata'], callback_url=ent['callback_url'], callback_source=c_src
     )
+
+def test_resolve_redirect_url_with_value():
+    redirect = {
+        "type": ActionParameterType.value.value,
+        "value": "https://www.nimblework.com/login/"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, {})
+
+    assert result == "https://www.nimblework.com/login/"
+
+
+def test_resolve_redirect_url_with_slot_from_metadata():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "redirect_url"
+    }
+
+    metadata = {
+        "redirect_url": "https://www.nimblework.com/login/",
+        "bot": "test_bot"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+    assert result == "https://www.nimblework.com/login/"
+
+
+def test_resolve_redirect_url_with_multiple_slot_values():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "redirect_url"
+    }
+
+    metadata = {
+        "name": "Harshada",
+        "redirect_url": "https://www.nimblework.com/login/",
+        "bot": "test_bot"
+    }
+
+    result = CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+    assert result == "https://www.nimblework.com/login/"
+
+def test_resolve_redirect_url_missing_slot_value():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "redirect_url"
+    }
+
+    metadata = {
+        "name": "Harshada",
+        "bot": "test_bot"
+    }
+
+    with pytest.raises(AppException, match="Redirect URL could not be resolved!"):
+        CallbackUtility.resolve_redirect_url(redirect, metadata)
+
+def test_resolve_redirect_url_invalid_type():
+    redirect = {
+        "type": "invalid",
+        "value": "https://www.nimblework.com/login/"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect type!"):
+        CallbackUtility.resolve_redirect_url(redirect, {})
+
+def test_validate_redirect_config_disabled():
+    validate_redirect_config(
+        execution_mode="async",
+        standalone=False,
+        redirect_enabled=False,
+        redirect=None
+    )
+
+def test_validate_redirect_config_value_success():
+    validate_redirect_config(
+        execution_mode="sync",
+        standalone=False,
+        redirect_enabled=True,
+        redirect={
+            "type": "value",
+            "value": "https://example.com"
+        }
+    )
+
+def test_validate_redirect_config_slot_success():
+    validate_redirect_config(
+        execution_mode="sync",
+        standalone=False,
+        redirect_enabled=True,
+        redirect={
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    )
+
+def test_validate_redirect_config_standalone():
+    with pytest.raises(
+        AppException,
+        match="Redirect is not supported for standalone callbacks!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=True,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_async():
+    with pytest.raises(
+        AppException,
+        match="Redirect is not supported for async callbacks!"
+    ):
+        validate_redirect_config(
+            execution_mode="async",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_invalid_type():
+    with pytest.raises(AppException, match="Invalid redirect type!"):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "invalid_type",
+                "value": "redirect_url"
+            }
+        )
+
+def test_validate_redirect_config_missing_redirect():
+    with pytest.raises(
+        AppException,
+        match="Redirect configuration is required!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect=None
+        )
+
+def test_validate_redirect_config_missing_value():
+    with pytest.raises(
+        AppException,
+        match="Only redirect_url slot is supported for redirect!"
+    ):
+        validate_redirect_config(
+            execution_mode="sync",
+            standalone=False,
+            redirect_enabled=True,
+            redirect={
+                "type": "slot"
+            }
+        )
+
+def test_resolve_redirect_url_invalid_scheme():
+    redirect = {
+        "type": ActionParameterType.value.value,
+        "value": "ftp://example.com"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect URL!"):
+        CallbackUtility.resolve_redirect_url(redirect, {})
+
+def test_resolve_redirect_url_slot_invalid_scheme():
+    redirect = {
+        "type": ActionParameterType.slot.value,
+        "value": "redirect_url"
+    }
+
+    metadata = {
+        "redirect_url": "ftp://example.com",
+        "bot": "test_bot"
+    }
+
+    with pytest.raises(AppException, match="Invalid redirect URL!"):
+        CallbackUtility.resolve_redirect_url(redirect, metadata)
 
 #not needed already covered in other tests
 # @patch('kairon.shared.callback.data_objects.CallbackConfig.objects')
@@ -632,3 +915,14 @@ def test_verify_auth_token_invalid():
     token = "VABBBAcPVwVeD18HB1IBUVNeVVsLUgBUBABZV1JSBFM="
     with pytest.raises(AppException, match="Invalid token!"):
         CallbackConfig.verify_auth_token(token)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_calls_executor_shutdown_and_disconnect():
+    from kairon.async_callback.main import shutdown
+    mock_app = MagicMock()
+    with patch('kairon.async_callback.processor.async_task_executor') as mock_executor, \
+         patch('kairon.async_callback.main.disconnect') as mock_disconnect:
+        await shutdown(mock_app)
+        mock_executor.shutdown.assert_called_once_with(wait=False)
+        mock_disconnect.assert_called_once()

@@ -71,7 +71,7 @@ def test_request_epoch_failure(mock_execute_http_request, mock_get_event_server_
 @patch('kairon.events.utility.KScheduler.__init__', return_value=None)
 @patch('kairon.shared.channels.mail.processor.MailProcessor')
 @patch('pymongo.MongoClient', autospec=True)
-def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kscheduler, mock_update_job, mock_add_job):
+def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kscheduler, mock_update_job, mock_add_job,monkeypatch):
     from kairon.events.utility import EventUtility
 
     bot = "test_bot"
@@ -79,7 +79,12 @@ def test_schedule_channel_mail_reading(mock_mongo, mock_mail_processor, mock_ksc
     mock_mail_processor_instance.config = {"interval": 1}
     mock_mail_processor_instance.state.event_id = None
     mock_mail_processor_instance.bot_settings.user = "test_user"
-
+    mock_mail_processor_instance.Utility.user = "test_user"
+    monkeypatch.setitem(
+        Utility.environment,
+        "integrations",
+        {"email": {"interval": "1"}},
+    )
 #     # Test case when event_id is None
     EventUtility.schedule_channel_mail_reading(bot)
     mock_add_job.assert_called_once()
@@ -117,13 +122,28 @@ def test_stop_channel_mail_reading(mock_mongo, mock_mail_processor, mock_kschedu
 
     bot = "test_bot"
     mock_mail_processor_instance = mock_mail_processor.return_value
-    mock_mail_processor_instance.config = {"interval": 1}
+    mock_mail_processor_instance.config = {"interval": "*/1 * * * *"}
     mock_mail_processor_instance.state.event_id = 'existing_event_id'
     mock_mail_processor_instance.bot_settings.user = "test_user"
 
 #     # Test case when event_id is None
     EventUtility.stop_channel_mail_reading(bot)
     mock_delete_job.assert_called_once()
+
+@patch('kairon.shared.channels.mail.processor.MailProcessor')
+def test_stop_channel_mail_reading_exception(mock_mail_processor):
+    from kairon.events.utility import EventUtility
+
+    bot = "test_bot"
+
+    # Force MailProcessor to raise an exception
+    mock_mail_processor.side_effect = Exception("DB connection failed")
+
+    with pytest.raises(AppException) as exc_info:
+        EventUtility.stop_channel_mail_reading(bot)
+
+    assert f"Failed to stop mail reading for bot {bot}" in str(exc_info.value)
+    assert "DB connection failed" in str(exc_info.value)
 
 @patch('kairon.shared.utils.Utility.is_exist')
 @patch('kairon.shared.channels.mail.scheduler.Utility.get_event_server_url')

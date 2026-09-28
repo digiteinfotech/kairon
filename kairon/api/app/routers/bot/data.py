@@ -1,23 +1,30 @@
 import os
-from typing import List
-
-from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException
+from typing import List, Optional, Union
+from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.chat.user_media import UserMedia
 from kairon.api.models import Response, CognitiveDataRequest, CognitionSchemaRequest, CollectionDataRequest
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
-from kairon.shared.cognition.data_objects import CognitionSchema
+from kairon.shared.cloud.utils import CloudUtility
+from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.concurrency.actors.factory import ActorFactory
-from kairon.shared.constants import ActorType
+from kairon.shared.constants import ActorType, CatalogSyncClass, UploadHandlerClass, ChannelTypes
 from kairon.shared.constants import DESIGNER_ACCESS
+from kairon.shared.data.data_models import POSIntegrationRequest, BulkCollectionDataRequest
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.data_models import  BulkDeleteRequest
+from kairon.shared.data.data_objects import CustomerDetails
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import User
+from kairon.shared.models import User, VaultSyncType
 from kairon.shared.utils import Utility
 
 router = APIRouter()
@@ -212,7 +219,7 @@ async def save_collection_data(
     return {
         "message": "Record saved!",
         "data": {
-            "_id": cognition_processor.save_collection_data(
+            "_id": DataProcessor.save_collection_data(
                 collection.dict(),
                 current_user.get_user(),
                 current_user.get_bot(),
@@ -233,7 +240,7 @@ async def update_collection_data(
     return {
         "message": "Record updated!",
         "data": {
-            "_id": cognition_processor.update_collection_data(
+            "_id": DataProcessor.update_collection_data(
                 collection_id,
                 collection.dict(),
                 current_user.get_user(),
@@ -251,7 +258,7 @@ async def delete_collection_data(
     """
     Deletes collection data
     """
-    cognition_processor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
+    DataProcessor.delete_collection_data(collection_id, current_user.get_bot(), current_user.get_user())
     return {
         "message": "Record deleted!"
     }
@@ -259,40 +266,67 @@ async def delete_collection_data(
 
 @router.get("/collection", response_model=Response)
 async def list_collection_data(
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data of the bot
     """
-    return {"data": list(cognition_processor.list_collection_data(current_user.get_bot()))}
+    return {"data": list(DataProcessor.list_collection_data(bot))}
+
+
+@router.get("/collection/{collection_name}/metadata", response_model=Response)
+async def get_collection_metadata(
+        bot: str,
+        collection_name: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetches collection data of the bot
+    """
+    return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
+        bot: str,
         collection_name: str,
         key: List[str] = Query([]), value: List[str] = Query([]),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        start_idx: int = 0, page_size: int = 10,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(cognition_processor.get_collection_data(current_user.get_bot(),
-                                                                 collection_name=collection_name,
-                                                                 key=key, value=value))}
-
+    data = list(DataProcessor.get_collection_data(bot,
+                                                  collection_name=collection_name,
+                                                  key=key, value=value, start_idx=start_idx,
+                                                  page_size=page_size))
+    attr_filters = [
+        {"filterable_attrs": {"$elemMatch": {"k": k, "v": v}}}
+        for k, v in zip(key, value) if k and v
+    ]
+    raw_query = {"bot": bot, "collection_name": collection_name.lower()}
+    if len(attr_filters) > 1:
+        raw_query["$and"] = attr_filters
+    elif attr_filters:
+        raw_query.update(attr_filters[0])
+    total = CollectionData.objects(__raw__=raw_query).count()
+    return {"data": {"logs": data, "total": total}}
 
 @router.get("/collection/{collection_name}/filter", response_model=Response)
 async def get_collection_data_with_timestamp(
+        bot: str,
         collection_name: str,
         filters = Query(default='{}'),
         start_time: str = Query(default=None),
         end_time: str = Query(default=None),
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the multiple filters provided
     """
-    return {"data": list(cognition_processor.get_collection_data_with_timestamp(bot=current_user.get_bot(),
+    return {"data": list(DataProcessor.get_collection_data_with_timestamp(bot=bot,
                                                                                    data_filter=filters,
                                                                                  collection_name=collection_name,
                                                                                    start_time=start_time,
@@ -301,15 +335,62 @@ async def get_collection_data_with_timestamp(
 
 @router.get("/collection/data/{collection_id}", response_model=Response)
 async def get_collection_data_with_id(
+        bot: str,
         collection_id: str,
-        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS),
 ):
     """
     Fetches collection data based on the collection_id provided
     """
-    return {"data": cognition_processor.get_collection_data_with_id(current_user.get_bot(),
+    return {"data": DataProcessor.get_collection_data_with_id(bot,
                                                                     collection_id=collection_id)}
 
+@router.get("/collections/all", response_model=Response)
+async def get_all_collections(
+        bot: str,
+        current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
+):
+    """
+    List all collection names for the bot.
+    """
+    names = DataProcessor.get_all_collections(bot)
+    return Response(data=names)
+
+@router.get("/collections/{collection_name}/filter/count", response_model=Response)
+async def get_collection_filter_count(
+    bot: str,
+    collection_name: str,
+    filters: Optional[str] = Query(None),
+    current_user: Union[User, CustomerDetails] = Security(Authentication.get_current_user_or_store_page_token, scopes=DESIGNER_ACCESS)
+):
+    """
+    Count of filtered records
+    """
+    count = DataProcessor.get_collection_filter_data_count(
+        bot,
+        collection_name,
+        filters
+    )
+
+    return Response(
+        success=True,
+        message="Filtered count fetched successfully",
+        data={"count": count}
+    )
+
+@router.delete("/collection/delete/{collection_name}", response_model=Response)
+async def delete_collection(
+    collection_name: str = Path(...),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Drop an entire collection and its documents by collection name.
+    """
+    message, deleted_count = DataProcessor.delete_collection(
+        bot=current_user.get_bot(),
+        name=collection_name
+    )
+    return Response(message=message, data={"deleted": deleted_count})
 
 @router.post("/content/upload", response_model=Response)
 async def upload_doc_content(
@@ -332,6 +413,33 @@ async def upload_doc_content(
         event.enqueue()
     return {"message": "Document content upload in progress! Check logs."}
 
+@router.post("/upload/collection_data/{collection_name}", response_model=Response)
+async def upload_file_content(
+    file_content: UploadFile,
+    collection_name: str = Path(..., description="Collection name"),
+    overwrite: bool = False,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Handles the upload of file content for processing, validation, and eventual storage.
+    """
+    MongoProcessor.validate_file_type(file_content)
+    DataProcessor.validate_collection_name(collection_name)
+    event = UploadHandler(
+        bot=current_user.get_bot(),
+        user=current_user.get_user(),
+        upload_type=UploadHandlerClass.crud_data,
+        overwrite=overwrite,
+        collection_name=collection_name
+    )
+    is_event_data = event.validate(file_content=file_content)
+    if is_event_data:
+        event.enqueue(bot=current_user.get_bot(),
+                      user=current_user.get_user(),
+                      upload_type=UploadHandlerClass.crud_data,
+                      overwrite=overwrite,
+                      collection_name=collection_name)
+    return {"message": "File content upload in progress! Check logs."}
 
 @router.get("/content/error-report/{event_id}", response_model=Response)
 async def download_error_csv(
@@ -360,7 +468,7 @@ async def download_error_csv(
 async def knowledge_vault_sync(
     primary_key_col: str,
     collection_name: str,
-    event_type: str,
+    sync_type: str,
     data: List[dict],
     current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -369,7 +477,7 @@ async def knowledge_vault_sync(
     """
     data = [{key.lower(): value for key, value in row.items()} for row in data]
 
-    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), event_type.lower(), data, current_user.get_bot())
+    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), sync_type.lower(), data, current_user.get_bot())
 
     if error_summary:
         return Response(
@@ -379,7 +487,7 @@ async def knowledge_vault_sync(
             error_code=400
         )
 
-    await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), event_type.lower(), data,
+    await cognition_processor.upsert_data(primary_key_col.lower(), collection_name.lower(), sync_type.lower(), data,
                                     current_user.get_bot(), current_user.get_user())
 
     return Response(
@@ -387,3 +495,178 @@ async def knowledge_vault_sync(
         message="Processing completed successfully",
         data=None
     )
+
+@router.post("/vector/insert", response_model=Response)
+async def vector_data_insertion(
+    primary_key_col: str,
+    collection_name: str,
+    data: List[dict],
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Validates and syncs data to the specified MongoDB collection and vector database.
+    """
+    data = [{key.lower(): value for key, value in row.items()} for row in data]
+
+    error_summary = cognition_processor.validate_data(primary_key_col.lower(), collection_name.lower(), VaultSyncType.push_menu.name, data, current_user.get_bot())
+
+    if error_summary:
+        return Response(
+            success=False,
+            message="Validation failed",
+            data=error_summary,
+            error_code=400
+        )
+
+    await cognition_processor.upsert_vector_data(primary_key_col.lower(), collection_name.lower(), data,
+                                    current_user.get_bot(), current_user.get_user())
+
+    return Response(
+        success=True,
+        message="Processing completed successfully",
+        data=None
+    )
+
+@router.post("/integrations/add", response_model=Response)
+async def add_pos_integration_config(
+    request_data: POSIntegrationRequest,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Add data integration config
+    """
+    CognitionDataProcessor.load_catalog_provider_mappings()
+
+    if request_data.provider not in CatalogSyncClass.__members__.values():
+        raise AppException("Invalid Provider")
+
+    integration_endpoint = await cognition_processor.save_pos_integration_config(
+        request_data.dict(), current_user.get_bot(), current_user.get_user(), sync_type
+    )
+
+    return Response(message='POS Integration Complete', data=integration_endpoint)
+
+@router.get("/integrations", response_model=Response)
+async def list_pos_integration_configs(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Fetch POS integration config for a provider and sync_type
+    """
+    config = cognition_processor.list_pos_integration_configs(current_user.get_bot())
+    return Response(message="POS Integration config fetched", data=config)
+
+@router.delete("/integrations", response_model=Response)
+async def delete_pos_integration_config(
+    provider: str,
+    sync_type: Optional[str] = None,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Delete POS integration config for a provider and sync_type
+    """
+    try:
+        result = cognition_processor.delete_pos_integration_config(current_user.get_bot(), provider, sync_type)
+        return Response(message="POS Integration config deleted", data=result)
+    except Exception as e:
+        raise AppException(str(e))
+
+@router.get("/pos/params", response_model=Response)
+async def pos_config_params():
+    """
+    Retrieves pos config parameters.
+
+    Includes required and optional fields for storing the config.
+    """
+    return Response(data=Utility.system_metadata['pos_integrations'])
+
+
+@router.get("/{provider}/{sync_type}/endpoint", response_model=Response)
+async def get_pos_endpoint(
+    provider: str,
+    sync_type: str,
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Retrieve channel endpoint.
+    """
+    integration_endpoint = cognition_processor.get_pos_integration_endpoint(current_user.get_bot(), provider, sync_type)
+    return Response(data=integration_endpoint, message="Endpoint fetched", success=True, error_code=0)
+
+@router.post("/collection/bulk/{collection_name}", response_model=Response)
+async def save_bulk_collection_data(
+    request: BulkCollectionDataRequest,
+    collection_name: str = Path(..., description="Collection name"),
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Saves collection data in bulk.
+    """
+    result = DataProcessor.save_bulk_collection_data(
+        payloads=[collection.dict() for collection in request.payload],
+        user=current_user.get_user(),
+        bot=current_user.get_bot(),
+        collection_name=collection_name
+    )
+    return {
+        "message": "Bulk save completed",
+        "data": result,
+    }
+
+
+@router.get("/fetch_media_ids", response_model=Response)
+async def get_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = MessageBroadcastProcessor.fetch_media_ids(current_user.get_bot(), current_user.get_user())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")
+
+
+@router.get("/broadcast/media/ids", response_model=Response)
+async def get_whatsapp_media_ids(
+    current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    try:
+        media_ids = MessageBroadcastProcessor.fetch_broadcast_media_ids(current_user.get_bot(), current_user.get_user())
+        return Response(message="List of media ids", data=media_ids)
+    except Exception as e:
+        raise AppException(f"Error while fetching media ids: {str(e)}")
+
+@router.get("/user/media/data", response_model=Response)
+async def get_user_media_data(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_data = UserMedia.get_user_media_data(current_user.get_bot())
+    return Response(message="List of user media data", data=media_data)
+
+@router.delete("/{channel}/media/{media_id}", response_model=Response)
+async def delete_media_data(
+        channel: ChannelTypes,
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    ChatDataProcessor.delete_media_from_bsp(current_user.get_bot(), channel, media_id)
+    UserMedia.delete_media(current_user.get_bot(), media_id)
+    return Response(message="Deleted Successfully")
+
+@router.get("/fetch_media_url/{filename}")
+async def fetch_media_url(
+        filename: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_url = CloudUtility.get_s3_media_url(filename, current_user.get_bot())
+    return Response(message="Successfully fetched media details", data={"media_url": f"{media_url}",
+                                                                        "filename": f"{filename}"})
+
+
+@router.get("/fetch_handle_id/{media_id}")
+async def fetch_media_handle_id(
+        media_id: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    media_handle_id = UserMedia.get_media_handle_id(current_user.get_bot(), media_id)
+    return Response(message="Successfully fetched media details", data={"handle_id": media_handle_id})

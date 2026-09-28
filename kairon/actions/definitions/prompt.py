@@ -1,3 +1,4 @@
+import json
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -5,13 +6,17 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, UserMessageType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.cognition.data_objects import CognitionSchema
 from kairon.shared.constants import FAQ_DISABLED_ERR, KaironSystemSlots, KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE
+from kairon.shared.data.collection_processor import DataProcessor
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_RESPONSE, STATUSES
 from kairon.shared.models import LlmPromptType, LlmPromptSource
 from kairon.shared.llm.processor import LLMProcessor
 
@@ -38,7 +43,7 @@ class ActionPrompt(ActionsBase):
         logger.debug("k_faq_action_config: " + str(k_faq_action_config))
         return k_faq_action_config, bot_settings
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Fetches response for user query from llm configured.
         Information regarding the execution is logged in ActionServerLogs.
@@ -48,7 +53,9 @@ class ActionPrompt(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
-        status = "SUCCESS"
+        action_call = kwargs.get('action_call', {})
+
+        status = STATUSES.SUCCESS.value
         exception = None
         llm_response = None
         k_faq_action_config = {}
@@ -56,6 +63,7 @@ class ActionPrompt(ActionsBase):
         llm_logs = None
         recommendations = None
         user_msg = None
+        litellm_call_id = None
         bot_response = DEFAULT_NLU_FALLBACK_RESPONSE
         slots_to_fill = {}
         events = []
@@ -70,20 +78,38 @@ class ActionPrompt(ActionsBase):
             user_question = k_faq_action_config.get('user_question')
             user_msg = self.__get_user_msg(tracker, user_question)
             llm_type = k_faq_action_config['llm_type']
-            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain)
+            llm_params = await self.__get_llm_params(k_faq_action_config, dispatcher, tracker, domain,**kwargs)
             llm_processor = LLMProcessor(self.bot, llm_type)
+            similarity_prompt = llm_params["similarity_prompt"]
+            collection = None
+            if similarity_prompt:
+                collection = similarity_prompt[0].get("collection", None)
+            if collection and not collection == "default":
+                EmbeddingMetaData = CognitionSchema.objects(bot=self.bot, collection_name=collection).first()
+                training_needed = EmbeddingMetaData.schema_metadata.training_needed
+                embedding_size = EmbeddingMetaData.schema_metadata.size if not training_needed else 3072
+                if not training_needed and not llm_processor.llm_type == 'openrouter':
+                    llm_processor.llm_type = "openrouter"
+                    llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", self.bot)
+                    llm_processor.llm_secret_embedding = llm_processor.llm_secret
+                llm_processor.vector_config["size"] = embedding_size
             model_to_check = llm_params['hyperparameters'].get('model')
             Sysadmin.check_llm_model_exists(model_to_check, llm_type, self.bot)
             media_ids = tracker.get_slot('media_ids')
+            should_process_media =  k_faq_action_config.get('process_media')
+
             llm_response, time_taken_llm_response = await llm_processor.predict(user_msg,
                                                                                 user= tracker.sender_id,
                                                                                 invocation='prompt_action',
                                                                                 llm_type=llm_type,
                                                                                 media_ids=media_ids,
+                                                                                should_process_media=should_process_media,
+                                                                                collection = collection,
                                                                                 **llm_params)
-            status = "FAILURE" if llm_response.get("is_failure", False) is True else status
+            status = STATUSES.FAIL.value if llm_response.get("is_failure", False) is True else status
             exception = llm_response.get("exception")
             bot_response = llm_response['content']
+            litellm_call_id = llm_response.get("litellm_call_id")
             tracker_data = ActionUtility.build_context(tracker, True)
             response_context = self.__add_user_context_to_http_response(bot_response, tracker_data)
             slot_values, slot_eval_log, time_taken_slots = ActionUtility.fill_slots_from_response(
@@ -98,14 +124,19 @@ class ActionPrompt(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = FAQ_DISABLED_ERR if str(e) == FAQ_DISABLED_ERR else k_faq_action_config.get("failure_message") or DEFAULT_NLU_FALLBACK_RESPONSE
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             total_time_elapsed = time_taken_llm_response + time_taken_slots
             events_to_extend = [llm_response_log, final_slots]
             events.extend(events_to_extend)
             if llm_processor:
                 llm_logs = llm_processor.logs
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.prompt_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -122,15 +153,21 @@ class ActionPrompt(ActionsBase):
                 llm_logs=llm_logs,
                 user_msg=user_msg,
                 media_ids=media_ids,
-                time_elapsed=total_time_elapsed
+                time_elapsed=total_time_elapsed,
+                trigger_info=trigger_info_obj,
+                llm_call_id = litellm_call_id,
+                request_id=get_request_id()
             ).save()
         if k_faq_action_config.get('dispatch_response', True):
             dispatcher.utter_message(text=bot_response, buttons=recommendations)
-        slots_to_fill.update({KaironSystemSlots.kairon_action_response.value: bot_response})
+        slots_to_fill.update({
+            KaironSystemSlots.kairon_action_response.value: bot_response,
+            KaironSystemSlots.llm_call_id.value: litellm_call_id
+        })
 
         return slots_to_fill
 
-    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def __get_llm_params(self, k_faq_action_config: dict, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         from kairon.actions.definitions.factory import ActionFactory
 
         system_prompt = None
@@ -162,9 +199,48 @@ class ActionPrompt(ActionsBase):
                     context_prompt += f"{prompt['name']}:\n{slot_data}\n"
                     if prompt['instructions']:
                         context_prompt += f"Instructions on how to use {prompt['name']}:\n{prompt['instructions']}\n\n"
+                elif prompt['source'] == LlmPromptSource.crud.value:
+                    crud_config = prompt.get('crud_config', {})
+                    collections = crud_config.get('collections', [])
+                    query_source = crud_config.get('query_source', 'value')
+
+                    if query_source == 'slot':
+                        slot_value = tracker.get_slot(crud_config.get('query'))
+                        if slot_value:
+                            try:
+                                if isinstance(slot_value, dict):
+                                    query_dict = slot_value
+                                else:
+                                    query_dict = json.loads(slot_value)
+                            except (json.JSONDecodeError, TypeError):
+                                raise AppException(f"Invalid JSON format in slot value: {slot_value}")
+                        else:
+                            query_dict = {}
+                    else:
+                        query_dict = crud_config.get("query", {})
+                        if isinstance(query_dict, str):
+                            query_dict = json.loads(query_dict)
+
+                    keys, values = (list(t) for t in zip(*query_dict.items())) if query_dict else ([], [])
+                    result_limit = crud_config.get('result_limit', 10)
+
+                    for collection_name in collections:
+                        results_gen = DataProcessor.get_collection_data(
+                            bot=self.bot,
+                            collection_name=collection_name,
+                            key=keys,
+                            value=values,
+                            result_limit=result_limit
+                        )
+                        records = list(results_gen)[:result_limit]
+                        data_list = [rec["data"] for rec in records]
+                        context_prompt += f"Collection data for {prompt['name']}:\n{data_list}\n"
+
+                    if prompt['instructions']:
+                        context_prompt += f"Instructions on how to use collection {prompt['name']}:\n{prompt['instructions']}\n\n"
                 elif prompt['source'] == LlmPromptSource.action.value:
                     action = ActionFactory.get_instance(self.bot, prompt['data'])
-                    await action.execute(dispatcher, tracker, domain)
+                    await action.execute(dispatcher, tracker, domain, **kwargs)
                     if action.is_success:
                         response = action.response
                         context_prompt += f"{prompt['name']}:\n{response}\n"

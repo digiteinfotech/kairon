@@ -1,6 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
+import pytz
+from croniter import croniter
 from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
@@ -29,13 +31,13 @@ from kairon.shared.actions.models import (
     DbQueryValueType,
     DbActionOperationType, UserMessageType
 )
-from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
+from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE, VoiceProviderTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FALLBACK_MESSAGE,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM
+    DEFAULT_LLM, STATUSES, ExcludedLLMTypes
 )
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import LlmPromptType, LlmPromptSource
@@ -253,6 +255,10 @@ class DatabaseAction(Auditlog):
         for item in self.payload:
             item.validate()
 
+class TriggerInfo(EmbeddedDocument):
+    trigger_name = StringField(default="")
+    trigger_type = StringField(default="implicit")
+    trigger_id=StringField(default="")
 
 class ActionServerLogs(DynamicDocument):
     type = StringField()
@@ -269,7 +275,9 @@ class ActionServerLogs(DynamicDocument):
     messages = DynamicField()
     bot = StringField()
     timestamp = DateTimeField(default=datetime.utcnow)
-    status = StringField(default="SUCCESS")
+    status = StringField(default=STATUSES.SUCCESS.value)
+    trigger_info = EmbeddedDocumentField(TriggerInfo, default = TriggerInfo)
+    request_id = StringField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "-timestamp")]}]}
 
@@ -444,6 +452,7 @@ class EmailActionConfig(Auditlog):
     subject = StringField(required=True)
     to_email = EmbeddedDocumentField(CustomActionParameters)
     response = StringField(required=True)
+    dispatch_bot_response = BooleanField(default=True)
     custom_text = EmbeddedDocumentField(CustomActionRequestParameters)
     tls = BooleanField(default=False)
     bot = StringField(required=True)
@@ -490,6 +499,65 @@ class EmailActionConfig(Auditlog):
             self.smtp_password.key = "smtp_password"
         if self.custom_text:
             self.custom_text.key = "custom_text"
+
+
+@auditlogger.log
+@push_notification.apply
+class VoiceCallAction(Auditlog):
+    name = StringField(required=True)
+    to_phone_number = EmbeddedDocumentField(CustomActionParameters, required=True)
+    telephony_provider = StringField(default="twilio", choices=[voice.value for voice in VoiceProviderTypes])
+    response = StringField(default=None)
+    dispatch_bot_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        if ActionUtility.is_empty(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if ActionUtility.is_empty(self.telephony_provider):
+            raise ValidationError("Telephony provider cannot be empty")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
+class StorePageAction(Auditlog):
+    name = StringField(required=True)
+    page_name = StringField(required=True)
+    identifier_slot = StringField(required=True)
+    callback_identifier = StringField(default=None)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        if ActionUtility.is_empty(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if ActionUtility.is_empty(self.page_name):
+            raise ValidationError("page_name cannot be empty")
+        if ActionUtility.is_empty(self.identifier_slot):
+            raise ValidationError("identifier_slot cannot be empty")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
 
 
 @auditlogger.log
@@ -763,6 +831,28 @@ class PromptHyperparameter(EmbeddedDocument):
         if self.top_results > 30:
             raise ValidationError("top_results should not be greater than 30")
 
+class CrudConfig(EmbeddedDocument):
+    collections = ListField(StringField(), default=[])
+    query = DictField(default=dict)
+    result_limit = IntField(default=10)
+    query_source = StringField(choices=["value", "slot"], required=False, null=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if self.result_limit < 1:
+            raise ValidationError("result_limit must be greater than 0")
+        if self.result_limit > 10:
+            raise ValidationError("result_limit should not exceed 10")
+        if not self.collections:
+            raise ValidationError("At least one collection must be specified")
+        for collection in self.collections:
+            if not collection or not collection.strip():
+                raise ValidationError("Collection names cannot be empty")
+
+    def clean(self):
+        self.collections = [col.strip() for col in self.collections if col and col.strip()]
 
 class LlmPrompt(EmbeddedDocument):
     name = StringField(required=True)
@@ -784,10 +874,12 @@ class LlmPrompt(EmbeddedDocument):
             LlmPromptSource.bot_content.value,
             LlmPromptSource.action.value,
             LlmPromptSource.slot.value,
+            LlmPromptSource.crud.value,
         ],
         default=LlmPromptSource.static.value,
     )
     is_enabled = BooleanField(default=True)
+    crud_config = EmbeddedDocumentField(CrudConfig)
 
     def validate(self, clean=True):
         if (
@@ -795,6 +887,14 @@ class LlmPrompt(EmbeddedDocument):
                 and self.source != LlmPromptSource.static.value
         ):
             raise ValidationError("System prompt must have static source!")
+
+        if self.source == LlmPromptSource.crud.value:
+            if not self.crud_config:
+                raise ValidationError("crud_config is required when source is 'crud'")
+            else:
+                self.crud_config.validate()
+        elif self.crud_config:
+            raise ValidationError("crud_config should only be provided when source is 'crud'")
         if self.hyperparameters:
             self.hyperparameters.validate()
         if self.source == LlmPromptSource.bot_content.value and Utility.check_empty_string(self.data):
@@ -823,6 +923,7 @@ class PromptAction(Auditlog):
     instructions = ListField(StringField())
     set_slots = EmbeddedDocumentListField(SetSlotsFromResponse)
     dispatch_response = BooleanField(default=True)
+    process_media=BooleanField(default=False)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -845,9 +946,10 @@ class PromptAction(Auditlog):
         Utility.validate_kairon_faq_llm_prompts(
             dict_data["llm_prompts"], ValidationError
         )
-        Utility.validate_llm_hyperparameters(
-            dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError
-        )
+        if self.llm_type not in {e.value for e in ExcludedLLMTypes}:
+            Utility.validate_llm_hyperparameters(
+                dict_data["hyperparameters"], self.llm_type, self.bot, ValidationError
+            )
 
 
 @auditlogger.log
@@ -996,3 +1098,88 @@ class ScheduleAction(Auditlog):
             raise ValidationError(
                 "Fields name, schedule_time, schedule_action are required!"
             )
+
+@auditlogger.log
+@push_notification.apply
+class ParallelActionConfig(Auditlog):
+    """
+    Model to store the configuration for parallel actions.
+    """
+    name = StringField(required=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    actions = ListField(StringField(), required=True)
+    response_text = StringField(required=False)
+    dispatch_response_text = BooleanField(default=False)
+    status = BooleanField(default=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+class SchedulerConfiguration(EmbeddedDocument):
+    """
+    Unified scheduler configuration model.
+
+    Supports:
+    - expression_type="cron": recurring schedule based on cron string.
+      Example: "* * * * *", "30 5 * * *"
+    - expression_type="epoch": one-time schedule based on future epoch time.
+      Example: 1765438200
+    """
+
+    expression_type = StringField(required=True, choices=["cron", "epoch"])
+    schedule = StringField(required=True)
+    timezone = StringField(required=True)
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not self.timezone or not self.timezone.strip():
+            raise ValidationError("timezone is required for all schedules!")
+        try:
+            pytz.timezone(self.timezone)
+        except pytz.UnknownTimeZoneError:
+            raise ValidationError(f"Unknown timezone: {self.timezone}")
+
+        if self.expression_type == "cron":
+            if not self.schedule or not croniter.is_valid(self.schedule):
+                raise ValidationError(f"Invalid cron expression: '{self.schedule}'")
+
+            first_occurrence = croniter(self.schedule).get_next(ret_type=datetime)
+            second_occurrence = croniter(
+                self.schedule, start_time=first_occurrence
+            ).get_next(ret_type=datetime)
+
+            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
+                raise ValidationError(
+                    f"Recurrence interval must be at least {min_trigger_interval} seconds!"
+                )
+
+@auditlogger.log
+@push_notification.apply
+class AnalyticsPipelineConfig(Auditlog):
+    pipeline_name = StringField(required=True)
+    callback_name = StringField(required=True)
+    scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+    data_deletion_policy = ListField(DictField(), default=list)
+    triggers = ListField(DictField(), default=list)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "pipeline_name"], "unique": True},
+            {"fields": ["bot", "status"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if self.scheduler_config:
+            self.scheduler_config.validate()
+
+
+

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from mongoengine import EmbeddedDocument, StringField, BooleanField, ValidationError, ListField, EmbeddedDocumentField, \
-    DateTimeField, SequenceField, DynamicField, DictField
+    DateTimeField, SequenceField, DynamicField, DictField, IntField
 
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -31,6 +31,12 @@ class ColumnMetadata(EmbeddedDocument):
         if not Utility.check_empty_string(self.column_name):
             self.column_name = self.column_name.strip().lower()
 
+class SchemaMetadata(EmbeddedDocument):
+    training_needed = BooleanField(default=True)
+    provider = StringField(default="openai")
+    model_id = StringField(default = "text-embedding-3-large")
+    size = IntField(default = 3072)
+    IsVisible = BooleanField(default=True)
 
 @auditlogger.log
 @push_notification.apply
@@ -41,6 +47,7 @@ class CognitionSchema(Auditlog):
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     activeStatus = BooleanField(default=True)
+    schema_metadata = EmbeddedDocumentField(SchemaMetadata, default=SchemaMetadata)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
@@ -86,16 +93,32 @@ class CognitionData(Auditlog):
             self.collection = self.collection.strip().lower()
 
 
+def build_collection_filterable_attrs(data: dict, exclude: list = None) -> list:
+    excluded = set(exclude or [])
+    attrs = []
+    for k, v in (data or {}).items():
+        if k not in excluded and isinstance(v, (str, int, float, bool)):
+            attrs.append({"k": k, "v": v})
+    return attrs
+
+
 class CollectionData(Auditlog):
     collection_name = StringField(required=True)
     is_secure = ListField(StringField(), default=[])
+    is_non_editable = ListField(StringField(), default=[])
     data = DictField()
+    filterable_attrs = ListField(DictField(), default=[])
     user = StringField(required=True)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
 
-    meta = {"indexes": [{"fields": ["bot"]}]}
+    meta = {
+        "indexes": [
+            {"fields": ["bot"]},
+            {"fields": ["bot", "collection_name", "filterable_attrs.k", "filterable_attrs.v"]},
+        ]
+    }
 
     def validate(self, clean=True):
         from kairon import Utility
@@ -117,6 +140,32 @@ class CollectionData(Auditlog):
 
             if not is_secure_set.issubset(data_keys):
                 raise ValidationError("is_secure contains keys that are not present in data")
+
+    def clean(self):
+        if self.collection_name:
+            self.collection_name = self.collection_name.strip().lower()
+        self.filterable_attrs = build_collection_filterable_attrs(self.data, exclude=self.is_secure)
+
+class AnalyticsCollectionData(Auditlog):
+    bot = StringField(required=True)
+    collection_name = StringField(required=True)
+    user = StringField(required=True)
+    source = StringField(default="")
+    data = DictField()
+    received_at = DateTimeField(default=datetime.utcnow)
+    is_data_processed = BooleanField(default=False)
+
+    meta = {"indexes": [{"fields": ["bot", "collection_name"]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+        if not self.collection_name or not self.collection_name.strip():
+            raise ValidationError("collection_name should not be empty")
+
+        if self.data is not None and not isinstance(self.data, dict):
+            raise ValidationError("data must be a dictionary")
 
     def clean(self):
         if self.collection_name:

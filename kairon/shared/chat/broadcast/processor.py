@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 import ujson as json
 from datetime import datetime
 from typing import Text, Dict, List
@@ -11,8 +13,11 @@ from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings, SchedulerConfiguration, \
     RecipientsConfiguration, TemplateConfiguration, MessageBroadcastLogs
 from kairon.shared.chat.data_objects import Channels, ChannelLogs
-from kairon.shared.constants import ChannelTypes
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.constants import ChannelTypes, FLATTENED_CONVERSATIONS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
+from kairon.shared.data.data_objects import BotSettings
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.log_system.base import BaseLogHandler
 
 
 class MessageBroadcastProcessor:
@@ -30,10 +35,16 @@ class MessageBroadcastProcessor:
     @staticmethod
     def list_settings(bot: Text, **kwargs):
         kwargs['bot'] = bot
+        kwargs["status"] = kwargs.get("status", True)
         for settings in MessageBroadcastSettings.objects(**kwargs):
             settings = settings.to_mongo().to_dict()
             settings['_id'] = settings['_id'].__str__()
             yield settings
+
+    @staticmethod
+    def _get_max_template_limit(bot: Text) -> int:
+        bot_settings = BotSettings.objects(bot=bot).first()
+        return bot_settings.max_template_per_broadcast if bot_settings else 5
 
     @staticmethod
     def add_scheduled_task(bot: Text, user: Text, config: Dict):
@@ -42,23 +53,49 @@ class MessageBroadcastProcessor:
                          name=config['name'], status=True)
         if not Utility.is_exist(Channels, raise_error=False, bot=bot, connector_type=channel):
             raise AppException(f"Channel '{channel}' not configured!")
+        if channel == ChannelTypes.WHATSAPP.value and "bsp_type" not in config:
+            channel_doc = Channels.objects(bot=bot, connector_type=channel).first()
+            if channel_doc and channel_doc.config.get("bsp_type"):
+                config["bsp_type"] = channel_doc.config["bsp_type"]
+        max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+        template_config = config.get("template_config") or []
+        if len(template_config) > max_template_limit:
+            raise AppException(f"Max template limit per broadcast is {max_template_limit}!")
         config["bot"] = bot
         config["user"] = user
         return MessageBroadcastSettings(**config).save().id.__str__()
 
     @staticmethod
     def update_scheduled_task(notification_id: Text, bot: Text, user: Text, config: Dict):
-        if not config.get("scheduler_config"):
+        if not config.get("scheduler_config") :
             raise AppException("scheduler_config is required!")
+
         try:
             settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot, status=True).get()
             settings.name = config["name"]
             settings.connector_type = config["connector_type"]
             settings.broadcast_type = config["broadcast_type"]
-            settings.scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
+
+            scheduler_config = SchedulerConfiguration(**config["scheduler_config"])
+
+            if scheduler_config.expression_type == "epoch":
+                try:
+                    epoch_time = int(scheduler_config.schedule)
+                except ValueError:
+                    raise AppException("schedule must be a valid integer epoch time for 'epoch' type")
+
+                scheduler_config.schedule = epoch_time
+
+            settings.scheduler_config = scheduler_config
+
             settings.recipients_config = RecipientsConfiguration(**config["recipients_config"]) if config.get("recipients_config") else None
-            settings.template_config = [TemplateConfiguration(**template) for template in config.get("template_config") or []]
+            template_config = config.get("template_config") or []
+            max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+            if len(template_config) > max_template_limit:
+                raise AppException(f"Max template limit per broadcast is {max_template_limit}!")
+            settings.template_config = [TemplateConfiguration(**template) for template in template_config]
             settings.pyscript = config.get("pyscript")
+            settings.collection_config = config.get("collection_config", {})
             settings.user = user
             settings.timestamp = datetime.utcnow()
             settings.save()
@@ -95,10 +132,31 @@ class MessageBroadcastProcessor:
             log = MessageBroadcastLogs(bot=bot, reference_id=reference_id, log_type=log_type)
         if status:
             log.status = status
+        retry_count = kwargs.get("retry_count")
+        force_update = f"retry_count_{retry_count}_status"
         for key, value in kwargs.items():
-            if not getattr(log, key, None) and Utility.is_picklable_for_mongo({key: value}):
+            if (force_update == key or not getattr(log, key, None)) and Utility.is_picklable_for_mongo({key: value}):
                 setattr(log, key, value)
         log.save()
+
+    @staticmethod
+    def get_excluded_projection(bot: Text):
+        max_template_limit = MessageBroadcastProcessor._get_max_template_limit(bot)
+        projection = {
+            "_id": 0,
+            "recipients": 0,
+            "contacts": 0,
+            "messages_list": 0,
+            "recipients_list": 0,
+            "template_params": 0,
+        }
+
+        projection.update({
+            f"template_params_{i}": 0
+            for i in range(1, max_template_limit + 1)
+        })
+
+        return projection
 
     @staticmethod
     def get_broadcast_logs(bot: Text, start_idx: int = 0, page_size: int = 10, **kwargs):
@@ -107,9 +165,12 @@ class MessageBroadcastProcessor:
             kwargs["retry_count"] = int(kwargs["retry_count"])
         start_idx = int(start_idx)
         page_size = int(page_size)
-        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp")
+
+        excluded_projection_keys = MessageBroadcastProcessor.get_excluded_projection(bot)
+
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**excluded_projection_keys)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
-        logs = query_objects.skip(start_idx).limit(page_size).exclude('id').to_json()
+        logs = query_objects.to_json()
         logs = json.loads(logs)
         return logs, total_count
 
@@ -138,9 +199,10 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def update_broadcast_logs_with_template(reference_id: Text, event_id: Text, raw_template: List[Dict],
-                                            log_type: MessageBroadcastLogType,
+                                            template_name: Text, log_type: MessageBroadcastLogType,
                                             retry_count: int = 0, **kwargs):
         message_broadcast_logs = MessageBroadcastLogs.objects(reference_id=reference_id,
+                                                              template_name=template_name,
                                                               event_id=event_id,
                                                               log_type=log_type,
                                                               retry_count=retry_count)
@@ -153,13 +215,17 @@ class MessageBroadcastProcessor:
                                                               log_type=log_type,
                                                               retry_count=retry_count)
 
-        broadcast_logs = {
-            message['id']: log
-            for log in message_broadcast_logs
-            if log.api_response and log.api_response.get('messages', [])
-            for message in log.api_response['messages']
-            if message['id']
-        }
+        broadcast_logs = {}
+        for log in message_broadcast_logs:
+            if not log.api_response:
+                continue
+            messages = log.api_response.get('messages', [])
+            if messages:
+                for message in messages:
+                    if message.get('id'):
+                        broadcast_logs[message['id']] = log
+            elif log.api_response.get('messageId'):
+                broadcast_logs[log.api_response['messageId']] = log
         return broadcast_logs
 
     @staticmethod
@@ -177,13 +243,14 @@ class MessageBroadcastProcessor:
 
     @staticmethod
     def log_broadcast_in_conversation_history(template_id, contact: Text, template_params, template,
-                                              status, mongo_client):
+                                              status, mongo_client, bot):
         import time
         from uuid6 import uuid7
 
         mongo_client.insert_one({
             "type": "broadcast", "sender_id": contact, "conversation_id": uuid7().hex, "timestamp": time.time(),
-            "data": {"name": template_id, "template": template, "template_params": template_params}, "status": status
+            "data": {"name": template_id, "template": template, "template_params": template_params},
+            "bot": bot, "status": status
         })
 
     @staticmethod
@@ -195,12 +262,12 @@ class MessageBroadcastProcessor:
         for log in channel_logs:
             msg_id = log["message_id"]
             broadcast_log = broadcast_logs[msg_id]
-            client = MessageBroadcastProcessor.get_db_client(broadcast_log['bot'])
+            client = MessageBroadcastProcessor.get_db_client(FLATTENED_CONVERSATIONS)
             if log['errors']:
-                status = "Failed"
+                status = STATUSES.FAIL.value
                 errors = log['errors']
             else:
-                status = "Success"
+                status = STATUSES.SUCCESS.value
                 errors = []
             broadcast_log.update(errors=errors, status=status)
 
@@ -208,7 +275,7 @@ class MessageBroadcastProcessor:
                 MessageBroadcastProcessor.log_broadcast_in_conversation_history(
                     template_id=broadcast_log['template_name'], contact=broadcast_log['recipient'],
                     template_params=broadcast_log['template_params'], template=broadcast_log['template'],
-                    status=status, mongo_client=client
+                    status=status, mongo_client=client, bot=broadcast_log['bot']
                 )
                 logged_msg_ids.append(msg_id)
 
@@ -286,9 +353,33 @@ class MessageBroadcastProcessor:
         campaign_id = None
         try:
             log = MessageBroadcastLogs.objects(api_response__messages__id=message_id, log_type=MessageBroadcastLogType.send.value)
+            if not log:
+                log = MessageBroadcastLogs.objects(api_response__messageId=message_id, log_type=MessageBroadcastLogType.send.value)
             if log:
                 campaign_id = log[0].reference_id
         except Exception as e:
             logger.debug(e)
 
         return campaign_id
+
+    @staticmethod
+    def fetch_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_media_ids(bot)
+
+    @staticmethod
+    def fetch_broadcast_media_ids(bot: Text, user: Text):
+        from kairon.shared.constants import WhatsappBSPTypes
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        channel_config = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        bsp_type = channel_config.get("config", {}).get("bsp_type", WhatsappBSPTypes.bsp_360dialog.value)
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)(bot, user)
+        return bsp_class.fetch_broadcast_media_ids(bot)
+
+

@@ -13,6 +13,7 @@ from botocore.stub import Stubber
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE, EVENT_STATUS
@@ -133,6 +134,87 @@ class TestCloudUtils:
             CloudUtility.upload_file_bytes(file_bytes, bucket, output_filename="")
 
         assert "Output filename must be provided" in str(excinfo.value)
+
+    def test_upload_file_bytes_default_content_type(self):
+        file_bytes = b"hello world"
+        bucket = "my-bucket"
+        key = "folder/file.unknownext"
+
+        mock_s3 = MagicMock()
+        with patch("kairon.shared.cloud.utils.Session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3
+            with patch.object(CloudUtility, "_CloudUtility__check_bucket_exist", return_value=True):
+                with patch("kairon.shared.cloud.utils.Utility.check_empty_string", return_value=False):
+                    url = CloudUtility.upload_file_bytes(file_bytes, bucket, key)
+
+        args, kwargs = mock_s3.upload_fileobj.call_args
+        bio_passed, bucket_passed, key_passed = args
+
+        assert kwargs["ExtraArgs"]["ContentType"] == "application/octet-stream"
+        assert url == f"https://{bucket}.s3.amazonaws.com/{key}"
+
+    def test_upload_file_bytes_extraargs_handling(self):
+        file_bytes = b"hello world"
+        bucket = "my-bucket"
+        unknown_key = "folder/file.unknownext"
+        known_key = "folder/file.txt"
+
+        mock_s3 = MagicMock()
+
+        with patch("kairon.shared.cloud.utils.Session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3
+
+            with patch.object(CloudUtility, "_CloudUtility__check_bucket_exist", return_value=True):
+                with patch("kairon.shared.cloud.utils.Utility.check_empty_string", return_value=False):
+                    url = CloudUtility.upload_file_bytes(file_bytes, bucket, unknown_key)
+                    args, kwargs = mock_s3.upload_fileobj.call_args
+                    extra_args = kwargs["ExtraArgs"]
+                    assert extra_args["ContentType"] == "application/octet-stream"
+                    assert extra_args["ContentDisposition"] == "inline"
+                    assert url == f"https://{bucket}.s3.amazonaws.com/{unknown_key}"
+
+                    url = CloudUtility.upload_file_bytes(file_bytes, bucket, known_key)
+                    args, kwargs = mock_s3.upload_fileobj.call_args
+                    extra_args = kwargs["ExtraArgs"]
+                    assert extra_args["ContentType"] == "text/plain"
+                    assert extra_args["ContentDisposition"] == "inline"
+                    assert url == f"https://{bucket}.s3.amazonaws.com/{known_key}"
+
+    def test_get_s3_media_url_success(self):
+        filename = "file.txt"
+        bot = "test_bot"
+        expected_url = f"https://dummy-bucket.s3.amazonaws.com/{bot}/template_media/{filename}"
+
+        mock_s3 = MagicMock()
+        mock_s3.generate_presigned_url.return_value = expected_url
+
+        with patch("kairon.shared.cloud.utils.Session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3
+            with patch.dict("kairon.shared.cloud.utils.Utility.environment",
+                            {"storage": {
+                                "whatsapp_media": {"bucket": "dummy-bucket"},
+                                "temp_media_url_expiry_time": {"ExpiresIn": 3600}
+                            }}):
+                url = CloudUtility.get_s3_media_url(filename, bot)
+
+        assert url == expected_url
+
+    def test_get_s3_media_url_failure(self):
+        filename = "file.txt"
+        bot = "test_bot"
+
+        mock_s3 = MagicMock()
+        mock_s3.generate_presigned_url.side_effect = Exception("S3 error")
+
+        with patch("kairon.shared.cloud.utils.Session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3
+            with patch.dict("kairon.shared.cloud.utils.Utility.environment",
+                            {"storage": {
+                                "whatsapp_media": {"bucket": "dummy-bucket"},
+                                "temp_media_url_expiry_time": {"ExpiresIn": 3600}
+                            }}):
+                with pytest.raises(AppException, match="Failed to fetch media url from S3: S3 error"):
+                    CloudUtility.get_s3_media_url(filename, bot)
 
     def test_file_upload_bucket_not_exists(self):
         bucket_name = 'kairon'
@@ -504,3 +586,4 @@ class TestCloudUtils:
                                                     {"name": "USER", "value": "test_user"}],
                                                    task_type=TASK_TYPE.EVENT.value)
                 assert resp == response
+

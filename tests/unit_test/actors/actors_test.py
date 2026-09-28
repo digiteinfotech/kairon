@@ -1,3 +1,5 @@
+import io
+import json
 import os
 import re
 import textwrap
@@ -5,23 +7,27 @@ from datetime import datetime
 from unittest.mock import patch, MagicMock
 from urllib.parse import urljoin
 
-import litellm
 import pytest
 import requests
 import responses
 from mongoengine import connect
+from orjson import orjson
+from pykka import ActorDeadError
 
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
+from kairon.shared.chat.data_objects import Channels
+from kairon.shared.concurrency.actors.analytics_runner import AnalyticsRunner
 from kairon.shared.concurrency.actors.factory import ActorFactory
+from kairon.shared.concurrency.actors.pyscript_runner import PyScriptRunner
 from kairon.shared.concurrency.orchestrator import ActorOrchestrator
-from kairon.shared.constants import ActorType
+from kairon.shared.constants import ActorType, TriggerCondition
 from kairon.shared.concurrency.actors.utils import PyscriptUtility
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.data.data_objects import UserMediaData, BotSettings
 from kairon.shared.utils import Utility
-
-
+from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
 
 class TestActors:
 
@@ -222,7 +228,7 @@ class TestActors:
             }
             sender_id = "919876543210"
             resp = get_db_action_data("retrieve_pop_content", sender_id, payload)
-    
+
             bot_response = resp
             """
         script = textwrap.dedent(source_code)
@@ -279,7 +285,8 @@ class TestActors:
         script = textwrap.dedent(script)
 
         with pytest.raises(AppException, match="Operation timed out: 1 seconds"):
-            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"time": time}, timeout=1)
+            ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script, predefined_objects={"time": time},
+                                  timeout=1)
 
     def test_actor_pyrunner_with_interpreter_error(self):
         script = """
@@ -287,13 +294,47 @@ class TestActors:
             """
         script = textwrap.dedent(script)
 
-        with pytest.raises(AppException, match=re.escape('Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
+        with pytest.raises(AppException, match=re.escape(
+                'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)')):
             ActorOrchestrator.run(ActorType.pyscript_runner, source_code=script,
                                   predefined_objects={"slot": {}}, timeout=10)
 
     def test_invalid_actor(self):
         with pytest.raises(AppException, match="custom actor not implemented!"):
             ActorOrchestrator.run("custom")
+
+    def test_actor_dead_error_with_retries(self):
+        """Ensure actor retries on ActorDeadError and eventually succeeds."""
+        mock_actor = MagicMock()
+        # First call raises ActorDeadError, second call succeeds
+        mock_actor.execute.side_effect = [
+            MagicMock(get=MagicMock(side_effect=ActorDeadError("actor died"))),
+            MagicMock(get=MagicMock(return_value="success"))
+        ]
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            result = ActorOrchestrator.run("mock_actor", retries=2)
+
+        assert result == "success"
+
+    def test_actor_dead_error_exhausts_retries(self):
+        """Ensure AppException is raised when all retries fail due to ActorDeadError."""
+        mock_actor = MagicMock()
+        mock_actor.execute.return_value.get.side_effect = ActorDeadError("actor died")
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            with pytest.raises(AppException, match="actor died"):
+                ActorOrchestrator.run("mock_actor", retries=2)
+
+    def test_actor_unexpected_exception(self):
+        """Ensure unexpected exceptions are wrapped in AppException."""
+        mock_actor = MagicMock()
+        mock_actor.execute.return_value.get.side_effect = ValueError("boom")
+
+        with patch("kairon.shared.concurrency.actors.factory.ActorFactory.get_instance", return_value=mock_actor):
+            with pytest.raises(AppException, match="boom"):
+                ActorOrchestrator.run("mock_actor", retries=1)
+
 
     def test_actor_callable(self):
         def add(a, b):
@@ -373,19 +414,106 @@ def test_get_embedding():
     bot = "test_bot"
     invocation = "test_invocation"
     mock_api_key = "mocked_api_key"
-    mock_embedding_result = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+    mock_http_response = [[0.1, 0.2, 0.3]]
 
     with patch("tiktoken.get_encoding") as mock_get_encoding, \
-         patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}) as mock_get_llm_secret, \
-         patch("litellm.embedding", return_value=mock_embedding_result) as mock_litellm:
+            patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+            patch("requests.request") as mock_request:
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.encode.return_value = [1, 2, 3]
+        mock_tokenizer.decode.return_value = texts[0]
+        mock_get_encoding.return_value = mock_tokenizer
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_http_response
+        mock_request.return_value = mock_response
+
+        result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
+        assert result == mock_http_response
+
+def test_get_embedding_http_error():
+    from http import HTTPStatus
+    texts = ["Hello world!"]
+    user = "test_user"
+    bot = "test_bot"
+    invocation = "test_invocation"
+    mock_api_key = "mocked_api_key"
+
+    with patch("tiktoken.get_encoding") as mock_get_encoding, \
+            patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+            patch("requests.request") as mock_request:
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [1, 2, 3]
         mock_tokenizer.decode.return_value = texts[0]
         mock_get_encoding.return_value = mock_tokenizer
 
-        result = PyscriptUtility.get_embedding(texts, user, bot, invocation)
-        assert result == [[0.1, 0.2, 0.3]]
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.json.return_value = {"error": "server error"}
+        mock_request.return_value = mock_response
+
+        with pytest.raises(Exception) as exc:
+            PyscriptUtility.get_embedding(texts, user, bot, invocation)
+
+        assert str(exc.value) == HTTPStatus(500).phrase
+
+
+def test_upload_media_to_bsp_routes_via_factory():
+    from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+    bot = "test_bot"
+    bsp_type = "bsp_gupshup"
+    media_id = "media_gs_123"
+    mock_external_media_id = "gs_ext_456"
+    mock_bsp_class = MagicMock()
+
+    with patch.object(BusinessServiceProviderFactory, "get_instance", return_value=mock_bsp_class) as mock_factory, \
+            patch("asyncio.run", return_value=mock_external_media_id) as mock_asyncio_run:
+        result = PyscriptUtility.upload_media_to_bsp(bot, bsp_type, media_id)
+
+    mock_factory.assert_called_once_with(bsp_type)
+    mock_asyncio_run.assert_called_once()
+    assert result == mock_external_media_id
+
+
+def test_upload_media_to_360dialog_calls_bsp360dialog():
+    from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+    bot = "test_bot"
+    bsp_type = "360dialog"
+    media_id = "media_123"
+    mock_result = "ext_456"
+
+    with patch.object(BSP360Dialog, "upload_media", return_value=mock_result) as mock_upload, \
+            patch("asyncio.run", return_value=mock_result) as mock_asyncio_run:
+        result = PyscriptUtility.upload_media_to_360dialog(bot, bsp_type, media_id)
+
+    mock_asyncio_run.assert_called_once()
+    assert result == mock_result
+
+
+def test_get_embedding_single_text():
+    text = "Hello world!"
+    user = "test_user"
+    bot = "test_bot"
+    invocation = "test_invocation"
+    mock_api_key = "mocked_api_key"
+    mock_http_response = [[0.1, 0.2, 0.3]]
+
+    with patch("tiktoken.get_encoding") as mock_get_encoding, \
+            patch.object(Sysadmin, "get_llm_secret", return_value={"api_key": mock_api_key}), \
+            patch("requests.request") as mock_request:
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.encode.return_value = [1, 2, 3]
+        mock_tokenizer.decode.return_value = text
+        mock_get_encoding.return_value = mock_tokenizer
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_http_response
+        mock_request.return_value = mock_response
+
+        result = PyscriptUtility.get_embedding(text, user, bot, invocation)
+        assert result == [0.1, 0.2, 0.3]
 
 
 def test_perform_operation():
@@ -425,8 +553,7 @@ def test_perform_operation_embedding_search():
     kwargs = {"collection_name": "test_collection"}
 
     with patch.object(PyscriptUtility, "get_embedding", return_value=mock_embedding) as mock_get_embedding, \
-         patch("requests.post") as mock_post:
-
+            patch("requests.post") as mock_post:
         mock_post.return_value.json.return_value = mock_response_data
 
         # Directly pass the URL instead of using Utility.environment
@@ -439,9 +566,11 @@ def test_perform_operation_embedding_search():
             "limit": 10
         }
 
-        mock_get_embedding.assert_called_once_with('test query', 'test_user', invocation='db_action_qdrant', vector_db_url=mock_vector_db_url)
+        mock_get_embedding.assert_called_once_with('test query', 'test_user', invocation='db_action_qdrant',
+                                                   vector_db_url=mock_vector_db_url)
         mock_post.assert_called_once_with(expected_url, json=expected_request)
         assert result == mock_response_data
+
 
 def test_perform_operation_payload_search():
     mock_vector_db_url = 'http://localhost:6333'
@@ -467,6 +596,7 @@ def test_perform_operation_payload_search():
         mock_post.assert_called_once_with(expected_url, json=expected_request)
         assert result == mock_response_data
 
+
 def test_perform_operation_no_operation():
     data = {}  # No valid search parameters
     user = "test_user"
@@ -475,6 +605,7 @@ def test_perform_operation_no_operation():
     with pytest.raises(Exception) as context:
         PyscriptUtility.perform_operation(data, user, **kwargs)
     assert str(context.value) == "No Operation to perform"
+
 
 def test_get_db_action_data():
     action_name = "test_action"
@@ -489,9 +620,9 @@ def test_get_db_action_data():
     }
 
     with patch.object(DatabaseAction, "objects") as mock_objects, \
-         patch.object(PyscriptUtility, "get_payload", return_value=payload_dict) as mock_get_payload, \
-         patch.object(PyscriptUtility, "perform_operation", return_value=mock_response_data) as mock_perform_operation:
-
+            patch.object(PyscriptUtility, "get_payload", return_value=payload_dict) as mock_get_payload, \
+            patch.object(PyscriptUtility, "perform_operation",
+                         return_value=mock_response_data) as mock_perform_operation:
         mock_db_action = MagicMock()
         mock_db_action.get.return_value.to_mongo.return_value.to_dict.return_value = mock_db_action_config
         mock_objects.return_value = mock_db_action
@@ -535,11 +666,12 @@ def test_get_payload():
 
 
 def get_dummy_objects(http_action_config_mock):
-    # Create a dummy objects attribute with a get method that always returns our mock.
     class DummyObjects:
         def get(self, *args, **kwargs):
             return http_action_config_mock
+
     return DummyObjects()
+
 
 def test_api_call_success(monkeypatch):
     bot = "test_bot"
@@ -620,7 +752,8 @@ def test_api_call_no_headers(monkeypatch):
 
     # Provide alternate headers since none were passed
     prepared_headers = {"Authorization": "Bearer generated-token"}
-    monkeypatch.setattr(ActionUtility, "prepare_request", lambda predefined_objects, headers_config, bot: prepared_headers)
+    monkeypatch.setattr(ActionUtility, "prepare_request",
+                        lambda predefined_objects, headers_config, bot: prepared_headers)
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -631,6 +764,7 @@ def test_api_call_no_headers(monkeypatch):
     response = PyscriptUtility.api_call(action_name, user, payload, headers, bot, predefined_objects)
     assert response == {"success": True}
 
+
 @pytest.fixture
 def predefined_objects():
     return {
@@ -640,6 +774,7 @@ def predefined_objects():
             "entities": [{"entity": "kairon_user_msg", "value": "extracted_value"}]
         }
     }
+
 
 def test_get_payload_success(predefined_objects):
     payload = [
@@ -658,6 +793,7 @@ def test_get_payload_success(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_empty_slot(predefined_objects):
     payload = [{"type": "from_slot", "value": "non_existent_key", "query_type": "payload_search"}]
 
@@ -667,6 +803,7 @@ def test_get_payload_empty_slot(predefined_objects):
         result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
 
 def test_get_payload_empty_user_message(predefined_objects):
     predefined_objects["latest_message"]["text"] = ""
@@ -680,6 +817,7 @@ def test_get_payload_empty_user_message(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_with_json_parsing_error(predefined_objects):
     predefined_objects["slot"]["invalid_json"] = "{invalid_json}"
 
@@ -688,6 +826,7 @@ def test_get_payload_with_json_parsing_error(predefined_objects):
     with patch.object(ActionUtility, "is_empty", return_value=False):
         with pytest.raises(Exception, match=r"Error converting payload to JSON: {invalid_json}"):
             PyscriptUtility.get_payload(payload, predefined_objects)
+
 
 def test_get_payload_user_message_with_command(predefined_objects):
     payload = [{"type": "from_user_message", "value": "ignored", "query_type": "embedding_search"}]
@@ -698,6 +837,7 @@ def test_get_payload_user_message_with_command(predefined_objects):
         result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
 
 def test_get_payload_without_kairon_user_msg(predefined_objects):
     predefined_objects["latest_message"]["entities"] = []  # No kairon_user_msg entity
@@ -711,6 +851,7 @@ def test_get_payload_without_kairon_user_msg(predefined_objects):
 
     assert result == expected_result
 
+
 def test_get_payload_multiple_embedding_search(predefined_objects):
     payload = [
         {"type": "static", "value": "value1", "query_type": "embedding_search"},
@@ -722,3 +863,872 @@ def test_get_payload_multiple_embedding_search(predefined_objects):
     result = PyscriptUtility.get_payload(payload, predefined_objects)
 
     assert result == expected_result
+
+
+def test_send_waba_message_success():
+    payload = {"to": "12345", "type": "text", "text": {"body": "hello"}}
+    api_key = "test_api_key"
+    bot_id = "bot123"
+    predefined = {"some": "object"}
+    fake_response = MagicMock()
+    fake_response.json = {"messages": [{"id": "abc123"}]}
+    with patch("kairon.shared.concurrency.actors.utils.requests.post", return_value=fake_response) as mock_post:
+        result = PyscriptUtility.send_waba_message(payload, api_key, bot_id, predefined)
+        assert result == {"messages": [{"id": "abc123"}]}
+
+        mock_post.assert_called_once_with(
+            url="https://waba-v2.360dialog.io/messages",
+            headers={"D360-API-KEY": api_key, "Content-TYpe": "application/json"},
+            data=orjson.dumps(payload)
+        )
+
+def test_execute_simple_assignment():
+    runner = PyScriptRunner()
+    script = "x = 10\ny = 20"
+    result = runner.execute(script, predefined_objects={"slot": {"bot": "bot123"}})
+
+    assert result.get("x") == 10
+    assert result.get("y") == 20
+    assert "send_waba_message" not in result
+
+
+def test_execute_predefined_objects():
+    runner = PyScriptRunner()
+    predefined = {"foo": "bar", "slot": {"bot": "botid"}}
+    script = "z = foo"
+    result = runner.execute(script, predefined_objects=predefined)
+
+    assert result.get("z") == "bar"
+    assert result.get("foo") == "bar"
+
+
+def test_datetime_and_date_cleanup():
+    runner = PyScriptRunner()
+    script = (
+        "from datetime import datetime, date\n"
+        "dt = datetime(2021, 1, 2, 3, 4, 5)\n"
+        "d = date(2020, 12, 31)\n"
+    )
+    result = runner.execute(script, predefined_objects={"slot": {"bot": "botid"}})
+
+    # datetime should be formatted as MM/DD/YYYY, HH:MM:SS
+    assert result.get("dt") == "01/02/2021, 03:04:05"
+    # date should be formatted as YYYY-MM-DD
+    assert result.get("d") == "2020-12-31"
+
+
+def test_script_exception_wrapped():
+    runner = PyScriptRunner()
+    with pytest.raises(AppException) as exc_info:
+        runner.execute(
+            "raise ValueError('oops')",
+            predefined_objects={"slot": {"bot": "botid"}},
+            timeout=5
+        )
+    assert "Script execution error" in str(exc_info.value)
+
+
+def test_fetch_media_ids_success():
+    fake_doc = MagicMock()
+    fake_doc.filename = "file1.png"
+    fake_doc.media_id = "media123"
+
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = [fake_doc]
+
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", return_value=mock_qs) as mock_objects:
+        result = PyscriptUtility.fetch_media_ids("bot123")
+
+        assert result == [{"filename": "file1.png", "media_id": "media123"}]
+        mock_objects.assert_called_once_with(
+            bot="bot123",
+            upload_status="Completed",
+            media_id__ne="",
+            upload_type__in=["user", "system"]
+        )
+
+
+def test_fetch_media_ids_empty():
+    mock_qs = MagicMock()
+    mock_qs.only.return_value = []
+
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", return_value=mock_qs):
+        result = PyscriptUtility.fetch_media_ids("bot123")
+        assert result == []
+
+
+def test_fetch_media_ids_exception():
+    with patch("kairon.shared.concurrency.actors.utils.UserMediaData.objects", side_effect=Exception("DB error")):
+        with pytest.raises(AppException) as e:
+            PyscriptUtility.fetch_media_ids("bot123")
+
+        assert "Error while fetching media ids for bot 'bot123'" in str(e.value)
+
+
+def test_analytics_runner_success():
+    runner = AnalyticsRunner()
+    source = "x = 5\ny = 10"
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {"x": 5, "y": 10}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute(source, predefined_objects={"slot": {"bot": "bot123"}})
+
+    assert result['data']["x"] == 5
+    assert result['data']["y"] == 10
+
+
+def test_analytics_runner_predefined_objects():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {"z": "bar"}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    predefined = {"foo": "bar", "slot": {"bot": "botX"}}
+
+    with patch("subprocess.Popen", return_value=mock_process) as popen_mock:
+        result = runner.execute("z = foo", predefined_objects=predefined)
+        sent_input = popen_mock.return_value.communicate.call_args[1]["input"]
+        payload = json.loads(sent_input)
+
+    assert payload["predefined_objects"]["foo"] == "bar"
+    assert result['data']["z"] == "bar"
+
+
+def test_analytics_runner_validation_failure():
+    runner = AnalyticsRunner()
+    with pytest.raises(AppException):
+        runner.execute("def broken code", predefined_objects={"slot": {"bot": "bot123"}})
+
+
+def test_analytics_runner_subprocess_error():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "Some error happened")
+    mock_process.returncode = 1
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        with pytest.raises(AppException) as exc:
+            runner.execute("x = 1", predefined_objects={"slot": {"bot": "id"}})
+
+    assert "Subprocess error" in str(exc.value)
+
+
+def test_execute_success_no_failure_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {"triggers": []}
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+        mock_trigger_email.assert_not_called()
+
+def test_execute_sends_actual_email_on_failure_trigger_fixed():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("some stdout", "some error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "failure",
+                    "action_type": "email_action",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    fake_email_action = MagicMock()
+    fake_email_action.action_name = "test_mail_functio"
+    fake_email_action.from_email.value = "from@test.com"
+    fake_email_action.to_email.value = ["to@test.com"]
+    fake_email_action.subject = "Test subject"
+    fake_email_action.response = "Test body"
+    fake_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email, \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects:
+
+        mock_objects.return_value.first.return_value = fake_email_action
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_called_once()
+
+def test_execute_failure_email_exception_handling():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "failure",
+                    "action_type": "email_action",
+                    "action_name": "test_mail_functio"
+                }
+            ]
+        }
+    }
+
+    mock_email_action = MagicMock()
+    mock_email_action.action_name = "test_mail_functio"
+    mock_email_action.from_email.value = "from@test.com"
+    mock_email_action.to_email.value = ["to@test.com"]
+    mock_email_action.subject = "Test subject"
+    mock_email_action.response = "Test body"
+    mock_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects, \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email",
+             side_effect=Exception("SMTP error")
+         ), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = mock_email_action
+
+        with pytest.raises(AppException):
+            runner.execute("x = 1", predefined_objects=predefined_objects)
+
+        mock_logger.exception.assert_any_call(
+            "triggering email failed on failure case"
+        )
+
+
+
+def test_execute_skips_email_on_success_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_not_called()
+
+def test_execute_skips_email_when_action_type_not_email():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "failure",
+                    "action_type": "prompt_action",  # not email
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+        mock_send_email.assert_not_called()
+
+def test_execute_skips_email_trigger_without_action_name():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ("", "error")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "failure",
+                    "action_type": "email_action"
+
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+         ) as mock_send_email:
+
+        with pytest.raises(AppException):
+            runner.execute("x=1", predefined_objects=predefined_objects)
+
+        mock_send_email.assert_not_called()
+
+
+def test_execute_triggers_email_on_success_condition():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+def test_execute_calls_trigger_email_even_when_action_is_none():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "success",
+                    "action_type": None,
+                    "action_name": None
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+
+        assert result == {"a": 1}
+
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+def test_trigger_email_does_not_send_mail_when_action_is_none():
+    triggers = [
+        {
+            "condition": "success",
+            "action_type": None,
+            "action_name": None
+        }
+    ]
+
+    with patch(
+        "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email"
+    ) as mock_send_email:
+
+        AnalyticsPipelineProcessor.trigger_email(
+            triggers,
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+        mock_send_email.assert_not_called()
+
+def test_trigger_email_logs_error_when_config_missing():
+    triggers = [
+        {
+            "condition": "success",
+            "action_type": "email_action",
+            "action_name": "nonexistent_mail"
+        }
+    ]
+
+    with patch(
+        "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+    ) as mock_objects, \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = None
+
+        AnalyticsPipelineProcessor.trigger_email(
+            triggers,
+            TriggerCondition.success.value,
+            "test_bot"
+        )
+
+        mock_logger.error.assert_any_call(
+            "EmailActionConfig not found for bot=test_bot, action_name=nonexistent_mail"
+        )
+
+
+def test_execute_success_trigger_email_exception_handling():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a": 1}', "")
+    mock_process.returncode = 0
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "success",
+                    "action_type": "email_action",
+                    "action_name": "test_mail"
+                }
+            ]
+        }
+    }
+
+    mock_email_action = MagicMock()
+    mock_email_action.action_name = "test_mail"
+    mock_email_action.from_email.value = "from@test.com"
+    mock_email_action.to_email.value = ["to@test.com"]
+    mock_email_action.subject = "Test subject"
+    mock_email_action.response = "Test body"
+    mock_email_action.bot = "test_bot"
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.EmailActionConfig.objects"
+         ) as mock_objects, \
+         patch(
+             "kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.send_email",
+             side_effect=Exception("Email failed")
+         ), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.logger"
+         ) as mock_logger:
+
+        mock_objects.return_value.first.return_value = mock_email_action
+        result = runner.execute("x=1", predefined_objects=predefined_objects)
+        assert result == {"a": 1}
+        mock_logger.exception.assert_any_call(
+            "triggering email failed on success case"
+        )
+
+
+
+@pytest.mark.parametrize("action_name", ["test_mail", "test_mail_fixed"])
+def test_execute_triggers_email_on_failure_condition(action_name):
+    runner = AnalyticsRunner()
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = ('{"a":1}', "")
+    mock_process.returncode = 1
+
+    predefined_objects = {
+        "slot": {"bot": "test_bot"},
+        "config": {
+            "triggers": [
+                {
+                    "condition": "failure",
+                    "action_type": "email_action",
+                    "action_name": action_name
+                }
+            ]
+        }
+    }
+
+    with patch("subprocess.Popen", return_value=mock_process), \
+         patch(
+             "kairon.shared.analytics.analytics_pipeline_processor.AnalyticsPipelineProcessor.trigger_email"
+         ) as mock_trigger_email:
+        with pytest.raises(AppException) as exc:
+            runner.execute("x=1", predefined_objects=predefined_objects)
+        assert "Execution error" in str(exc.value)
+        mock_trigger_email.assert_called_once_with(
+            predefined_objects["config"]["triggers"],
+            TriggerCondition.failure.value,
+            "test_bot"
+        )
+
+
+def test_analytics_runner_cleanup_datetime():
+    runner = AnalyticsRunner()
+
+    from datetime import datetime, date
+    dt = datetime(2021, 5, 17, 8, 9, 10)
+    d = date(2021, 5, 17)
+
+    worker_output = json.dumps({
+        "success": True,
+        "data": {
+            "dt": str(dt),
+            "d": str(d)
+        }
+    })
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (worker_output, "")
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute("pass", predefined_objects={"slot": {"bot": "botid"}})
+
+    assert result['data']["dt"] == str(dt)
+    assert result['data']["d"] == str(d)
+
+
+def test_analytics_runner_execution_error():
+    runner = AnalyticsRunner()
+
+    error_json = json.dumps({
+        "success": False,
+        "error": "Runtime failure",
+        "trace": "stacktrace..."
+    })
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (error_json, "")
+    mock_process.returncode = 1
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        with pytest.raises(AppException) as exc:
+            runner.execute("raise Exception()", predefined_objects={"slot": {"bot": "botid"}})
+
+    assert "Execution error" in str(exc.value)
+
+
+def test_analytics_runner_sends_safe_globals():
+    runner = AnalyticsRunner()
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (
+        json.dumps({"success": True, "data": {}}),
+        ""
+    )
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process) as popen_mock:
+        runner.execute("x=1", predefined_objects={"slot": {"bot": "abc"}})
+
+        sent_input = popen_mock.return_value.communicate.call_args[1]["input"]
+        payload = json.loads(sent_input)
+
+    assert "safe_globals" in payload
+    assert "add_data" in payload["safe_globals"]
+    assert "__builtins__" in payload["safe_globals"]
+
+
+def test_analytics_runner_parses_worker_output():
+    runner = AnalyticsRunner()
+
+    output = json.dumps({"success": True, "data": {"a": 100}})
+
+    mock_process = MagicMock()
+    mock_process.communicate.return_value = (output, "")
+    mock_process.returncode = 0
+
+    with patch("subprocess.Popen", return_value=mock_process):
+        result = runner.execute("a=100", predefined_objects={"slot": {"bot": "xx"}})
+
+    print(result)
+    assert result['success'] == True
+    assert result['data']['a'] == 100
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+async def test_get_media_content(mock_get_buffer):
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    expected_external_media_id = "abc123"
+    bot = "682323a603ec3be7dcaa75bc"
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot="682323a603ec3be7dcaa75bc",
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="mahesh.sattala@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    expected_media_bytes = b'%IMG-1.4 mock content'
+
+    mock_buffer_value = (
+        io.BytesIO(b"%IMG-1.4 mock content"),
+        "whataspp_360_885215267637065.jpg",
+        ".jpg",
+    )
+
+    mock_get_buffer.return_value = mock_buffer_value
+
+    media_bytes = await PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id)
+    assert media_bytes == expected_media_bytes
+
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+
+
+@pytest.mark.asyncio
+async def test_get_media_content_not_found():
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+    bot = "682323a603ec3be7dcaa75bc"
+
+    with pytest.raises(AppException) as exc_info:
+        await PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id)
+
+    assert str(exc_info.value) == f"UserMediaData not found for media_id: {media_id}"
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+async def test_get_media_content_channel_not_configured(mock_get_channel_config):
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    bot = "682323a603ec3be7dcaa75bc"
+
+    mock_get_channel_config.return_value = {}
+
+    UserMediaData(
+        media_id=media_id,
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot="682323a603ec3be7dcaa75bc",
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    with pytest.raises(AppException) as exc_info:
+        await PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id)
+
+    assert str(
+        exc_info.value) == f"Channel config not found for bot: {bot}, connector_type: whatsapp, bsp_type: {bsp_type}"
+    UserMediaData.objects().delete()
+
+@pytest.mark.asyncio
+async def test_get_media_content_access_token_not_found():
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    bot = "682323a603ec3be7dcaa75bc"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot="682323a603ec3be7dcaa75bc",
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="mahesh.sattala@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    with pytest.raises(AppException) as exc_info:
+        await PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id)
+
+    assert str(
+        exc_info.value) == "API key (access token) not found in channel config"
+
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+async def test_get_media_content_file_stream_not_found(mock_get_buffer):
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    bot = "682323a603ec3be7dcaa75bc"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot="682323a603ec3be7dcaa75bc",
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    BotSettings(
+        bot=bot,
+        user="mahesh.sattala@digite.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    mock_get_buffer.return_value = (None, None, None)
+
+    with pytest.raises(AppException) as exc_info:
+        await PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id)
+
+    assert str(exc_info.value) == "File stream not found"
+
+    UserMediaData.objects().delete()
+    BotSettings.objects().delete()
+    Channels.objects().delete()

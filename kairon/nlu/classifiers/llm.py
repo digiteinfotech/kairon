@@ -74,7 +74,7 @@ class LLMClassifier(IntentClassifier, GraphComponent, EntityExtractorMixin, ABC)
     def get_default_config() -> Dict[Text, Any]:
         return {
             "bot_id": None,
-            "prediction_model": "gpt-4o-mini",
+            "prediction_model": "gpt-4.1-mini",
             "embedding_model": "text-embedding-3-small",
             "embedding_size": 1536,
             "top_k": 5,

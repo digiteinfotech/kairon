@@ -9,6 +9,7 @@ from mongoengine import connect, ValidationError
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.custom_widgets.data_objects import CustomWidgetsGlobalConfig
 from kairon.shared.custom_widgets.processor import CustomWidgetsProcessor
 from kairon.shared.data.processor import MongoProcessor
 from mongomock import MongoClient
@@ -433,3 +434,174 @@ class TestCustomWidgetsProcessor:
                            'response': {'data': [{'1': 200, '2': 300, '3': 400, '4': 500, '5': 600}]},
                            'requested_by': user, 'bot': bot}
         assert len(logs) == 3
+
+    def test_add_global_widget_config(self):
+        bot = "test_bot"
+        user = "test_user"
+        expected_config = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                },
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "mh", "label": "Maharashtra"},
+                        {"value": "mp", "label": "Madhya Pradesh"}
+                    ]
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.save_global_filter_config(expected_config, bot, user)
+
+        saved_config = CustomWidgetsGlobalConfig.objects(bot=bot).first().to_mongo().to_dict()
+        saved_config.pop("_id")
+        saved_config.pop("timestamp")
+        expected_config['bot'] = bot
+
+        assert saved_config == expected_config
+
+    def test_add_global_widget_config_duplicate_should_fail(self):
+        bot = "test_bot_dup"
+        user = "test_user"
+        global_config = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.save_global_filter_config(global_config, bot, user)
+
+        with pytest.raises(Exception) as exc_info:
+            CustomWidgetsProcessor.save_global_filter_config(global_config, bot, user)
+
+        assert str(exc_info.value) == f"A widget configuration already exists for bot '{bot}'."
+
+    def test_update_global_widget_config(self):
+        bot = "test_bot_update"
+        user = "test_user"
+        initial_config = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.save_global_filter_config(initial_config, bot, user)
+
+        updated_config = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Updated Date Range",
+                    "initialStartDate": "2024-01-01",
+                    "initialEndDate": "2024-06-30"
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.update_global_filter_config(bot, updated_config, user)
+
+        saved_config = CustomWidgetsGlobalConfig.objects(bot=bot).first().to_mongo().to_dict()
+        saved_config.pop("_id")
+        saved_config.pop("timestamp")
+
+        updated_config["bot"] = bot
+
+        assert saved_config == updated_config
+
+    def test_update_global_widget_config_should_fail(self):
+        bot = "test_bot_update_invalid"
+        user = "test_user"
+        updated_config = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Updated Date Range",
+                    "initialStartDate": "2024-01-01",
+                    "initialEndDate": "2024-06-30"
+                }
+            ]
+        }
+
+        with pytest.raises(Exception) as exc_info:
+            CustomWidgetsProcessor.update_global_filter_config(bot, updated_config, user)
+
+        assert str(exc_info.value) == f"No global config found for bot '{bot}'."
+
+    def test_get_global_widget_config(self):
+        bot = "test_bot_get"
+        user = "test_user"
+        expected_config = {
+            "global_config": [
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "mh", "label": "Maharashtra"},
+                        {"value": "mp", "label": "Madhya Pradesh"}
+                    ]
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.save_global_filter_config(expected_config, bot, user)
+        config = CustomWidgetsProcessor.get_global_filter_config(bot)
+        config.pop("timestamp")
+        expected_config["bot"] = bot
+        expected_config["user"] = user
+
+        assert config == expected_config
+
+    def test_get_global_widget_config_should_return_empty(self):
+        bot = "test_bot_get_invalid"
+
+        config = CustomWidgetsProcessor.get_global_filter_config(bot)
+
+        assert config == {}
+
+    def test_delete_global_widget_config(self):
+        bot = "test_bot_delete"
+        user = "test_user"
+        config_data = {
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                }
+            ]
+        }
+
+        CustomWidgetsProcessor.save_global_filter_config(config_data, bot, user)
+
+        CustomWidgetsProcessor.delete_global_filter_config(bot)
+
+        config = CustomWidgetsGlobalConfig.objects(bot=bot).first()
+
+        assert config is None
+
+    def test_delete_global_widget_config_should_fail_when_not_exist(self):
+        bot = "test_bot_delete_invalid"
+
+        with pytest.raises(AppException) as exc_info:
+            CustomWidgetsProcessor.delete_global_filter_config(bot)
+
+        assert str(exc_info.value) == f"No global config found for bot '{bot}'."

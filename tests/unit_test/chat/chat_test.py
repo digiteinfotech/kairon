@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from unittest.mock import MagicMock, patch, AsyncMock
 
 import ujson as json
@@ -10,16 +11,19 @@ from urllib.parse import urlencode, quote_plus
 import mongomock
 import pytest
 import responses
+from bson import ObjectId
 from mongoengine import connect, ValidationError
 from slack_sdk.web.slack_response import SlackResponse
 
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.exceptions import AppException
+from kairon.shared.account.data_objects import Bot
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
 from kairon.shared.chat.processor import ChatDataProcessor
-from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE
+from kairon.shared.data.constant import ACCESS_ROLES, TOKEN_TYPE, STATUSES
+from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.utils import Utility
 from pymongo.errors import ServerSelectionTimeoutError
@@ -248,7 +252,7 @@ class TestChat:
         print(log)
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == 'failed'
+        assert log['status'] == "failed"
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
@@ -337,7 +341,7 @@ class TestChat:
         )
         assert log['type'] == 'whatsapp'
         assert log['data'] == resp
-        assert log['status'] == 'failed'
+        assert log['status'] == "failed"
         assert log['message_id'] == 'wamid.HBgMOTE5NTE1OTkxNjg1FQIAEhggNjdDMUMxODhENEMyQUM1QzVBREQzN0YxQjQyNzA4MzAA'
         assert log['failure_reason'] == 'Button title length invalid. Min length: 1, Max length: 20'
         assert log['recipient'] == '919876543210'
@@ -932,7 +936,7 @@ class TestChat:
         assert len(data) == len(events)
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'bot'
-        data = list(store.client.get_database(config['db']).get_collection(bot).find({'type': 'flattened'}))
+        data = list(store.client.get_database(f"{config['db']}").get_collection(f"flattened_conversations").find({'type': 'flattened'}))
         assert len(data) == 1
         assert data[0]['tag'] == 'tracker_store'
         assert data[0]['type'] == 'flattened'
@@ -998,6 +1002,11 @@ class TestChat:
 
         #non error case
         #different email and subject
+        monkeypatch.setitem(
+            Utility.environment,
+            "integrations",
+            {"email": {"interval": "1"}},
+        )
         ChatDataProcessor.save_channel_config({
             'connector_type': 'mail',
             'config': {
@@ -1006,7 +1015,8 @@ class TestChat:
                 'email_password': 'test',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '*/2 * * * *'
             }
         }, 'test', 'test')
 
@@ -1019,7 +1029,8 @@ class TestChat:
                 'email_password': 'subject1,subject2',
                 'imap_server': 'imap.gmail.com',
                 'smtp_server': 'smtp.gmail.com',
-                'smtp_port': '587'
+                'smtp_port': '587',
+                'interval': '*/2 * * * *'
             }
         }, 'test', 'test')
 
@@ -1032,7 +1043,8 @@ class TestChat:
                     'email_password': 'test',
                     'imap_server': 'imap.gmail.com',
                     'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': '587'
+                    'smtp_port': '587',
+                    'interval': '*/2 * * * *'
                 }
         }, 'test', 'test')
         assert mock_request_epock.call_count == 3
@@ -1078,6 +1090,16 @@ async def test_handle_user_message_disallowed(monkeypatch):
     from kairon.chat.handlers.channels.messenger import Messenger, MessengerBot
     messenger = Messenger(page_access_token="dummy_token", is_instagram=True)
     messenger.allowed_users = ["allowed_user"]
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
     messenger.client = DummyClient()
 
     async def fake_get_username_for_id(self, sender_id):
@@ -1093,12 +1115,363 @@ async def test_handle_user_message_disallowed(monkeypatch):
 
     monkeypatch.setattr(Messenger, "process_message", fake_process_message)
 
-    await messenger._handle_user_message("test text", "sender1", {}, "testbot")
+    await messenger._handle_user_message("test text", "sender1", {"media_id": "17859719991451845"}, "testbot")
 
     assert not process_called
     del Utility.environment['model']
 
 
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+@patch("kairon.shared.channels.instagram.processor.MessengerClient")
+async def test_get_page_details(mock_messenger_client_cls, mock_get_config):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    mocked_response_data = {
+        "id": "123456789",
+        "name": "Test Page"
+    }
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get.return_value = mock_response
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
+    mock_messenger_client_cls.return_value = mock_client
+
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    result = await processor.get_page_details()
+
+    assert result == {
+        "id": "123456789",
+        "name": "Test Page"
+    }
+
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/me/?fields=id,name&access_token=dummy-token"
+    )
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+async def test_get_user_account_details_from_page_instagram(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    mocked_response_data = {
+        "instagram_business_account": {
+            "id": "17841457391083123"
+        },
+        "id": "405157032689111"
+    }
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
+
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    processor.messenger_client = mock_client
+
+    async def fake_get_page_details(self) -> dict:
+        return {"id": "123456789", "name": "Test Page"}
+
+    monkeypatch.setattr(InstagramProcessor, "get_page_details", fake_get_page_details)
+
+    result = await processor.get_user_account_details_from_page()
+    assert result == mocked_response_data
+
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/123456789/?fields=instagram_business_account&access_token=dummy-token"
+    )
+
+@pytest.mark.asyncio
+async def test_save_channel_config_with_masked_and_real_values(monkeypatch):
+    bot = str(ObjectId())
+    user = "insta_user"
+
+    monkeypatch.setitem(Utility.environment, "model", {"agent": {"url": "http://localhost:8080"}})
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+    Bot(id=bot, account=123, name="Test Bot", user="system_user").save()
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    original_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": Utility.encrypt_message("secret1"),
+            "page_access_token": Utility.encrypt_message("token1"),
+            "verify_token": Utility.encrypt_message("verify1")
+        }
+    }
+
+    Channels(**original_config, bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    update_masked = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "*****",
+            "page_access_token": "*****",
+            "verify_token": "*****",
+            "extra_field": "new_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_masked, bot, user)
+    saved = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert Utility.decrypt_message(saved["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved["config"]["verify_token"]) == "verify1"
+    assert saved["config"]["extra_field"] == "new_value"
+
+    update_last5 = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "secret1*****",
+            "page_access_token": "token1*****",
+            "verify_token": "verify1*****",
+            "extra_field": "updated_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_last5, bot, user)
+    saved_last5 = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert Utility.decrypt_message(saved_last5["config"]["app_secret"]) == "secret1"
+    assert Utility.decrypt_message(saved_last5["config"]["page_access_token"]) == "token1"
+    assert Utility.decrypt_message(saved_last5["config"]["verify_token"]) == "verify1"
+    assert saved_last5["config"]["extra_field"] == "updated_value"
+
+    update_real = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "new_secret",
+            "page_access_token": "new_token",
+            "verify_token": "new_verify",
+            "extra_field": "final_value"
+        }
+    }
+
+    ChatDataProcessor.save_channel_config(update_real, bot, user)
+    saved_real = ChatDataProcessor.get_channel_config("instagram", bot, mask_characters=False)
+
+    assert saved_real["config"]["app_secret"] == "new_secret"
+    assert saved_real["config"]["page_access_token"] == "new_token"
+    assert saved_real["config"]["verify_token"] == "new_verify"
+    assert saved_real["config"]["extra_field"] == "final_value"
+
+
+@pytest.mark.asyncio
+async def test_save_channel_config_new_instagram_channel(monkeypatch):
+    bot = str(ObjectId())
+    user = "insta_user_new"
+
+    monkeypatch.setitem(
+        Utility.environment,
+        "model",
+        {"agent": {"url": "http://localhost:8080"}},
+    )
+
+    Channels.objects(bot=bot, connector_type="instagram").delete()
+    BotSettings.objects(bot=bot).delete()
+    Bot.objects(id=bot).delete()
+
+    Bot(
+        id=bot,
+        account=123456789,
+        name="Instagram New Bot",
+        user="system_user",
+    ).save()
+    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+
+    new_config = {
+        "connector_type": "instagram",
+        "config": {
+            "app_secret": "plain_app_secret",
+            "page_access_token": "plain_page_token",
+            "verify_token": "plain_verify_token",
+        },
+    }
+
+    endpoint = ChatDataProcessor.save_channel_config(new_config, bot, user)
+
+    channel = Channels.objects(bot=bot, connector_type="instagram").get()
+    assert channel is not None
+    assert channel.config["app_secret"] != "plain_app_secret"
+    assert channel.config["page_access_token"] != "plain_page_token"
+    assert channel.config["verify_token"] != "plain_verify_token"
+    assert endpoint.startswith("http://localhost:8080/api/bot/instagram/")
+
+
+def test_save_channel_config_raises_for_masked_without_existing_secret(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": None, "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
+
+
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
+    assert "The field 'api_token' cannot be empty or invalid. Please enter a valid value." in str(e.value)
+
+def test_save_channel_config_raises_on_decrypt_failure(monkeypatch):
+    bot = "test_bot"
+    user = "test_user"
+
+    configuration = {
+        "connector_type": "slack",
+        "config": {
+            "api_token": "*****",
+            "bot_user_oAuth_token": "dummy"
+        }
+    }
+
+    channel_mock = MagicMock()
+    channel_mock.connector_type = "slack"
+    channel_mock.config = {"api_token": "encrypted_value", "bot_user_oAuth_token": "dummy"}
+
+    objects_mock = MagicMock()
+    objects_mock.get.return_value = channel_mock
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Channels.objects",
+        lambda **kwargs: objects_mock
+    )
+
+    monkeypatch.setitem(
+        Utility.system_metadata,
+        "channels",
+        {"slack": {"required_fields": ["api_token", "bot_user_oAuth_token"]}}
+    )
+
+    monkeypatch.setattr(
+        "kairon.shared.chat.processor.Utility.decrypt_message",
+        lambda value: (_ for _ in ()).throw(Exception("decryption failed"))
+    )
+
+    mock_response = MagicMock()
+    mock_response.data = {"team": {"id": "T123", "name": "DummyTeam"}}
+    monkeypatch.setattr(
+        "slack_sdk.WebClient.team_info",
+        lambda self: mock_response
+    )
+
+    with pytest.raises(AppException) as e:
+        ChatDataProcessor.save_channel_config(configuration, bot, user)
+    assert "Failed to process 'api_token'. Please provide a valid value." in str(e.value)
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+async def test_get_user_media_posts_instagram(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    mocked_response_data = [
+        {
+            "id": "17859719991451973",
+            "ig_id": "3682168664448337756",
+            "media_product_type": "FEED",
+            "media_type": "IMAGE",
+            "media_url": "https://example.com/image.jpg",
+            "timestamp": "2025-07-22T07:18:52+0000",
+            "username": "maheshsv17",
+            "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+            "caption": "TEST",
+            "like_count": 0,
+            "comments_count": 0
+        }
+    ]
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = mocked_response_data
+
+    mock_session = MagicMock()
+    mock_session.get = MagicMock(return_value=mock_response)
+
+    mock_client = MagicMock()
+    mock_client.auth_args = {'access_token': 'dummy-token'}
+    mock_client.graph_url = 'https://graph.facebook.com/v18.0'
+    mock_client.session = mock_session
+    mock_get_config.return_value = {
+        "config": {
+            "page_access_token": "dummy-token"
+        }
+    }
+
+    processor = InstagramProcessor(bot="test_bot", user="test_user")
+    processor.messenger_client = mock_client
+
+    async def fake_get_user_account_details_from_page(self):
+        return {
+            'instagram_business_account': {
+                'id': '17841457391083123'
+            },
+            'id': '405157032689111'
+        }
+
+    monkeypatch.setattr(InstagramProcessor,
+                        "get_user_account_details_from_page",
+                        fake_get_user_account_details_from_page)
+
+    result = await processor.get_user_media_posts()
+    assert result == mocked_response_data
+
+    mock_session.get.assert_called_once_with(
+        "https://graph.facebook.com/v18.0/17841457391083123/media/?fields=id,ig_id,media_product_type,"
+        "media_type,media_url,thumbnail_url,timestamp,username,permalink,caption,like_count,comments_count"
+        "&access_token=dummy-token"
+    )
 
 
 @pytest.mark.asyncio
@@ -1136,10 +1509,8 @@ async def test_get_username_for_id(monkeypatch):
     assert username == "testuser"
 
 
-
-
 @pytest.mark.asyncio
-async def test_allowed_users_set_in_dev(monkeypatch):
+async def test_post_config_set_in_dev(monkeypatch):
     class DummyRequest:
         def __init__(self):
             self.headers = {"X-Hub-Signature": "dummy_signature"}
@@ -1168,7 +1539,8 @@ async def test_allowed_users_set_in_dev(monkeypatch):
     dummy_config = {
         "config": {
             "is_dev": True,
-            "allowed_users": "user1,user2",
+            "allowed_users": ["user1", "user2"],
+            "post_config": {"17859719991451973": ["hi", "price"], "17859719991451845": ["offer", "discount"]},
             "app_secret": "dummy_secret",
             "page_access_token": "dummy_page_token",
             "verify_token": "dummy_verify_token",
@@ -1217,6 +1589,8 @@ async def test_allowed_users_set_in_dev(monkeypatch):
     assert captured_messenger.allowed_users == ["user1", "user2"], (
         "allowed_users should be set to ['user1', 'user2']"
     )
+    assert captured_messenger.post_config == {"17859719991451973": ["hi", "price"],
+                                              "17859719991451845": ["offer", "discount"]}
 
 
 @pytest.mark.asyncio
@@ -1243,6 +1617,16 @@ async def test_comment_with_static_comment_reply(monkeypatch):
     monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: "Thanks for commenting!")
     monkeypatch.setattr(messenger, "get_user_id", lambda: "sender123")
     messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
 
     await messenger.comment(message, metadata, bot)
 
@@ -1254,6 +1638,54 @@ async def test_comment_with_static_comment_reply(monkeypatch):
     messenger._handle_user_message.assert_awaited_once_with(
         "This is a test comment", "sender123", metadata, bot
     )
+
+
+@pytest.mark.asyncio
+async def test_comment_with_post_comment_reply(monkeypatch):
+    from kairon.chat.handlers.channels.messenger import Messenger, ChatDataProcessor
+    message = {
+        "field": "comments",
+        "value": {
+            "id": "comment123",
+            "text": "This is a test comment",
+            "from": {"username": "test_user"},
+            "media": {
+                "id": "17859719991451845",
+                "media_product_type": "FEED"
+            }
+        }
+    }
+    metadata = {}
+    bot = "test_bot"
+
+    messenger = Messenger(page_access_token="dummy_token")
+
+    monkeypatch.setattr(messenger, "_is_comment", lambda msg: True)
+    monkeypatch.setattr(ChatDataProcessor, "get_instagram_static_comment", lambda bot: "Thanks for commenting!")
+    monkeypatch.setattr(messenger, "get_user_id", lambda: "sender123")
+    messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": "Grab our latest offers and discounts on shoes!"
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+        }
+    }
+
+    await messenger.comment(message, metadata, bot)
+
+    assert metadata["comment_id"] == "comment123"
+    assert metadata["static_comment_reply"] == "@test_user Grab our latest offers and discounts on shoes!"
+    assert metadata["media_id"] == "17859719991451845"
+    assert metadata["media_product_type"] == "FEED"
+
+    messenger._handle_user_message.assert_awaited_once_with(
+        "This is a test comment", "sender123", metadata, bot
+    )
+
 
 @pytest.mark.asyncio
 async def test_comment_without_static_comment_reply(monkeypatch):
@@ -1276,12 +1708,840 @@ async def test_comment_without_static_comment_reply(monkeypatch):
     monkeypatch.setattr(messenger, "get_user_id", lambda: "sender789")
 
     messenger._handle_user_message = AsyncMock()
+    messenger.post_config = {
+        '17859719991451845': {
+            "keywords": ["offer", "discount"],
+            "comment_reply": ""
+        },
+        '17859719991451973': {
+            "keywords": ["hi", "price"],
+            "comment_reply": ""
+        }
+    }
 
     await messenger.comment(message, metadata, bot)
 
     assert metadata["comment_id"] == "comment789"
-    assert "static_comment_reply" not in metadata
+    assert metadata["static_comment_reply"] is None
 
     messenger._handle_user_message.assert_awaited_once_with(
         "Another test comment", "sender789", metadata, bot
     )
+
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.UserMedia.upload_media_content_sync")
+@patch("kairon.chat.utils.AgenticFlow.execute_rule")
+@patch("kairon.chat.utils.AgenticFlow.__init__")
+async def test_handle_media_agentic_flow_success(af_init, mock_execute_rule, mock_upload_media_content_sync):
+    bot = "test_bot"
+    sender_id = "user123"
+    name = "test_flow"
+    files = [MagicMock()]
+    slot_vals = '{"key": "value"}'
+    af_init.return_value = None
+
+    mock_upload_media_content_sync.return_value = (["media_id_1"], None)
+
+    mock_execute_rule.return_value = (["response_1"], None)
+
+    from kairon.chat.utils import ChatUtils
+    rsps, errors = await ChatUtils.handle_media_agentic_flow(bot, sender_id, name, files, slot_vals)
+
+    assert rsps == ["response_1"]
+    assert errors is None
+    mock_upload_media_content_sync.assert_called_once_with(bot, sender_id, files)
+    mock_execute_rule.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("kairon.chat.utils.UserMedia.upload_media_content_sync")
+async def test_handle_media_agentic_flow_invalid_slot_vals(mock_upload_media_content_sync):
+    bot = "test_bot"
+    sender_id = "user123"
+    name = "test_flow"
+    files = [MagicMock()]
+    slot_vals = "invalid_json"
+
+    mock_upload_media_content_sync.return_value = (["media_id_1"], None)
+
+    from kairon.chat.utils import ChatUtils
+    with pytest.raises(AppException, match="Invalid slot values format. Must be a valid JSON string."):
+        await ChatUtils.handle_media_agentic_flow(bot, sender_id, name, files, slot_vals)
+
+    mock_upload_media_content_sync.assert_called_once_with(bot, sender_id, files)
+
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_valid(tmp_path):
+    file_path = tmp_path / "test.pdf"
+    content = b"dummy content"
+
+    mock_file = MagicMock()
+    mock_file.filename = "test.pdf"
+    mock_file.content_type = "application/pdf"
+    mock_file.read = AsyncMock(side_effect=[content, b""])
+    mock_file.seek = AsyncMock()
+
+    saved_path = await ChatDataProcessor.save_media_file_path(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+
+    assert saved_path.endswith("test.pdf")
+    with open(saved_path, "rb") as f:
+        assert f.read() == content
+
+@pytest.mark.asyncio
+async def test_media_handler_save_and_validate_invalid_type(tmp_path):
+    mock_file = MagicMock()
+    mock_file.filename = "test.py"
+    mock_file.content_type = "script"
+    mock_file.read = AsyncMock(side_effect=[b"fake content", b""])
+    mock_file.seek = AsyncMock()
+
+    saved_path = await ChatDataProcessor.save_media_file_path(
+        bot="test_bot", user="user", file_content=mock_file
+    )
+    print(saved_path)
+    assert saved_path == "media_upload_records/test_bot/test.py"
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_success(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.return_value = "media123"
+    mock_bsp_factory.return_value = mock_bsp
+    BotSettings(
+        bot="test_bot",
+        user="test@example.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow(),
+    ).save()
+    Channels(
+        bot="test_bot",
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="user123",
+        timestamp=datetime.utcnow()
+    ).save()
+    result = await ChatDataProcessor.upload_media_to_bsp(
+        bot="test_bot",
+        user="user123",
+        channel="whatsapp",
+        file_path=str(dummy_file),
+        file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+    )
+
+    assert result == "media123"
+    assert not os.path.exists(dummy_file)
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+async def test_upload_media_to_bsp_failure(mock_bsp_factory, tmp_path):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.side_effect = Exception("upload error")
+    mock_bsp_factory.return_value = mock_bsp
+
+    with pytest.raises(AppException, match="Media upload failed: upload error"):
+        await ChatDataProcessor.upload_media_to_bsp(
+            bot="test_bot",
+            user="user123",
+            channel="whatsapp",
+            file_path=str(dummy_file),
+            file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+        )
+
+    assert not os.path.exists(dummy_file)
+    Channels.objects().delete()
+    BotSettings.objects().delete()
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_valid(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (10 * 1024 * 1024))
+    bot = "test_bot"
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    ChatDataProcessor.validate_media_file_type(bot,mock_upload)
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_invalid_type(tmp_path):
+    test_file = tmp_path / "file.txt"
+    test_file.write_bytes(b"x" * 10)
+    bot = "test_bot"
+    mock_upload = MagicMock()
+    mock_upload.content_type = "script"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException, match="Invalid file type: script. Allowed types are: audio/aac,"
+                                           " audio/amr, audio/mpeg, audio/mp4, audio/ogg, text/plain,"
+                                           " application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+                                           " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+                                           " application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+                                           " application/pdf, image/jpeg, image/png, image/webp, video/3gpp, video/mp4."):
+        ChatDataProcessor.validate_media_file_type(bot, mock_upload)
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_too_large(tmp_path):
+    test_file = tmp_path / "file.pdf"
+    test_file.write_bytes(b"x" * (101 * 1024 * 1024))
+    bot = "test_bot"
+    mock_upload = MagicMock()
+    mock_upload.content_type = "application/pdf"
+    mock_upload.file = open(test_file, "rb")
+
+    with pytest.raises(AppException,
+                       match="File size 101.00 MB exceeds the limit of 100.00 MB for application/pdf."):
+        ChatDataProcessor.validate_media_file_type(bot, mock_upload)
+
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    test_file = tmp_path / "file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=50),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="file.png",
+        upload_status=UserMediaUploadStatus.expired.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Expired',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'additional_info': {},
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    test_file = tmp_path / "test_file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "test_file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="test_file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot="test_bot",
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    with pytest.raises(
+        AppException,
+        match=r"File 'test_file.png' already exists. Please upload a different file."
+    ):
+        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    user_media_data_obj = UserMediaData.objects(
+        bot="test_bot",
+        filename="test_file.png",
+        upload_status=UserMediaUploadStatus.completed.value
+    ).first()
+    user_media_data_dict = user_media_data_obj.to_mongo().to_dict()
+    user_media_data_dict.pop('_id')
+    user_media_data_dict.pop('timestamp')
+    print(user_media_data_dict)
+    assert user_media_data_dict == {
+        'media_id': '0196c9efbf547b81a66ba2af7b72d5ba',
+        'media_url': '',
+        'filename': 'test_file.png',
+        'extension': '.png',
+        'output_filename': '',
+        'upload_status': 'Completed',
+        'upload_type': 'broadcast',
+        'filesize': 1024,
+        'additional_info': {},
+        'sender_id': 'user@test.com',
+        'bot': 'test_bot',
+        'external_upload_info': {
+            'bsp': '360dialog'
+        }
+    }
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.processor.datetime")
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+def test_validate_media_file_type_file_already_exists(mock_objects, mock_datetime, tmp_path):
+
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+    mock_datetime.utcnow.return_value = fixed_now
+
+    test_file = tmp_path / "file.png"
+    test_file.write_bytes(b"x" * (1 * 1024 * 1024))
+
+    mock_upload = MagicMock()
+    mock_upload.filename = "file.png"
+    mock_upload.content_type = "image/png"
+    mock_upload.file = open(test_file, "rb")
+
+    mock_db_obj = MagicMock()
+    mock_db_obj.timestamp = fixed_now - timedelta(days=10)
+
+    mock_queryset = MagicMock()
+    mock_queryset.order_by.return_value.first.return_value = mock_db_obj
+    mock_objects.return_value = mock_queryset
+
+    with pytest.raises(AppException, match="File 'file.png' already exists"):
+        ChatDataProcessor.validate_media_file_type("test_bot", mock_upload)
+
+    mock_objects.assert_called_once_with(
+        bot="test_bot",
+        filename="file.png"
+    )
+
+    mock_queryset.order_by.assert_called_once_with("-timestamp")
+
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+@patch("kairon.shared.utils.Utility.remove_file_path")
+async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_factory, tmp_path, caplog):
+    dummy_file = tmp_path / "file.pdf"
+    dummy_file.write_bytes(b"dummy")
+
+    mock_bsp = AsyncMock()
+    mock_bsp.upload_media_file.return_value = "media123"
+    mock_bsp_factory.return_value = mock_bsp
+
+    mock_remove_file.side_effect = Exception("permission denied")
+
+    BotSettings(
+        bot="test_bot",
+        user="test@example.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow(),
+    ).save()
+    Channels(
+        bot="test_bot",
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog",
+        },
+        user="user123",
+        timestamp=datetime.utcnow(),
+    ).save()
+
+    result = await ChatDataProcessor.upload_media_to_bsp(
+        bot="test_bot",
+        user="user123",
+        channel="whatsapp",
+        file_path=str(dummy_file),
+        file_info=MagicMock(filename="file.pdf", content_type="application/pdf", size=100),
+    )
+
+    assert result == "media123"
+
+    mock_remove_file.assert_called_once_with(str(dummy_file))
+
+    assert os.path.exists(dummy_file)
+    Channels.objects().delete()
+    BotSettings.objects().delete()
+
+
+import pytest
+from types import SimpleNamespace
+from mongoengine.errors import DoesNotExist
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.exceptions import AppException
+
+@pytest.mark.asyncio
+async def test_upload_media_channel_does_not_exist(monkeypatch):
+    def raise_does_not_exist(channel, bot):
+        raise DoesNotExist("Channels matching query does not exist.")
+
+    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_does_not_exist)
+
+    file_info = SimpleNamespace(
+        filename="file.txt",
+        content_type="text/plain",
+        size=10,
+    )
+    with pytest.raises(AppException) as e:
+        await ChatDataProcessor.upload_media_to_bsp(
+            "bot1", "user1", "whatsapp", "/tmp/file", file_info
+        )
+    assert str(e.value) == (
+        "Media upload failed: No channel found for this bot. Please configure the channel first."
+    )
+
+@pytest.mark.asyncio
+async def test_upload_media_other_exception(monkeypatch):
+    from types import SimpleNamespace
+    def raise_other_exception(channel, bot):
+        raise ValueError("some random error")
+    monkeypatch.setattr(ChatDataProcessor, "get_channel_config", raise_other_exception)
+    file_info = SimpleNamespace(
+        filename="file.txt",
+        content_type="text/plain",
+        size=10,
+    )
+    with pytest.raises(AppException) as e:
+        await ChatDataProcessor.upload_media_to_bsp(
+            "bot1", "user1", "whatsapp", "/tmp/file", file_info
+        )
+    assert str(e.value) == "Media upload failed: some random error"
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+def test_delete_media_to_bsp_success(mock_bsp_factory):
+    mock_bsp = MagicMock()
+    mock_bsp.delete_media_file.return_value = "Media file deleted successfully"
+    mock_bsp_factory.return_value = mock_bsp
+    BotSettings(
+        bot="test_bot",
+        user="test@example.com",
+        whatsapp="360dialog",
+        timestamp=datetime.utcnow(),
+    ).save()
+    Channels(
+        bot="test_bot",
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="user123",
+        timestamp=datetime.utcnow()
+    ).save()
+    result = ChatDataProcessor.delete_media_from_bsp(
+        bot="test_bot",
+        channel="whatsapp",
+        media_id="715690454858053"
+    )
+
+    assert result == "File deleted from meta"
+
+
+
+@patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance")
+def test_delete_media_to_bsp_failure(mock_bsp_factory):
+    mock_bsp_factory.side_effect = AppException("bsp_type not yet implemented!")
+
+    with pytest.raises(AppException) as exc_info:
+        ChatDataProcessor.delete_media_from_bsp(
+            bot="test_bot",
+            channel="whatsapp",
+            media_id="7156904548580531",
+        )
+
+    assert "Failed to delete media: bsp_type not yet implemented!" == str(exc_info.value)
+
+    Channels.objects().delete()
+    BotSettings.objects().delete()
+
+def test_delete_media_from_bsp_channel_does_not_exist():
+    with patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config", side_effect=DoesNotExist("no channel")):
+        with pytest.raises(AppException) as exc_info:
+            ChatDataProcessor.delete_media_from_bsp(
+                bot="test_bot",
+                channel="whatsapp",
+                media_id="12345",
+            )
+
+    assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
+
+from datetime import datetime, timedelta
+from kairon.events.utility import EventUtility
+
+def test_valid_cron():
+    # Every hour, min interval 30 min -> valid
+    EventUtility.validate_cron("0 * * * *", 30)
+
+def test_cron_too_frequent():
+    # Every 10 minutes, min interval 15 min -> invalid
+    with pytest.raises(AppException, match="Minimum time interval should be greater than equal to 15 minutes"):
+        EventUtility.validate_cron("*/10 * * * *", 15)
+
+
+def test_invalid_cron_expression():
+    # Invalid cron string
+    with pytest.raises(AppException, match="Invalid cron expression"):
+        EventUtility.validate_cron("invalid_cron", 10)
+
+def test_min_interval_edge_case():
+    # Cron every 15 minutes, min interval 15 -> valid
+    EventUtility.validate_cron("*/15 * * * *", 15)
+
+def test_check_more_occurrences():
+    # Cron every 5 min, min 5 min, check only 5 occurrences
+    EventUtility.validate_cron("*/5 * * * *", 5, check_occurrences=5)
+
+def test_small_min_interval():
+    # Cron every minute, min interval 0.5 min -> valid
+    EventUtility.validate_cron("* * * * *", 0.5)
+
+def test_interval_below_minimum_raises_exception():
+    """
+    Every 5 minutes, minimum interval 10 → should raise AppException
+    """
+    with pytest.raises(AppException) as exc_info:
+        EventUtility.validate_cron("*/5 * * * *", 10)
+
+    assert "Minimum time interval should be greater than equal to 10 minutes" in str(exc_info.value)
+
+def test_exact_minimum_interval_allowed():
+    """
+    Every 15 minutes, minimum interval 15 → valid
+    """
+    EventUtility.validate_cron("*/15 * * * *", 15)
+
+def test_custom_check_occurrences():
+    """
+    Verify function respects custom number of occurrences
+    """
+    EventUtility.validate_cron(
+        "*/20 * * * *",
+        min_interval_minutes=10,
+        check_occurrences=5
+    )
+
+
+# ============================================================
+# Request ID tests
+# ============================================================
+import kairon.shared.request_context as _rc
+from kairon.shared.request_context import get_request_id, set_request_id, REQUEST_ID_HEADER
+
+
+def _clear_rid():
+    _rc._request_id.set(None)
+
+
+class TestRequestContext:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_header_constant(self):
+        assert REQUEST_ID_HEADER == "X-Kairon-Request-ID"
+
+    def test_read_unset_returns_none(self):
+        assert get_request_id() is None
+
+    def test_write_then_read(self):
+        set_request_id("abc-123")
+        assert get_request_id() == "abc-123"
+
+    def test_second_write_replaces(self):
+        set_request_id("first")
+        set_request_id("second")
+        assert get_request_id() == "second"
+
+    def test_read_does_not_mutate(self):
+        set_request_id("stable")
+        _ = get_request_id()
+        assert get_request_id() == "stable"
+
+    def test_scope_isolation(self):
+        from contextvars import copy_context
+        results = {}
+
+        def run(name, val):
+            ctx = copy_context()
+            def _inner():
+                set_request_id(val)
+                results[name] = get_request_id()
+            ctx.run(_inner)
+
+        run("a", "id-a")
+        run("b", "id-b")
+        assert results["a"] == "id-a"
+        assert results["b"] == "id-b"
+        assert get_request_id() is None
+
+
+class TestRequestIdMiddleware:
+    def setup_method(self):
+        _clear_rid()
+
+    def _client(self):
+        from fastapi import FastAPI
+        from starlette.testclient import TestClient
+        from kairon.shared.middleware import register_request_id_middleware
+
+        app = FastAPI()
+        register_request_id_middleware(app)
+
+        @app.get("/ping")
+        async def ping():
+            return {"request_id": get_request_id()}
+
+        return TestClient(app, raise_server_exceptions=True)
+
+    def test_originates_uuid_when_header_absent(self):
+        r = self._client().get("/ping")
+        rid = r.json()["request_id"]
+        assert rid and len(rid) == 36
+
+    def test_honors_inbound_header(self):
+        r = self._client().get("/ping", headers={REQUEST_ID_HEADER: "my-id"})
+        assert r.json()["request_id"] == "my-id"
+
+    def test_case_insensitive_lookup(self):
+        r = self._client().get("/ping", headers={"x-kairon-request-id": "lower-id"})
+        assert r.json()["request_id"] == "lower-id"
+
+    def test_echoes_supplied_header_on_response(self):
+        r = self._client().get("/ping", headers={REQUEST_ID_HEADER: "echo-me"})
+        assert r.headers.get(REQUEST_ID_HEADER.lower()) == "echo-me"
+
+    def test_echoes_originated_id_on_response(self):
+        r = self._client().get("/ping")
+        rid = r.json()["request_id"]
+        assert r.headers.get(REQUEST_ID_HEADER.lower()) == rid
+
+    def test_two_absent_header_requests_get_different_ids(self):
+        c = self._client()
+        r1 = c.get("/ping").json()["request_id"]
+        r2 = c.get("/ping").json()["request_id"]
+        assert r1 != r2
+
+
+class TestOutboundPropagation:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_header_set_when_scope_bound(self):
+        set_request_id("outbound-id")
+        headers = {}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert headers[REQUEST_ID_HEADER] == "outbound-id"
+
+    def test_header_absent_when_scope_empty(self):
+        headers = {}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert REQUEST_ID_HEADER not in headers
+
+    def test_existing_headers_not_disturbed(self):
+        set_request_id("xyz")
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer tok"}
+        rid = get_request_id()
+        if rid:
+            headers[REQUEST_ID_HEADER] = rid
+        assert headers["Content-Type"] == "application/json"
+        assert headers["Authorization"] == "Bearer tok"
+
+    def test_chat_actions_injects_get_request_id(self):
+        with open("kairon/chat/actions.py") as f:
+            src = f.read()
+        assert "get_request_id" in src
+        assert "REQUEST_ID_HEADER" in src
+
+
+class TestFlattenedConversationsRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_in_dict_when_bound(self):
+        set_request_id("tracker-id")
+        doc = {}
+        rid = get_request_id()
+        if rid:
+            doc["request_id"] = rid
+        assert doc["request_id"] == "tracker-id"
+
+    def test_request_id_absent_when_unbound(self):
+        doc = {}
+        rid = get_request_id()
+        if rid:
+            doc["request_id"] = rid
+        assert "request_id" not in doc
+
+    def test_trackers_injects_get_request_id(self):
+        with open("kairon/shared/trackers.py") as f:
+            src = f.read()
+        assert "get_request_id" in src
+        assert 'flattened_conversation["request_id"]' in src
+
+
+class TestRawConversationEventRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_in_raw_event_when_bound(self):
+        set_request_id("raw-event-id")
+        rid = get_request_id()
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        if rid:
+            raw_event["request_id"] = rid
+        assert raw_event["request_id"] == "raw-event-id"
+
+    def test_request_id_absent_from_raw_event_when_unbound(self):
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        rid = get_request_id()
+        if rid:
+            raw_event["request_id"] = rid
+        assert "request_id" not in raw_event
+
+    def test_request_id_is_top_level_not_in_event_subdict(self):
+        set_request_id("top-level-id")
+        rid = get_request_id()
+        raw_event = {
+            "sender_id": "s",
+            "conversation_id": "c",
+            "event": {"event": "user"},
+            "tag": "tracker_store",
+            "type": "bot",
+        }
+        if rid:
+            raw_event["request_id"] = rid
+        assert "request_id" in raw_event
+        assert "request_id" not in raw_event["event"]
+
+    def test_all_raw_events_in_batch_carry_same_request_id(self):
+        set_request_id("batch-id")
+        rid = get_request_id()
+        events = []
+        for _ in range(3):
+            e = {
+                "sender_id": "s",
+                "conversation_id": "c",
+                "event": {"event": "user"},
+                "tag": "tracker_store",
+                "type": "bot",
+            }
+            if rid:
+                e["request_id"] = rid
+            events.append(e)
+        assert all(e.get("request_id") == "batch-id" for e in events)
+
+    def test_trackers_stamps_raw_events(self):
+        with open("kairon/shared/trackers.py") as f:
+            src = f.read()
+        assert 'raw_event["request_id"]' in src
+
+
+class TestAgentHandoffMeteringRequestId:
+    def setup_method(self):
+        _clear_rid()
+
+    def test_request_id_passed_when_bound(self):
+        from unittest.mock import patch
+        from kairon.shared.metering.metering_processor import MeteringProcessor
+        from kairon.shared.metering.constants import MetricType
+
+        set_request_id("metering-id")
+        captured = {}
+
+        with patch.object(MeteringProcessor, "add_metrics",
+                          side_effect=lambda b, a, m, **kw: captured.update(kw)):
+            rid = get_request_id()
+            MeteringProcessor.add_metrics("bot", 1, MetricType.agent_handoff,
+                                          sender_id="s", **({"request_id": rid} if rid else {}))
+
+        assert captured.get("request_id") == "metering-id"
+
+    def test_request_id_absent_when_unbound(self):
+        from unittest.mock import patch
+        from kairon.shared.metering.metering_processor import MeteringProcessor
+        from kairon.shared.metering.constants import MetricType
+
+        captured = {}
+
+        with patch.object(MeteringProcessor, "add_metrics",
+                          side_effect=lambda b, a, m, **kw: captured.update(kw)):
+            rid = get_request_id()
+            MeteringProcessor.add_metrics("bot", 1, MetricType.agent_handoff,
+                                          sender_id="s", **({"request_id": rid} if rid else {}))
+
+        assert "request_id" not in captured

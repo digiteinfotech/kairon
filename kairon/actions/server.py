@@ -44,6 +44,7 @@ from kairon.exceptions import AppException
 from ..shared.utils import Utility
 from ..shared.account.processor import AccountProcessor
 from contextlib import asynccontextmanager
+from kairon.shared.middleware import register_request_id_middleware
 from kairon.shared.otel import instrument_fastapi
 
 hsts = StrictTransportSecurity().include_subdomains().preload().max_age(31536000)
@@ -95,9 +96,7 @@ secure_headers = Secure(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """MongoDB is connected on the bot trainer startup"""
-    config: dict = Utility.mongoengine_connection(
-        Utility.environment["database"]["url"]
-    )
+    config: dict = Utility.mongoengine_connection(Utility.environment["database"]["url"])
     connect(**config)
     AccountProcessor.load_system_properties()
     yield
@@ -118,6 +117,7 @@ action.add_middleware(
 )
 action.add_middleware(GZipMiddleware)
 instrument_fastapi(action)
+register_request_id_middleware(action)
 
 
 @action.middleware("http")

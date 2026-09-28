@@ -111,6 +111,30 @@ class EVENT_STATUS(str, Enum):
     ABORTED = "Aborted"
 
 
+class STATUSES(str, Enum):
+    SUCCESS = "Success"
+    FAIL = "Failed"
+    PARTIAL_SUCCESS = "Partial_Success"
+    PASSED = "PASSED"
+
+
+class SYNC_STATUS(str, Enum):
+    INITIATED = "Initiated"
+    VALIDATING_REQUEST = "Validating request"
+    VALIDATING_REQUEST_SUCCESS = "Validating request successful"
+    VALIDATING_FAILED = "Validation Failed"
+    VALIDATING_KNOWLEDGE_VAULT_DATA = "Validating Knowledge vault processed data"
+    PREPROCESSING = "Preprocessing in progress"
+    PREPROCESSING_FAILED = "Preprocessing Failed"
+    PREPROCESSING_COMPLETED = "Preprocessing Completed"
+    SAVE = "Importing data to kairon"
+    SAVE_META = "Importing data to Meta"
+    SYNC_FAILED = "Sync Failed"
+    ENQUEUED = "Enqueued"
+    COMPLETED = "Completed"
+    FAILED = "Failed"
+    ABORTED = "Aborted"
+
 class ONBOARDING_STATUS(str, Enum):
     NOT_COMPLETED = "Not Completed"
     SKIPPED = "Skipped"
@@ -185,6 +209,8 @@ class TOKEN_TYPE(str, Enum):
     DYNAMIC = "dynamic"
     CHANNEL = "channel"
     REFRESH = "refresh"
+    DATA_INTEGRATION = "data_integration"
+    STORE_PAGE = "store_page"
 
 
 class ModelTestType(str, Enum):
@@ -193,6 +219,7 @@ class ModelTestType(str, Enum):
     common = "common"
 
 
+MEDIA_TYPES = {"image", "document", "video"}
 ALLOWED_NLU_FORMATS = {'nlu.yml', 'nlu.yaml'}
 ALLOWED_STORIES_FORMATS = {'stories.yml', 'stories.yaml'}
 ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
@@ -233,6 +260,9 @@ DEFAULT_LLM = "openai"
 
 QDRANT_SUFFIX = "_faq_embd"
 
+class ExcludedLLMTypes(str, Enum):
+    openrouter = "openrouter"
+
 
 class AuditlogActions(str, Enum):
     SAVE = "save"
@@ -245,6 +275,46 @@ class AuditlogActions(str, Enum):
     ACTIVITY = "activity"
     DOWNLOAD = "download"
 
+class LogTypes(str, Enum):
+    content = "content"
+    importer = "importer"
+    history_deletion = "history_deletion"
+    multilingual = "multilingual"
+    catalog = "catalog"
+    custom_widget = "custom_widget"
+    mail_channel = "mail_channel"
+    callback = "callback"
+    llm = "llm"
+    actions = "actions"
+    executor = "executor"
+    agent_handoff = "agent_handoff"
+    audit = "audit"
+    model_test = "model_test"
+    file_upload = "file_upload"
+    analytics_pipeline = "analytics_pipeline"
+
+MIME_TYPE_LIMITS = {
+  "audio/aac": 16777216,
+  "audio/amr": 16777216,
+  "audio/mpeg": 16777216,
+  "audio/mp4": 16777216,
+  "audio/ogg": 16777216,
+  "text/plain": 104857600,
+  "application/vnd.ms-excel": 104857600,
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 104857600,
+  "application/msword": 104857600,
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 104857600,
+  "application/vnd.ms-powerpoint": 104857600,
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": 104857600,
+  "application/pdf": 104857600,
+  "image/jpeg": 5242880,
+  "image/png": 5242880,
+  "image/webp": 512000,
+  "video/3gpp": 16777216,
+  "video/mp4": 16777216
+}
+
+
 
 class LogType(str, Enum):
     multilingual = "multilingual"
@@ -255,12 +325,19 @@ class LogType(str, Enum):
     action_logs = "action_logs"
     training_data_generator = "training_data_generator"
     data_importer = "data_importer"
+    file_upload = "file_upload"
+    analytics_pipeline = "analytics_pipeline"
+    custom_widgets = "custom_widgets"
+
 
 
 class FeatureMappings(str, Enum):
     ONLY_SSO_LOGIN = "only_sso_login"
     CREATE_USER = "create_user"
 
+class SyncType(str, Enum):
+    push_menu = "push_menu"
+    item_toggle = "item_toggle"
 
 ORG_SETTINGS_MESSAGES = {
     "create_user": "User creation is blocked by your OrgAdmin from SSO",

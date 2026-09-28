@@ -40,6 +40,7 @@ from rasa.utils.endpoints import EndpointConfig, ClientResponseError, concat_url
 from rasa.core.actions.action import Action, ActionExecutionRejection, create_bot_utterance
 
 from kairon import Utility
+from kairon.shared.request_context import REQUEST_ID_HEADER, get_request_id
 
 if TYPE_CHECKING:
     from rasa.core.nlg import NaturalLanguageGenerator
@@ -275,6 +276,10 @@ class KRemoteAction(Action):
 
         if endpoint_config.headers:
             headers.update(endpoint_config.headers)
+
+        request_id = get_request_id()
+        if request_id:
+            headers[REQUEST_ID_HEADER] = request_id
 
         url = concat_url(endpoint_config.url, subpath)
 

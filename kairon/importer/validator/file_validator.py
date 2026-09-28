@@ -23,7 +23,8 @@ from kairon.shared.actions.data_objects import FormValidationAction, SlotSetActi
     PyscriptActionConfig, DatabaseAction
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
 from kairon.shared.cognition.data_objects import CognitionSchema
-from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE
+from kairon.shared.constants import DEFAULT_ACTIONS, DEFAULT_INTENTS, SYSTEM_TRIGGERED_UTTERANCES, SLOT_SET_TYPE, \
+    EXCLUDED_INTENTS
 from kairon.shared.data.action_serializer import ActionSerializer
 from kairon.shared.data.constant import KAIRON_TWO_STAGE_FALLBACK
 from kairon.shared.data.data_objects import MultiflowStories
@@ -170,8 +171,9 @@ class TrainingDataValidator(Validator):
         intents_mismatch_summary = []
         nlu_data_intents = {e.data["intent"] for e in self.intents.intent_examples}
         self.component_count['intents'] = len(nlu_data_intents)
+        domain_intents = set(self.domain.intents) - EXCLUDED_INTENTS
 
-        for intent in self.domain.intents:
+        for intent in domain_intents:
             if intent not in nlu_data_intents and intent not in DEFAULT_INTENTS:
                 msg = f"The intent '{intent}' is listed in the domain file, but " \
                       f"is not found in the NLU training data."
@@ -180,7 +182,7 @@ class TrainingDataValidator(Validator):
                 intents_mismatch_summary.append(msg)
 
         for intent in nlu_data_intents:
-            if intent not in self.domain.intents and intent not in DEFAULT_INTENTS:
+            if intent not in domain_intents and intent not in DEFAULT_INTENTS:
                 msg = f"There is a message in the training data labeled with intent '{intent}'." \
                       f" This intent is not listed in your domain."
                 if raise_exception:
@@ -208,16 +210,16 @@ class TrainingDataValidator(Validator):
             multiflow_stories_intent = StoryValidator.get_step_name_for_multiflow_stories(self.multiflow_stories_graph,
                                                                                           "INTENT")
         all_intents = stories_intents.union(multiflow_stories_intent)
+        domain_intents = set(self.domain.intents) - EXCLUDED_INTENTS
 
         for story_intent in all_intents:
-            if story_intent not in self.domain.intents and story_intent not in DEFAULT_INTENTS:
+            if story_intent not in domain_intents and story_intent not in DEFAULT_INTENTS:
                 msg = f"The intent '{story_intent}' is used in your stories, but it is not listed in " \
                       f"the domain file. You should add it to your domain file!"
                 if raise_exception:
                     raise AppException(msg)
                 intents_mismatched.append(msg)
-
-        unused_intents = set(self.domain.intents) - all_intents - set(DEFAULT_INTENTS)
+        unused_intents = set(domain_intents) - all_intents - set(DEFAULT_INTENTS)
 
         for intent in unused_intents:
             msg = f"The intent '{intent}' is not used in any story."
@@ -330,6 +332,15 @@ class TrainingDataValidator(Validator):
 
         unused_actions = user_actions - utterance_in_domain - set(story_actions) - set(multiflow_actions) - {
             f'validate_{name}' for name in self.domain.form_names}
+
+        parallel_actions = set()
+        all_actions = self.actions
+        if all_actions and 'parallel_action' in all_actions:
+            for action in all_actions['parallel_action']:
+                parallel_actions.update(action['actions'])
+
+        unused_actions -= parallel_actions
+
         for action in unused_actions:
             if action not in system_triggered_actions.union(fallback_action):
                 msg = f"The action '{action}' is not used in any story."
@@ -450,8 +461,9 @@ class TrainingDataValidator(Validator):
         Checks whether domain is empty or not.
         @return:
         """
+        domain_intents = set(self.domain.intents) - EXCLUDED_INTENTS
         self.component_count['domain'] = {}
-        self.component_count['domain']['intents'] = len(self.domain.intents)
+        self.component_count['domain']['intents'] = len(domain_intents)
         self.component_count['domain']['utterances'] = len(self.domain.responses)
         self.component_count['domain']['actions'] = len(self.domain.user_actions)
         self.component_count['domain']['forms'] = len(self.domain.form_names)

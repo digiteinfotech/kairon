@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import shutil
@@ -8,6 +9,8 @@ from email.mime.text import MIMEText
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlencode
+
+from PIL import Image
 
 from kairon.chat.converters.channels.messenger import MessengerResponseConverter
 from kairon.chat.converters.channels.whatsapp import WhatsappResponseConverter
@@ -39,10 +42,11 @@ from kairon.shared.constants import ElementTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import STORY_EVENT
-from kairon.shared.data.data_objects import EventConfig, Slots, DemoRequestLogs
+from kairon.shared.data.data_objects import EventConfig, Slots, DemoRequestLogs, BotSettings
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import TemplateType
+from kairon.shared.admin.data_objects import LLMMetadata
 from kairon.shared.verification.email import QuickEmailVerification
 
 
@@ -94,6 +98,36 @@ class TestUtility:
         )
         yield "resource_unzip_and_validate"
         os.remove(zip_file + ".zip")
+
+    def test_remove_file_path_with_default_inside(self, tmp_path):
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        default_file = parent / "file.txt"
+        default_file.write_text("content")
+
+        Utility.remove_file_path(str(parent), str(default_file))
+
+        assert not default_file.exists()
+
+    def test_remove_file_path_with_default_outside(self, tmp_path):
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        outside_file = tmp_path / "outside.txt"
+        outside_file.write_text("content")
+
+        try:
+            Utility.remove_file_path(str(parent), str(outside_file))
+        except ValueError as e:
+            assert "is not inside" in str(e)
+
+    def test_remove_file_path_without_default(self, tmp_path):
+        file_path = tmp_path / "file.txt"
+        file_path.write_text("content")
+
+        Utility.remove_file_path(str(file_path))
+
+        assert not file_path.exists()
+
 
     def test_copy_model_file_to_directory(self):
         input_file_path = "tests/testing_data/model/20210512-172208.tar.gz"
@@ -498,25 +532,33 @@ class TestUtility:
     def test_verify_privacy_policy_and_terms_consent_without_both_consents(self):
         accepted_privacy_policy = False
         accepted_terms = False
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: privacy policy, terms and conditions"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent_without_privacy_policy(self):
         accepted_privacy_policy = False
         accepted_terms = True
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: privacy policy"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent_without_terms(self):
         accepted_privacy_policy = True
         accepted_terms = False
+        accepted_ai_guidelines = True
         with pytest.raises(AppException, match="Should be agreed to: terms and conditions"):
-            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+            Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                            accepted_ai_guidelines)
 
     def test_verify_privacy_policy_and_terms_consent(self):
         accepted_privacy_policy = True
         accepted_terms = True
-        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms)
+        accepted_ai_guidelines = True
+        Utility.verify_privacy_policy_and_terms_consent(accepted_privacy_policy, accepted_terms,
+                                                        accepted_ai_guidelines)
 
     def test_validate_only_stories_and_nlu(
         self, resource_validate_only_stories_and_nlu
@@ -753,6 +795,57 @@ class TestUtility:
         ):
             Utility.is_model_file_exists("invalid_bot")
 
+    @pytest.fixture(autouse=True)
+    def loguru_caplog_bridge(self):
+        from loguru import logger
+        import logging
+        class PropagateHandler(logging.Handler):
+            def emit(self, record):
+                logging.getLogger(record.name).handle(record)
+
+        logger.remove()
+        logger.add(PropagateHandler(), format="{message}")
+
+    def test_loadBillableBotModels_onstartup_exception(self, caplog):
+        BotSettings(bot="test1",user="test", is_billed=True).save()
+
+        from kairon.shared.utils import Utility
+        Utility.load_billablebots_onstartup()
+        assert "Failure while loadig model: Bot has not been trained yet!" in caplog.text
+
+    def test_loadBillableBotModels_onstartup(self, caplog, monkeypatch):
+        import logging
+        with caplog.at_level(logging.INFO):
+            def monkeypatch_reload(*args,**kwargs):
+                pass
+
+            from kairon.chat.agent_processor import AgentProcessor
+            monkeypatch.setattr(
+                AgentProcessor, "reload", monkeypatch_reload
+            )
+            from kairon.shared.utils import Utility
+            Utility.load_billablebots_onstartup()
+            assert "Model loaded onStartup for botid: test1" in caplog.text
+
+    def test_convert_image_format_success(self):
+        img = Image.new("RGB", (10, 10), color="red")
+        input_buffer = io.BytesIO()
+        img.save(input_buffer, format="JPEG")
+        jpg_bytes = input_buffer.getvalue()
+
+        result = Utility.convert_image_format(jpg_bytes, input_format="jpg", output_format="png")
+
+        assert isinstance(result, bytes)
+        assert result[:8] == b"\x89PNG\r\n\x1a\n"
+
+    def test_convert_image_format_failure(self):
+        bad_bytes = b"notanimage"
+        with patch("kairon.shared.utils.logger.warning") as mock_warn:
+            result = Utility.convert_image_format(bad_bytes, "jpg", "png")
+            mock_warn.assert_called_once()
+            assert result == bad_bytes
+
+
     @pytest.mark.asyncio
     @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
     async def test_handle_password_reset(self, validate_and_send_mail_mock):
@@ -777,6 +870,35 @@ class TestUtility:
 
         await MailUtility.format_and_send_mail(
             mail_type=mail_type, email=email, first_name=first_name
+        )
+        validate_and_send_mail_mock.assert_called_once_with(
+            email, expected_subject, expected_body
+        )
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_password_reset_unverified(self, validate_and_send_mail_mock):
+        mail_type = "password_reset_unverified"
+        email = "sampletest@gmail.com"
+        first_name = "sample"
+        url = "http://localhost/verify/testtoken123"
+
+        Utility.email_conf["email"]["templates"]["password_reset_unverified"] = (
+            open("template/emails/passwordResetUnverified.html", "rb").read().decode()
+        )
+        expected_body = Utility.email_conf["email"]["templates"]["password_reset_unverified"]
+        base_url = Utility.environment["app"]["frontend_url"]
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name.capitalize())
+            .replace("FIRST_NAME", first_name)
+            .replace("USER_EMAIL", email)
+            .replace("VERIFICATION_LINK", url)
+            .replace("BASE_URL", base_url)
+        )
+        expected_subject = Utility.email_conf["email"]["templates"]["password_reset_unverified_subject"]
+
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type, email=email, first_name=first_name, url=url
         )
         validate_and_send_mail_mock.assert_called_once_with(
             email, expected_subject, expected_body
@@ -1323,6 +1445,56 @@ class TestUtility:
         assert demo_request_logs['status'] == "request_received"
         assert demo_request_logs['message'] == "Thank You"
         assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.utils.MailUtility.validate_and_send_mail", autospec=True)
+    async def test_handle_action_failure(self, validate_and_send_mail_mock):
+        mail_type = "action_failure"
+        email = "sampletest@gmail.com"
+        first_name = "Team kAIron"
+
+        bot_name = "Test Bot"
+        action_name = "HTTP Action"
+        stack_trace = "Sample Trace"
+        user_query_history = "hello"
+        slot_values = {"name": "john"}
+        url = Utility.environment.get("action", {}).get("url")
+
+        Utility.email_conf["email"]["templates"]["action_failure"] = (
+            open("template/emails/action_failure.html", "rb").read().decode()
+        )
+
+        expected_body = Utility.email_conf["email"]["templates"]["action_failure"]
+
+        expected_body = (
+            expected_body.replace("FIRST_NAME", first_name)
+            .replace("BASE_URL", Utility.environment["app"]["frontend_url"])
+            .replace("BOT_NAME", bot_name)
+            .replace("ACTION_NAME", action_name)
+            .replace("STACK_TRACE", str(stack_trace))
+            .replace("USER_QUERY_HISTORY", str(user_query_history))
+            .replace("SLOT_VALUES", str(slot_values))
+            .replace("ACTION_URL", str(url))
+        )
+
+        expected_subject = (Utility.email_conf["email"]["templates"]["action_failure_subject"].replace("BOT_NAME", bot_name))
+        await MailUtility.format_and_send_mail(
+            mail_type=mail_type,
+            email=email,
+            first_name=first_name,
+            bot_name=bot_name,
+            action_name=action_name,
+            stack_trace=stack_trace,
+            user_query_history=user_query_history,
+            slot_values=slot_values,
+            url=url,
+        )
+
+        validate_and_send_mail_mock.assert_called_once_with(
+            email,
+            expected_subject,
+            expected_body,
+        )
 
     @pytest.mark.asyncio
     async def test_trigger_email(self):
@@ -2942,7 +3114,8 @@ class TestUtility:
             "instagram",
             "whatsapp",
             "line",
-            "mail"
+            "mail",
+            "voice"
         ]
         channels = Utility.get_channels()
         assert channels == expected_channels
@@ -2950,6 +3123,7 @@ class TestUtility:
     def test_get_channels_with_no_channels(self, monkeypatch):
         expected_channels = []
         monkeypatch.setitem(Utility.system_metadata, "channels", [])
+        monkeypatch.setitem(Utility.system_metadata, "voice_channels", [])
         channels = Utility.get_channels()
         assert channels == expected_channels
 
@@ -3084,10 +3258,100 @@ class TestUtility:
 
     def test_get_llm_hyperparameters(self):
         hyperparameters = Utility.get_llm_hyperparameters("openai")
+        LLMMetadata(
+            provider="openai",
+            schema="https://json-schema.org/draft/2020-12/schema",
+            type="object",
+            description="Open AI Models for Prompt",
+            properties={
+                "temperature": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 2.0,
+                    "description": "The temperature hyperparameter controls the creativity or randomness of the generated responses."
+                },
+                "max_tokens": {
+                    "type": "integer",
+                    "default": 300,
+                    "minimum": 5,
+                    "maximum": 4096,
+                    "description": "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
+                },
+                "model": {
+                    "type": "string",
+                    "default": "gpt-4.1-mini",
+                    "enum": [
+                        "gpt-3.5-turbo",
+                        "gpt-4.1-nano",
+                        "gpt-4.1-mini",
+                        "gpt-4.1"
+                    ],
+                    "description": "The model hyperparameter is the ID of the model to use."
+                },
+                "top_p": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "The top_p hyperparameter is a value that controls the diversity of the generated responses."
+                },
+                "n": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1,
+                    "maximum": 5,
+                    "description": "The n hyperparameter controls the number of different response options that are generated by the model."
+                },
+                "stop": {
+                    "anyOf": [
+                        {"type": "string"},
+                        {
+                            "type": "array",
+                            "maxItems": 4,
+                            "items": {"type": "string"}
+                        },
+                        {"type": "integer"},
+                        {"type": "null"}
+                    ],
+                    "type": [
+                        "string",
+                        "array",
+                        "integer",
+                        "null"
+                    ],
+                    "default": None,
+                    "description": "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
+                },
+                "presence_penalty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": -2.0,
+                    "maximum": 2.0,
+                    "description": "The presence_penalty hyperparameter penalizes the model for generating words that are not present in the context or input prompt."
+                },
+                "frequency_penalty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": -2.0,
+                    "maximum": 2.0,
+                    "description": "The frequency_penalty hyperparameter penalizes the model for generating words that have already been generated in the current response."
+                },
+                "logit_bias": {
+                    "type": "object",
+                    "default": {},
+                    "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
+                }
+            },
+            user="user"
+        ).save()
+
+        yield
+
         assert hyperparameters == {
             "temperature": 0.0,
             "max_tokens": 300,
-            "model": "gpt-4o-mini",
+            "model": "gpt-4.1-mini",
             "top_p": 0.0,
             "n": 1,
             "stop": None,
@@ -3095,12 +3359,14 @@ class TestUtility:
             "frequency_penalty": 0.0,
             "logit_bias": {},
         }
+        LLMMetadata.objects.delete()
+
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
         with pytest.raises(
-            AppException, match="Could not find any hyperparameters for gemini LLM."
+            AppException, match="Could not find any hyperparameters for cohere LLM."
         ):
-            Utility.get_llm_hyperparameters("gemini")
+            Utility.get_llm_hyperparameters("cohere")
 
     def test_get_client_ip_with_request_client(self):
         request = MagicMock()

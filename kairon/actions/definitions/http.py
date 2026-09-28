@@ -1,5 +1,3 @@
-import ujson as json
-from ujson import JSONDecodeError
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -8,11 +6,13 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, HttpActionConfig, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType, EvaluationType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
 
 
 class ActionHTTP(ActionsBase):
@@ -44,7 +44,7 @@ class ActionHTTP(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No HTTP action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -54,11 +54,13 @@ class ActionHTTP(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         bot_response = None
         http_response = None
         exception = None
         body_log = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         http_url = None
         request_method = None
         header_log = None
@@ -106,14 +108,34 @@ class ActionHTTP(ActionsBase):
             else:
                 body, body_log = ActionUtility.prepare_request(tracker_data, http_action_config['params_list'], self.bot)
                 parameter_log.update({"type": "params_list", "request_body": body, "request_params": body_log})
+
             logger.info("request_body: " + str(body_log))
             request_method = http_action_config['request_method']
             http_url = ActionUtility.prepare_url(http_url=http_action_config['http_url'], tracker_data=tracker_data)
-            http_response, resp_status_code, time_elapsed, response_headers = await ActionUtility.execute_request_async(
-                headers=headers, http_url=http_url,
-                request_method=request_method, request_body=body,
-                content_type=http_action_config['content_type']
-            )
+
+            media_ids = body.pop("media_ids", [])
+            media_ids = media_ids if isinstance(media_ids, list) else [media_ids]
+
+            if media_ids:
+                responses = await ActionUtility.process_media_and_execute_requests(
+                    bot=self.bot,
+                    media_ids=media_ids,
+                    headers=headers,
+                    http_url=http_url,
+                    request_method=request_method,
+                    request_body=body,
+                    content_type=http_action_config['content_type']
+                )
+
+                http_response = responses
+                resp_status_code = 200
+                response_headers = {'Content-Type': 'application/json'}
+            else:
+                http_response, resp_status_code, time_elapsed, response_headers = await ActionUtility.execute_request_async(
+                    headers=headers, http_url=http_url,
+                    request_method=request_method, request_body=body,
+                    content_type=http_action_config['content_type']
+                )
             time_elapsed = time_elapsed if time_elapsed else 0
             if response_headers:
                 response_headers = dict(response_headers)
@@ -133,10 +155,13 @@ class ActionHTTP(ActionsBase):
         except Exception as e:
             exception = str(e)
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             api_call_log.update({"exception": exception})
             bot_response = bot_response if bot_response else "I have failed to process your request"
             response_log.update({"exception": bot_response})
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
@@ -148,6 +173,8 @@ class ActionHTTP(ActionsBase):
                 events_to_extend.insert(0, initial_slots)
             events.extend(events_to_extend)
             total_time_elapsed = time_elapsed + time_taken_slots + time_taken_pyscript + time_taken_compose_response
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.http_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -163,7 +190,9 @@ class ActionHTTP(ActionsBase):
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
                 time_elapsed=total_time_elapsed,
-                http_status_code=resp_status_code
+                http_status_code=resp_status_code,
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
             filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response, "http_status_code": resp_status_code})
             filled_slots.update(slot_values)

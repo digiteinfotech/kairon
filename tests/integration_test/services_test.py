@@ -1,18 +1,21 @@
+import io
+import asyncio
 import os
 import re
 import shutil
 import tarfile
 import tempfile
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from io import BytesIO
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 from urllib.parse import urljoin
 from zipfile import ZipFile
-import litellm
+from zoneinfo import ZoneInfo
 
 import pytest
+import pytz
 import responses
 import ujson as json
 import yaml
@@ -27,28 +30,35 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
-from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType
-from kairon.shared.admin.data_objects import LLMSecret
-from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType
+from kairon.shared.actions.models import ActionParameterType, DbActionOperationType, DbQueryValueType, ActionType
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
+from kairon.shared.callback.data_objects import CallbackLog, CallbackRecordStatusType, CallbackConfig
+from kairon.shared.channels.mail.data_objects import MailResponseLog, MailStatus
+from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
+from kairon.shared.chat.data_objects import Channels
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
+from kairon.shared.importer.data_objects import ValidationLogs
 from kairon.shared.utils import Utility, MailUtility
 from kairon.shared.llm.processor import LLMProcessor
 import numpy as np
 
 Utility.load_system_metadata()
 
+from pathlib import Path
 from kairon.api.app.main import app
 from kairon.events.definitions.multilingual import MultilingualEvent
 from kairon.exceptions import AppException
 from kairon.idp.processor import IDPProcessor
 from kairon.shared.account.processor import AccountProcessor
-from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction
+from kairon.shared.actions.data_objects import ActionServerLogs, ScheduleAction, Actions, ParallelActionConfig, \
+    PyscriptActionConfig, PromptAction, HttpActionConfig, AnalyticsPipelineConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.auth import Authentication
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData
+from kairon.shared.cognition.data_objects import CognitionSchema, CognitionData, CollectionData, SchemaMetadata
 from kairon.shared.constants import EventClass, ChannelTypes, KaironSystemSlots
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.constant import (
@@ -59,7 +69,7 @@ from kairon.shared.data.constant import (
     KAIRON_TWO_STAGE_FALLBACK,
     FeatureMappings,
     DEFAULT_NLU_FALLBACK_RESPONSE,
-    DEFAULT_LLM, TASK_TYPE
+    DEFAULT_LLM, TASK_TYPE, STATUSES
 )
 from kairon.shared.data.data_objects import (
     Stories,
@@ -71,13 +81,17 @@ from kairon.shared.data.data_objects import (
     ChatClientConfig,
     BotSettings,
     LLMSettings,
-    DemoRequestLogs,
+    DemoRequestLogs, UserMediaData, POSIntegrations
 )
+from kairon.events.definitions.catalog_sync import CatalogSync
+from kairon.meta.processor import MetaProcessor
+from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping, CatalogSyncLogs
+from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.metering.constants import MetricType
-from kairon.shared.models import StoryEventType
+from kairon.shared.models import StoryEventType, UserMediaUploadStatus
 from kairon.shared.models import User
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.utils.translator import Translator
@@ -85,6 +99,7 @@ from kairon.shared.organization.processor import OrgProcessor
 from kairon.shared.sso.clients.google import GoogleSSO
 from urllib.parse import urlencode
 from deepdiff import DeepDiff
+from fastapi import HTTPException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 client = TestClient(app)
@@ -93,13 +108,147 @@ refresh_token = None
 token_type = None
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True, scope="function")
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
     connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
     AccountProcessor.load_system_properties()
 
+    LLMSecret.objects.delete()
+    LLMMetadata.objects.delete()
+
+    LLMMetadata(
+        provider="openai",
+        schema="https://json-schema.org/draft/2020-12/schema",
+        type="object",
+        description="Open AI Models for Prompt",
+        properties={
+            "temperature": {
+                "type": "number",
+                "default": 0.0,
+                "minimum": 0.0,
+                "maximum": 2.0,
+                "description": "The temperature hyperparameter controls the creativity or randomness of the generated responses."
+            },
+            "max_tokens": {
+                "type": "integer",
+                "default": 300,
+                "minimum": 5,
+                "maximum": 4096,
+                "description": "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
+            },
+            "model": {
+                "type": "string",
+                "default": "gpt-4.1-mini",
+                "enum": [
+                    "gpt-3.5-turbo",
+                    "gpt-4.1-nano",
+                    "gpt-4.1-mini",
+                    "gpt-4.1"
+                ],
+                "description": "The model hyperparameter is the ID of the model to use."
+            },
+            "top_p": {
+                "type": "number",
+                "default": 0.0,
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "The top_p hyperparameter is a value that controls the diversity of the generated responses."
+            },
+            "n": {
+                "type": "integer",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 5,
+                "description": "The n hyperparameter controls the number of different response options that are generated by the model."
+            },
+            "stop": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "type": "array",
+                        "maxItems": 4,
+                        "items": {"type": "string"}
+                    },
+                    {"type": "integer"},
+                    {"type": "null"}
+                ],
+                "type": [
+                    "string",
+                    "array",
+                    "integer",
+                    "null"
+                ],
+                "default": None,
+                "description": "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
+            },
+            "presence_penalty": {
+                "type": "number",
+                "default": 0.0,
+                "minimum": -2.0,
+                "maximum": 2.0,
+                "description": "The presence_penalty hyperparameter penalizes the model for generating words that are not present in the context or input prompt."
+            },
+            "frequency_penalty": {
+                "type": "number",
+                "default": 0.0,
+                "minimum": -2.0,
+                "maximum": 2.0,
+                "description": "The frequency_penalty hyperparameter penalizes the model for generating words that have already been generated in the current response."
+            },
+            "logit_bias": {
+                "type": "object",
+                "default": {},
+                "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
+            }
+        },
+        user="user"
+    ).save()
+
+    LLMMetadata(
+        provider="anthropic",
+        schema="https://json-schema.org/draft/2020-12/schema",
+        type="object",
+        description="Anthropic AI Models for Prompt",
+        properties={
+            "max_tokens": {
+                "type": "integer",
+                "default": 1024,
+                "minimum": 5,
+                "maximum": 4096,
+                "description": "The max_tokens hyperparameter limits the length of generated responses."
+            },
+            "model": {
+                "type": "string",
+                "default": "claude-3-7-sonnet-20250219",
+                "enum": [
+                    "claude-3-7-sonnet-20250219"
+                ],
+                "description": "The model hyperparameter is the ID of the Anthropic model."
+            }
+        },
+        user="user"
+    ).save()
+
+    LLMSecret(
+        llm_type="openai",
+        api_key="value",
+        models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+        user="user"
+    ).save()
+
+    LLMSecret(
+        llm_type="anthropic",
+        api_key="value",
+        models=["claude-3-7-sonnet-20250219"],
+        user="user"
+    ).save()
+
+    yield
+
+    LLMSecret.objects.delete()
+    LLMMetadata.objects.delete()
 
 def pytest_configure():
     return {
@@ -127,12 +276,23 @@ def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
     if event_class == EventClass.data_importer:
         overwrite = kwargs.get('overwrite', True)
         TrainingDataImporterEvent(bot, user, import_data=True, overwrite=overwrite).execute()
+    elif event_class == EventClass.catalog_integration:
+        provider = kwargs.get('provider')
+        sync_type = kwargs.get('sync_type')
+        token = kwargs.get('token')
+        sync_ref_id = kwargs.get('sync_ref_id')
+        asyncio.run(CatalogSync(bot, user, provider, sync_type=sync_type, token=token).execute(sync_ref_id=sync_ref_id))
     elif event_class == EventClass.model_training:
         ModelTrainingEvent(bot, user).execute()
     elif event_class == EventClass.content_importer:
         table_name = kwargs.get('table_name')
         overwrite = kwargs.get('overwrite', False)
         DocContentImporterEvent(bot, user, table_name, overwrite=overwrite).execute()
+    elif event_class==EventClass.upload_file_handler:
+        upload_type=kwargs.get("upload_type")
+        collection_name=kwargs.get("collection_name")
+        overwrite=kwargs.get("overwrite", False)
+        UploadHandler(bot=bot, user=user, upload_type=upload_type, collection_name=collection_name, overwrite=overwrite).execute()
     elif event_class == EventClass.model_testing:
         ModelTestingEvent(bot, user).execute()
     elif event_class == EventClass.delete_history:
@@ -305,7 +465,7 @@ def test_book_a_demo_with_valid_data(trigger_smtp_mock, validate_recaptcha_mock,
     assert demo_request_logs['recaptcha_response'] == "Svw2mPVxM0SkO4_2yxTcDQQ7iKNUDeDhGf4l6C2i"
 
 
-def test_account_registration_without_privacy_policy_and_terms_consent(monkeypatch):
+def test_account_registration_without_privacy_policy_and_terms_consent_and_accepted_ai_guidelines(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
@@ -317,12 +477,12 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": False,
-            "accepted_terms": False
+            "accepted_terms": False,
+            "accepted_ai_guidelines": False
         },
     )
     actual = response.json()
-    print(actual)
-    assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions"
+    assert actual["message"] == "Should be agreed to: privacy policy, terms and conditions, ai guidelines"
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -334,14 +494,15 @@ def test_account_registration_without_privacy_policy_and_terms_consent(monkeypat
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['timestamp']
     assert user_activity_log['account'] == -1
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['accepted_ai_guidelines'] is False
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
-def test_account_registration_without_privacy_policy(monkeypatch):
+def test_account_registration_without_privacy_policy_and_accepted_ai_guidelines(monkeypatch):
     response = client.post(
         "/api/account/registration",
         json={
@@ -353,12 +514,12 @@ def test_account_registration_without_privacy_policy(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": False,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": False
         },
     )
     actual = response.json()
-    print(actual)
-    assert actual["message"] == "Should be agreed to: privacy policy"
+    assert actual["message"] == "Should be agreed to: privacy policy, ai guidelines"
     assert not actual["success"]
     assert not actual["data"]
     assert actual["error_code"] == 422
@@ -370,10 +531,11 @@ def test_account_registration_without_privacy_policy(monkeypatch):
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is False
     assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['accepted_ai_guidelines'] is False
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
@@ -389,11 +551,11 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": False
+            "accepted_terms": False,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Should be agreed to: terms and conditions"
     assert not actual["success"]
     assert not actual["data"]
@@ -406,10 +568,11 @@ def test_account_registration_without_terms_and_conditions_consent(monkeypatch):
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is True
     assert user_activity_log['data']['accepted_terms'] is False
+    assert user_activity_log['data']['accepted_ai_guidelines'] is True
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
@@ -425,7 +588,8 @@ def test_account_registration_error():
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -461,7 +625,8 @@ def test_recaptcha_verified_request(monkeypatch):
             "account": "integration1234567890",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -486,7 +651,8 @@ def test_recaptcha_verified_request(monkeypatch):
             "bot": "integration",
             "add_trusted_device": True,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -525,7 +691,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -548,7 +715,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -568,7 +736,8 @@ def test_recaptcha_verified_request_invalid(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -621,7 +790,8 @@ def test_account_registation_temporary_email():
                 "account": "integration",
                 "bot": "integration",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -675,7 +845,8 @@ def test_account_registation_invalid_email():
                 "account": "integration",
                 "bot": "integration",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -733,7 +904,8 @@ def test_account_registation_invalid_email_quick_email_valid():
                 "account": "email_validation",
                 "bot": "email_validation",
                 "accepted_privacy_policy": True,
-                "accepted_terms": True
+                "accepted_terms": True,
+                "accepted_ai_guidelines": True
             },
         )
         actual = response.json()
@@ -752,7 +924,8 @@ def test_account_registration(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -771,7 +944,8 @@ def test_account_registration(monkeypatch):
             "bot": "integrationtest",
             "fingerprint": "asdfghj4567890",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -790,7 +964,8 @@ def test_account_registration(monkeypatch):
             "bot": "integration2",
             "fingerprint": "asdfghj4567890",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -827,7 +1002,8 @@ def test_account_registration_enable_sso_only(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -1088,11 +1264,11 @@ def test_add_user_consent_details():
         json={
             "accepted_privacy_policy": True,
             "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["data"]
@@ -1106,45 +1282,46 @@ def test_add_user_consent_details():
     assert user_activity_log['user'] == 'integration@demo.ai'
     assert user_activity_log['account'] == -1
     assert user_activity_log['timestamp']
-    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions consent']
+    assert user_activity_log['message'] == ['Privacy Policy, Terms and Conditions and AI Guidelines consent']
     assert user_activity_log['data']['username'] == 'integration@demo.ai'
     assert user_activity_log['data']['accepted_privacy_policy'] is True
     assert user_activity_log['data']['accepted_terms'] is True
+    assert user_activity_log['data']['accepted_ai_guidelines'] is True
     assert user_activity_log['data']['terms_and_policy_version'] == 1.0
 
 
-def test_add_user_consent_details_without_terms():
+def test_add_user_consent_details_without_terms_and_accepted_ai_guidelines():
     response = client.post(
         "/api/user/consent/details",
         json={
             "accepted_privacy_policy": True,
             "accepted_terms": False,
+            "accepted_ai_guidelines": False
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
-    assert actual["message"] == "Should be agreed to: terms and conditions"
+    assert actual["message"] == "Should be agreed to: terms and conditions, ai guidelines"
 
 
-def test_add_user_consent_details_without_privacy_policy():
+def test_add_user_consent_details_without_privacy_policy_and_accepted_ai_guidelines():
     response = client.post(
         "/api/user/consent/details",
         json={
             "accepted_privacy_policy": False,
             "accepted_terms": True,
+            "accepted_ai_guidelines": False
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
-    assert actual["message"] == "Should be agreed to: privacy policy"
+    assert actual["message"] == "Should be agreed to: privacy policy, ai guidelines"
 
 
 def test_add_user_consent_details_without_both_privacy_policy_and_terms():
@@ -1153,11 +1330,11 @@ def test_add_user_consent_details_without_both_privacy_policy_and_terms():
         json={
             "accepted_privacy_policy": False,
             "accepted_terms": False,
+            "accepted_ai_guidelines": True
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert not actual["data"]
@@ -1234,7 +1411,8 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
             "bot": "integration",
             "fingerprint": None,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -1442,6 +1620,1912 @@ def test_list_bots():
     assert response["data"]["shared"] == []
 
 
+
+def test_get_client_name_with_no_configuration():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert not actual["data"]
+    assert actual["message"] == 'No POS client configuration found for this bot.'
+    assert actual["error_code"] == 422
+
+
+def test_pos_register_pos_not_enabled():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "point of sale is not enabled"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_register_with_client_name_exists():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+    auth = f"{base}/web/session/authenticate"
+    call_kw = re.compile(f"{base}/web/dataset/call_kw")
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Test Client", "Kairon Client"]}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["message"] == "Client Test Client already exists"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_register():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+    auth = f"{base}/web/session/authenticate"
+    call_kw = re.compile(f"{base}/web/dataset/call_kw")
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client"]}, status=200)
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [10]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [{"state": "to install"}]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [20]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": [{"state": "to install"}]}, status=200,)
+    responses.add(responses.POST, call_kw, json={"result": True}, status=200,)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/register",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["message"] == "Client 'Test Client' created and POS Activated"
+    assert actual["error_code"] == 0
+
+
+def test_pos_login_pos_not_enabled():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = False
+    bot_settings.save()
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "point of sale is not enabled"
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login_with_page_type_pos_orders():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client", "page_type": "pos_orders"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    assert actual["url"] == 'http://localhost:8080/web#action=380&model=pos.order&view_type=list&cids=1&menu_id=231'
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    pytest.session_id = actual["session_id"]
+    assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=1&menu_id=233'
+
+@pytest.mark.asyncio
+@responses.activate
+def test_pos_login_with_cid():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    auth = f"{base}/web/session/authenticate"
+
+    responses.add(responses.POST, auth, json={"result": {"uid": 1}},
+                  headers={"Set-Cookie": "session_id=fake-session-id-123; Path=/;"}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/login",
+        json={"client_name": "Test Client", "company_id": 2},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["uid"] == 1
+    assert actual["session_id"] == "fake-session-id-123"
+    pytest.session_id = actual["session_id"]
+    assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=2&menu_id=233'
+
+
+def test_create_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.return_value = {
+            "name": "Test branch"
+        }
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        # Act
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        # Assert
+        assert response.status_code == 200
+        assert actual["message"] == "Branch created"
+        assert actual["data"] == {
+            "name": "Test branch"
+        }
+
+        mock_create_branch.assert_called_once_with(
+            session_id=session_id,
+            branch_name="Test branch",
+            street="Andheri East",
+            city="Mumbai",
+            state="Maharashtra",
+            bot=pytest.bot,
+            user='integration@demo.ai'
+        )
+
+
+@pytest.mark.asyncio
+async def test_vector_data_insertion_full_flow():
+    """
+    Test the full flow from API to upsert_vector_data,
+    ensuring stale data deletion and metadata handling.
+    """
+    import uuid
+
+    LLMSecret.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+    schema_meta = SchemaMetadata(training_needed=False, model_id="text-embedding-3-large", size=3072)
+
+    schema = CognitionSchema(
+        collection_name="groceries",
+        bot=pytest.bot,
+        user="test_user",
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        schema_metadata=schema_meta
+    )
+    schema.save()
+
+    LLMSecret(
+        llm_type="openrouter",
+        api_key="sk-test-key",
+        user="test_user",
+        models=["gpt-4o", "gpt-4"],
+        timestamp=datetime.utcnow()
+    ).save()
+    LLMSecret(
+        llm_type="openai",
+        api_key="sk-test-key-2",
+        user="test_user",
+        models=["gpt-4o", "gpt-4"],
+        timestamp=datetime.utcnow()
+    ).save()
+
+    stale_vector_id = str(uuid.uuid4())
+    CognitionData(
+        data={"id": 99, "item": "Old Milk"},
+        vector_id=stale_vector_id,
+        content_type="json",
+        collection="groceries",
+        bot=pytest.bot,
+        user="test_user"
+    ).save()
+
+    with mock.patch("kairon.shared.actions.utils.ActionUtility.execute_request_async",
+                    new_callable=AsyncMock) as mock_exe, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__collection_exists__",
+                       new_callable=AsyncMock) as mock_exists, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__collection_upsert__",
+                       new_callable=AsyncMock) as mock_upsert, \
+            mock.patch("kairon.shared.llm.processor.LLMProcessor.__delete_collection_points__",
+                       new_callable=AsyncMock) as mock_delete:
+        mock_exe.return_value = ([[0.1] * 3072], 200, 0.01, {})
+        mock_exists.return_value = True
+        mock_upsert.return_value = None
+        mock_delete.return_value = None
+
+        sync_data = [{"id": 1, "item": "Apple"}]
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/data/vector/insert?primary_key_col=id&collection_name=groceries",
+            json=sync_data,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        )
+
+        res_json = response.json()
+        print(res_json)
+        assert res_json["success"] is True
+        assert res_json["message"] == "Processing completed successfully"
+
+        assert CognitionData.objects(bot=pytest.bot, collection="groceries").count() == 1
+        assert CognitionData.objects(bot=pytest.bot, data__id=1).first() is not None
+        assert CognitionData.objects(bot=pytest.bot, data__id=99).first() is None
+
+        mock_delete.assert_called_once()
+        assert stale_vector_id in mock_delete.call_args[0][1]
+
+        assert mock_upsert.called
+    CognitionData.objects(bot=pytest.bot, collection="groceries",).delete()
+    CognitionSchema.objects(bot=pytest.bot, collection_name="groceries",).delete()
+    LLMSecret.objects.delete()
+
+def test_get_client_name_and_branch():
+    with patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_get_client_details:
+        mock_get_client_details.return_value = {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        response = client.get(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+
+        assert response.status_code == 200
+        assert actual["data"] == {
+            "client_name": "Demo Client",
+            "branches": [
+                {
+                    "branch_name": "Mumbai Branch",
+                    "company_id": 10
+                },
+                {
+                    "branch_name": "Pune Branch",
+                    "company_id": 11
+                }
+            ]
+        }
+
+        mock_get_client_details.assert_called_once_with(pytest.bot)
+
+def test_create_branch_failure():
+    with patch("kairon.shared.pos.processor.POSProcessor.create_branch") as mock_create_branch:
+        mock_create_branch.side_effect = HTTPException(
+            status_code=404,
+            detail="Error in creating branch"
+        )
+
+        payload = {
+            "branch_name": "Test branch",
+            "street": "Andheri East",
+            "city": "Mumbai",
+            "state": "Maharashtra"
+        }
+
+        session_id = "dummy_session_id"
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/create/branch?session_id={session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+        actual = response.json()
+        assert actual["message"] == "Error in creating branch"
+
+def test_get_client_name():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/client_name",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert not actual["message"]
+    assert actual["data"] == {'client_name': 'Test Client', 'branches': []}
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_delete_client_without_client():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client"]}, status=200)
+    responses.add(responses.POST, jsonrpc, json={"result": True}, status=200)
+
+    response = client.request(
+        "DELETE",
+        f"/api/bot/{pytest.bot}/pos/odoo/client/delete",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["message"] == "Client 'Test Client' not found"
+    assert not actual["data"]
+    assert actual["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_delete_client():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    jsonrpc = f"{base}/jsonrpc"
+
+    responses.add(responses.POST, jsonrpc, json={"result": ["Kairon Client", "Test Client"]}, status=200)
+    responses.add(responses.POST, jsonrpc, json={"result": True}, status=200)
+
+    response = client.request(
+        "DELETE",
+        f"/api/bot/{pytest.bot}/pos/odoo/client/delete",
+        json={"client_name": "Test Client"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["message"] == "Client 'Test Client' deleted successfully"
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 1
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": product_id,
+            "name": "Test Product",
+            "available_in_pos": False
+        }]},
+        status=200
+    )
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/1?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["data"]["product_id"] == 1
+    assert actual["data"]["name"] == "Test Product"
+    assert actual["data"]["available_in_pos"] is True
+    assert actual["message"] == "Product toggled to ON"
+    assert actual["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product_write_failure():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 1
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": product_id,
+            "name": "Faulty Product",
+            "available_in_pos": True
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        body=Exception("Simulated write failure"),
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/{product_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    
+    assert not actual["success"]
+    assert "Error toggling product" in actual["message"]
+    assert "Simulated write failure" in actual["message"]
+    assert not actual["data"]
+    assert actual["error_code"] == 500
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_toggle_product_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    product_id = 999
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/toggle_product/{product_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    
+    assert not actual["success"]
+    assert actual["message"] == f"Product {product_id} not found"
+    assert not actual["data"]
+    assert actual["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_invalid_status():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}&status=invalid_state",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["message"] == "Invalid status value"
+    assert not data["success"]
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_empty():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["data"]["data"] == []
+    assert data["data"]["count"] == 0
+    assert data["success"]
+    assert data["message"] == "POS orders fetched"
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_list_pos_orders_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [10]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [
+            {
+                "id": 10,
+                "name": "POS/0001",
+                "amount_total": 450,
+                "state": "paid",
+                "partner_id": [1, "Test"],
+                "company_id": [1, "My Company"],
+                "session_id": [1, "Session A"],
+                "date_order": "2025-01-01 10:00:00"
+            }
+        ]},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["data"]["count"] == 1
+    assert data["data"] == {
+        'data': [
+            {
+                'id': 10,
+                'name': 'POS/0001',
+                'amount_total': 450,
+                'state': 'paid',
+                'partner_id': [1, 'Test'],
+                'company_id': [1, 'My Company'],
+                'session_id': [1, 'Session A'],
+                'date_order': '2025-01-01 10:00:00'}
+        ],
+        'count': 1
+    }
+    assert data["success"]
+    assert data["message"] == "POS orders fetched"
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_product_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    payload = {
+        "products": [{"product_id": 111, "qty": 1, "unit_price": 20.0}],
+        "partner_id": None
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Product 111 not found"
+    assert not data["data"]
+    assert data["error_code"] == 404
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_product_not_available():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+    
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 98}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Hidden Item",
+            "display_name": "Hidden",
+            "lst_price": 100,
+            "available_in_pos": False,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 99, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert not data["data"]
+    assert data["message"] == "Product Hidden Item not available in POS"
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_no_pos_config():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+    
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Tea",
+            "display_name": "Tea",
+            "lst_price": 20,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "No POS Config found"
+    assert not data["data"]
+    assert data["error_code"] == 422
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_no_payment_method():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+    
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 99}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Coffee",
+            "display_name": "Coffee Cup",
+            "lst_price": 40,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 1, "unit_price": 20.0}]
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "No POS payment methods found"
+    assert not data["data"]
+    assert data["error_code"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_without_partner():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+    
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    responses.add(responses.POST, url, json={"result": 500}, status=200)
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Burger",
+            "display_name": "Burger Meal",
+            "lst_price": 150,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": [{"id": 1, "company_id": [1, "Comp"]}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [{"id": 10, "sequence_number": 7}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [{"id": 22}]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": [555]}, status=200)
+
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
+    payload = {"company_id": 10, "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}]}
+
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 10, "branch_name": "kairon Branch"}
+                ]
+            }
+    ):
+        res = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+    data = res.json()
+    print(data)
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [123]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
+        "partner_id": 3
+    }
+
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 10, "branch_name": "Main Branch"}
+                ]
+            }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
+    assert data["data"]["status"] == "created"
+    assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_success_with_cid():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": [],
+            "company_id": 2
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [123]},
+        status=200
+    )
+
+    responses.add(responses.POST, url, json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }}, status=200)
+
+
+    payload = {
+        "products": [{"product_id": 1, "qty": 2, "unit_price": 20.0}],
+        "partner_id": 3
+    }
+
+    with patch(
+            "kairon.shared.pos.processor.POSProcessor.get_client_details",
+            return_value={
+                "client_name": "Test Client",
+                "branches": [
+                    {"company_id": 10, "branch_name": "Main Branch"}
+                ]
+            }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
+    assert data["data"]["status"] == "created"
+    assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_create_new_session():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [
+            {"id": 1, "company_id": [1, "My Company"]}
+        ]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": 99},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": 99,
+            "sequence_number": 1,
+            "payment_method_ids": [5]
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [2]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }]},
+        status=200
+    )
+
+    payload = {
+        "products": [
+            {
+                "product_id": 1,
+                "qty": 2,
+                "unit_price": 20.0
+            }
+        ],
+        "partner_id": 3
+    }
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value={
+            "client_name": "Test Client",
+            "branches": [
+                {
+                    "company_id": 10,
+                    "branch_name": "Main Branch"
+                }
+            ]
+        }
+    ):
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=payload,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            },
+        )
+
+    data = response.json()
+
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "POS order created"
+    assert data["data"]["status"] == "created"
+    assert data["data"]["order_id"] == {
+        "id": 555,
+        "pos_reference": "POS/1777892348",
+        "account_move": False
+    }
+    assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_invalid_state():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 12
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 120,
+            "state": "cancel",
+            "partner_id": [1, "Test"],
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "Cannot accept order. order already in 'cancel' state."
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 999
+
+    responses.add(responses.POST, url, json={"result": []}, status=200)
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Order not found"
+    assert not data["data"]
+    assert data["error_code"] == 404
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_unexpected_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 14
+
+    responses.add(
+        responses.POST,
+        url,
+        body="Bad Request",
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+    assert not data["success"]
+    assert data["message"] == "JSON-RPC pos.order.read: HTTP 400 - Bad Request"
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+def test_accept_pos_order_invoice_failure():
+    order_id = 11
+
+    order_data = {
+        "id": order_id,
+        "amount_total": 200,
+        "partner_id": [1, "John"],
+        "state": "draft",
+        "session_id": [1, "Session A"]
+    }
+
+    with patch("kairon.shared.pos.processor.POSProcessor.jsonrpc_call") as mock_jsonrpc:
+
+        mock_jsonrpc.side_effect = [
+            [order_data],
+            Exception("Invoice failed")
+        ]
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        data = response.json()
+
+        assert data["success"]
+        assert data["message"] == "Order accepted"
+        assert data["data"] == {
+            "order_id": order_id,
+            "accepted": True,
+            "invoiced": False
+        }
+        assert data["error_code"] == 0
+
+@pytest.mark.asyncio
+@responses.activate
+def test_accept_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 10
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "amount_total": 500,
+            "partner_id": [1, "Test"],
+            "state": "draft",
+            "session_id": [1, "Session A"]
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{"journal_id": [20, "Cash"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": 55},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/accept/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "Order accepted"
+    assert data["data"] == {"order_id": order_id, "accepted": True}
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_invalid_state():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 15
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "state": "cancel"
+        }]},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Cannot cancel order. order already in 'cancel' state."
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_not_found():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 999
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": []},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert data["message"] == "Order not found"
+    assert data["error_code"] == 404
+    assert not data["data"]
+    
+    
+@pytest.mark.asyncio
+@responses.activate
+def test_reject_pos_order_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    order_id = 10
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": [{
+            "id": order_id,
+            "state": "draft"
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/pos_order/reject/{order_id}?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["message"] == "Order rejected"
+    assert data["data"] == {"order_id": order_id, "status": "cancelled"}
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_pos_products_odoo_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST,
+        url,
+        body="Bad Request",
+        status=400
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/product?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert "Odoo error" in data["message"]
+    assert data["message"] == 'Odoo error: 400: JSON-RPC product.template.search_read: HTTP 400 - Bad Request'
+    assert not data["data"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_pos_products_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    products = [
+        {
+            "product_variant_id": 1,
+            "name": "Product A",
+            "list_price": 100,
+            "barcode": "123456",
+            "available_in_pos": True,
+            "categ_id": [1, "Snacks"],
+            "description_sale": "Crunchy Fries Available!"
+        },
+        {
+            "product_variant_id": 2,
+            "name": "Product B",
+            "list_price": 200,
+            "barcode": "789012",
+            "available_in_pos": True,
+            "categ_id": [2, "Beverages"],
+            "description_sale": False
+        }
+    ]
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": products},
+        status=200
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pos/odoo/product?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"]["count"] == 2
+    assert data["data"]["data"] == products
+    assert data["error_code"] == 0
+    assert not data["message"]
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    mock_odoo_response = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": [
+            {
+                "id": 1,
+                "name": "Admin",
+                "login": "admin",
+                "company_id": [1, "Main Company"],
+                "company_ids": [1]
+            }
+        ]
+    }
+
+    responses.add(
+        responses.POST,
+        url,
+        json=mock_odoo_response,
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"] == mock_odoo_response
+
+@pytest.mark.asyncio
+@responses.activate
+def test_get_user_access_odoo_error():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/jsonrpc"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={
+            "error": {
+                "code": 400,
+                "message": "Bad Request"
+            }
+        },
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/user/access?session_id={pytest.session_id}",
+        json={
+            "db_name": "test_db",
+            "password": "admin"
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert "error" in data["data"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_success():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={"result": True},
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"] is True
+    assert data["message"] == "Session invalidated successfully"
+    assert not data["data"]
+    assert data["error_code"] == 0
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_odoo_error_response():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        json={
+            "error": {
+                "code": 200,
+                "message": "Session expired"
+            }
+        },
+        status=200
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id=invalid-session",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"] is True
+    assert data["error_code"] == 0
+    assert not data["data"]
+    assert data["message"] == "Session invalidated successfully"
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_invalidate_session_request_failure():
+    import requests
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/session/destroy"
+
+    responses.add(
+        responses.POST,
+        url,
+        body=requests.exceptions.ConnectionError("Connection refused"),
+        status=400
+    )
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pos/odoo/invalidate/session?session_id={pytest.session_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert not data["success"]
+    assert "Connection refused" in data["message"]
+    assert not data["data"]
+    assert data["error_code"] == 400
+
+
+def test_secure_collection_crud_lifecycle():
+    # Step 1: Add a bot
+    add_bot_resp = client.post(
+        "/api/account/bot",
+        json={"name": "secure-collection-bot"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert add_bot_resp.status_code == 200
+    bot_id = add_bot_resp.json()["data"]["bot_id"]
+    assert bot_id
+
+    # Step 2: Add document to secure collection
+    add_payload_1 = {
+        "collection_name": "testing_create_colection_secure",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "09876541",
+            "name": "testing_1",
+            "empid": 12345
+        },
+        "status": True
+    }
+    add_resp_1 = client.post(
+        f"/api/bot/{bot_id}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload_1
+    )
+    add_payload = {
+        "collection_name": "testing_create_colection_secure",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "0987654",
+            "name": "testing",
+            "empid": 1234
+        },
+        "status": True
+    }
+    add_resp = client.post(
+        f"/api/bot/{bot_id}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload
+    )
+    assert add_resp.status_code == 200
+    resp_json = add_resp.json()
+    print(resp_json)
+    assert resp_json["message"] == "Record saved!"
+    doc_id = resp_json["data"]["_id"]
+    assert doc_id
+
+    # Step 3: List collection data
+    list_resp = client.get(
+        f"/api/bot/{bot_id}/data/collection/testing_create_colection_secure",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    assert list_resp.status_code == 200
+    listed_data = list_resp.json()["data"]["logs"]
+    assert any(doc["_id"] == doc_id for doc in listed_data)
+
+    # Step 4: Update the document
+    update_payload = {
+        "id": doc_id,
+        "collection_name": "testing_create_colection_secure",
+        "data": {
+            "mobile_number":"123456789",
+            "name": "testing_updated",
+            "empid": 4321  # This should be ignored because it's in `is_non_editable`
+        },
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "status": False
+    }
+    update_resp = client.put(
+        f"/api/bot/{bot_id}/data/collection/{doc_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=update_payload
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["message"] == "Record updated!"
+
+    # Verify update — empid should remain unchanged (1234), name should change
+    list_resp_after_update = client.get(
+        f"/api/bot/{bot_id}/data/collection/testing_create_colection_secure",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    updated_doc = next(doc for doc in list_resp_after_update.json()["data"]["logs"] if doc["_id"] == doc_id)
+    assert updated_doc["data"]["name"] == "testing_updated"
+    assert updated_doc["data"]["empid"] == 1234  # Unchanged due to is_non_editable
+
+    # Step 5: Delete the document
+    delete_doc_resp = client.request(
+        method="DELETE",
+        url=f"/api/bot/{bot_id}/data/collection/{doc_id}",
+        headers={
+            "Authorization": pytest.token_type + " " + pytest.access_token,
+            "Content-Type": "application/json"
+        }
+    )
+    assert delete_doc_resp.status_code == 200
+    assert delete_doc_resp.json()["message"] == "Record deleted!"
+
+    # Step 6: Delete the collection
+    delete_coll_resp = client.request(
+        method="DELETE",
+        url=f"/api/bot/{bot_id}/data/collection/delete/testing_create_colection_secure",
+        headers={
+            "Authorization": pytest.token_type + " " + pytest.access_token,
+            "Content-Type": "application/json"
+        })
+
+    assert delete_coll_resp.status_code == 200
+    assert delete_coll_resp.json()["data"]["deleted"] >= 1
+
+    delete_resp = client.delete(
+        f"/api/account/bot/{bot_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["message"] == "Bot removed"
+
+
+def test_get_all_collections():
+    # Step 1: Create a bot
+    add_bot_resp = client.post(
+        "/api/account/bot",
+        json={"name": "secure-collection-bot_testing"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert add_bot_resp.status_code == 200
+    bot_id = add_bot_resp.json()["data"]["bot_id"]
+    assert bot_id
+
+    # Step 2: Add 4 different collections
+    for i in range(1, 5):
+        payload = {
+            "collection_name": f"collection_{i}",
+            "is_secure": ["mobile_number"],
+            "is_non_editable": ["empid"],
+            "data": {
+                "mobile_number": f"999999000{i}",
+                "name": f"test_user_{i}",
+                "empid": 1000 + i
+            },
+            "status": True
+        }
+        add_resp = client.post(
+            f"/api/bot/{bot_id}/data/collection",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+            json=payload
+        )
+        assert add_resp.status_code == 200
+        assert add_resp.json()["message"] == "Record saved!"
+        assert add_resp.json()["data"]["_id"]
+
+    # Step 3: Fetch all collections
+    get_resp = client.get(
+        f"/api/bot/{bot_id}/data/collections/all",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    assert get_resp.status_code == 200
+    response_data = get_resp.json()["data"]
+
+    # Step 4: Check the 4 collections are present with count = 1 each
+    expected_collections = {f"collection_{i}": 1 for i in range(1, 5)}
+    for collection in response_data:
+        name = collection["collection_name"]
+        count = collection["count"]
+        assert name in expected_collections
+        assert count == expected_collections[name]
+
+    delete_resp = client.delete(
+        f"/api/account/bot/{bot_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["message"] == "Bot removed"
+
 def test_delete_multiple_payload_content_with_empty_list():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.cognition_collections_limit = 20
@@ -1490,7 +3574,6 @@ def test_delete_multiple_payload_content_with_empty_list():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"][0]["msg"] == 'row_ids must be a non-empty list of valid strings'
 
 def test_delete_multiple_payload_content():
@@ -1540,8 +3623,131 @@ def test_delete_multiple_payload_content():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Records deleted!"
+
+def test_add_global_widget_config():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+           "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Date Range",
+                    "initialStartDate": "2023-01-01",
+                    "initialEndDate": "2023-06-30"
+                },
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "mh", "label": "Maharashtra"},
+                        {"value": "mp", "label": "Madhya Pradesh"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config added!"
+    assert actual["data"]
+    pytest.global_widget_id = actual["data"]
+    assert actual["error_code"] == 0
+
+
+def test_add_global_widget_config_duplicate_should_fail():
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "dateRange",
+                    "title": "Duplicate Date Range",
+                    "initialStartDate": "2024-01-01",
+                    "initialEndDate": "2024-06-30"
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"A widget configuration already exists for bot '{pytest.bot}'."
+    assert actual["error_code"] == 422
+
+
+def test_get_global_widget_config():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert "global_config" in actual["data"]
+    assert actual["data"]['global_config']["bot"] == pytest.bot
+    assert actual["error_code"] == 0
+
+def test_update_global_widget_config():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "categorical",
+                    "title": "Updated Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "dl", "label": "Delhi"},
+                        {"value": "mh", "label": "Maharashtra"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config updated!"
+    assert actual["error_code"] == 0
+
+def test_delete_global_widget_config():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Global Filter config removed!"
+    assert actual["error_code"] == 0
+
+def test_update_global_widget_config_should_fail():
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        json={
+            "global_config": [
+                {
+                    "type": "categorical",
+                    "title": "Regions",
+                    "name": "Region",
+                    "options": [
+                        {"value": "dl", "label": "Delhi"},
+                        {"value": "mh", "label": "Maharashtra"}
+                    ]
+                }
+            ]
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"No global config found for bot '{pytest.bot}'."
+    assert actual["error_code"] == 422
+
+def test_delete_global_widget_config_should_pass_when_not_exist():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/widgets/global_filter_config",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == f"No global config found for bot '{pytest.bot}'."
+
 
 def test_get_client_config_with_nudge_server_url():
     expected_app_server_url = Utility.environment['app']['server_url']
@@ -1569,10 +3775,19 @@ def test_get_llm_metadata():
         {
             "llm_type": "openai",
             "api_key": "common_openai_key",
-            "models": ["common_openai_model1", "common_openai_model2"],
+            "models": ["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
             "user": "123",
+            "bot": pytest.bot,
             "timestamp": datetime.utcnow()
         },
+        {
+            "llm_type": "anthropic",
+            "api_key": "custom_claude_key",
+            "models": ["claude-3-7-sonnet-20250219"],
+            "bot": pytest.bot,
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        }
     ]
 
     for secret in secrets:
@@ -1590,12 +3805,11 @@ def test_get_llm_metadata():
     assert "data" in actual
     assert "openai" in actual["data"]
     assert "model" in actual["data"]["openai"]["properties"]
-    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
+    assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"]
 
-    assert "anthropic" not in actual["data"]
-    #assert "model" in actual["data"]["anthropic"]["properties"]
-    #assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == []
-    LLMSecret.objects.delete()
+    assert "anthropic" in actual["data"]
+    assert "model" in actual["data"]["anthropic"]["properties"]
+    assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["claude-3-7-sonnet-20250219"]
 
 
 def test_get_llm_metadata_bot_specific_model_exists():
@@ -1606,13 +3820,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
-        },
-        {
-            "llm_type": "anthropic",
-            "api_key": "common_claude_key",
-            "models": ["common_claude_model1", "common_claude_model2"],
-            "user": "123",
+            "bot": pytest.bot,
             "timestamp": datetime.utcnow()
         },
         {
@@ -1624,6 +3832,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "timestamp": datetime.utcnow()
         }
     ]
+
     for secret in secrets:
         LLMSecret(**secret).save()
 
@@ -1634,17 +3843,619 @@ def test_get_llm_metadata_bot_specific_model_exists():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"] is True
-    assert actual["message"] is None
-
-    assert "data" in actual
-    assert "openai" in actual["data"]
-    assert "model" in actual["data"]["openai"]["properties"]
     assert actual["data"]["openai"]["properties"]["model"]["enum"] == ["common_openai_model1", "common_openai_model2"]
-
-    assert "anthropic" in actual["data"]
-    assert "model" in actual["data"]["anthropic"]["properties"]
     assert actual["data"]["anthropic"]["properties"]["model"]["enum"] == ["common_claude_model1", "common_claude_model2", "custom_claude_model1"]
     LLMSecret.objects.delete()
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
+def test_get_instagram_user_posts(mock_get_config, monkeypatch):
+    from kairon.shared.channels.instagram.processor import InstagramProcessor
+
+    mock_get_config.return_value = {
+        'bot': '689097feb37ee2678aedd0cd',
+        'connector_type': 'instagram',
+        'config': {
+            'app_secret': 'cdb69bc72e2ccb7a869f20cbb6b0229a',
+            'page_access_token': 'EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD',
+            'verify_token': 'kairon-instagram-token',
+            'is_dev': True,
+            'post_config': {
+                '17859719991451845': {
+                    'keywords': ['offer', 'discount'],
+                    'comment_reply': 'Grab our latest offers and discounts on shoes before they run out!'
+                },
+                '17859719991451973': {
+                    'keywords': ['hi', 'price'],
+                    'comment_reply': 'Hi there! Yes, we offer the best prices on premium quality shoes!'
+                },
+                '17859719991451321': {
+                    'keywords': ['hello', 'offer']}}},
+        'meta_config': {}
+    }
+
+    async def fake_get_user_media_posts(self):
+        return {"data": [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]}
+
+    monkeypatch.setattr(InstagramProcessor, "get_user_media_posts", fake_get_user_media_posts)
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/user/posts",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert actual['data'] == [
+            {
+                "id": "17859719991451973",
+                "ig_id": "3682168664448337756",
+                "media_product_type": "FEED",
+                "media_type": "IMAGE",
+                "media_url": "https://scontent.cdninstagram.com/v/t39.30808-6/523122870_122185919582569325_790599521546845755_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=1-7&_nc_sid=18de74&_nc_ohc=7YYhBBUOvsQQ7kNvwESQCKD&_nc_oc=AdmaDolEqkLcifMAyuwYg70gHJNAeLHZqKBOWYTOtRCZ_PmWP7xruqnCsygI9ZPgPnU&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=MMqhUvMR4L69GkDMm6bQug&oh=00_AfSQcTvOKOFu0xqZYAMPAEe9r3sN3UKD0KhRvF39X1araA&oe=6887FF72",
+                "timestamp": "2025-07-22T07:18:52+0000",
+                "username": "maheshsv17",
+                "permalink": "https://www.instagram.com/p/DMZsOQvhIdc/",
+                "caption": "TEST",
+                "like_count": 0,
+                "comments_count": 0
+            }
+        ]
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_cron(mock_event_server):
+
+    data = {
+        "bot": pytest.bot,
+        "name": "callback_test",
+        "pyscript_code": "print('Hello, World!')",
+    }
+    result = CallbackConfig.create_entry(**data)
+    payload = {
+        "pipeline_name": "daily_analytics_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "32 11 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+    pytest.analytics_event_id = actual["data"]["event_id"]
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_epoch(mock_event_server):
+    future_epoch = int(time.time()) + 3600
+    timezone = "Asia/Kolkata"
+
+    payload = {
+        "pipeline_name": "one_time_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": future_epoch,
+            "timezone": timezone
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+
+    event_id = actual["data"]["event_id"]
+    saved_event = AnalyticsPipelineConfig.objects(id=event_id).get()
+    saved_schedule = saved_event.scheduler_config["schedule"]
+
+    expected_dt = datetime.fromtimestamp(
+        future_epoch,
+        ZoneInfo(timezone)
+    ).isoformat()
+
+    assert saved_schedule == expected_dt
+
+    mock_event_server.assert_called_once()
+    _, kwargs = mock_event_server.call_args
+    assert kwargs["run_at"] == expected_dt
+    assert kwargs["timezone"] == timezone
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_create_pipeline_event_without_scheduler(mock_event_server):
+    payload = {
+        "pipeline_name": "instant_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Event scheduled!"
+    assert "event_id" in actual["data"]
+
+def test_create_pipeline_event_missing_pipeline_name():
+    payload = {
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    assert data["message"][0]["loc"] == ["body", "pipeline_name"]
+    assert data["message"][0]["msg"] == "field required"
+
+
+def test_create_pipeline_event_missing_callback_name():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "timestamp": "2025-11-25T14:30:00Z"
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    assert data["message"][0]["loc"] == ["body", "callback_name"]
+    assert data["message"][0]["msg"] == "field required"
+
+
+def test_create_pipeline_event_invalid_expression_type():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "unknown",
+            "schedule": "10 10 * * *",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response = response.json()
+    assert response["error_code"] == 422
+    errors = response["message"]
+    assert any("expression_type must be either cron or epoch" in err["msg"] for err in errors)
+
+
+def test_scheduler_config_missing_timezone():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "10 10 * * *",
+            "timezone": ""
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("timezone is required for all schedules" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_missing_schedule():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("schedule time is required for all schedules" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_invalid_cron_expression():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "invalid_cron",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Invalid cron expression" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_cron_interval_too_small():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "* * * * *",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Recurrence interval must be at least" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_invalid_integer():
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": "invalid",
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("schedule must be a valid integer epoch time" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_unknown_timezone():
+    future_epoch = int(datetime.now().timestamp()) + 5000
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": str(future_epoch),
+            "timezone": "Invalid/XYZ"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("Unknown timezone" in err["msg"] for err in data["message"])
+
+
+def test_scheduler_config_epoch_not_in_future():
+    past_epoch = int(datetime.now().timestamp()) - 100
+    payload = {
+        "pipeline_name": "daily_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "schedule": str(past_epoch),
+            "timezone": "Asia/Kolkata"
+        }
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    data = response.json()
+    assert data["error_code"] == 422
+    assert any("epoch time (schedule) must be in the future" in err["msg"] for err in data["message"])
+
+
+def test_list_pipeline_events_success():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Events fetched"
+
+
+def test_get_pipeline_event_success():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event retrieved"
+    assert actual["data"]
+
+
+def test_get_pipeline_event_not_found():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/invalid-id-123",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+
+
+@patch("kairon.shared.utils.Utility.execute_http_request", autospec=True)
+def test_delete_pipeline_event_success(mock_http):
+    mock_http.return_value = {"success": True}
+
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event deleted"
+    mock_http.assert_called_once()
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_delete_pipeline_event_failure(mock_event_server):
+    mock_event_server.side_effect = Exception("Delete failure")
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/fake-id-123",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_pipeline_event_success(mock_event_server):
+    payload = {
+        "pipeline_name": "daily_analytics_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "32 11 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    pytest.analytics_event_id = actual["data"]["event_id"]
+
+    payload = {
+        "pipeline_name": "updated_pipeline",
+        "callback_name": "callback_test",
+        "timestamp": "2025-11-25T14:30:00Z",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "10 12 * * *",
+            "timezone": "Asia/Kolkata"
+        },
+        "data_deletion_policy": [],
+        "triggers": []
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "Event updated"
+    assert actual["data"]["event_id"] == pytest.analytics_event_id
+
+
+def test_update_pipeline_event_validation_error():
+    payload = {
+        "pipeline_name": "",
+        "callback_name": "cb_test",
+        "timestamp": "invalid-ts"
+    }
+
+    response = client.put(
+        f"/api/bot/{pytest.bot}/pipeline_analytics/events/{pytest.analytics_event_id}",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+    assert response['error_code'] == 422
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/action/callback/callback_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+
+def test_search_and_list_analytics_pipeline_logs():
+
+    now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+
+    entries = [
+        {
+            "status": "Completed",
+            "start_offset": 0,
+            "end_offset": 2,
+        },
+        {
+            "status": "Completed",
+            "start_offset": -30,
+            "end_offset": -27,
+        },
+        {
+            "status": "Fail",
+            "exception": "Execution error: Expecting value: line 1 column 1 (char 0)",
+            "start_offset": -40,
+            "end_offset": -38,
+        },
+        {
+            "status": "Completed",
+            "start_offset": -60,
+            "end_offset": -57,
+        },
+    ]
+
+    for e in entries:
+        AnalyticsPipelineLogs(
+            event_id="6938ff94e22b4ae6c225fa18",
+            status=e["status"],
+            pipeline_name="daily_analytics_pipeline",
+            callback_name="callback_test",
+            exception=e.get("exception"),
+            bot=pytest.bot,
+            bot_response={"message": "Record Saved!"},
+            user = "integration@demo.ai",
+            start_timestamp=now + timedelta(minutes=e["start_offset"]),
+            end_timestamp=now + timedelta(minutes=e["end_offset"]),
+        ).save()
+
+
+    list_resp = client.get(
+        f"/api/bot/{pytest.bot}/logs/analytics_pipeline",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    list_data = list_resp.json()
+    assert list_data["success"]
+    assert list_data["error_code"] == 0
+    assert list_data["data"]["total"] == 4
+    assert len(list_data["data"]["logs"]) == 4
+
+    for log in list_data["data"]["logs"]:
+        assert log["event_id"]
+        assert log["status"]
+        assert log["pipeline_name"] == "daily_analytics_pipeline"
+        assert log["callback_name"] == "callback_test"
+        assert log["bot_response"] == {"message": "Record Saved!"}
+        assert log.get("start_time") or log.get("start_timestamp")
+        assert log.get("end_time") or log.get("end_timestamp")
+        assert log["user"] == "integration@demo.ai"
+
+
+    from_date = (now - timedelta(days=1)).date()
+    to_date = (now + timedelta(days=1)).date()
+
+    search_url = (
+        f"/api/bot/{pytest.bot}/logs/analytics_pipeline/search"
+        f"?from_date={from_date}&to_date={to_date}"
+        f"&start_idx=0&page_size=10&pipeline_name=daily_analytics_pipeline"
+    )
+
+    search_resp = client.get(
+        search_url,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    search_data = search_resp.json()
+    assert search_data["success"]
+    assert search_data["error_code"] == 0
+    assert search_data["data"]["total"] == 4
+    assert len(search_data["data"]["logs"]) == 4
+
+    for log in search_data["data"]["logs"]:
+        assert log["event_id"]
+        assert log["status"]
+        assert log["pipeline_name"] == "daily_analytics_pipeline"
+        assert log["callback_name"] == "callback_test"
+        assert log["start_timestamp"]
+        assert log["end_timestamp"]
+        assert log["user"] == "integration@demo.ai"
+        if log["status"] == "Fail":
+            assert "Execution error" in log["exception"]
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -1666,7 +4477,6 @@ def test_add_scheduled_broadcast_with_no_template_name(mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', '__root__'],
@@ -1694,7 +4504,6 @@ def test_add_scheduled_broadcast_with_no_language_code(mock_event_server):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["error_code"] == 422
     assert actual["message"] == [{'loc': ['body', '__root__'],
@@ -1718,7 +4527,6 @@ def test_logout():
         headers={"Authorization": token_type + " " + access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["message"] == "User Logged out!"
     assert not actual["data"]
@@ -1810,7 +4618,6 @@ def test_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.0
@@ -1856,7 +4663,6 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 54.08
@@ -1880,7 +4686,6 @@ def test_update_payload_upload_api_with_float_field_value_integer(monkeypatch):
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="update_with_float_field_value_integer").first()
     assert cognition_data is not None
     data_dict = cognition_data.to_mongo().to_dict()
-    print(data_dict)
     assert data_dict['data']['item'] == 'Box'
     assert isinstance(data_dict['data']['price'], float)
     assert data_dict['data']['price'] == 27.0
@@ -1912,13 +4717,906 @@ def test_default_values():
 
     assert sorted(actual["data"]["default_names"]) == sorted(expected_default_names)
 
+def test_odoo_registration():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.pos_enabled = True
+    bot_settings.save()
+    with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
+
+        mock_pos = MagicMock()
+        mock_pos.return_value.onboarding.return_value = {"ok": True}
+
+        mock_factory.return_value = mock_pos
+
+        payload = {
+            "client_name": "XYZ_Pvt_Ltd"
+        }
+
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/register",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        actual = response.json()
+        assert actual["success"]
+        assert actual["data"] ==  {'ok': True}
+        mock_factory.assert_called_once_with("odoo")
+        mock_pos.return_value.onboarding.assert_called_once_with(
+            client_name="XYZ_Pvt_Ltd",
+            bot=pytest.bot,
+            user='integration@demo.ai'
+        )
+
+def test_odoo_login():
+    with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
+
+        mock_pos = MagicMock()
+        mock_pos.return_value.authenticate.return_value = {"ok": True}
+
+        mock_factory.return_value = mock_pos
+
+        payload = {
+            "client_name": "XYZ_Pvt_Ltd",
+            "page_type": "pos_products"
+        }
+
+        response = client.post(
+            url=f"/api/bot/{pytest.bot}/pos/odoo/login",
+            json=payload,
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        )
+
+        actual = response.json()
+        assert actual ==  {'ok': True}
+        mock_factory.assert_called_once_with("odoo")
+        mock_pos.return_value.authenticate.assert_called_once_with(
+            client_name="XYZ_Pvt_Ltd",
+            page_type="pos_products",
+            bot=pytest.bot,
+            company_id=1
+        )
+
+def test_bulk_save_success():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "test_data",
+                "is_secure": ["name"],
+                "is_non_editable": ["email"],
+                "data": {
+                    "name": "Aniket",
+                    "email": "aniket@example.com"
+                }
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Bulk save completed"
+    assert actual["success"]
+    assert "data" in actual
+    CollectionData.objects(collection_name="test_bulk_save_success").delete()
+
+
+def test_bulk_save_with_missing_is_secure_key():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "user",
+                "is_secure": ["name", "aadhar"],
+                "data": {
+                    "name": "Aniket",
+                    "email": "aniket@example.com"
+                }
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{
+        "loc": ["body", "payload", 0, "__root__"],
+        "msg": "is_secure contains keys that are not present in data",
+        "type": "value_error"
+    }]
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_data_none():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "user",
+                "is_secure": ["name"],
+                "data": None
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+    assert actual["data"] is None
+
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "data cannot be empty and should be of type dict!" in error_messages
+    assert "none is not an allowed value" in error_messages
+
+def test_bulk_empty_payload():
+    request_body = {
+        "payload": [
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "payload must contain at least one item" in error_messages
+
+
+def test_bulk_save_with_empty_collection_name():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "  ",
+                "data": {"name": "Aniket"},
+                "is_secure": [],
+                "is_non_editable": []
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]["msg"] == "collection_name should not be empty!"
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_non_editable_key_missing_in_data():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "user",
+                "data": {
+                    "name": "Aniket",
+                },
+                "is_secure": [],
+                "is_non_editable": ["email"]
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["message"][0]["msg"] == "is_non_editable contains keys that are not present in data"
+    assert not actual["success"]
+    assert actual["data"] is None
+
+
+def test_bulk_save_with_invalid_types():
+    request_body = {
+        "payload": [
+            {
+                "collection_name": "user",
+                "data": {"name": "Aniket"},
+                "is_secure": "name",
+                "is_non_editable": []
+            }
+        ]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection/bulk/test_bulk_save_success",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    error_messages = [msg["msg"] for msg in actual["message"]]
+    assert "is_secure should be list of keys!" in error_messages
+    assert "value is not a valid list" in error_messages
+
+
+@responses.activate
+def test_upload_file_content_success():
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.upload_file_handler}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+    file = {
+        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection_data?overwrite=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=file,
+    )
+
+    actual = response.json()
+    assert actual["success"]
+    assert actual["message"] == "File content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.upload_file_handler, upload_type="crud_data", collection_name="test_collection_data", overwrite=False
+    )
+
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/file_upload?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    logs = actual['data']['logs']
+    assert len(logs) == 1
+    assert logs[0]['file_name'] == 'Salesstore.csv'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
+    assert logs[0]['is_uploaded']
+    assert logs[0]['start_timestamp'] is not None
+    assert logs[0]['end_timestamp'] is not None
+    assert logs[0]['upload_errors'] == {}
+    assert logs[0]['exception'] == ''
+
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/file_upload/search"
+        f"?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    CollectionData.objects(collection_name="test_collection_data").delete()
+
+
+@patch("kairon.api.app.routers.bot.data.UploadHandler")
+def test_upload_file_content_no_enqueue_when_validate_false(mock_upload_handler):
+    """Test that file upload does not enqueue event when validation fails."""
+
+    mock_event_instance = MagicMock()
+    mock_event_instance.validate.return_value = False
+    mock_upload_handler.return_value = mock_event_instance
+
+    files = {
+        "file_content": ("Salesstore.csv", open("tests/testing_data/file_content_upload/Salesstore.csv", "rb"))
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/data/upload/collection_data/test_collection?overwrite=true",
+        files=files,
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"] is True
+    assert actual["message"] == "File content upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    mock_event_instance.enqueue.assert_not_called()
+
+def test_get_broadcast_filter_count():
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details_test",
+        data={
+            "name": "Mahesh",
+            "mobile_number": "9876543000",
+            "crop": "wheat",
+            "status": "stage-1",
+            "age": "26"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details_test",
+        data={
+            "name": "Ganesh",
+            "mobile_number": "9876543001",
+            "crop": "Paddy",
+            "status": "stage-2",
+            "age": "26"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details_test",
+        data={
+            "name": "Hitesh",
+            "mobile_number": "9876543001",
+            "crop": "Okra",
+            "status": "stage-4",
+            "age": "27"
+        }
+    ).save()
+    CollectionData(
+        bot=pytest.bot,
+        user="test_user_1",
+        collection_name="crop_details_test",
+        data={
+            "name": "Aniket",
+            "mobile_number": "6203115367",
+            "crop": "wheat",
+            "status": "stage-3",
+            "age": "27"
+        }
+    ).save()
+
+
+    filters_list = [
+        {"column": "age", "condition": "gte", "value": "26"},
+        {"column": "name", "condition": "nin", "value": ["Mahesh"]},
+    ]
+
+    # API call
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/filter/count",
+        params={"filters": json.dumps(filters_list)},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    # Response validation
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Filtered count fetched successfully"
+    assert actual["data"]["count"] == 3
+
+def test_get_broadcast_filter_count_no_filter():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/collections/crop_details_test/filter/count",
+        params={"filters": []},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Filtered count fetched successfully"
+    assert actual["data"]["count"] == 4
+    CollectionData.objects(bot = pytest.bot, collection_name = "crop_details_test").delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_success(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+    bsp_type = "360dialog"
+    expected_external_media_id = "abc123"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="user",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+        output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF-1.4 mock content"),
+        "Upload_Download Data.pdf",
+        ".pdf"
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        json={"id": expected_external_media_id},
+        status=200,
+        content_type="application/json"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["external_media_id"] == expected_external_media_id
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+@pytest.mark.asyncio
+def test_bsp_upload_media_media_id_not_found():
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "UserMediaData not found for media_id: non_existing_media_id" in actual["message"]
+
+
+@pytest.mark.asyncio
+def test_bsp_upload_media_channel_not_configured():
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="user",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert f"Channel config not found for bot: {pytest.bot}, connector_type: whatsapp, bsp_type: {bsp_type}" in actual["message"]
+    UserMediaData.objects().delete()
+
+
+@pytest.mark.asyncio
+def test_bsp_upload_media_access_token_not_found():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    media_id = "non_existing_media_id"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="user",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "API key (access token) not found in channel config" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_no_file_stream(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+
+    media_id = "no_stream_media_id"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="no_stream.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="user",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    mock_get_buffer.return_value = (None, "no_stream.pdf", ".pdf")
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "File stream not found" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
+def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "upload_fail_media"
+    bsp_type = "360dialog"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="upload_fail.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="user",
+        filesize=410484,
+        sender_id="test@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="some_url",
+        output_filename="output_file.pdf",
+    ).save()
+
+    mock_get_buffer.return_value = (
+        io.BytesIO(b"%PDF mock"),
+        "upload_fail.pdf",
+        ".pdf"
+    )
+
+    responses.add(
+        responses.POST,
+        "https://waba-v2.360dialog.io/media",
+        body="Failure Test Case Simulation",
+        status=400,
+        content_type="application/json"
+    )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/media/upload/{bsp_type}/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["data"] is None
+    assert actual["error_code"] == 422
+    assert "Failure Test Case Simulation" in actual["message"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.whatsapp = "meta"
+    bot_settings.save()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+def test_get_user_media_data_with_no_data():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == []
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
+def test_get_user_media_data():
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Testing description", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description 2", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Failed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Testing description 2", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="user",
+        filesize=410484,
+        additional_info={"description": "Issue description 3", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="processing",
+        upload_type="system",
+        filesize=410484,
+        additional_info={"description": "Testing description 4", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5bb",
+        filename="whataspp_360_885215267637065.jpg",
+        extension=".jpg",
+        upload_status="Completed",
+        upload_type="system",
+        filesize=410484,
+        additional_info={"description": "Testing description 5", "phone_number": "919876543210"},
+        sender_id="mahesh.sattala@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime(2026, 2, 20, 5, 37, 17, 59000),
+        media_url="https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+        output_filename="user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg",
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/user/media/data",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    data = response.json()
+    print(data)
+
+    assert data["success"]
+    assert data["data"] == [
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Testing description', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description 2', 'phone_number': '919876543210'},
+        },
+        {
+            'sender_id': 'mahesh.sattala@digite.com',
+            'timestamp': '2026-02-20T05:37:17.059000',
+            'media_url': 'https://uat-kairon-upload.s3.amazonaws.com/user_media/698431b7f85e2534c76f5034/919515991685_019c74a78760760fa2c08e4da2ce35c1_whataspp_360_885215267637065.jpeg',
+            'additional_info': {'description': 'Issue description 3', 'phone_number': '919876543210'},
+        }
+    ]
+    assert data["error_code"] == 0
+    assert data["message"]
+
+
 @pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
 def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+    LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
@@ -1930,7 +5628,14 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -1987,7 +5692,7 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=push_menu",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=push_menu",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2009,26 +5714,22 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":2.5,"quantity":10}'],  # First input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":2,"item":"Apples","price":1.2,"quantity":20}'],  # Second input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        }
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
 
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
@@ -2040,8 +5741,12 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
 @mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists, mock_create_collection, mock_collection_upsert):
+    LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
@@ -2053,7 +5758,14 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     mock_collection_upsert.return_value = None
 
     embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
+
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
 
     secrets = [
         {
@@ -2125,7 +5837,7 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=field_update",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=item_toggle",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2147,42 +5859,35 @@ def test_knowledge_vault_sync_field_update(mock_embedding, mock_collection_exist
         doc_data = doc.to_mongo().to_dict()["data"]
         assert doc_data == expected_data[index]
 
-    expected_calls = [
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":1,"item":"Juice","price":80.5,"quantity":56}'],
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        },
-        {
-            "model": "text-embedding-3-large",
-            "input": ['{"id":2,"item":"Milk","price":27.0,"quantity":12}'],  # Second input
-            "metadata": {'user': 'integration@demo.ai', 'bot': pytest.bot, 'invocation': 'knowledge_vault_sync'},
-            "api_key": "common_openai_key",
-            "num_retries": 3
-        }
-    ]
+    call_kwargs = mock_embedding.call_args[1]
 
-    for i, expected in enumerate(expected_calls):
-        actual_call = mock_embedding.call_args_list[i].kwargs
-        assert actual_call == expected
+    assert call_kwargs["request_method"] == "POST"
+    assert call_kwargs["timeout"] == 30
+
+    assert call_kwargs["http_url"] == (
+        f"http://localhost/{pytest.bot}/aembedding/openai"
+    )
+
+    request_body = call_kwargs["request_body"]
+
+    assert request_body["user"] == "integration@demo.ai"
+
+    assert request_body["kwargs"]["api_key"] == "common_openai_key"
+    assert request_body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     LLMSecret.objects.delete()
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_event_type_does_not_exist(mock_embedding):
+def test_knowledge_vault_sync_sync_type_does_not_exist():    
+    LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     secrets = [
         {
@@ -2202,32 +5907,28 @@ def test_knowledge_vault_sync_event_type_does_not_exist(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=non_existent_event_type",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=non_existent_sync_type",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
     actual = response.json()
     assert not actual["success"]
-    assert actual["message"] == "Event type does not exist"
+    assert actual["message"] == "Sync type does not exist"
     assert actual["error_code"] == 422
 
     cognition_data = CognitionData.objects(bot=pytest.bot, collection="nonexistent_collection")
     assert cognition_data.count() == 0
     LLMSecret.objects.delete()
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_collection(mock_embedding):
+def test_knowledge_vault_sync_missing_collection():
+    LLMSecret.objects.delete()
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
-
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
 
     secrets = [
         {
@@ -2247,7 +5948,7 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=nonexistent_collection&event_type=push_menu",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=nonexistent_collection&sync_type=push_menu",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2262,19 +5963,15 @@ def test_knowledge_vault_sync_missing_collection(mock_embedding):
 
     LLMSecret.objects.delete()
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
+def test_knowledge_vault_sync_missing_primary_key():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
+    LLMSecret.objects.delete()
     secrets = [
         {
             "llm_type": "openai",
@@ -2311,13 +6008,12 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=push_menu",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=push_menu",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
 
     actual = response.json()
-    print(actual)
     assert not actual["success"]
     assert actual["message"] == "Primary key 'id' must exist in each row."
     assert actual["error_code"] == 422
@@ -2329,19 +6025,15 @@ def test_knowledge_vault_sync_missing_primary_key(mock_embedding):
     LLMSecret.objects.delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
+def test_knowledge_vault_sync_column_length_mismatch():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
+    LLMSecret.objects.delete()
     secrets = [
         {
             "llm_type": "openai",
@@ -2378,7 +6070,7 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=push_menu",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=push_menu",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2394,19 +6086,15 @@ def test_knowledge_vault_sync_column_length_mismatch(mock_embedding):
     LLMSecret.objects.delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_invalid_columns(mock_embedding):
+def test_knowledge_vault_sync_invalid_columns():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
+    LLMSecret.objects.delete()
     secrets = [
         {
             "llm_type": "openai",
@@ -2458,7 +6146,7 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=field_update",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=item_toggle",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2482,19 +6170,15 @@ def test_knowledge_vault_sync_invalid_columns(mock_embedding):
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     LLMSecret.objects.delete()
 
-@pytest.mark.asyncio
 @responses.activate
-@mock.patch.object(litellm, "aembedding", autospec=True)
-def test_knowledge_vault_sync_document_non_existence(mock_embedding):
+def test_knowledge_vault_sync_document_non_existence():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.content_importer_limit_per_day = 10
     bot_settings.cognition_collections_limit = 10
     bot_settings.llm_settings['enable_faq'] = True
     bot_settings.save()
 
-    embedding = list(np.random.random(LLMProcessor.__embedding__))
-    mock_embedding.return_value = litellm.EmbeddingResponse(**{'data': [{'embedding': embedding}]})
-
+    LLMSecret.objects.delete()
     secrets = [
         {
             "llm_type": "openai",
@@ -2546,7 +6230,7 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     ]
 
     response = client.post(
-        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&event_type=field_update",
+        url=f"/api/bot/{pytest.bot}/data/cognition/sync?primary_key_col=id&collection_name=groceries&sync_type=item_toggle",
         json=sync_data,
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -2575,6 +6259,23 @@ def test_knowledge_vault_sync_document_non_existence(mock_embedding):
     CognitionSchema.objects(bot=pytest.bot, collection_name="groceries").delete()
     CognitionData.objects(bot=pytest.bot, collection="groceries").delete()
     LLMSecret.objects.delete()
+
+@responses.activate
+def test_fetch_metadata_for_logs_positive():
+    """
+    Positive test: Verify metadata for logs is fetched successfully.
+    """
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert response.status_code == 200
+    json_data = response.json()
+    assert "data" in json_data
+    assert "metadata" in json_data["data"]
+    assert isinstance(json_data["data"]["metadata"], dict)
+    assert len(json_data["data"]["metadata"]) > 0
 
 @responses.activate
 def test_upload_doc_content():
@@ -2654,19 +6355,42 @@ def test_upload_doc_content():
         f"/api/bot/{pytest.bot}/content/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/content?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
     actual = response.json()
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     logs = actual['data']['logs']
     assert len(logs) == 1
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
     assert logs[0]['validation_errors'] == {}
     assert logs[0]['exception'] == ''
+
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/content/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
     cognition_data= CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload")
 
@@ -2680,7 +6404,6 @@ def test_upload_doc_content():
         'profit': 54.98
     }
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload").delete()
-
 
 @responses.activate
 def test_upload_doc_content_append():
@@ -2761,8 +6484,8 @@ def test_upload_doc_content_append():
     logs = actual['data']['logs']
     assert len(logs) == 2
     assert logs[0]['file_received'] == 'Salesstore.csv'
-    assert logs[0]['status'] == 'Success'
-    assert logs[0]['event_status'] == 'Completed'
+    assert logs[0]['status'] == STATUSES.SUCCESS.value
+    assert logs[0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert logs[0]['is_data_uploaded']
     assert logs[0]['start_timestamp'] is not None
     assert logs[0]['end_timestamp'] is not None
@@ -2852,8 +6575,8 @@ def test_upload_doc_content_basic_validation_failure():
         "Extra columns": "{'revenue'}."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.FAIL.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_basic_validation_failure").delete()
 
@@ -2994,8 +6717,8 @@ def test_upload_doc_content_datatype_validation_failure():
     assert any(e['column_name'] == 'sales' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 4'])
     assert any(
         e['column_name'] == 'profit' and e['status'] == 'Required Field is Empty' for e in validation_errors['Row 6'])
-    assert logs[0]["status"] == "Partial_Success"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.PARTIAL_SUCCESS.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
 
     cognition_data = list(CognitionData.objects(bot=pytest.bot, collection="test_doc_content_upload_datatype_validation_failure"))
     assert len(cognition_data) == 18
@@ -3154,10 +6877,4235 @@ def test_upload_doc_content_file_type_validation_failure():
         'File type error': "Invalid file type: application/pdf. Please upload a CSV file."
     }
     assert validation_errors == expected_errors
-    assert logs[0]["status"] == "Failure"
-    assert logs[0]["event_status"] == "Completed"
+    assert logs[0]["status"] == STATUSES.FAIL.value
+    assert logs[0]["event_status"] == EVENT_STATUS.COMPLETED.value
     CognitionData.objects(bot=pytest.bot, collection="test_doc_content_file_type_validation_failure").delete()
 
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_success(
+        mock_upload_media,
+        mock_save_validate,
+        mock_validate,
+):
+    mock_validate.return_value = None
+    mock_save_validate.return_value = (None, "/tmp/file.txt")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("test.txt", file_content, "text/plain")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body["message"] == "File uploaded successfully!"
+    assert body["data"]["media_id"] == "12345"
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_invalid_file_type(
+        mock_upload_media,
+        mock_save_validate,
+):
+    mock_save_validate.return_value = (None, "/tmp/file.py")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("test.py", file_content, "script")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert ("Invalid file type: script. Allowed types are: audio/aac, audio/amr, audio/mpeg,"
+            " audio/mp4, audio/ogg, text/plain, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+            " application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-powerpoint,"
+            " application/vnd.openxmlformats-officedocument.presentationml.presentation, application/pdf,"
+            " image/jpeg, image/png, image/webp, video/3gpp, video/mp4.") in body["message"]
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.save_media_file_path")
+@patch("kairon.shared.chat.processor.ChatDataProcessor.upload_media_to_bsp")
+def test_upload_media_with_filename_missing(
+        mock_upload_media,
+        mock_save_validate,
+):
+    mock_save_validate.return_value = (None, "/tmp/file.py")
+    mock_upload_media.return_value = {"media_id": "12345"}
+
+    file_content = io.BytesIO(b"dummy file content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("", file_content, "script")},
+    )
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert ("Expected UploadFile, received: <class 'str'>") in body['message'][0]["msg"]
+
+
+@responses.activate
+def test_upload_media_no_file():
+    response = (client.post
+                (f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+                 headers={"Authorization": pytest.token_type + " " + pytest.access_token}))
+
+    body = response.json()
+    print(body)
+    assert body['error_code'] == 422
+    assert 'field required' in body["message"][0]['msg']
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.ChatDataProcessor.validate_media_file_type")
+def test_upload_media_file_too_large(mock_validate):
+    mock_validate.side_effect = AppException("File size exceeds 100MB")
+
+    file_content = io.BytesIO(b"x" * (101 * 1024 * 1024))
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("large.pdf", file_content, "application/pdf")},
+    )
+
+    body = response.json()
+    assert body['error_code'] == 422
+    assert "File size exceeds 100MB" in body["message"]
+
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.Channels.objects")
+def test_upload_media_channel_missing(mock_channels):
+    mock_channels.return_value.exclude.return_value.get.side_effect = AppException("No channel found")
+
+    file_content = io.BytesIO(b"dummy content")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.pdf", file_content, "application/pdf")},
+    )
+    body = response.json()
+    assert body["success"] is False
+    assert "no channel" in body["message"].lower()
+    assert body["error_code"] == 422
+
+@responses.activate
+@patch("kairon.shared.chat.processor.Channels.objects")
+def test_upload_media_channel_other_exception(mock_channels):
+    mock_channels.return_value.exclude.return_value.get.side_effect = Exception("some random error")
+
+    file_content = io.BytesIO(b"dummy content")
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.pdf", file_content, "application/pdf")},
+    )
+
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert "some random error" in body["message"].lower()
+
+
+@pytest.mark.asyncio
+def test_validate_media_file_type_file_already_exists_within_30_days():
+    from kairon.shared.data.data_objects import UserMediaData
+    from kairon.shared.models import UserMediaUploadStatus
+
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename="file.png",
+        extension=".png",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=1024,
+        sender_id="user@test.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow() - timedelta(days=5),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert body["message"] == "File 'file.png' already exists. Please upload a different file."
+
+
+@responses.activate
+@patch("kairon.shared.chat.processor.datetime")
+@patch("kairon.shared.chat.user_media.UserMediaData.objects")
+def test_upload_media_file_already_exists(mock_user_media, mock_datetime):
+    fixed_now = datetime(2026, 1, 1, 12, 0, 0)
+    mock_datetime.utcnow.return_value = fixed_now
+
+    mock_db_obj = MagicMock()
+    mock_db_obj.timestamp = fixed_now - timedelta(days=10)
+
+    mock_queryset = MagicMock()
+    mock_queryset.order_by.return_value.first.return_value = mock_db_obj
+    mock_user_media.return_value = mock_queryset
+
+    file_content = io.BytesIO(b"dummy content")
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/whatsapp/upload/media_upload",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files={"file_content": ("file.png", file_content, "image/png")},
+    )
+
+    body = response.json()
+    assert body["success"] is False
+    assert body["error_code"] == 422
+    assert "file 'file.png' already exists" in body["message"].lower()
+    mock_user_media.assert_called_once_with(
+        bot=pytest.bot,
+        filename="file.png"
+    )
+    mock_queryset.order_by.assert_called_once_with("-timestamp")
+
+@responses.activate
+def test_get_media_ids():
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    bot_settings.whatsapp = "360dialog"
+    bot_settings.save()
+    if bot_settings:
+        bot_settings_dict = bot_settings.to_mongo().to_dict()
+        print(bot_settings_dict)
+
+    channel = Channels.objects(bot=pytest.bot).first()
+    if channel:
+        channel = channel.to_mongo().to_dict()
+        print(channel)
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="Upload_Download Data.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_ids",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+    assert body["data"][0]['media_id'] == media_id
+
+@responses.activate
+def test_get_media_ids_within_30_days():
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    if bot_settings:
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
+    channel = Channels.objects(bot=pytest.bot).first()
+    if channel:
+        channel = channel.to_mongo().to_dict()
+        print(channel)
+    Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    ).save()
+    media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
+
+    UserMediaData(
+        media_id=media_id,
+        filename="new_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow()- timedelta(days=40),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+    media_id2 = "0196c9efbf547b81a66ba2af7b72d5bb"
+    UserMediaData(
+        media_id=media_id2,
+        filename="old_file.pdf",
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_ids",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+    assert len(body["data"]) == 1, "Expected only one media record within 30 days"
+    assert body["data"][0]['media_id'] == media_id2
+    assert all(item['media_id'] != media_id for item in body["data"]), "Old media should be filtered out"
+
+@pytest.mark.django_db
+@responses.activate
+def test_delete_media_ids():
+    bot = pytest.bot
+    media_id = "715690454858053"
+    channel_name = "whatsapp"
+
+    with patch.dict(
+        "kairon.shared.utils.Utility.environment",
+        {"storage": {"whatsapp_media": {"bucket": "mock-bucket"}}},
+        clear=False
+    ), patch(
+        "kairon.shared.cloud.utils.CloudUtility.delete_file"
+    ) as mock_delete_file:
+        mock_delete_file.return_value = None
+
+        bot_settings = BotSettings.objects(bot=bot).first()
+        if not bot_settings:
+            bot_settings = BotSettings(bot=bot)
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
+
+        Channels(
+            bot=bot,
+            connector_type=channel_name,
+            config={
+                "client_name": "dummy",
+                "client_id": "dummy",
+                "channel_id": "dummy",
+                "api_key": "dummy_token",
+                "partner_id": "dummy",
+                "waba_account_id": "dummy",
+                "bsp_type": "360dialog"
+            },
+            user="test@example.com",
+            timestamp=datetime.utcnow()
+        ).save()
+
+        UserMediaData(
+            media_id=media_id,
+            filename="Upload_Download Data.pdf",
+            extension=".pdf",
+            upload_status=UserMediaUploadStatus.completed.value,
+            upload_type="broadcast",
+            filesize=410484,
+            sender_id="himanshu.gupta_@digite.com",
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            media_url="",
+            output_filename="mock_file.pdf",
+            external_upload_info={"bsp": "360dialog"}
+        ).save()
+
+        responses.add(
+            responses.DELETE,
+            f"https://waba-v2.360dialog.io/{media_id}",
+            json={"message": "Deleted Successfully"},
+            status=200
+        )
+
+        response = client.delete(
+            f"/api/bot/{bot}/data/{channel_name}/media/{media_id}",
+            headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+        )
+
+        body = response.json()
+        UserMediaData.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
+        assert body["message"] == "Deleted Successfully"
+
+
+@pytest.mark.django_db
+def test_delete_media_ids_failure():
+    bot = pytest.bot
+    media_id = "non_existent_media"
+    channel_name = "whatsapp"
+
+    UserMediaData.objects(bot=bot).delete()
+    Channels.objects(bot=bot).delete()
+
+    response = client.delete(
+        f"/api/bot/{bot}/data/{channel_name}/media/{media_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    body = response.json()
+
+    assert body["success"] is False
+    assert body["message"] == "Media deletion failed: No channel found for this bot. Please configure the channel first."
+    assert body["data"] is None
+    assert body["error_code"] == 422
+
+@responses.activate
+@patch("kairon.shared.cloud.utils.CloudUtility.get_s3_media_url")
+def test_fetch_media_url(mock_get_s3):
+    mock_get_s3.return_value = "https://mock-s3-url.com/Upload_Download_Data.pdf"
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).first()
+    if bot_settings:
+        bot_settings.whatsapp = "360dialog"
+        bot_settings.save()
+
+    Channels.objects(bot=pytest.bot).delete()
+    channel_obj = Channels(
+        bot=pytest.bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    )
+    channel_obj.save()
+    channel_name = channel_obj.connector_type
+
+    filename = "Upload_Download Data.pdf"
+    UserMediaData.objects().delete()
+    UserMediaData(
+        media_id="0196c9efbf547b81a66ba2af7b72d5ba",
+        filename=filename,
+        extension=".pdf",
+        upload_status=UserMediaUploadStatus.completed.value,
+        upload_type="broadcast",
+        filesize=410484,
+        sender_id="himanshu.gupta_@digite.com",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        media_url="",
+        output_filename="",
+        external_upload_info={"bsp": "360dialog"}
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{filename}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+    )
+    body = response.json()
+
+    UserMediaData.objects().delete()
+    Channels.objects().delete()
+
+    assert body["success"] is True
+    assert body["data"]["filename"] == filename
+    assert body["data"]["media_url"] == "https://mock-s3-url.com/Upload_Download_Data.pdf"
+
+def create_dummy_channel(bot):
+    Channels.objects(bot=bot).delete()
+    channel_obj = Channels(
+        bot=bot,
+        connector_type="whatsapp",
+        config={
+            "client_name": "dummy",
+            "client_id": "dummy",
+            "channel_id": "dummy",
+            "api_key": "dummy_token",
+            "partner_id": "dummy",
+            "waba_account_id": "dummy",
+            "bsp_type": "360dialog"
+        },
+        user="test@example.com",
+        timestamp=datetime.utcnow()
+    )
+    channel_obj.save()
+    return channel_obj.connector_type
+
+
+@patch("kairon.shared.cloud.utils.CloudUtility.get_s3_media_url")
+def test_fetch_media_url_file_not_exist(mock_get_s3):
+    client = TestClient(app)
+    channel_name = create_dummy_channel(pytest.bot)
+
+    mock_get_s3.return_value = None
+
+    missing_filename = "file_not_exist.pdf"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/data/fetch_media_url/{missing_filename}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+    )
+    body = response.json()
+
+    Channels.objects().delete()
+    UserMediaData.objects().delete()
+
+    assert body["success"] is True
+    assert body["data"]["filename"] == missing_filename
+    assert body["data"]["media_url"] is None or body["data"]["media_url"] == "None"
+    assert "not found" in body["message"].lower() or "media" in body["message"].lower()
+
+@responses.activate
+def test_add_pos_integration_config_success():
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+       },
+       "smart_catalog_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+
+
+@responses.activate
+def test_get_pos_endpoint_push_menu():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/push_menu/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert actual["message"] == "Endpoint fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
+
+@responses.activate
+def test_get_pos_endpoint_item_toggle():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/petpooja/item_toggle/endpoint",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    print(actual)
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert actual["message"] == "Endpoint fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+
+@responses.activate
+def test_list_pos_integration_configs_success():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/integrations",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "POS Integration config fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+    assert isinstance(actual["data"], list)
+
+    petpooja_config = next((item for item in actual["data"] if item.get("provider") == "petpooja"), None)
+    assert petpooja_config is not None
+
+    assert petpooja_config["bot"] == str(pytest.bot)
+    assert petpooja_config["provider"] == "petpooja"
+    assert set(petpooja_config["sync_type"]) == {"push_menu", "item_toggle"}
+    assert petpooja_config["config"]["restaurant_name"] == "restaurant1"
+    assert petpooja_config["config"]["branch_name"] == "branch1"
+    assert petpooja_config["config"]["restaurant_id"] == "98765"
+    assert petpooja_config["meta_config"]["access_token"] == "dummy_access_token"
+    assert petpooja_config["meta_config"]["catalog_id"] == "12345"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+
+@responses.activate
+def test_list_pos_integration_configs_empty():
+    """
+    Test fetching POS integration configs when no configs exist for the bot.
+    """
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/integrations",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "POS Integration config fetched"
+    assert actual["error_code"] == 0
+    assert actual["success"] is True
+    assert isinstance(actual["data"], list)
+    assert actual["data"] == []
+
+@responses.activate
+def test_delete_pos_integration_config_success():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 2
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=petpooja&sync_type=push_menu",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] == "POS Integration config deleted"
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 1
+    assert actual["data"]["provider"] == "petpooja"
+    assert actual["data"]["sync_type"] == "push_menu"
+    assert actual["data"]["deleted_count"] == 1
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+
+@responses.activate
+def test_delete_pos_integration_config_no_sync_type_provided_success():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    payload = {
+      "connector_type": "petpooja",
+      "config": {
+        "restaurant_name": "restaurant1",
+        "branch_name": "branch1",
+        "restaurant_id": "98765"
+       },
+       "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+       },
+       "smart_catalog_enabled": True,
+       "meta_enabled": True,
+       "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json=payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 2
+
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=petpooja",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] == "POS Integration config deleted"
+    assert POSIntegrations.objects(bot=pytest.bot, provider="petpooja").count() == 0
+    assert actual["data"]["provider"] == "petpooja"
+    assert actual["data"]["deleted_count"] == 2
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja").delete()
+
+@responses.activate
+def test_delete_pos_integration_config_not_found():
+    response = client.delete(
+        url=f"/api/bot/{pytest.bot}/data/integrations?provider=invalid_provider&sync_type=invalid_sync",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["success"] is False
+    assert actual["message"] == "Integration config not found"
+    assert actual["error_code"] == 422
+
+@responses.activate
+def test_get_pos_params():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/pos/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert response.status_code == 200
+    assert actual["success"] is True
+    assert actual["message"] is None
+    assert actual["error_code"] == 0
+
+    assert "petpooja" in actual["data"]
+    petpooja_data = actual["data"]["petpooja"]
+
+    assert "required_fields" in petpooja_data
+    assert petpooja_data["required_fields"] == ['restaurant_name', 'branch_name', 'restaurant_id', {'sync_type': ['push_menu', 'item_toggle']} ]
+
+    assert "optional_fields" in petpooja_data
+    assert petpooja_data["optional_fields"] == ['process_push_menu', 'process_item_toggle', 'meta_enabled',  'smart_catalog_enabled', 'access_token', 'catalog_id']
+
+    assert "disabled_fields" in petpooja_data
+    assert petpooja_data["disabled_fields"] == ["provider"]
+
+
+@responses.activate
+def test_add_pos_integration_config_invalid_provider():
+    payload = {
+        "connector_type": "invalid_provider",
+        "config": {
+            "restaurant_name": "invalid",
+            "branch_name": "invalid",
+            "restaurant_id": "00000",
+        },
+        "meta_config": {
+            "access_token": "invalid",
+            "catalog_id": "000"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json=payload,
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Invalid Provider"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    CatalogProviderMapping.objects(provider="invalid_provider").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="invalid_provider", sync_type="push_menu").delete()
+
+
+@responses.activate
+def test_add_pos_integration_config_invalid_sync_type():
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=invalid_sync",
+        json=payload,
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync type does not exist"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == ""
+
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    cognition_map = {doc.data["id"]: doc.data["price"] for doc in cognition_data_docs if
+                     "id" in doc.data and "price" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["price"]
+
+def test_get_catalog_sync_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/catalog/logs?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/catalog?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    log = actual['data']['logs'][0]
+
+    assert 'execution_id' in log and log['execution_id']
+    assert 'raw_payload' in log and isinstance(log['raw_payload'], dict)
+    assert 'start_timestamp' in log and log['start_timestamp']
+    assert 'end_timestamp' in log and log['end_timestamp']
+    assert 'validation_errors' in log and log['validation_errors'] == {}
+    assert log['provider'] == 'petpooja'
+    assert log['sync_type'] == 'push_menu'
+    assert log['status'] == STATUSES.SUCCESS.value
+    assert log['sync_status'] == EVENT_STATUS.COMPLETED.value
+    print(response)
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/catalog/search?from_date={from_date}&to_date={to_date}&sync_status=Completed",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print(response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_collection_points,
+                                                         mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+    mock_delete_collection_points.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload_with_delete_data.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == ""
+
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+    expected_items = [
+        {"id": "10539699", "price": 123.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    cognition_map = {doc.data["id"]: doc.data["price"] for doc in cognition_data_docs if
+                     "id" in doc.data and "price" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["price"]
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_update_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    item_toggle_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+
+    with item_toggle_payload_path.open("r", encoding="utf-8") as f:
+        item_toggle_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=item_toggle_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == ""
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
+        for doc in catalog_data_docs
+    ]
+    expected_items = [
+        {"id": "10539699", "availability": "in stock"},
+        {"id": "10539580", "availability": "out of stock"},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    cognition_map = {doc.data["id"]: doc.data["availability"] for doc in cognition_data_docs if
+                     "id" in doc.data and "availability" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["availability"]
+
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Push menu processing is disabled for this bot"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Push menu processing is disabled for this bot"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    assert catalog_data_docs.count() == 0
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    # CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, update_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    update_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    item_toggle_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+
+    with item_toggle_payload_path.open("r", encoding="utf-8") as f:
+        item_toggle_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=item_toggle_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Item toggle is disabled for this bot"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Item toggle is disabled for this bot"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    assert catalog_data_docs.count() == 0
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    # CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    # CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_update_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    documents = [
+        {
+            '_id': ObjectId('68777e450cbc4ce07e8a814e'),
+            'vector_id': '468c609c-1313-4e47-8629-e26c20bf0e1b',
+            'data': {
+                'id': '10539580',
+                'title': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'facebook_product_category': 'Food and drink > Chicken Meal',
+                'availability': 'in stock'
+            },
+            'content_type': 'json',
+            'collection': 'restaurant1_branch1_catalog',
+            'user': 'integration@demo.ai',
+            'bot': '68777e320cbc4ce07e8a7bb2',
+            'timestamp': datetime(2025, 7, 16, 10, 26, 13, 986000)
+        }
+    ]
+
+    for doc in documents:
+        CognitionData(
+            data=doc["data"],
+            content_type=doc["content_type"],
+            collection=doc["collection"],
+            user=doc["user"],
+            bot=pytest.bot
+        ).save()
+
+    document = {
+        '_id': ObjectId('68777f6c9c7c306038d1b056'),
+        'collection_name': 'restaurant1_branch1_catalog_data',
+        'is_secure': [],
+        'is_non_editable': [],
+        'data': {
+            'kv': {
+                'id': '10539580',
+                'title': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). '
+                               'Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & '
+                               'signature blend, breaded and seasoned to perfection, then deep-fried until '
+                               'deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'facebook_product_category': 'Food and drink > Chicken Meal',
+                'availability': 'in stock'
+            },
+            'meta': {
+                'id': '10539580',
+                'name': 'Potter 5',
+                'description': 'chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). '
+                               'Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & '
+                               'signature blend, breaded and seasoned to perfection, then deep-fried until '
+                               'deliciously tender, crispy with a golden crust',
+                'price': 3159.0,
+                'availability': 'in stock',
+                'image_url': 'https://picsum.photos/id/237/200/300',
+                'url': 'https://www.kairon.com/',
+                'brand': 'Test Restaurant',
+                'condition': 'new'
+            }
+        },
+        'user': 'integration@demo.ai',
+        'status': True
+    }
+
+    CollectionData(
+        collection_name=document['collection_name'],
+        is_secure=document['is_secure'],
+        is_non_editable=document['is_non_editable'],
+        data=document['data'],
+        user=document['user'],
+        bot=pytest.bot,
+        status=document['status']
+    ).save()
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    item_toggle_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+
+    with item_toggle_payload_path.open("r", encoding="utf-8") as f:
+        item_toggle_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=item_toggle_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Sync to knowledge vault and Meta is not allowed for this bot. Contact Support!!"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "availability": "in stock"},
+        {"id": "10539699", "availability": "in stock"},
+        {"id": "10539580", "availability": "out of stock"},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    # CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 3
+
+    cognition_map = {doc.data["id"]: doc.data["price"] for doc in cognition_data_docs if
+                     "id" in doc.data and "price" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["price"]
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    # CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    # CognitionData.objects(bot=pytest.bot).delete()
+    # CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "update_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_update_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_update_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=item_toggle",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/item_toggle" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    item_toggle_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+
+    with item_toggle_payload_path.open("r", encoding="utf-8") as f:
+        item_toggle_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=item_toggle_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="item_toggle", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Sync to Meta is not allowed for this bot. Contact Support!!"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "availability": doc.data["kv"]["availability"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "availability": "in stock"},
+        {"id": "10539699", "availability": "in stock"},
+        {"id": "10539580", "availability": "out of stock"},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 3
+
+    cognition_map = {doc.data["id"]: doc.data["availability"] for doc in cognition_data_docs if
+                     "id" in doc.data and "availability" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["availability"]
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    # CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Sync to knowledge vault is not allowed for this bot. Contact Support!!"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Global fallback image URL not found"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Global fallback image URL not found"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    assert catalog_data_docs.count() == 0
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    local_image_data = {
+        "image_type": "local",
+        "item_id": 10539634,
+        "image_url": "https://picsum.photos/id/local/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=local_image_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == ""
+
+    expected_id_image_map = {
+        '10539634': 'https://picsum.photos/id/local/237/200/300',
+        '10539699': 'https://picsum.photos/id/237/200/300',
+        '10539580': 'https://picsum.photos/id/237/200/300'
+    }
+    latest_log_dict = latest_log.to_mongo().to_dict()
+    meta_items = latest_log_dict["processed_payload"]["meta"]
+    id_image_map = {item["id"]: item["image_url"] for item in meta_items}
+
+    assert id_image_map == expected_id_image_map
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    cognition_map = {doc.data["id"]: doc.data["price"] for doc in cognition_data_docs if
+                     "id" in doc.data and "price" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["price"]
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": False,
+        "sync_options": {
+            "process_push_menu": False,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Push menu processing is disabled for this bot"
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Push menu processing is disabled for this bot"
+    rerun_execution_id = latest_log.execution_id
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    assert catalog_data_docs.count() == 0
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    integration_docs = POSIntegrations.objects(bot=pytest.bot, provider="petpooja")
+
+    for doc in integration_docs:
+        doc.smart_catalog_enabled = True
+        doc.meta_enabled = True
+        doc.sync_options["process_push_menu"] = True
+        doc.sync_options["process_item_toggle"] = True
+        doc.save()
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    rerun_sync_url = f"{sync_url}/{rerun_execution_id}"
+
+    response = client.post(
+        url=rerun_sync_url,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == EVENT_STATUS.COMPLETED.value
+    assert latest_log.status == STATUSES.SUCCESS.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == ""
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    catalog_item_summaries = [
+        {"id": doc.data["kv"]["id"], "price": doc.data["kv"]["price"]}
+        for doc in catalog_data_docs
+    ]
+
+    expected_items = [
+        {"id": "10539634", "price": 8700.0},
+        {"id": "10539699", "price": 3426.0},
+        {"id": "10539580", "price": 3159.0},
+    ]
+
+    assert all(item in catalog_item_summaries for item in expected_items)
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    cognition_map = {doc.data["id"]: doc.data["price"] for doc in cognition_data_docs if
+                     "id" in doc.data and "price" in doc.data}
+    for item in expected_items:
+        assert item["id"] in cognition_map
+        assert cognition_map[item["id"]] == item["price"]
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    with pytest.raises(ValueError, match="Missing sync_ref_id in event payload"):
+        complete_end_to_end_event_execution(
+            pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+            provider = "petpooja", sync_ref_id = ""
+        )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_validation_errors_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
+
+    with push_menu_validation_errors_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_validation_errors_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_validation_errors_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+
+    assert latest_log.validation_errors is not None
+    assert "10539634" in latest_log.validation_errors
+    assert latest_log.validation_errors["10539634"][0]["column_name"] == "title"
+    assert latest_log.validation_errors["10539634"][0]["input"] == 45
+    assert latest_log.validation_errors["10539634"][0]["status"] == "Invalid DataType"
+
+    assert "Validation Failed. Check logs" in latest_log.exception
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot)).count()
+    assert cognition_data_docs == 0
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@mock.patch.object(CognitionDataProcessor, "preprocess_push_menu_data", side_effect=Exception("Simulated preprocess error"))
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_validation_errors_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
+
+    with push_menu_validation_errors_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_validation_errors_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_validation_errors_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token = token,
+        provider = "petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert "Simulated preprocess error" in latest_log.exception
+
+    assert not latest_log.processed_payload
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    CatalogSyncLogs(
+        execution_id=str(ObjectId()),
+        raw_payload={"test":"test"},
+        processed_payload={},
+        validation_errors={},
+        bot=pytest.bot,
+        user="test_user",
+        provider="petpooja",
+        sync_type="push_menu",
+        start_timestamp=datetime.utcnow(),
+        sync_status="Initiated",
+        status=EVENT_STATUS.INPROGRESS.value
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response  = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync already in progress! Check logs."
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.catalog_sync_limit_per_day = 0
+    bot_settings.save()
+
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": True,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+
+    with push_menu_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_payload = json.load(f)
+
+    response  = client.post(
+        url=sync_url,
+        json=push_menu_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Daily limit exceeded."
+    assert actual["error_code"] == 422
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.catalog_sync_limit_per_day = 5
+    bot_settings.save()
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
+
+@pytest.mark.asyncio
+@responses.activate
+@mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
+@mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
+@mock.patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
+@mock.patch.object(MailUtility,"format_and_send_mail", autospec=True)
+@mock.patch.object(MetaProcessor, "push_meta_catalog", autospec=True)
+@mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+@patch(
+    "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+    new_callable=AsyncMock
+)
+def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validation_errors(mock_embedding, mock_collection_exists, mock_create_collection,
+                                        mock_collection_upsert, mock_format_and_send_mail, mock_delete_meta_catalog, mock_push_meta_catalog):
+    mock_collection_exists.return_value = False
+    mock_create_collection.return_value = None
+    mock_collection_upsert.return_value = None
+    mock_format_and_send_mail.return_value = None
+    mock_push_meta_catalog.return_value = None
+    mock_delete_meta_catalog.return_value = None
+
+    embedding = list(np.random.random(LLMProcessor.__embedding__))
+    embedding = [[0.1] * 3072, [0.1] * 3072, [0.1] * 3072]
+    mock_embedding.return_value = (
+        embedding,
+        200,
+        0.05,
+        {}
+    )
+    LLMSecret.objects.delete()
+    secrets = [
+        {
+            "llm_type": "openai",
+            "api_key": "common_openai_key",
+            "models": ["common_openai_model1", "common_openai_model2"],
+            "user": "123",
+            "timestamp": datetime.utcnow()
+        },
+    ]
+
+    for secret in secrets:
+        LLMSecret(**secret).save()
+
+    payload = {
+        "connector_type": "petpooja",
+        "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765"
+        },
+        "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        },
+        "smart_catalog_enabled": False,
+        "meta_enabled": True,
+        "sync_options": {
+            "process_push_menu": True,
+            "process_item_toggle": False
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/integrations/add?sync_type=push_menu",
+        json = payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "POS Integration Complete"
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert "integration/petpooja/push_menu" in actual["data"]
+    assert str(pytest.bot) in actual["data"]
+    sync_url = actual["data"]
+    token = sync_url.split(str(pytest.bot) + "/")[1]
+
+    provider_mapping = CatalogProviderMapping.objects(provider="petpooja").first()
+    assert provider_mapping is not None
+    assert provider_mapping.meta_mappings is not None
+    assert provider_mapping.kv_mappings is not None
+
+    pos_integration = POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").first()
+    assert pos_integration is not None
+    assert pos_integration.config["restaurant_id"] == "98765"
+    assert pos_integration.meta_config["access_token"] == "dummy_access_token"
+
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.catalog_integration}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+    fallback_data = {
+        "image_type": "global",
+        "image_url": "https://picsum.photos/id/237/200/300",
+        "image_base64": ""
+    }
+    CollectionData(
+        collection_name=catalog_images_collection,
+        data=fallback_data,
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        status=True,
+        timestamp=datetime.utcnow()
+    ).save()
+
+    push_menu_validation_errors_payload_path = Path(
+        "tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
+
+    with push_menu_validation_errors_payload_path.open("r", encoding="utf-8") as f:
+        push_menu_validation_errors_payload = json.load(f)
+
+    response = client.post(
+        url=sync_url,
+        json=push_menu_validation_errors_payload,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+    assert actual["message"] == "Sync in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    sync_ref_id = str(latest_log.id)
+
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.catalog_integration, sync_type="push_menu", token=token,
+        provider="petpooja", sync_ref_id = sync_ref_id
+    )
+
+    latest_log = CatalogSyncLogs.objects(bot=str(pytest.bot)).order_by("-start_timestamp").first()
+    assert latest_log is not None
+    assert latest_log.execution_id
+    assert latest_log.sync_status == "Failed"
+    assert latest_log.status == STATUSES.FAIL.value
+    assert hasattr(latest_log, "exception")
+    assert latest_log.exception == "Validation Failed. Check logs"
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+    catalog_data_docs = CollectionData.objects(collection_name=catalog_data_collection, bot=pytest.bot)
+    assert catalog_data_docs.count() == 0
+
+    cognition_data_docs = CognitionData.objects(bot=str(pytest.bot))
+    assert cognition_data_docs.count() == 0
+
+    mock_push_meta_catalog.assert_not_called()
+
+    restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(pytest.bot)
+    catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+    CatalogProviderMapping.objects(provider="petpooja").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="push_menu").delete()
+    POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="item_toggle").delete()
+    LLMSecret.objects.delete()
+    CollectionData.objects(collection_name=catalog_data_collection).delete()
+    CollectionData.objects(collection_name=catalog_images_collection).delete()
+    CatalogSyncLogs.objects.delete()
+    CognitionData.objects(bot=pytest.bot).delete()
+    CognitionSchema.objects(bot=pytest.bot).delete()
 
 @responses.activate
 def test_upload_with_bot_content_only_validate_content_data():
@@ -3304,6 +11252,10 @@ def test_upload_with_bot_content_valifdate_payload_data():
         f"/api/bot/{pytest.bot}/importer/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/importer?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
@@ -3311,6 +11263,24 @@ def test_upload_with_bot_content_valifdate_payload_data():
     assert actual["data"]["logs"][0]["is_data_uploaded"]
     assert actual["data"]["logs"][0]["start_timestamp"]
     assert actual["data"]["logs"][0]["end_timestamp"]
+
+    print(actual)
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/importer/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print("importer:", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 2
 
     response = client.get(
         f"/api/bot/{pytest.bot}/data/cognition",
@@ -3557,7 +11527,6 @@ def test_upload_with_bot_content_event_append_validate_payload_data():
     bot_settings.llm_settings['enable_faq'] = False
     bot_settings.save()
 
-
 @pytest.fixture()
 def get_executor_logs():
     from kairon.events.executors.base import ExecutorBase
@@ -3769,10 +11738,13 @@ def get_executor_logs():
                       }
                       )
 
-
 def test_get_executor_logs(get_executor_logs):
     response = client.get(
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Callback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/executor?task_type=Callback",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -3782,9 +11754,8 @@ def test_get_executor_logs(get_executor_logs):
     assert len(actual["data"]["logs"]) == actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]["task_type"] == "Callback"
     assert actual["data"]["logs"][0]["event_class"] == "pyscript_evaluator"
-    assert actual["data"]["logs"][0]["status"] == "Completed"
+    assert actual["data"]["logs"][0]["status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["data"] == {
-        'source_code': 'bot_response = "test - this is from callback test"',
         'predefined_objects': {
             'req': {'type': 'GET', 'body': None, 'params': {}},
             'req_host': '127.0.0.1', 'action_name': 'clbk1',
@@ -3870,6 +11841,10 @@ def test_get_executor_logs(get_executor_logs):
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Event&event_class=model_training",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/executor?task_type=Event&event_class=model_training",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -3892,6 +11867,57 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]['from_executor'] is True
     assert actual["data"]["logs"][0]['bot'] == pytest.bot
 
+def test_search_executor_logs(get_executor_logs):
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = from_date + timedelta(days=2)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/executor/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("executor:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+
+    logs = data["logs"]
+    assert data["total"] == len(logs)
+    assert all(log.get("status") == STATUSES.SUCCESS.value for log in logs)
+
+    # Group by task_type and assert structure
+    for log in logs:
+        task_type = log.get("task_type")
+        assert task_type in {"Callback", "Action", "Event"}
+
+        assert "event_class" in log
+        assert "data" in log
+        assert "timestamp" in log
+        assert "executor_log_id" in log
+
+        if task_type == "Callback":
+            assert log["event_class"] == "pyscript_evaluator"
+            assert isinstance(log["data"], dict)
+            assert "source_code" in log["data"]
+            assert "predefined_objects" in log["data"]
+            assert isinstance(log["data"]["predefined_objects"], dict)
+            assert "bot_response" in str(log.get("response", {}))  # response body nested
+
+        elif task_type == "Action":
+            assert log["event_class"] in {"pyscript_evaluator", "scheduler_evaluator"}
+            assert isinstance(log["data"], dict)
+            assert "source_code" in log["data"]
+            assert "predefined_objects" in log["data"]
+
+        elif task_type == "Event":
+            assert log["event_class"] in {"model_testing", "model_training"}
+            assert isinstance(log["data"], list)
+            assert all(isinstance(entry, dict) and "name" in entry and "value" in entry for entry in log["data"])
 
 def test_update_user_details_with_invalid_onboarding_status():
     response = client.post(
@@ -4146,6 +12172,32 @@ def test_save_collection_data_with_invalid_data():
                                    'type': 'value_error'}]
     assert not actual["success"]
 
+def test_save_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/data/collection",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_save_collection_data():
     request_body = {
@@ -4241,6 +12293,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4251,6 +12304,7 @@ def test_list_collection_data():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4261,6 +12315,8 @@ def test_list_collection_data():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
+
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4295,13 +12351,15 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
+
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4319,13 +12377,14 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
         {
             'collection_name': 'user',
             'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4344,13 +12403,15 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
+
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4370,28 +12431,31 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
         {
             'collection_name': 'user',
-            'is_secure': ['name', 'mobile_number'],
-            'data': {
-                'name': 'Mahesh',
-                'age': 24,
-                'mobile_number': '9876543210',
-                'location': 'Bangalore'
-            }
-        },
-        {
-            'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
+
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
                 'mobile_number': '989284928928',
                 'location': 'Mumbai'
+            }
+        },
+        {
+            'collection_name': 'user',
+            'is_secure': ['name', 'mobile_number'],
+            'is_non_editable': [],
+            'data': {
+                'name': 'Mahesh',
+                'age': 24,
+                'mobile_number': '9876543210',
+                'location': 'Bangalore'
             }
         }
     ]
@@ -4405,7 +12469,7 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == []
@@ -4419,13 +12483,14 @@ def test_get_collection_data():
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    data = actual["data"]
+    data = actual["data"]["logs"]
     for coll_data in data:
         coll_data.pop("_id")
     assert data == [
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4435,6 +12500,39 @@ def test_get_collection_data():
         }
     ]
 
+
+def test_get_collection_data_pagination():
+    full_response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    assert full_response.status_code == 200
+    full_data = full_response.json()["data"]["logs"]
+    assert isinstance(full_data, list)
+    assert len(full_data) >= 1
+    total_expected = len(full_data)
+
+    page_size = 1
+    start_idx = 0
+    expected_slice = full_data[start_idx : start_idx + page_size]
+
+    paginated_response = client.get(
+        url=(
+            f"/api/bot/{pytest.bot}/data/collection/user"
+            f"?page_size={page_size}&start_idx={start_idx}"
+        ),
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = paginated_response.json()
+
+    assert paginated_response.status_code == 200
+    assert actual["error_code"] == 0
+    assert actual["success"]
+    assert isinstance(actual["data"]["logs"], list)
+    assert actual["data"]["logs"] == expected_slice
+    assert actual["data"]["total"] == total_expected
 
 def test_get_collection_data_with_collection_id():
     response = client.get(
@@ -4452,6 +12550,7 @@ def test_get_collection_data_with_collection_id():
         '_id': pytest.collection_id,
         'collection_name': 'user',
         'is_secure': ['name', 'mobile_number'],
+        'is_non_editable': [],
         'data': {
             'name': 'Mahesh',
             'age': 24,
@@ -4477,6 +12576,7 @@ def test_get_collection_data_with_filter():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4579,6 +12679,61 @@ def test_update_collection_data_with_invalid_is_secure():
                                   'type': 'value_error'}]
     assert not actual["success"]
 
+def test_update_collection_data_with_non_editable_keys_not_present():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": ["name", "aadhar"],  # 'aadhar' not in data
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable contains keys that are not present in data',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
+
+def test_update_collection_data_with_invalid_is_non_editable():
+    request_body = {
+        "collection_name": "user",
+        "is_secure": ["name", "mobile_number"],
+        "is_non_editable": "name, aadhar",  # Invalid: should be a list
+        "data": {
+            "name": "Mahesh",
+            "age": 24,
+            "mobile_number": "9876543210",
+            "location": "Bangalore"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/data/collection/{pytest.collection_id}",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert not actual["data"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'is_non_editable'],
+                                  'msg': 'value is not a valid list', 'type': 'type_error.list'},
+                                 {'loc': ['body', '__root__'],
+                                  'msg': 'is_non_editable should be a list of keys!',
+                                  'type': 'value_error'}]
+    assert not actual["success"]
 
 def test_update_collection_data_with_invalid_data():
     request_body = {
@@ -4671,6 +12826,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': ['mobile_number', 'location'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -4681,6 +12837,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4691,6 +12848,7 @@ def test_get_collection_data_after_update():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4700,6 +12858,46 @@ def test_get_collection_data_after_update():
             }
         }
     ]
+
+
+def test_get_collection_metadata():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/user/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    assert data['properties'] == {
+        'name': {'type': 'string'},
+        'age': {'type': 'integer'},
+        'mobile_number': {'type': 'string'},
+        'location': {'type': 'string'}
+    }
+    assert data['required'] == ['age', 'location', 'mobile_number', 'name']
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/bank_details/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert not actual["message"]
+    assert actual["success"]
+    data = actual["data"]
+    assert data['properties'] == {
+        'account_holder_name': {'type': 'string'},
+        'account_number': {'type': 'string'},
+        'mobile_number': {'type': 'string'},
+        'location': {'type': 'string'},
+        'ifsc': {'type': 'string'}
+    }
 
 
 def test_delete_collection_data_doesnot_exist():
@@ -4745,6 +12943,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'user',
             'is_secure': [],
+            'is_non_editable': [],
             'data': {
                 'name': 'Hitesh',
                 'age': 25,
@@ -4755,6 +12954,7 @@ def test_get_collection_data_after_delete():
         {
             'collection_name': 'bank_details',
             'is_secure': ['account_number', 'mobile_number', 'ifsc'],
+            'is_non_editable': [],
             'data': {
                 'account_holder_name': 'Mahesh',
                 'account_number': '636283263288232',
@@ -4957,7 +13157,6 @@ def test_callback_config_add_syntax_error():
     )
 
     actual = response.json()
-    print(actual)
     assert not actual['success']
     assert actual['error_code'] == 422
     assert actual['message'] == 'source code syntax error: unterminated string literal (detected at line 1)'
@@ -4987,6 +13186,8 @@ def test_callback_config_add():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               'redirect_enabled': False,
+                               "redirect": {},
                       'execution_mode': 'async' }, 'error_code': 0}
 
 
@@ -5017,6 +13218,8 @@ def test_callback_config_add_standalone():
                                'shorten_token': False,
                                'standalone': True,
                                'standalone_id_path': 'data.id',
+                               'redirect_enabled': False,
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -5027,7 +13230,6 @@ def test_callback_get_standalone_url():
     )
     assert response.status_code == 200
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], str)
@@ -5053,6 +13255,124 @@ def test_callback_config_add_standalone_fail_no_path():
     assert actual == {'success': False, 'message': 'Standalone id path is required!',
                       'data': None, 'error_code': 422}
 
+
+def test_callback_config_add_standalone_with_redirect():
+    request_body = {
+        "name": "callback_redirect_standalone",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "standalone": True,
+        "standalone_id_path": "data.id",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for standalone callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_async_with_redirect():
+    request_body = {
+        "name": "callback_redirect_async",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for async callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_invalid_redirect_type():
+    request_body = {
+        "name": "callback_invalid_redirect",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "invalid_type",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Invalid redirect type!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_redirect_without_value():
+    request_body = {
+        "name": "callback_redirect_no_value",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Only redirect_url slot is supported for redirect!",
+        "data": None,
+        "error_code": 422
+    }
+
+
 def test_callback_config_edit_syntex_error():
     request_body = {
         "name": "callback_1",
@@ -5068,7 +13388,6 @@ def test_callback_config_edit_syntex_error():
     )
 
     actual = response.json()
-    print(actual)
 
     assert not actual['success']
     assert actual['error_code'] == 422
@@ -5089,7 +13408,6 @@ def test_callback_config_edit():
     )
 
     actual = response.json()
-    print(actual)
     actual['data'].pop('validation_secret')
     actual['data'].pop('bot')
     assert actual == {'success': True, 'message': 'Callback updated successfully!',
@@ -5099,6 +13417,8 @@ def test_callback_config_edit():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               'redirect_enabled': False,
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -5114,6 +13434,137 @@ def test_callback_config_get():
     assert len(actual['data']) == 2
     assert 'callback_1' in actual['data']
     assert 'callback_2' in actual['data']
+
+def test_callback_config_edit_partial_update_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Updated!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['success'] is False
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Redirect is not supported for async callbacks!"
+    assert actual['data'] is None
+
+
+def test_callback_config_edit_disable_redirect():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": False,
+        "redirect": {}
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['data']['redirect_enabled'] is False
+    assert actual['data']['redirect'] == {}
+
+
+def test_callback_config_edit_redirect_while_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['data']['redirect_enabled'] is True
+    assert actual['data']['redirect'] == {
+        "type": "value",
+        "value": "https://example.com"
+    }
+
+
+def test_callback_config_edit_sync_to_async_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert "redirect" in actual['message'].lower()
+
+
+def test_callback_config_edit_standalone_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "standalone": True,
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert "redirect" in actual['message'].lower()
+
 
 def test_callback_single_config_get():
     response = client.get(
@@ -5187,7 +13638,6 @@ def test_callback_action_add():
     )
     
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['message'] == 'Callback action added successfully!'
     data = actual['data']
@@ -5212,7 +13662,6 @@ def test_callback_action_update():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['message'] == 'Callback action updated successfully!'
 
@@ -5238,7 +13687,6 @@ def test_callback_action_get_all():
     )
 
     actual = response.json()
-    print(actual)
     assert actual['success']
     assert actual['error_code'] == 0
     assert isinstance(actual['data'], list)
@@ -5265,7 +13713,6 @@ def test_callback_get_logs():
         url=f"/api/bot/{pytest.bot}/action/callback_logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-
     actual = response.json()
 
     assert actual['success']
@@ -5274,6 +13721,35 @@ def test_callback_get_logs():
     assert len(actual['data']['logs']) == 1
     assert actual['data']['total_number_of_pages'] == 1
 
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/callback",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['error_code'] == 0
+    assert isinstance(actual['data']['logs'], list)
+    assert len(actual['data']['logs']) == 1
+
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/callback/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("callback", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 1
 
 def test_callback_action_delete():
     response = client.delete(
@@ -5370,7 +13846,6 @@ def test_add_pyscript_action_syntex_error():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 422
     assert actual["message"] == "source code syntax error: unexpected indent"
     assert not actual["success"]
@@ -5389,7 +13864,6 @@ def test_add_pyscript_action():
     )
 
     actual = response.json()
-    print(actual)
     assert actual["error_code"] == 0
     assert actual["message"] == "Action added!"
     assert actual["success"]
@@ -5848,6 +14322,334 @@ def test_add_broadcast_message(mock_event_server):
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_collection(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'collection'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_number_field(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'number_field'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_filters_list(mock_event_server):
+    config = {
+        "name": "broadcast_without_filters_list",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id3 = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id3
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_without_field_mapping(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == [{'loc': ['body', 'collection_config', 'field_mapping'],
+                                 'msg': 'field required', 'type': 'value_error.missing'}]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_broadcast_message_with_collection_config(mock_event_server):
+    config = {
+        "name": "broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "mobile_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "lte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "gt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{name}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.broadcast_msg_id2 = actual["data"]["msg_broadcast_id"]
+    assert pytest.broadcast_msg_id2
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_resend_broadcast_message(mock_event_server):
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastSettings
 
@@ -5924,18 +14726,214 @@ def test_list_broadcast():
     assert actual["error_code"] == 0
     actual["data"]["schedules"][0].pop("timestamp")
     actual["data"]["schedules"][0].pop("user")
+    actual["data"]["schedules"][1].pop("timestamp")
+    actual["data"]["schedules"][1].pop("user")
+    print(actual["data"])
     assert actual["data"] == {
         "schedules": [
             {
-                "_id": pytest.broadcast_msg_id,
-                "name": "test_broadcast",
-                "connector_type": "whatsapp",
-                "broadcast_type": "static",
-                "recipients_config": {"recipients": "919876543210,919012345678"},
-                "retry_count": 3,
-                "template_config": [{"template_id": "sales_template", "language": "en"}],
-                "bot": pytest.bot,
-                "status": False,
+                '_id': pytest.broadcast_msg_id3,
+                'name': 'broadcast_without_filters_list',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'bsp_type': '360dialog',
+                'recipients_config': {'recipients': ''},
+                'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            },
+            {
+                '_id': pytest.broadcast_msg_id2,
+                'name': 'broadcast_with_collection_config',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'bsp_type': '360dialog',
+                'recipients_config': {'recipients': ''},
+                'template_config': [
+                    {'template_id': 'brochure_pdf', 'language': 'hi'}
+                ],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [
+                        {'column': 'age', 'condition': 'lte', 'value': '26'},
+                        {'column': 'age', 'condition': 'gt', 'value': '22'},
+                        {'column': 'name', 'condition': 'nin', 'value': ['Mahesh', 'Hitesh']}
+                    ],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            }
+        ]
+    }
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_broadcast_with_collection_config(mock_event_server):
+    config = {
+        "name": "update_broadcast_with_collection_config",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": ""},
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "21 11 * * *",
+            "timezone": "Asia/Kolkata",
+        },
+        "collection_config": {
+            "collection": "crop_details",
+            "number_field": "contact_number",
+            "filters_list": [
+                {
+                    "column": "age",
+                    "condition": "gte",
+                    "value": "26"
+                },
+                {
+                    "column": "age",
+                    "condition": "lt",
+                    "value": "22"
+                },
+                {
+                    "column": "name",
+                    "condition": "nin",
+                    "value": [
+                        "Mahesh",
+                        "Hitesh"
+                    ]
+                }
+            ],
+            "field_mapping": {
+                "brochure_pdf": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{crop}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {
+                                "type": "text",
+                                "text": "{status}"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "retry_count": 0,
+        "template_config": [
+            {
+                'language': 'hi',
+                "template_id": "brochure_pdf",
+            }
+        ]
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.broadcast_msg_id2}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_list_broadcast_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    actual["data"]["schedules"][0].pop("timestamp")
+    actual["data"]["schedules"][0].pop("user")
+    actual["data"]["schedules"][1].pop("timestamp")
+    actual["data"]["schedules"][1].pop("user")
+    assert actual["data"] == {
+        "schedules": [
+            {
+                '_id': pytest.broadcast_msg_id3,
+                'name': 'broadcast_without_filters_list',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'bsp_type': '360dialog',
+                'recipients_config': {'recipients': ''},
+                'template_config': [{'template_id': 'brochure_pdf', 'language': 'hi'}],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'mobile_number',
+                    'filters_list': [],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{name}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
+            },
+            {
+                '_id': pytest.broadcast_msg_id2,
+                'name': 'update_broadcast_with_collection_config',
+                'connector_type': 'whatsapp',
+                'broadcast_type': 'static',
+                'bsp_type': '360dialog',
+                'recipients_config': {'recipients': ''},
+                "scheduler_config": {
+                    "expression_type": "cron",
+                    "schedule": "21 11 * * *",
+                    "timezone": "Asia/Kolkata",
+                },
+                'template_config': [
+                    {'template_id': 'brochure_pdf', 'language': 'hi'}
+                ],
+                'collection_config': {
+                    'collection': 'crop_details',
+                    'number_field': 'contact_number',
+                    'filters_list': [
+                        {'column': 'age', 'condition': 'gte', 'value': '26'},
+                        {'column': 'age', 'condition': 'lt', 'value': '22'},
+                        {'column': 'name', 'condition': 'nin', 'value': ['Mahesh', 'Hitesh']}
+                    ],
+                    'field_mapping': {
+                        'brochure_pdf': [
+                            {'type': 'header', 'parameters': [{'type': 'text', 'text': '{crop}'}]},
+                            {'type': 'body', 'parameters': [{'type': 'text', 'text': '{status}'}]}
+                        ]
+                    }
+                },
+                'retry_count': 0,
+                'bot': pytest.bot,
+                'status': True
             }
         ]
     }
@@ -5958,7 +14956,6 @@ def test_delete_message_broadcast(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast removed!"
 
-
 def test_get_broadcast_logs_with_resend_broadcasts():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
@@ -5969,7 +14966,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.broadcast_msg_id,
             "recipients": ["919876543210", "918958030541"],
@@ -5982,7 +14979,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -6012,7 +15009,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             "reference_id": ref_id,
             "log_type": "resend",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -6050,7 +15047,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
             'reference_id': ref_id,
             'log_type': 'resend',
             'bot': pytest.bot,
-            'status': 'Success',
+            'status': STATUSES.SUCCESS.value,
             'api_response': {
                 'contacts': [
                     {
@@ -6061,20 +15058,6 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 ]
             },
             'recipient': '919876543210',
-            'template_params': [
-                {
-                    'type': 'header',
-                    'parameters': [
-                        {
-                            'type': 'document',
-                            'document': {
-                                'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                'filename': 'Brochure.pdf'
-                            }
-                        }
-                    ]
-                }
-            ],
             'retry_count': 1
         }
     ]
@@ -6096,7 +15079,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -6107,27 +15090,13 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '919876543210',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 1
             },
             {
                 'reference_id': ref_id,
                 'log_type': 'resend',
                 'bot': pytest.bot,
-                'status': 'Success',
+                'status': STATUSES.SUCCESS.value,
                 'api_response': {
                     'contacts': [
                         {
@@ -6138,33 +15107,15 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                     ]
                 },
                 'recipient': '918958030541',
-                'template_params': [
-                    {
-                        'type': 'header',
-                        'parameters': [
-                            {
-                                'type': 'document',
-                                'document': {
-                                    'link': 'https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm',
-                                    'filename': 'Brochure.pdf'
-                                }
-                            }
-                        ]
-                    }
-                ],
                 'retry_count': 2
             },
             {
                 'reference_id': ref_id,
                 'log_type': 'common',
                 'bot': pytest.bot,
-                'status': 'Completed',
+                'status': EVENT_STATUS.COMPLETED.value,
                 'user': 'test_user',
-                'broadcast_id': pytest.broadcast_msg_id,
-                'recipients': [
-                    '919876543210',
-                    '918958030541'
-                ]
+                'broadcast_id': pytest.broadcast_msg_id
             }
         ],
         'total_count': 3
@@ -6361,6 +15312,9 @@ def test_metadata_upload_api(monkeypatch):
 
 
 def test_metadata_upload_api_column_limit_exceeded():
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.cognition_columns_per_collection_limit = 5
+    bot_settings.save()
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
@@ -6554,20 +15508,18 @@ def test_delete_schema_attached_to_prompt_action(monkeypatch):
               "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
               "llm_type": DEFAULT_LLM,
               "hyperparameters": Utility.get_default_llm_hyperparameters()}
-    response = client.post(
-        f"/api/bot/{pytest.bot}/action/prompt",
-        json=action,
-        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-    )
-    actual = response.json()
-
     response_one = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": None,
-            "collection_name": "Python"
+            "collection_name": "python"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response_one.json()
 
@@ -7256,6 +16208,17 @@ def test_add_prompt_action_with_utter(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "utter_test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -7268,7 +16231,7 @@ def test_add_prompt_action_with_utter(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7314,6 +16277,17 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_similarity_threshold",
         "llm_prompts": [
@@ -7327,7 +16301,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 'hyperparameters': {"top_results": 10, "similarity_threshold": 1.70},
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7373,6 +16347,17 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         return BotSettings(bot=pytest.bot, user="integration@demo.ai", llm_settings=LLMSettings(enable_faq=True))
 
     monkeypatch.setattr(MongoProcessor, 'get_bot_settings', _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_top_results",
         "llm_prompts": [
@@ -7386,7 +16371,7 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
             {
                 "name": "Similarity Prompt",
                 'hyperparameters': {"top_results": 40, "similarity_threshold": 0.70},
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7428,6 +16413,17 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
 
 
 def test_add_prompt_action_with_invalid_query_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_query_prompt",
         "llm_prompts": [
@@ -7440,7 +16436,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7479,6 +16475,17 @@ def test_add_prompt_action_with_invalid_query_prompt():
 
 
 def test_add_prompt_action_with_invalid_num_bot_responses():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_num_bot_responses",
         "llm_prompts": [
@@ -7491,7 +16498,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7538,6 +16545,17 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
 
 
 def test_add_prompt_action_with_invalid_system_prompt_source():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_system_prompt_source",
         "llm_prompts": [
@@ -7550,7 +16568,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7597,6 +16615,17 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
 
 
 def test_add_prompt_action_with_multiple_system_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_multiple_system_prompt",
         "llm_prompts": [
@@ -7617,7 +16646,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7664,6 +16693,17 @@ def test_add_prompt_action_with_multiple_system_prompt():
 
 
 def test_add_prompt_action_with_empty_llm_prompt_name():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_empty_llm_prompt_name",
         "llm_prompts": [
@@ -7676,7 +16716,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7723,6 +16763,17 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
 
 
 def test_add_prompt_action_with_empty_data_for_static_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_empty_data_for_static_prompt",
         "llm_prompts": [
@@ -7735,7 +16786,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7782,6 +16833,17 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
 
 
 def test_add_prompt_action_with_multiple_history_source_prompts():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_multiple_history_source_prompts",
         "llm_prompts": [
@@ -7806,7 +16868,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7845,6 +16907,17 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
 
 
 def test_add_prompt_action_with_gpt_feature_disabled():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_gpt_feature_disabled",
         "llm_prompts": [
@@ -7857,7 +16930,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7911,6 +16984,17 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_llm_type", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -7923,7 +17007,7 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -7978,6 +17062,17 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_invalid_hyperameters", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -7990,7 +17085,7 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8043,6 +17138,17 @@ def test_add_prompt_action(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -8055,7 +17161,7 @@ def test_add_prompt_action(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8106,6 +17212,17 @@ def test_add_prompt_action_already_exist(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -8118,7 +17235,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8160,6 +17277,17 @@ def test_add_prompt_action_already_exist(monkeypatch):
 
 
 def test_update_prompt_action_does_not_exist():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_does_not_exist",
         "llm_prompts": [
@@ -8172,7 +17300,7 @@ def test_update_prompt_action_does_not_exist():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8213,6 +17341,17 @@ def test_update_prompt_action_does_not_exist():
 
 
 def test_update_prompt_action_with_invalid_similarity_threshold():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_similarity_threshold",
         "llm_prompts": [
@@ -8225,7 +17364,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 'hyperparameters': {"top_results": 9, "similarity_threshold": 1.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
@@ -8268,6 +17407,17 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
 
 
 def test_update_prompt_action_with_invalid_top_results():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_top_results",
         "llm_prompts": [
@@ -8280,7 +17430,7 @@ def test_update_prompt_action_with_invalid_top_results():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection"
+                "data": "test_collection"
                 , 'hyperparameters': {"top_results": 39, "similarity_threshold": 0.50},
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
@@ -8315,6 +17465,17 @@ def test_update_prompt_action_with_invalid_top_results():
 
 
 def test_update_prompt_action_with_invalid_num_bot_responses():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_num_bot_responses",
         "llm_prompts": [
@@ -8327,7 +17488,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Science",
+                "data": "science",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8363,6 +17524,17 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
 
 
 def test_update_prompt_action_with_invalid_query_prompt():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action_with_invalid_query_prompt",
         "llm_prompts": [
@@ -8375,7 +17547,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8474,6 +17646,17 @@ def test_update_prompt_action_with_query_prompt_with_false():
 
 
 def test_update_prompt_action():
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_update_prompt_action", 'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
         "llm_prompts": [
@@ -8486,7 +17669,7 @@ def test_update_prompt_action():
             },
             {
                 "name": "Similarity_analytical Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -8534,30 +17717,73 @@ def test_get_prompt_action():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
-    actual["data"][0].pop("_id")
-    assert not DeepDiff(actual["data"], [
-        {'name': 'test_update_prompt_action', 'num_bot_responses': 5, 'failure_message': 'updated_failure_message',
-         'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-         'llm_type': 'openai',
-         'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                             'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                             'logit_bias': {}}, 'llm_prompts': [
-            {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system', 'source': 'static',
-             'is_enabled': True}, {'name': 'Similarity_analytical Prompt', 'data': 'Bot_collection',
-                                   'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                   'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-            {'name': 'Query Prompt',
-             'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-             'is_enabled': True}, {'name': 'Query Prompt',
-                                   'data': 'If there is no specific query, assume that user is aking about java programming language,',
-                                   'instructions': 'Answer according to the context', 'type': 'query',
-                                   'source': 'static', 'is_enabled': True}],
-         'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [], 'dispatch_response': True,
-         'status': True}], ignore_order=True)
+
+    actual_data = actual["data"]
+    actual_data[0].pop("_id", None)
+
+    expected_data = [{
+        'name': 'test_update_prompt_action',
+        'num_bot_responses': 5,
+        'failure_message': 'updated_failure_message',
+        'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+        'llm_type': 'openai',
+        'process_media': False,
+        'hyperparameters': {
+            'temperature': 0.0,
+            'max_tokens': 300,
+            'model': 'gpt-4.1-mini',
+            'top_p': 0.0,
+            'n': 1,
+            'stop': None,
+            'presence_penalty': 0.0,
+            'frequency_penalty': 0.0,
+            'logit_bias': {}
+        },
+        'llm_prompts': [
+            {
+                'name': 'System Prompt',
+                'data': 'You are a personal assistant.',
+                'type': 'system',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Similarity_analytical Prompt',
+                'data': 'test_collection',
+                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user',
+                'source': 'bot_content',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'A programming language is a system of notation for writing computer programs.Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'If there is no specific query, assume that user is aking about java programming language,',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            }
+        ],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [],
+        'dispatch_response': True,
+        'status': True
+    }]
+
+    assert not DeepDiff(actual_data, expected_data, ignore_order=True)
+
 
 
 def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypatch):
@@ -8569,6 +17795,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
     action = {
         "name": "test_add_prompt_action_with_empty_collection_for_bot_content_prompt",
         'user_question': {'type': 'from_user_message'},
@@ -8611,6 +17838,8 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
         "llm_type": DEFAULT_LLM,
         "hyperparameters": Utility.get_default_llm_hyperparameters()
     }
+
+    # Add prompt action
     response = client.post(
         f"/api/bot/{pytest.bot}/action/prompt",
         json=action,
@@ -8623,6 +17852,7 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     assert actual["success"]
     assert actual["error_code"] == 0
 
+    # Get all prompt actions
     response = client.get(
         f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -8631,31 +17861,69 @@ def test_add_prompt_action_with_empty_collection_for_bot_content_prompt(monkeypa
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
-    actual["data"][1].pop("_id")
-    assert not DeepDiff(actual["data"][1], {
-        'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt', 'num_bot_responses': 5,
+
+    prompt_action = actual["data"][1]
+    prompt_action.pop("_id", None)
+
+    expected_action = {
+        'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
+        'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                            'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                            'logit_bias': {}},
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                         'source': 'static', 'is_enabled': True},
-                        {'name': 'Similarity Prompt', 'data': 'default',
-                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'If there is no specific query, assume that user is aking about java programming.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True}],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}, ignore_order=True)
+        'process_media': False,
+        'hyperparameters': {
+            'temperature': 0.0,
+            'max_tokens': 300,
+            'model': 'gpt-4.1-mini',
+            'top_p': 0.0,
+            'n': 1,
+            'stop': None,
+            'presence_penalty': 0.0,
+            'frequency_penalty': 0.0,
+            'logit_bias': {}
+        },
+        'llm_prompts': [
+            {
+                'name': 'System Prompt',
+                'data': 'You are a personal assistant.',
+                'type': 'system',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Similarity Prompt',
+                'data': 'default',
+                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user',
+                'source': 'bot_content',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            }
+        ],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [],
+        'dispatch_response': True,
+        'status': True
+    }
 
+    assert not DeepDiff(prompt_action, expected_action, ignore_order=True)
+    CognitionSchema.objects(bot=pytest.bot).delete()
 
 def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     def _mock_get_bot_settings(*args, **kwargs):
@@ -8669,7 +17937,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
         json={
             "metadata": [
                 {"column_name": "name", "data_type": "str", "enable_search": True, "create_embeddings": True}],
-            "collection_name": "States"
+            "collection_name": "states"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -8679,7 +17947,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
     payload = {
         "data": {"name": "Karnataka"},
         "content_type": "json",
-        "collection": "States"}
+        "collection": "states"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -8723,32 +17991,67 @@ def test_add_prompt_action_with_bot_content_prompt_with_payload(monkeypatch):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    actual["data"][2].pop("_id")
-    assert not DeepDiff(actual["data"][2], {
-        'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload', 'num_bot_responses': 5,
+    action_data = actual["data"][2]
+    action_data.pop("_id", None)
+
+    expected_action = {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_payload',
+        'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                            'stop': None, 'presence_penalty': 0.0,
-                            'frequency_penalty': 0.0, 'logit_bias': {}},
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                         'source': 'static', 'is_enabled': True},
-                        {'name': 'Similarity Prompt', 'data': 'states',
-                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'If there is no specific query, assume that user is aking about java programming.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True}], 'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-        'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
-    assert actual["success"]
-    assert actual["error_code"] == 0
-    assert not actual["message"]
+        'process_media': False,
+        'hyperparameters': {
+            'temperature': 0.0,
+            'max_tokens': 300,
+            'model': 'gpt-4.1-mini',
+            'top_p': 0.0,
+            'n': 1,
+            'stop': None,
+            'presence_penalty': 0.0,
+            'frequency_penalty': 0.0,
+            'logit_bias': {}
+        },
+        'llm_prompts': [
+            {
+                'name': 'System Prompt',
+                'data': 'You are a personal assistant.',
+                'type': 'system',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Similarity Prompt',
+                'data': 'states',
+                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user',
+                'source': 'bot_content',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            }
+        ],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [],
+        'dispatch_response': True,
+        'status': True
+    }
+
+    assert not DeepDiff(action_data, expected_action, ignore_order=True)
 
 
 def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
@@ -8762,7 +18065,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
         url=f"/api/bot/{pytest.bot}/data/cognition/schema",
         json={
             "metadata": None,
-            "collection_name": "Python"
+            "collection_name": "python"
         },
         headers={"Authorization": pytest.token_type + " " + pytest.access_token}
     )
@@ -8774,7 +18077,7 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
                 "Its design philosophy emphasizes code readability with the use of significant indentation. "
                 "Python is dynamically typed and garbage-collected.",
         "content_type": "text",
-        "collection": "Python"}
+        "collection": "python"}
     response = client.post(
         url=f"/api/bot/{pytest.bot}/data/cognition",
         json=payload,
@@ -8817,34 +18120,363 @@ def test_add_prompt_action_with_bot_content_prompt_with_content(monkeypatch):
         f"/api/bot/{pytest.bot}/action/prompt",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    actual = response.json()
-    actual["data"][3].pop("_id")
-    assert not DeepDiff(actual["data"][3], {
-        'name': 'test_add_prompt_action_with_bot_content_prompt_with_content', 'num_bot_responses': 5,
+    actual=response.json()
+    prompt_action = actual["data"][3]
+    prompt_action.pop("_id", None)
+
+    expected = {
+        'name': 'test_add_prompt_action_with_bot_content_prompt_with_content',
+        'num_bot_responses': 5,
         'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
         'user_question': {'type': 'from_user_message'},
         'llm_type': 'openai',
-        'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0, 'n': 1,
-                            'stop': None, 'presence_penalty': 0.0, 'frequency_penalty': 0.0,
-                            'logit_bias': {}},
-        'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                         'source': 'static', 'is_enabled': True},
-                        {'name': 'Similarity Prompt', 'data': 'python',
-                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True},
-                        {'name': 'Query Prompt',
-                         'data': 'If there is no specific query, assume that user is aking about java programming.',
-                         'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                         'is_enabled': True}],
-        'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-        'dispatch_response': True, 'status': True}, ignore_order=True)
+        'process_media': False,
+        'hyperparameters': {
+            'temperature': 0.0,
+            'max_tokens': 300,
+            'model': 'gpt-4.1-mini',
+            'top_p': 0.0,
+            'n': 1,
+            'stop': None,
+            'presence_penalty': 0.0,
+            'frequency_penalty': 0.0,
+            'logit_bias': {}
+        },
+        'llm_prompts': [
+            {
+                'name': 'System Prompt',
+                'data': 'You are a personal assistant.',
+                'type': 'system',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Similarity Prompt',
+                'data': 'python',
+                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                'type': 'user',
+                'source': 'bot_content',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            },
+            {
+                'name': 'Query Prompt',
+                'data': 'If there is no specific query, assume that user is aking about java programming.',
+                'instructions': 'Answer according to the context',
+                'type': 'query',
+                'source': 'static',
+                'is_enabled': True
+            }
+        ],
+        'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+        'set_slots': [],
+        'dispatch_response': True,
+        'status': True
+    }
+
+    assert not DeepDiff(prompt_action, expected, ignore_order=True, ignore_type_in_groups=[(dict, dict)])
+
+def test_add_prompt_action_with_crud(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+    add_payload_1 = {
+        "collection_name": "test_collection",
+        "is_secure": ["mobile_number"],
+        "is_non_editable": ["empid"],
+        "data": {
+            "mobile_number": "09876541",
+            "name": "testing_1",
+            "empid": 12345
+        },
+        "status": True
+    }
+    add_resp_1 = client.post(
+        f"/api/bot/{pytest.bot}/data/collection",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        json=add_payload_1
+    )
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": {"key": "value"},
+                    "result_limit": 5,
+                    "query_source":"value"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-    assert not actual["message"]
+
+def test_add_prompt_action_with_crud_query_as_string(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_string_query",
+        'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": '{"key": "value"}',  # JSON string to hit the isinstance check
+                    "result_limit": 5,
+                    "query_source": "value"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+def test_add_prompt_action_with_crud_query_invalid_json(monkeypatch):
+    from fastapi import status
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_invalid_json",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": "this is not json",
+                    "result_limit": 5,
+                    "query_source": "value"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response=response.json()
+    assert response["error_code"] == 422
+    assert any(
+        "Invalid JSON format in query: this is not json" in err["msg"]
+        for err in response["message"]
+    )
+
+
+def test_add_prompt_action_with_crud_query_source_slot_valid(monkeypatch):
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_slot_query",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": "slot_name",  # This is a valid slot name
+                    "result_limit": 5,
+                    "query_source": "slot"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+
+def test_add_prompt_action_with_crud_query_source_slot_invalid(monkeypatch):
+    from fastapi import status
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+
+    action = {
+        "name": "test_add_prompt_action_crud_slot_query_invalid",
+        "user_question": {"type": "from_user_message"},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "CRUD Prompt",
+                "instructions": "Fetch data from the collection and answer accordingly.",
+                "type": "user",
+                "source": "crud",
+                "is_enabled": True,
+                "crud_config": {
+                    "collections": ["test_collection"],
+                    "query": {"slot": "value"},  # Invalid: query must be a string for slot source
+                    "result_limit": 5,
+                    "query_source": "slot"
+                }
+            }
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response = response.json()
+
+    assert response["error_code"] == 422
+    assert any(
+        "When query_source is 'slot', query must be a valid slot name." in err["msg"]
+        for err in response["message"]
+    )
+
 
 
 def test_delete_prompt_action_not_exists():
@@ -8879,7 +18511,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 18
+    assert len(actual['data']) == 27
     assert actual["success"]
 
 
@@ -9382,7 +19014,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -9408,7 +19039,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -9434,7 +19064,6 @@ def test_get_slot_actions(save_actions):
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert not actual["message"]
@@ -9459,7 +19088,7 @@ def test_get_slot_actions(save_actions):
 def test_update_bot_name():
     response = client.put(
         f"/api/account/bot/{pytest.bot}",
-        json={"data": "Hi-Hello-bot"},
+        json={"data":"Hi-Hello-bot"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     ).json()
     assert response["message"] == "Name updated"
@@ -9647,7 +19276,8 @@ def test_list_entities():
                 'priority', 'requested_slot', 'fdresponse', 'kairon_action_response',
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
-                'subject', 'body', 'media_ids'}
+                'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -9690,8 +19320,8 @@ def test_train(mock_training_limit):
         pytest.bot, "integration@demo.ai", EventClass.model_training
     )
 
-
-def test_upload_limit_exceeded(monkeypatch):
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_upload_limit_exceeded(mock_request_event_server, monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.data_importer_limit_per_day = 2
     bot_settings.save()
@@ -9805,6 +19435,7 @@ def test_upload_using_event_append(monkeypatch):
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
@@ -10011,7 +19642,7 @@ def test_get_data_importer_logs():
     assert actual["data"]["logs"][0]["end_timestamp"]
 
     assert actual['data']["logs"][1]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][1]['status'] == 'Success'
+    assert actual['data']["logs"][1]['status'] == STATUSES.SUCCESS.value
     assert set(actual['data']["logs"][1]['files_received']) == {'stories', 'nlu', 'domain', 'config', 'actions'}
     assert actual['data']["logs"][1]['is_data_uploaded']
     assert actual['data']["logs"][1]['start_timestamp']
@@ -10022,7 +19653,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][1] == {'intents': {'count': 14, 'data': []}, 'utterances': {'count': 14, 'data': []},
                                          'stories': {'count': 16, 'data': []},
                                          'training_examples': {'count': 192, 'data': []},
-                                         'domain': {'intents_count': 19, 'actions_count': 23, 'slots_count': 10,
+                                         'domain': {'intents_count': 15, 'actions_count': 23, 'slots_count': 10,
                                                     'utterances_count': 14, 'forms_count': 2, 'entities_count': 8,
                                                     'data': []},
                                          'config': {'count': 0, 'data': []}, 'rules': {'count': 1, 'data': []},
@@ -10042,15 +19673,18 @@ def test_get_data_importer_logs():
                                                      {'type': 'database_actions', 'count': 0, 'data': []},
                                                      {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                      {'type': 'callback_actions', 'count': 0, 'data': []},
-                                                     {'type': 'schedule_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
+                                                     {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                     {'type': 'voice_call_actions', 'count': 0, 'data': []},
+                                                     {'type': 'store_page_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
                                          'exception': '',
                                          'is_data_uploaded': True,
-                                         'status': 'Success', 'event_status': 'Completed'}
+                                         'status': STATUSES.SUCCESS.value, 'event_status': EVENT_STATUS.COMPLETED.value}
     assert actual['data']["logs"][2]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][2]['status'] == 'Failure'
+    assert actual['data']["logs"][2]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][2]['files_received']) == {'stories', 'nlu', 'domain', 'config',
                                                                 'chat_client_config', 'bot_content'}
     assert actual['data']["logs"][2]['is_data_uploaded']
@@ -10058,7 +19692,7 @@ def test_get_data_importer_logs():
     assert actual['data']["logs"][2]['end_timestamp']
 
     assert actual['data']["logs"][3]['event_status'] == EVENT_STATUS.COMPLETED.value
-    assert actual['data']["logs"][3]['status'] == 'Failure'
+    assert actual['data']["logs"][3]['status'] == STATUSES.FAIL.value
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'domain', 'config',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
                                                                 'bot_content'}
@@ -10075,7 +19709,7 @@ def test_get_data_importer_logs():
     assert len(actual['data']["logs"][3]['rules']['data']) == 0
     assert actual['data']["logs"][3]['training_examples']['count'] == 305
     assert len(actual['data']["logs"][3]['training_examples']['data']) == 0
-    assert actual['data']["logs"][3]['domain'] == {'intents_count': 32, 'actions_count': 41, 'slots_count': 11,
+    assert actual['data']["logs"][3]['domain'] == {'intents_count': 28, 'actions_count': 41, 'slots_count': 11,
                                                    'utterances_count': 27, 'forms_count': 2, 'entities_count': 9,
                                                    'data': []}
     assert actual['data']["logs"][3]['config'] == {'count': 0, 'data': []}
@@ -10095,7 +19729,10 @@ def test_get_data_importer_logs():
                                                     {'type': 'database_actions', 'count': 0, 'data': []},
                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
-                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []},
+                                                    {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                    {'type': 'voice_call_actions', 'count': 0, 'data': []},
+                                                    {'type': 'store_page_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
@@ -10285,12 +19922,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 25
+    assert len(actual["data"]) == 34
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 18
+    assert default_slots_count == 27
 
 
 def test_add_slots():
@@ -10457,7 +20094,7 @@ def test_get_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -10470,7 +20107,7 @@ def test_get_all_intents():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 15
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -11319,11 +20956,15 @@ def test_add_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -11966,7 +21607,7 @@ def test_add_multiflow_story_invalid_event_type():
                    "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                    "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
                    "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', "
-                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -11994,7 +21635,11 @@ def test_add_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
         }
@@ -12088,11 +21733,15 @@ def test_update_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -12203,111 +21852,6 @@ def test_update_multiflow_story_with_tag():
     assert actual["data"]["_id"]
     assert actual["success"]
     assert actual["error_code"] == 0
-
-# def test_update_multiflow_story_invalid_name():
-#     response = client.put(
-#         f"/api/bot/{pytest.bot}/v2/stories/{pytest.multiflow_story_id}",
-#         json={
-#             "name": "test_path",
-#             "steps": [
-#                 {
-#                     "step": {
-#                         "name": "greeting",
-#                         "type": "INTENT",
-#                         "node_id": "1",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_greeting",
-#                             "type": "BOT",
-#                             "node_id": "2",
-#                             "component_id": "MNbcZZg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_greeting",
-#                         "type": "BOT",
-#                         "node_id": "2",
-#                         "component_id": "MNbcZZg",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "more_query",
-#                             "type": "INTENT",
-#                             "node_id": "3",
-#                             "component_id": "uhsjJ",
-#                         },
-#                         {
-#                             "name": "goodbye",
-#                             "type": "INTENT",
-#                             "node_id": "4",
-#                             "component_id": "MgGFD",
-#                         },
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "goodbye",
-#                         "type": "INTENT",
-#                         "node_id": "4",
-#                         "component_id": "MgGFD",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_goodbye",
-#                             "type": "BOT",
-#                             "node_id": "5",
-#                             "component_id": "MNbcg",
-#                         }
-#                     ],
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_goodbye",
-#                         "type": "BOT",
-#                         "node_id": "5",
-#                         "component_id": "MNbcg",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "utter_more_query",
-#                         "type": "BOT",
-#                         "node_id": "6",
-#                         "component_id": "IIUUUYY",
-#                     },
-#                     "connections": None,
-#                 },
-#                 {
-#                     "step": {
-#                         "name": "more_query",
-#                         "type": "INTENT",
-#                         "node_id": "3",
-#                         "component_id": "uhsjJ",
-#                     },
-#                     "connections": [
-#                         {
-#                             "name": "utter_more_query",
-#                             "type": "BOT",
-#                             "node_id": "6",
-#                             "component_id": "IIUUUYY",
-#                         }
-#                     ],
-#                 },
-#             ],
-#         },
-#         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
-#     )
-#     actual = response.json()
-#     print(actual)
-#
-#     assert actual["success"]
-#     assert actual["error_code"] == 0
-#     assert actual["message"] == "valid story name"
 
 
 def test_update_multiflow_story():
@@ -12662,7 +22206,7 @@ def test_update_multiflow_story_invalid_event_type():
                    "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                    "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
                    "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', "
-                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -12690,7 +22234,11 @@ def test_update_multiflow_story_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
         }
@@ -13681,7 +23229,8 @@ def mock_is_training_inprogress(monkeypatch):
     monkeypatch.setattr(ModelProcessor, "is_training_inprogress", _inprogress_response)
 
 
-def test_train_daily_limit_exceed(mock_is_training_inprogress, monkeypatch):
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_train_daily_limit_exceed(mock_request_event_server, monkeypatch):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.training_limit_per_day = 2
     bot_settings.save()
@@ -13786,6 +23335,64 @@ def test_get_model_testing_logs():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
+
+def test_get_model_testing_logs_new():
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/model_test?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["data"]
+    assert actual["success"]
+
+def test_search_model_testing_logs():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_from_date_and_to_date():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?from_date=2025-08-01&to_date=2025-08-31",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_for_is_augmented_False():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=False",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+def test_search_model_testing_logs_is_augmented_True():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/model_test/search?is_augmented=True",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+          )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+
+
+
 
 
 def test_download_model_testing_logs(monkeypatch):
@@ -14012,7 +23619,7 @@ def test_integration_token():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 8
+    assert len(actual["data"]) == 4
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
@@ -14277,10 +23884,65 @@ def test_update_user_details():
     )
 
     actual = response.json()
+
     assert actual["success"]
     assert actual["error_code"] == 0
     assert actual["message"] == "Details updated!"
 
+def test_get_user_settings():
+    response = client.get(
+        url="/api/user/user/settings",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    assert "user" in actual["data"]
+    assert "default_bot" in actual["data"]
+    assert "is_fav" in actual["data"]
+
+    assert Utility.check_empty_string(actual["message"])
+
+def test_update_user_settings():
+    response = client.post(
+        url="/api/user/user/settings",
+        json={
+            "data": {
+                "default_bot": pytest.bot,
+                "is_fav": [pytest.bot],
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    assert actual["data"]["default_bot"] == pytest.bot
+    assert actual["data"]["is_fav"] == [pytest.bot]
+
+def test_update_user_settings_without_is_fav():
+    response = client.post(
+        url="/api/user/user/settings",
+        json={
+            "data": {
+                "default_bot": pytest.bot,
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token}
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
 
 def test_download_data():
     response = client.get(
@@ -14774,7 +24436,8 @@ def test_account_registration_with_confirmation(monkeypatch):
             "account": "integration33",
             "bot": "integration33",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -15301,7 +24964,8 @@ def test_update_member_role_not_exists(monkeypatch):
             "confirm_password": "Welcome@10",
             "account": "user@kairon.ai",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -15349,7 +25013,8 @@ def test_update_member_role(monkeypatch):
             "confirm_password": "Welcome@10",
             "account": "integration_email_false@demo.ai",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -15751,7 +25416,7 @@ def test_reset_password_for_valid_id(monkeypatch):
     assert actual["error_code"] == 0
     assert (
             actual["message"]
-            == "Success! A password reset link has been sent to your mail id"
+            == "If the email address is registered with us, you'll receive a password reset email shortly."
     )
     assert actual["data"] is None
 
@@ -15777,9 +25442,9 @@ def test_reset_password_for_invalid_id():
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
-    assert not actual["success"]
-    assert actual["error_code"] == 422
-    assert actual["message"] == "Error! There is no user with the following mail id"
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "If the email address is registered with us, you'll receive a password reset email shortly."
     assert actual["data"] is None
 
 
@@ -18013,7 +27678,9 @@ def test_list_actions():
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
-                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': []}, ignore_order=True)
+                              'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
+                                         'parallel_action':[], 'voice_call_action':[], 'kairon_voice_disconnect': [],
+                              'store_page_action': []}, ignore_order=True)
 
     assert actual["success"]
 
@@ -18089,7 +27756,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent1",
@@ -18108,7 +27775,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -18127,7 +27794,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent6",
@@ -18191,7 +27858,7 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot_2,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent13",
@@ -18201,18 +27868,24 @@ def test_list_action_server_logs():
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
 
     actual = response.json()
+    print(actual)
     assert actual["error_code"] == 0
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 10
-    assert actual["data"]["total"] == 11
+    assert actual["data"]["total"] == 10
     assert [log["intent"] in expected_intents for log in actual["data"]["logs"]]
     assert actual["data"]["logs"][0]["action"] == "http_action"
     assert any(
@@ -18223,16 +27896,54 @@ def test_list_action_server_logs():
         [log["bot_response"] == "Bot Response" for log in actual["data"]["logs"]]
     )
     assert any([log["api_response"] == "Response" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "FAILURE" for log in actual["data"]["logs"]])
-    assert any([log["status"] == "SUCCESS" for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.FAIL.value for log in actual["data"]["logs"]])
+    assert any([log["status"] == STATUSES.SUCCESS.value for log in actual["data"]["logs"]])
 
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response_json = search_response.json()
+    print("actions:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 6
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions/search"
+        f"?from_date={from_date}&to_date={to_date}&status=Failed",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("actions:", response_json)
+
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
+    assert data['total'] == 4
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=0&page_size=15",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/actions?start_idx=0&page_size=15",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
-    assert len(actual["data"]["logs"]) == 11
-    assert actual["data"]["total"] == 11
+    assert len(actual["data"]["logs"]) == 10
+    assert actual["data"]["total"] == 10
 
     response = client.get(
         f"/api/bot/{pytest.bot}/actions/logs?start_idx=10&page_size=1",
@@ -18243,6 +27954,53 @@ def test_list_action_server_logs():
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 1
     assert actual["data"]["total"] == 11
+
+
+def test_get_mail_channel_logs():
+    MailResponseLog(
+        sender_id="chocoboyxp@gmail.com",
+        uid=4337,
+        responses=[
+            {
+                "recipient_id": "spandan.mondal@nimblework.com",
+                "text": "How may i help you?"
+            }
+        ],
+        slots={
+            "doc_url": "None",
+            "document": "None",
+            "video": "None",
+            "audio": "None",
+            "image": "None",
+            "kairon_action_response": "None",
+            "bot": "67e24b3847fb806ba96ff494",
+            "session_started_metadata": "{'channel': 'mail', 'tabname': 'default', 'is_integration_user': False, 'bot': '64a43ce6af92e374371ed5bd', 'account': 1048, 'channel_type': 'chat_client'}",
+            "bot_response": "How may i help you?"
+        },
+        bot=pytest.bot,
+        user="spandan.mondal@nimblework.com",
+        status=MailStatus.SUCCESS.value
+    ).save()
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/mail_channel",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/mail_channel/search"
+        f"?from_date={from_date}&to_date={to_date}&status=success",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+    response_json = search_response.json()
+    print("actions:", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 
 def test_feedback():
@@ -18513,11 +28271,15 @@ def test_add_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -18628,11 +28390,15 @@ def test_update_rule_invalid_event_type():
                     "LIVE_AGENT_ACTION",
                     "STOP_FLOW_ACTION",
                     "CALLBACK_ACTION",
-                    "SCHEDULE_ACTION"
+                    "SCHEDULE_ACTION",
+                    "PARALLEL_ACTION",
+                    "VOICE_CALL_ACTION",
+                    "KAIRON_VOICE_DISCONNECT",
+                    "STORE_PAGE_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -18853,7 +28619,7 @@ def test_upload_with_http_error():
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 4
     assert actual["data"]["total"] == 4
-    assert actual["data"]["logs"][0]["status"] == "Failure"
+    assert actual["data"]["logs"][0]["status"] == STATUSES.FAIL.value
     assert actual["data"]["logs"][0]["event_status"] == EVENT_STATUS.COMPLETED.value
     assert actual["data"]["logs"][0]["is_data_uploaded"]
     assert actual["data"]["logs"][0]["start_timestamp"]
@@ -18890,7 +28656,6 @@ def test_upload_actions_and_config():
         files=files,
     )
     actual = response.json()
-    print(actual)
     assert actual["message"] == "Upload in progress! Check logs."
     assert actual["error_code"] == 0
     assert actual["data"] is None
@@ -18901,12 +28666,11 @@ def test_upload_actions_and_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
-    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
-    assert actual['data']["logs"][0]['status'] == 'Success'
+    assert actual['data']["logs"][0]['status'] == STATUSES.SUCCESS.value
     assert actual['data']["logs"][0]['event_status'] == EVENT_STATUS.COMPLETED.value
     assert actual['data']["logs"][0]['is_data_uploaded']
     assert actual['data']["logs"][0]['start_timestamp']
@@ -18928,7 +28692,10 @@ def test_upload_actions_and_config():
                                                     {'type': 'database_actions', 'count': 0, 'data': []},
                                                     {'type': 'live_agent_actions', 'count': 0, 'data': []},
                                                     {'type': 'callback_actions', 'count': 0, 'data': []},
-                                                    {'type': 'schedule_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'schedule_actions', 'count': 0, 'data': []},
+                                                    {'type': 'parallel_actions', 'count': 0, 'data': []},
+                                                    {'type': 'voice_call_actions', 'count': 0, 'data': []},
+                                                    {'type': 'store_page_actions', 'count': 0, 'data': []}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -23337,6 +33104,7 @@ def test_list_email_actions():
             "action_name": "email_config",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
@@ -23356,6 +33124,7 @@ def test_list_email_actions():
             "action_name": "email_config_with_slot",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
@@ -23375,6 +33144,7 @@ def test_list_email_actions():
             "action_name": "email_config_with_key_vault",
             "smtp_url": "test.test.com",
             "smtp_port": 25,
+            'dispatch_bot_response': True,
             "smtp_password": {
                 "_cls": "CustomActionRequestParameters",
                 "key": "smtp_password",
@@ -24778,7 +34548,11 @@ def test_add_bot_with_template_name(monkeypatch):
             "pyscript_action": [],
             "live_agent_action": [],
             "callback_action": [],
-            "schedule_action": []
+            "schedule_action": [],
+            "parallel_action": [],
+            "voice_call_action": [],
+            "kairon_voice_disconnect": [],
+            "store_page_action": []
         },
         ignore_order=True,
     )
@@ -24829,11 +34603,7 @@ def test_set_templates_with_sysadmin_as_user():
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
         {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False}
     ]
 
     training_examples = TrainingExamples.objects(bot=pytest.bot)
@@ -24966,11 +34736,7 @@ def test_add_bot_with_template_with_sysadmin_as_user(monkeypatch):
     assert intents == [
         {'name': 'greet', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
         {'name': 'goodbye', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False},
-        {'name': 'restart', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'back', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'out_of_scope', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True},
-        {'name': 'session_start', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': True}
+        {'name': 'nlu_fallback', 'user': 'sysadmin', 'status': True, 'is_integration': False, 'use_entities': False}
     ]
 
     responses = Responses.objects(bot=bot_id)
@@ -25646,6 +35412,38 @@ def test_add_scheduled_broadcast(mock_event_server):
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_scheduled_broadcast_with_invalid_cron(mock_event_server):
+    config = {
+        "name": "first_scheduler",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "scheduler_config": {
+            "expression_type": "cron",
+            "schedule": "mayank",
+            "timezone": "UTC",
+        },
+        "recipients_config": {"recipients": "918958030541,"},
+        "template_config": [
+            {"template_id": "brochure_pdf"}
+        ],
+    }
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["success"] is False
+
+    assert any(
+        "Invalid cron expression: 'mayank'" in str(msg.get("msg", ""))
+        for msg in actual["message"]
+    )
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_one_time_broadcast(mock_event_server):
     config = {
         "name": "one_time_schedule",
@@ -25669,6 +35467,296 @@ def test_add_one_time_broadcast(mock_event_server):
     assert actual["message"] == "Broadcast added!"
     pytest.one_time_schedule_id = actual["data"]["msg_broadcast_id"]
     assert pytest.one_time_schedule_id
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_broadcast(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast added!"
+    pytest.one_time_schedule_broadcast_id = actual["data"]["msg_broadcast_id"]
+    assert pytest.one_time_schedule_broadcast_id
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_missing_run_at(mock_event_server):
+    config = {
+        "name": "missing_run_at",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    response=response.json()
+    print(response)
+    assert response["error_code"]== 422
+    errors = response["message"]
+
+    assert any("schedule time is required for all schedules!" in err.get("msg", "") for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_past_run_at(mock_event_server):
+    past_epoch = int((datetime.utcnow() - timedelta(hours=1)).timestamp())
+    config = {
+        "name": "past_run_at",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": past_epoch,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("epoch time (schedule) must be in the future relative to the provided timezone" in err["msg"] for err in errors)
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_missing_timezone(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "expression_type":"epoch",
+            "schedule": run_at,
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("timezone is required for all schedules!" in err["msg"] for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_expression_type(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "timezone": "Asia/Calcutta",
+            "expression_type":"mayank"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("expression_type must be either cron or epoch" in err["msg"] for err in errors)
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_epoch_string(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": "mayank",
+            "timezone": "Asia/Calcutta",
+            "expression_type":"epoch"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("schedule must be a valid integer epoch time for 'epoch' expression_type" in err["msg"] for err in errors)
+
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_add_one_time_schedule_with_invalid_timezone(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "missing_timezone",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "timezone": "mayank",
+            "expression_type":"epoch"
+        },
+        "template_config": [{"template_id": "brochure_pdf"}],
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    print(response.json())
+    response=response.json()
+    assert response["error_code"]== 422
+    errors = response["message"]
+    assert any("Unknown timezone: mayank" in err["msg"] for err in errors)
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", side_effect=Exception("Event server failed"))
+def test_add_one_time_schedule_integration_failure(mock_request_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(minutes=10)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+
+    config = {
+        "name": "one_time_schedule_broadcast_error",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {"template_id": "brochure_pdf"}
+        ],
+    }
+
+
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    body = response.json()
+    print(body)
+    assert body["success"] is False
+    assert "Event server failed" in body["message"]
+
+
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_message_broadcast_one_time_scheduled_broadcast(mock_event_server):
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": 2524608000,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(response.json())
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
+
+
+def test_list_broadcast_config_after_update():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    for sched in actual["data"]["schedules"]:
+        sched.pop("_id", None)
+        sched.pop("timestamp", None)
+        sched.pop("bot", None)
+        sched.pop("user", None)
+
+    print(actual["data"])
+    assert actual["data"]["schedules"][2] == {'name': 'one_time_schedule_broadcast', 'connector_type': 'whatsapp', 'broadcast_type': 'static',
+         'bsp_type': '360dialog',
+         'scheduler_config': {'expression_type': 'epoch', 'schedule': 2524608000, 'timezone': 'Asia/Calcutta'},
+         'recipients_config': {'recipients': '916200035185,'},
+         'template_config': [{'template_id': 'brochure_pdf', 'language': 'en'}], 'collection_config': {},
+         'retry_count': 0, 'status': True
+                                              }
 
 
 def test_broadcast_config_error():
@@ -25699,7 +35787,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": "recurrence interval must be at least 86340 seconds!",
+            "msg": "Recurrence interval must be at least 86340 seconds!",
             "type": "value_error",
         }
     ]
@@ -25719,7 +35807,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": "timezone is required for cron expressions!",
+            "msg": "timezone is required for all schedules!",
             "type": "value_error",
         }
     ]
@@ -25737,7 +35825,7 @@ def test_broadcast_config_error():
     assert actual["message"] == [
         {
             "loc": ["body", "scheduler_config", "__root__"],
-            "msg": f"Invalid cron expression: ''",
+            "msg": f"schedule time is required for all schedules!",
             "type": "value_error",
         }
     ]
@@ -25810,8 +35898,40 @@ def test_update_broadcast(mock_event_server):
     assert actual["error_code"] == 0
     assert actual["message"] == "Broadcast updated!"
 
+@patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
+def test_update_one_time_scheduled_broadcast(mock_event_server):
+    ist = pytz.timezone("Asia/Kolkata")
+    dt_ist = datetime.now(ist) + timedelta(hours=1)
+    run_at = int(dt_ist.astimezone(pytz.UTC).timestamp())
+    config = {
+        "name": "one_time_schedule_broadcast",
+        "broadcast_type": "static",
+        "connector_type": "whatsapp",
+        "recipients_config": {"recipients": "916200035185,"},
+        "scheduler_config": {
+            "schedule": run_at,
+            "expression_type": "epoch",
+            "timezone": "Asia/Calcutta"
+        },
+        "template_config": [
+            {
+                "template_id": "brochure_pdf",
+            }
+        ],
+    }
+    response = client.put(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
+        json=config,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(response.json())
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast updated!"
 
-def test_update_one_time_broadcast():
+
+def test_update_one_time_broadcast_failure():
     config = {
         "name": "one_time_schedule",
         "broadcast_type": "static",
@@ -25831,7 +35951,7 @@ def test_update_one_time_broadcast():
     actual = response.json()
     assert not actual["success"]
     assert actual["error_code"] == 422
-    assert actual["message"] == "scheduler_config is required!"
+    assert actual["message"] == "scheduler_config with a valid schedule is required!"
 
 
 def test_list_broadcast_config():
@@ -25840,22 +35960,27 @@ def test_list_broadcast_config():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
+    print(actual)
+
     assert actual["success"]
     assert actual["error_code"] == 0
-    actual["data"]["schedules"][0].pop("_id")
-    actual["data"]["schedules"][0].pop("timestamp")
-    actual["data"]["schedules"][0].pop("bot")
-    actual["data"]["schedules"][0].pop("user")
-    actual["data"]["schedules"][1].pop("_id")
-    actual["data"]["schedules"][1].pop("timestamp")
-    actual["data"]["schedules"][1].pop("bot")
-    actual["data"]["schedules"][1].pop("user")
+
+    for sched in actual["data"]["schedules"]:
+        sched.pop("_id", None)
+        sched.pop("timestamp", None)
+        sched.pop("bot", None)
+        sched.pop("user", None)
+        if sched.get("scheduler_config") and sched["scheduler_config"].get("expression_type") == "epoch":
+            sched["scheduler_config"].pop("schedule", None)
+
     assert actual["data"] == {
         "schedules": [
             {
                 "name": "first_scheduler_dynamic",
                 "connector_type": "whatsapp",
                 "broadcast_type": "dynamic",
+                "bsp_type": "360dialog",
+                "collection_config": {},
                 "scheduler_config": {
                     "expression_type": "cron",
                     "schedule": "21 11 * * *",
@@ -25870,10 +35995,25 @@ def test_list_broadcast_config():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "bsp_type": "360dialog",
+                "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
                 "status": True,
+            },
+            {
+                "name": "one_time_schedule_broadcast",
+                "connector_type": "whatsapp",
+                "broadcast_type": "static",
+                "bsp_type": "360dialog",
+                "collection_config": {},
+                "recipients_config": {"recipients": "916200035185,"},
+                "retry_count": 0,
+                "status": True,
+                "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
+                "scheduler_config": {"expression_type":"epoch",
+                                     "timezone": "Asia/Calcutta"},
             },
         ]
     }
@@ -25883,6 +36023,14 @@ def test_list_broadcast_config():
 def test_delete_broadcast(mock_event_server):
     response = client.delete(
         f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.first_scheduler_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Broadcast removed!"
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/channels/broadcast/message/{pytest.one_time_schedule_broadcast_id}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -25919,6 +36067,8 @@ def test_list_broadcast_():
                 "name": "one_time_schedule",
                 "connector_type": "whatsapp",
                 "broadcast_type": "static",
+                "bsp_type": "360dialog",
+                "collection_config": {},
                 "recipients_config": {"recipients": "918958030541,"},
                 "retry_count": 0,
                 "template_config": [{"template_id": "brochure_pdf", "language": "en"}],
@@ -25939,7 +36089,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
             "broadcast_id": pytest.first_scheduler_id,
             "recipients": ["918958030541", ""],
@@ -25952,7 +36102,7 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "send",
             "bot": pytest.bot,
-            "status": "Success",
+            "status": STATUSES.SUCCESS.value,
             "api_response": {
                 "contacts": [
                     {"input": "+55123456789", "status": "valid", "wa_id": "55123456789"}
@@ -25989,10 +36139,9 @@ def test_list_broadcast_logs():
             "reference_id": ref_id,
             "log_type": "common",
             "bot": pytest.bot,
-            "status": "Completed",
+            "status": EVENT_STATUS.COMPLETED.value,
             "user": "test_user",
-            "broadcast_id": pytest.first_scheduler_id,
-            "recipients": ["918958030541", ""],
+            "broadcast_id": pytest.first_scheduler_id
         }
     ]
     assert actual["data"]["total_count"] == 1
@@ -26012,7 +36161,7 @@ def test_list_broadcast_logs():
                 "reference_id": ref_id,
                 "log_type": "send",
                 "bot": pytest.bot,
-                "status": "Success",
+                "status": STATUSES.SUCCESS.value,
                 "api_response": {
                     "contacts": [
                         {
@@ -26022,35 +36171,19 @@ def test_list_broadcast_logs():
                         }
                     ]
                 },
-                "recipient": "9876543210",
-                "template_params": [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "document",
-                                "document": {
-                                    "link": "https://drive.google.com/uc?export=download&id=1GXQ43jilSDelRvy1kr3PNNpl1e21dRXm",
-                                    "filename": "Brochure.pdf",
-                                },
-                            }
-                        ],
-                    }
-                ],
+                "recipient": "9876543210"
             },
             {
                 "reference_id": ref_id,
                 "log_type": "common",
                 "bot": pytest.bot,
-                "status": "Completed",
+                "status": EVENT_STATUS.COMPLETED.value,
                 "user": "test_user",
-                "broadcast_id": pytest.first_scheduler_id,
-                "recipients": ["918958030541", ""],
+                "broadcast_id": pytest.first_scheduler_id
             },
         ],
         "total_count": 2,
     }
-
 
 def test_get_bot_settings():
     response = client.get(
@@ -26068,15 +36201,18 @@ def test_get_bot_settings():
     assert actual['data'] == {'is_billed': False, 'chat_token_expiry': 30,
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
+                              'enable_voice': False,
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'nlu_fallback'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
                               'live_agent_enabled': False,
+                              'pos_enabled': False,
                               'test_limit_per_day': 5,
                               'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
@@ -26084,8 +36220,14 @@ def test_get_bot_settings():
                               'cognition_collections_limit': 3,
                               'cognition_columns_per_collection_limit': 5,
                               'content_importer_limit_per_day': 5,
+                              'system_limits': {'file_upload_limit': 5},
                               'integrations_per_user_limit': 3,
-                              'retry_broadcasting_limit': 3}
+                              'retry_broadcasting_limit': 3,
+                              'max_template_per_broadcast': 5,
+                              'catalog_sync_limit_per_day': 5,
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10,
+                              'store_page_token_expiry': 15}
 
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
@@ -26175,11 +36317,13 @@ def test_update_analytics_settings():
     assert actual['data'] == {'is_billed': False, 'chat_token_expiry': 30,
                               'data_generation_limit_per_day': 3,
                               'data_importer_limit_per_day': 5,
+                              'enable_voice': False,
                               'force_import': False,
                               'ignore_utterances': False,
                               'llm_settings': {'enable_faq': False, 'provider': 'openai'},
                               'analytics': {'fallback_intent': 'utter_please_rephrase'},
                               'multilingual_limit_per_day': 2,
+                              'max_actions_per_parallel_action': 5,
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
@@ -26188,11 +36332,18 @@ def test_update_analytics_settings():
                               'website_data_generator_depth_search_limit': 2,
                               'whatsapp': 'meta',
                               'live_agent_enabled': False,
+                              'pos_enabled': False,
                               'cognition_collections_limit': 3,
                               'content_importer_limit_per_day': 5,
+                              'system_limits': {'file_upload_limit': 5},
                               'cognition_columns_per_collection_limit': 5,
                               'integrations_per_user_limit': 3,
-                              'retry_broadcasting_limit': 3}
+                              'retry_broadcasting_limit': 3,
+                              'max_template_per_broadcast': 5,
+                              'catalog_sync_limit_per_day': 5,
+                              'max_instagram_user_posts': 5,
+                              'media_size_limit': 10,
+                              'store_page_token_expiry': 15}
 
 
 def test_delete_channels_config():
@@ -27879,6 +38030,344 @@ def test_get_channel_endpoint_not_configured():
     assert not actual["data"]
     assert actual["message"] == "Channel not configured"
 
+def test_add_instagram_channel():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/add",
+        json={
+            "connector_type": "instagram",
+            "config": {
+                "app_secret": "98730987654321",
+                "page_access_token": "accessangtoken",
+                "verify_token": "tokenvld",
+                "static_comment_reply": "welcome"
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is True
+    assert actual["data"]
+    assert 'Channel' in actual["message"]
+
+def test_missing_valid_config_instagram_channel():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/channels/add",
+        json={
+            "connector_type": "instagram",
+            "config": {
+                "app_secret": "98730987654321",
+                "page_access_token": "accessangtoken",
+                "static_comment_reply": "welcome"
+            }
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"] is False
+    assert actual["data"] is None
+    assert "verify_token" in actual["message"][0]["msg"]
+
+def test_voice_channel_params():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/voice/params",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert "twilio" in actual["data"]
+
+
+def test_list_voice_channel_config_empty():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/channels/voice/list",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"] == []
+
+
+def test_add_voice_call_action_voice_not_enabled():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Voice is not enabled" in actual["message"]
+
+
+def test_add_voice_call_action(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_voice_call_action_duplicate(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Action exists!" in actual["message"]
+
+
+def test_add_voice_call_action_missing_name():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+
+
+def test_list_voice_call_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert len(actual["data"]) >= 1
+    assert any(a["name"] == "test_voice_call_action" for a in actual["data"])
+
+
+def test_edit_voice_call_action_voice_not_enabled():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+19999999999", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "Voice is not enabled" in actual["message"]
+
+
+def test_edit_voice_call_action_not_found(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "nonexistent_voice_action",
+            "to_phone_number": {"value": "+1234567890", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "not found" in actual["message"]
+
+
+def test_edit_voice_call_action(monkeypatch):
+    monkeypatch.setattr(MongoProcessor, "is_voice_enabled", lambda *a, **kw: True)
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/voicecall",
+        json={
+            "name": "test_voice_call_action",
+            "to_phone_number": {"value": "+19999999999", "parameter_type": "value"},
+            "telephony_provider": "twilio",
+        },
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+def test_add_kairon_voice_disconnect():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_kairon_voice_disconnect_idempotent():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_list_kairon_voice_disconnect():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/voice_disconnect",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert len(actual["data"]) >= 1
+
+
+def test_add_store_page_action():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "home", "identifier_slot": "phone_number"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added"
+
+
+def test_add_store_page_action_duplicate():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "home", "identifier_slot": "phone_number"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_add_store_page_action_missing_fields():
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action_missing"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+
+
+def test_list_store_page_actions():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert isinstance(actual["data"], list)
+    assert any(a["name"] == "test_store_page_action" for a in actual["data"])
+
+
+def test_edit_store_page_action_not_found():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "nonexistent_store_page_action", "page_name": "menu", "identifier_slot": "customer_id"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_edit_store_page_action():
+    response = client.put(
+        f"/api/bot/{pytest.bot}/action/store_page",
+        json={"name": "test_store_page_action", "page_name": "menu", "identifier_slot": "customer_id"},
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated"
+
+
+def test_delete_store_page_action_not_found():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/store_page/nonexistent_store_page_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+
+
+def test_delete_store_page_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/store_page/test_store_page_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action deleted"
+
+
+def test_get_store_page_metadata_not_found():
+    response = client.get(
+        f"/api/bot/{pytest.bot}/store_page/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert "not found" in actual["message"].lower()
+
+
+def test_get_store_page_metadata():
+    from kairon.shared.data.data_objects import StorePageMetadata
+    StorePageMetadata.objects(bot=pytest.bot).delete()
+    StorePageMetadata(
+        bot=pytest.bot,
+        user="testUser",
+        config={"base_url": "https://store.example.com", "catalog_id": "cat_001"},
+    ).save()
+    response = client.get(
+        f"/api/bot/{pytest.bot}/store_page/metadata",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]["bot"] == pytest.bot
+    assert actual["data"]["config"]["base_url"] == "https://store.example.com"
+    StorePageMetadata.objects(bot=pytest.bot).delete()
+
 
 def test_add_asset(monkeypatch):
     def __mock_file_upload(*args, **kwargs):
@@ -28508,6 +38997,22 @@ def test_get_end_user_metrics(monkeypatch):
     assert actual["success"]
     assert len(actual["data"]["logs"]) == 5
     assert actual["data"]["total"] == 5
+
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/agent_handoff/search?from_date={from_date}&to_date={to_date}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("agent", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
     response = client.get(
         f"/api/bot/{pytest.bot}/metric/user/logs/user_metrics?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -28789,6 +39294,7 @@ def test_multilingual_translate():
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
@@ -28807,7 +39313,7 @@ def test_multilingual_translate():
     assert response["message"] == "Bot translation in progress! Check logs."
     assert response["error_code"] == 0
     MultilingualLogProcessor.add_log(
-        pytest.bot, "integ1@gmail.com", event_status="Completed", status="Success"
+        pytest.bot, "integ1@gmail.com", event_status=EVENT_STATUS.COMPLETED.value, status=STATUSES.SUCCESS.value
     )
 
 
@@ -28911,6 +39417,7 @@ def test_multilingual_translate_using_event_with_actions_and_responses(monkeypat
                     },
                     "cron_exp": None,
                     "timezone": None,
+                    "run_at": None
                 }
             )
         ],
@@ -28951,8 +39458,12 @@ def test_multilingual_translate_logs():
         url=f"/api/bot/{pytest.bot}/multilingual/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/logs/multilingual?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
-
+    print(actual)
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 2
@@ -28967,11 +39478,26 @@ def test_multilingual_translate_logs():
     assert actual["data"]["logs"][1]["copy_type"] == "Translation"
     assert actual["data"]["logs"][1]["translate_responses"] == False
     assert actual["data"]["logs"][1]["translate_actions"] == False
-    assert actual["data"]["logs"][1]["event_status"] == "Completed"
-    assert actual["data"]["logs"][1]["status"] == "Success"
+    assert actual["data"]["logs"][1]["event_status"] == EVENT_STATUS.COMPLETED.value
+    assert actual["data"]["logs"][1]["status"] == STATUSES.SUCCESS.value
     assert actual["data"]["logs"][1]["start_timestamp"]
     assert actual["data"]["logs"][1]["end_timestamp"]
 
+    from_date = date.today()
+    to_date = from_date + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/multilingual/search?from_date={from_date}&to_date={to_date}&status=Success",
+        headers={"Authorization": pytest.token_type + ' ' + pytest.access_token},
+    )
+
+    response_json = search_response.json()
+    print("multilingual", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 def test_multilingual_language_support(monkeypatch):
     def _mock_supported_languages(*args, **kwargs):
@@ -29055,7 +39581,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent3",
@@ -29065,7 +39591,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
     ActionServerLogs(
         intent="intent4",
@@ -29084,7 +39610,7 @@ def test_download_logs_with_action_logs(monkeypatch):
         api_response="Response",
         bot_response="Bot Response",
         bot=bot,
-        status="FAILURE",
+        status=STATUSES.FAIL.value,
     ).save()
 
     response = client.get(
@@ -29113,6 +39639,7 @@ def test_get_auditlog_for_user_1():
                              + login["data"]["access_token"]
         },
     )
+
     actual = response.json()
 
     assert actual["data"] is not None
@@ -29131,8 +39658,12 @@ def test_get_auditlog_for_bot():
         f"/api/bot/{pytest.bot}/auditlog/data/{from_date}/{to_date}?start_idx=0&page_size=100",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/audit?from_date={from_date}&to_date={to_date}&start_idx=0&page_size=100",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
-
+    print(actual)
     audit_log_data = actual["data"]["logs"]
 
     assert audit_log_data is not None
@@ -29143,6 +39674,22 @@ def test_get_auditlog_for_bot():
     assert counter.get(AuditlogActions.SAVE.value) > 5
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 3
     assert counter.get(AuditlogActions.UPDATE.value) > 5
+
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/audit/search"
+        f"?from_date={from_date}&to_date={to_date}"
+        f"&start_idx=0&page_size=10",
+        headers={"Authorization": f"{pytest.token_type} {pytest.access_token}"},
+    )
+
+    response_json = search_response.json()
+    print("audit", response_json)
+    assert response_json["success"] is True
+    assert response_json["error_code"] == 0
+
+    data = response_json["data"]
+    assert "logs" in data
+    assert isinstance(data["logs"], list)
 
 
 @mock.patch('kairon.shared.account.activity_log.UserActivityLogger.is_login_within_cooldown_period', autospec=True)
@@ -29254,7 +39801,8 @@ def test_add_member_with_view_role():
             "confirm_password": "Welcome@10",
             "account": email,
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -29354,22 +39902,78 @@ def test_trigger_widget():
 
 
 def test_get_llm_logs():
-    from kairon.shared.llm.logger import LiteLLMLogger
-    import litellm
     import asyncio
+    from kairon.shared.actions.utils import ActionUtility
+    from kairon.shared.llm.data_objects import LLMLogs
+    from unittest.mock import patch, AsyncMock
 
     loop = asyncio.new_event_loop()
     user = "test"
-    litellm.callbacks = [LiteLLMLogger()]
 
     messages = [{"role": "user", "content": "Hi"}]
     expected = "Hi, How may i help you?"
 
-    result = loop.run_until_complete(litellm.acompletion(messages=messages,
-                                                         model="gpt-4o-mini",
-                                                         mock_response=expected,
-                                                         metadata={'user': user, 'bot': pytest.bot}))
-    assert result['choices'][0]['message']['content'] == expected
+    mock_llm_http_response = {
+        "formatted_response": {
+            "choices": [
+                {
+                    "message": {
+                        "content": expected
+                    }
+                }
+            ]
+        },
+        "response": {}
+    }
+
+    mock_return = (
+        mock_llm_http_response,
+        200,
+        0.05,
+        {}
+    )
+
+    with patch.object(
+            ActionUtility,
+            "execute_request_async",
+            new=AsyncMock(return_value=mock_return)
+    ):
+        from kairon.shared.llm.processor import LLMProcessor
+
+        processor = LLMProcessor(bot=pytest.bot, llm_type="openai")
+
+        formatted_response, raw_response = loop.run_until_complete(
+            processor._LLMProcessor__get_completion(
+                messages=messages,
+                hyperparameters={},
+                user=user,
+                invocation="prompt_action",
+                media_ids=[],
+                should_process_media=False
+            )
+        )
+        assert formatted_response["choices"][0]["message"]["content"] == expected
+        import uuid
+
+        call_id = str(uuid.uuid4())
+
+        log_data = LLMLogs(
+            llm_call_id=call_id,
+            llm_provider="openai",
+            model=None,
+            model_params={},
+            metadata={
+                "user": user,
+                "bot": pytest.bot,
+                "invocation": "prompt_action"
+            },
+            response=raw_response,
+            start_time=datetime.utcnow(),
+            end_time=datetime.utcnow(),
+            cost=0.0
+        )
+
+        log_data.save()
 
     time.sleep(2)
 
@@ -29377,15 +39981,31 @@ def test_get_llm_logs():
         f"/api/bot/{pytest.bot}/llm/logs?start_idx=0&page_size=10",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm?start_idx=0&page_size=10",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
     actual = response.json()
-    print(actual)
+    print(actual["data"])
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["data"]
+
+    from_date = datetime.utcnow().date() - timedelta(days=1)
+    to_date = datetime.utcnow().date() + timedelta(days=1)
+    search_response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = search_response.json()
     assert actual["success"]
     assert actual["error_code"] == 0
     assert len(actual["data"]["logs"]) == 1
     assert actual["data"]["total"] == 1
     assert actual["data"]["logs"][0]['start_time']
     assert actual["data"]["logs"][0]['end_time']
-    assert actual["data"]["logs"][0]['cost']
+    assert 'cost' in actual["data"]["logs"][0]
     assert actual["data"]["logs"][0]['llm_call_id']
     assert actual["data"]["logs"][0]["llm_provider"] == "openai"
     assert not actual["data"]["logs"][0].get("model")
@@ -29393,6 +40013,99 @@ def test_get_llm_logs():
     assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
     assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
     assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+    call_id = actual["data"]["logs"][0]['llm_call_id']
+
+    search_with_invocation = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&invocation=prompt_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = search_with_invocation.json()
+    print(actual)
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+
+    search_with_call_id = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&llm_call_id={call_id}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = search_with_call_id.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert 'cost' in actual["data"]["logs"][0]
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
+    llm_call_id_param = f"'{call_id}'"
+    search_with_call_id = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = search_with_call_id.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+    assert actual["data"]["logs"][0]['start_time']
+    assert actual["data"]["logs"][0]['end_time']
+    assert 'cost' in actual["data"]["logs"][0]
+    assert actual["data"]["logs"][0]['llm_call_id']
+    assert actual["data"]["logs"][0]["llm_provider"] == "openai"
+    assert not actual["data"]["logs"][0].get("model")
+    assert actual["data"]["logs"][0]["model_params"] == {}
+    assert actual["data"]["logs"][0]["metadata"]['bot'] == pytest.bot
+    assert actual["data"]["logs"][0]["metadata"]['user'] == "test"
+    assert not actual["data"]["logs"][0].get('response', {}).get("data", None)
+
+    llm_call_id_param = [call_id]
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?"
+        f"from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+
+    log = actual["data"]["logs"][0]
+    assert log["llm_call_id"] == call_id
+    assert log["metadata"]["bot"] == pytest.bot
+    assert log["metadata"]["user"] == "test"
+
+    llm_call_id_param = f"['{call_id}']"
+
+    response = client.get(
+        f"/api/bot/{pytest.bot}/logs/llm/search?"
+        f"from_date={from_date}&to_date={to_date}&user=test&llm_call_id={llm_call_id_param}",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert len(actual["data"]["logs"]) == 1
+    assert actual["data"]["total"] == 1
+
+    log = actual["data"]["logs"][0]
+    assert log["llm_call_id"] == call_id
+    assert log["metadata"]["bot"] == pytest.bot
+    assert log["metadata"]["user"] == "test"
+
 
 def test_add_custom_widget_invalid_config():
     response = client.post(
@@ -29760,6 +40473,17 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
         )
 
     monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
     action = {
         "name": "test_add_prompt_action_with_stop_hyperparameters", 'user_question': {'type': 'from_user_message'},
         "llm_prompts": [
@@ -29772,7 +40496,7 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
             },
             {
                 "name": "Similarity Prompt",
-                "data": "Bot_collection",
+                "data": "test_collection",
                 "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
                 "type": "user",
                 "source": "bot_content",
@@ -29818,6 +40542,524 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
     assert action.hyperparameters['stop'] == 'abc'
     assert action.hyperparameters['temperature'] == 1.0
 
+
+def test_add_parallel_action_missing_existing_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action with name prompt_action does not exist!"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    Actions.objects(name="pyscript_action").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+    PyscriptActionConfig.objects(name="pyscript_action").delete()
+
+
+def test_add_parallel_action_empty_actions_list(monkeypatch):
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": []
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "The 'actions' field must contain at least one action."
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+
+
+def test_add_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 5
+    bot_settings.save()
+
+    Actions.objects(name="parallel_action_test").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+
+
+def test_add_parallel_action_nested_parallel_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_nested_request_body = {
+        "name": "parallel_action_nested_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "parallel_action_test"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_nested_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "ParallelAction cannot include other parallel actions: ['parallel_action_test']"
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+    Actions.objects(name="parallel_action_test").delete()
+    Actions.objects(name="pyscript_action").delete()
+    ParallelActionConfig.objects(name="parallel_action_test").delete()
+    PyscriptActionConfig.objects(name="pyscript_action").delete()
+
+def test_add_parallel_action(monkeypatch):
+    script= "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    def _mock_get_bot_settings(*args, **kwargs):
+        return BotSettings(
+            bot=pytest.bot,
+            user="integration@demo.ai",
+            llm_settings=LLMSettings(enable_faq=True),
+        )
+
+    monkeypatch.setattr(MongoProcessor, "get_bot_settings", _mock_get_bot_settings)
+    CognitionSchema(
+        metadata=[
+            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+        ],
+        collection_name="test_collection",
+        user="integration@demo.ai",
+        bot=pytest.bot,
+        timestamp=datetime.utcnow(),
+        schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+    ).save()
+    action = {
+        "name": "prompt_action", 'user_question': {'type': 'from_user_message'},
+        "llm_prompts": [
+            {
+                "name": "System Prompt",
+                "data": "You are a personal assistant.",
+                "type": "system",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Similarity Prompt",
+                "data": "test_collection",
+                "instructions": "Answer question based on the context above, if answer is not in the context go check previous logs.",
+                "type": "user",
+                "source": "bot_content",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+            {
+                "name": "Query Prompt",
+                "data": "If there is no specific query, assume that user is aking about java programming.",
+                "instructions": "Answer according to the context",
+                "type": "query",
+                "source": "static",
+                "is_enabled": True,
+            },
+        ],
+        "instructions": ["Answer in a short manner.", "Keep it simple."],
+        "num_bot_responses": 5,
+        "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
+        "llm_type": DEFAULT_LLM,
+        "hyperparameters": Utility.get_default_llm_hyperparameters()
+    }
+    response = client.post(
+        f"/api/bot/{pytest.bot}/action/prompt",
+        json=action,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["message"] == "Action Added Successfully"
+    assert actual["data"]["_id"]
+    pytest.action_id = actual["data"]["_id"]
+    assert actual["success"]
+    assert actual["error_code"] == 0
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": False,
+        "actions": ["pyscript_action", "prompt_action"]
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+
+def test_update_parallel_action(monkeypatch):
+    script = "bot_response='hello world'"
+    request_body = {
+        "name": "pyscript_action_2",
+        "source_code": script,
+        "dispatch_response": False,
+    }
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/pyscript",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action added!"
+    assert actual["success"]
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    print(actual)
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action updated!"
+    assert actual["success"]
+
+    config = ParallelActionConfig.objects(name="parallel_action_test").first()
+    assert config is not None
+
+    config = config.to_mongo().to_dict()
+    assert config["actions"] == ["pyscript_action", "prompt_action", "pyscript_action_2"]
+    assert config["dispatch_response_text"] is True
+
+def test_update_parallel_action_empty_action_list(monkeypatch):
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": []
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"][0]['msg'] == "The 'actions' field must contain at least one action."
+    assert actual["message"][0]['type'] == "value_error"
+    assert not actual["success"]
+
+def test_update_parallel_action_exceeds_max_actions(monkeypatch):
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 2
+    bot_settings.save()
+
+    parallel_action_request_body = {
+        "name": "parallel_action_test",
+        "response_text": "Parallel Action Success",
+        "dispatch_response_text": True,
+        "actions": ["pyscript_action","pyscript_action","pyscript_action"]
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/parallel",
+        json=parallel_action_request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual["error_code"] == 422
+    assert actual["message"] == f"Maximum {bot_settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+    assert not actual["success"]
+
+    bot_settings = BotSettings.objects(bot=pytest.bot).get()
+    bot_settings.max_actions_per_parallel_action = 5
+    bot_settings.save()
+
+def test_delete_action_used_in_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/pyscript_action",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert actual["message"] == "Action 'pyscript_action' cannot be deleted because it is used in parallel actions: ['parallel_action_test']"
+
+def test_delete_parallel_action_not_exists():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test_not_existing",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 422
+    assert (
+            actual["message"]
+            == 'Action with name "parallel_action_test_not_existing" not found'
+    )
+
+def test_delete_parallel_action():
+    response = client.delete(
+        f"/api/bot/{pytest.bot}/action/parallel_action_test",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Action deleted"
+    parallel_action_count = ParallelActionConfig.objects(bot = pytest.bot).count()
+    assert parallel_action_count == 0
+    Actions.objects(name__in=["pyscript_action", "pyscript_action_2", "prompt_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["pyscript_action", "pyscript_action_2"]).delete()
+    PromptAction.objects(name="prompt_action").delete()
+
+
+@responses.activate
+def test_upload_with_parallel_action():
+    ValidationLogs.objects(bot = pytest.bot).delete()
+    event_url = urljoin(
+        Utility.environment["events"]["server_url"],
+        f"/api/events/execute/{EventClass.data_importer}",
+    )
+    responses.add(
+        "POST",
+        event_url,
+        json={"success": True, "message": "Event triggered successfully!"},
+    )
+
+    files = (
+        (
+            "training_files",
+            ("nlu.yml", open("tests/testing_data/parallel_action/data/nlu.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("domain.yml", open("tests/testing_data/parallel_action/domain.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("stories.yml", open("tests/testing_data/parallel_action/data/stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("rules.yml", open("tests/testing_data/parallel_action/data/rules.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("multiflow_stories.yml", open("tests/testing_data/parallel_action/multiflow_stories.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("actions.yml", open("tests/testing_data/parallel_action/actions.yml", "rb")),
+        ),
+        (
+            "training_files",
+            ("config.yml", open("tests/testing_data/parallel_action/config.yml", "rb")),
+        ),
+        (
+            "training_files",
+            (
+                "chat_client_config.yml",
+                open("tests/testing_data/all/chat_client_config.yml", "rb"),
+            ),
+        ),
+        (
+            "training_files",
+            (
+                "bot_content.yml",
+                open("tests/testing_data/all/bot_content.yml", "rb"),
+            ),
+        ),
+    )
+    response = client.post(
+        f"/api/bot/{pytest.bot}/upload?import_data=true&overwrite=true",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+        files=files,
+    )
+    actual = response.json()
+    assert actual["message"] == "Upload in progress! Check logs."
+    assert actual["error_code"] == 0
+    assert actual["data"] is None
+    assert actual["success"]
+    complete_end_to_end_event_execution(
+        pytest.bot, "integration@demo.ai", EventClass.data_importer
+    )
+
+    Actions.objects(name__in=["api1", "api2", "py1", "py2", "parallel_action"]).delete()
+    PyscriptActionConfig.objects(name__in=["py1", "py2"]).delete()
+    HttpActionConfig.objects(action_name__in=["api1", "api2"]).delete()
+    ParallelActionConfig.objects(name="parallel_action").delete()
+
+
+def test_list_existing_actions_for_parallel_action():
+    Actions.objects(bot=pytest.bot).delete()
+    processor = MongoProcessor()
+    user = "integration@demo.ai"
+    action_1 = "http_action_1"
+    action_2 = "email_action_1"
+    action_3 = "jira_action_1"
+    action_4 = "live_agent_action_1"
+    action_5 = "parallel_action_1"
+
+    processor.add_action(action_1, pytest.bot, user, action_type=ActionType.http_action)
+    processor.add_action(action_2, pytest.bot, user, action_type=ActionType.email_action)
+    processor.add_action(action_3, pytest.bot, user, action_type=ActionType.jira_action)
+    processor.add_action(action_4, pytest.bot, user, action_type=ActionType.live_agent_action)
+    processor.add_action(action_5, pytest.bot, user, action_type=ActionType.parallel_action)
+
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/action/parallel/actions",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    actual = response.json()
+    print(actual)
+
+    assert actual["success"] is True
+    assert actual["error_code"] == 0
+    assert actual["message"] is None
+
+    assert len(actual["data"]) == 3
+    expected_actions = {action_1: ActionType.http_action.value,
+                        action_2: ActionType.email_action.value,
+                        action_3: ActionType.jira_action.value}
+    actual_actions = {action["name"]: action["type"] for action in actual["data"]}
+
+    for name, action_type in expected_actions.items():
+        assert name in actual_actions
+        assert actual_actions[name] == action_type
+
+    assert action_4 not in actual_actions
+    assert action_5 not in actual_actions
+
+    Actions.objects(name__in=[action_1, action_2, action_3, action_4, action_5], bot=pytest.bot).delete()
 
 @responses.activate
 def test_idp_provider_fields():
@@ -29969,7 +41211,7 @@ def test_delete_account(mock_password_reset):
     UserActivityLog(
         type="user_consent",
         user="integration@demo.ai",
-        message=['Privacy Policy, Terms and Conditions consent'],
+        message=['Privacy Policy, Terms and Conditions and AI Guidelines consent'],
         data={
             "username": "integration@demo.ai",
             "accepted_privacy_policy": True,
@@ -30018,7 +41260,8 @@ def test_get_responses_post_passwd_reset(monkeypatch):
             "account": "integration",
             "bot": "integration",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = regsiter_response.json()
@@ -30143,7 +41386,8 @@ def test_get_responses_change_passwd_with_same_passwrd(monkeypatch):
             "account": "samepasswrd",
             "bot": "samepasswrd",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     token = Authentication.create_access_token(data={"mail_id": email})
@@ -30177,7 +41421,8 @@ def test_get_responses_change_passwd_with_same_passwrd_rechange(monkeypatch):
             "account": "samepasswrd2",
             "bot": "samepasswrd2",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     token = Authentication.create_access_token(data={"mail_id": email})
@@ -30339,7 +41584,8 @@ def test_idp_callback(monkeypatch):
             "given_name": "test",
             "family_name": "user",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         }
 
     monkeypatch.setattr(IDPProcessor, "get_idp_token", _get_idp_token)
@@ -30383,7 +41629,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 16
+    assert len(actual["data"]) == 21
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(
@@ -30397,7 +41643,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_owner",
             "bot": "mayank_owner",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -30414,7 +41661,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_tester",
             "bot": "mayank_tester",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()
@@ -30431,7 +41679,8 @@ def test_leave_bot_successfully_1(monkeypatch):
             "account": "mayank_admin",
             "bot": "mayank_admin",
             "accepted_privacy_policy": True,
-            "accepted_terms": True
+            "accepted_terms": True,
+            "accepted_ai_guidelines": True
         },
     )
     actual = response.json()

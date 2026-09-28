@@ -2,7 +2,7 @@ import os
 import pytest
 from mongoengine import connect
 from kairon import Utility
-from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT
+from kairon.shared.data.constant import EVENT_STATUS, REQUIREMENTS, COMPONENT_COUNT, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.multilingual.data_objects import BotReplicationLogs
@@ -43,7 +43,7 @@ class TestMultilingualLogProcessor:
         bot = 'test'
         user = 'test'
 
-        MultilingualLogProcessor.add_log(bot, user, exception='Translation failed', status='Failure',
+        MultilingualLogProcessor.add_log(bot, user, exception='Translation failed', status=STATUSES.FAIL.value,
                                          event_status=EVENT_STATUS.FAIL.value)
         log = BotReplicationLogs.objects(bot=bot).get().to_mongo().to_dict()
 
@@ -58,7 +58,7 @@ class TestMultilingualLogProcessor:
         assert log.get('exception') == 'Translation failed'
         assert log.get('start_timestamp')
         assert log.get('end_timestamp')
-        assert log.get('status') == 'Failure'
+        assert log.get('status') == STATUSES.FAIL.value
         assert log.get('event_status') == EVENT_STATUS.FAIL.value
 
     def test_add_log_success(self):
@@ -66,7 +66,7 @@ class TestMultilingualLogProcessor:
         user = 'test'
         MultilingualLogProcessor.add_log(bot, user)
         MultilingualLogProcessor.add_log(bot, user,
-                                         status='Success',
+                                         status=STATUSES.SUCCESS.value,
                                          event_status=EVENT_STATUS.COMPLETED.value)
         log = list(MultilingualLogProcessor.get_logs(bot))
         assert not log[0].get('source_bot_name')
@@ -80,7 +80,7 @@ class TestMultilingualLogProcessor:
         assert not log[0].get('translate_actions')
         assert log[0].get('start_timestamp')
         assert log[0].get('end_timestamp')
-        assert log[0].get('status') == 'Success'
+        assert log[0].get('status') == STATUSES.SUCCESS.value
         assert log[0].get('event_status') == EVENT_STATUS.COMPLETED.value
 
     def test_is_event_in_progress_false(self):
@@ -138,7 +138,7 @@ class TestMultilingualLogProcessor:
         assert log.get('event_status') == EVENT_STATUS.INITIATED.value
 
         destination_bot = 'd_bot'
-        MultilingualLogProcessor.update_summary(bot, user, destination_bot=destination_bot, status='Success')
+        MultilingualLogProcessor.update_summary(bot, user, destination_bot=destination_bot, status=STATUSES.SUCCESS.value)
         log = next(MultilingualLogProcessor.get_logs(bot))
         assert not log.get('source_bot_name')
         assert log.get('destination_bot') == 'd_bot'
@@ -151,7 +151,7 @@ class TestMultilingualLogProcessor:
         assert not log.get('translate_actions')
         assert log.get('start_timestamp')
         assert log.get('end_timestamp')
-        assert log.get('status') == 'Success'
+        assert log.get('status') == STATUSES.SUCCESS.value
         assert log.get('event_status') == EVENT_STATUS.COMPLETED.value
 
     def test_update_log_create_new(self):

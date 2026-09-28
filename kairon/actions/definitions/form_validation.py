@@ -6,12 +6,13 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction
+from kairon.shared.actions.data_objects import ActionServerLogs, FormValidationAction, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from rasa_sdk.forms import REQUESTED_SLOT
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import FORM_SLOT_SET_TYPE
-
+from kairon.shared.data.constant import STATUSES
 
 class ActionFormValidation(ActionsBase):
 
@@ -35,7 +36,7 @@ class ActionFormValidation(ActionsBase):
         logger.debug("form_validation_config: " + str(action.to_json()))
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -45,12 +46,14 @@ class ActionFormValidation(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         form_validations = self.retrieve_config()
         slot = tracker.get_slot(REQUESTED_SLOT)
         slot_value = tracker.get_slot(slot)
         msg = [f'slot: {slot} | slot_value: {slot_value}']
         is_valid = False
-        status = "FAILURE"
+        status = STATUSES.FAIL.value
         if ActionUtility.is_empty(slot):
             return {}
         try:
@@ -70,7 +73,7 @@ class ActionFormValidation(ActionsBase):
                 is_valid = True
 
             if is_valid:
-                status = "SUCCESS"
+                status = STATUSES.SUCCESS.value
                 form_slot_set_type = validation.slot_set.type
                 custom_value = validation.slot_set.value
                 if custom_value and form_slot_set_type == FORM_SLOT_SET_TYPE.custom.value:
@@ -88,6 +91,8 @@ class ActionFormValidation(ActionsBase):
             msg.append(f'Skipping validation as no validation config found for slot: {slot}')
             logger.debug(e)
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.form_validation_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -95,7 +100,9 @@ class ActionFormValidation(ActionsBase):
                 sender=tracker.sender_id,
                 bot=tracker.get_slot("bot"),
                 messages=msg,
-                status=status
+                status=status,
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
 
         return {slot: slot_value}

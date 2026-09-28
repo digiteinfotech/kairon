@@ -398,6 +398,51 @@ class DataUtility:
         return channel_endpoint
 
     @staticmethod
+    def get_voice_channel_endpoints(channel_config: dict) -> dict:
+        from kairon.shared.auth import Authentication
+        bot = channel_config['bot']
+        user = channel_config['user']
+        provider = channel_config['config'].get('telephony_provider', 'twilio')
+
+        token, _ = Authentication.generate_integration_token(
+            bot, user, role=ACCESS_ROLES.CHAT.value,
+            access_limit=[
+                f"/api/bot/{bot}/channel/voice/{provider}/.+",
+            ],
+            token_type=TOKEN_TYPE.CHANNEL.value
+        )
+
+        base = Utility.environment['model']['agent']['url']
+        from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+        provider_cls = VoiceProviderFactory.get_provider(provider)
+        if provider_cls.supports_dynamic_resolver():
+            return {
+                "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/resolver/{token}"),
+                "initializer_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/initializer/{token}"),
+            }
+        return {
+            "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}"),
+            "status_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}"),
+        }
+
+    @staticmethod
+    def get_integration_endpoint(integration_config: dict):
+        from kairon.shared.auth import Authentication
+
+        token, _ = Authentication.generate_integration_token(
+            integration_config['bot'], integration_config['user'], role=ACCESS_ROLES.DESIGNER.value,
+            access_limit=[
+                f"/api/bot/integration/{integration_config['provider']}/{integration_config['sync_type']}/{integration_config['bot']}/.+"],
+            token_type=TOKEN_TYPE.DATA_INTEGRATION.value
+        )
+
+        integration_endpoint = urljoin(
+            Utility.environment['app']['server_url'],
+            f"/api/bot/integration/{integration_config['provider']}/{integration_config['sync_type']}/{integration_config['bot']}/{token}"
+        )
+        return integration_endpoint
+
+    @staticmethod
     def save_channel_metadata(**kwargs):
         token = kwargs["token"]
         channel_config = kwargs.get("config")

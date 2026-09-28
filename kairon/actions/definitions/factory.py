@@ -2,6 +2,7 @@ from typing import Text
 
 from kairon.actions.definitions.callback_action import ActionCallback
 from kairon.actions.definitions.bot_response import ActionKaironBotResponse
+from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
@@ -22,6 +23,9 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.actions.definitions.schedule import ActionSchedule
+from kairon.actions.definitions.voice_call import ActionVoiceCall
+from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
+from kairon.actions.definitions.store_page import ActionStorePage
 
 
 class ActionFactory:
@@ -45,7 +49,11 @@ class ActionFactory:
         ActionType.web_search_action.value: ActionWebSearch,
         ActionType.live_agent_action.value: ActionLiveAgent,
         ActionType.callback_action.value: ActionCallback,
-        ActionType.schedule_action.value: ActionSchedule
+        ActionType.schedule_action.value: ActionSchedule,
+        ActionType.parallel_action.value: ActionParallel,
+        ActionType.voice_call_action.value: ActionVoiceCall,
+        ActionType.kairon_voice_disconnect.value: ActionVoiceDisconnect,
+        ActionType.store_page_action.value: ActionStorePage,
     }
 
     @staticmethod

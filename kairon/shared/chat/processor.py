@@ -1,14 +1,19 @@
-from datetime import datetime
+import os
+from datetime import datetime, timedelta
 from typing import Dict, Text
 
+import aiofiles
+from fastapi import File
 from loguru import logger
 from mongoengine import DoesNotExist
-
 from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
 from ..constants import ChannelTypes
+from ..data.constant import MIME_TYPE_LIMITS
+from ..data.data_objects import UserMediaData
 from ..data.utils import DataUtility
+from ..models import UserMediaUploadStatus
 from ...exceptions import AppException
 
 
@@ -29,12 +34,16 @@ class ChatDataProcessor:
             configuration['config']['private_key'] = private_key.replace("\\n", "\n")
         if configuration['connector_type'] == ChannelTypes.MAIL.value:
             from kairon.shared.channels.mail.processor import MailProcessor
+            from kairon.events.utility import EventUtility
             if MailProcessor.check_email_config_exists(bot, configuration['config']):
                 raise AppException("Email configuration already exists for same email address and subject")
+            input_interval = configuration["config"]["interval"]
+            system_interval = int(Utility.environment['integrations']["email"]['interval'])
+            EventUtility.validate_cron(input_interval, system_interval)
         try:
             filter_args = ChatDataProcessor.__attach_metadata_and_get_filter(configuration, bot)
             channel = Channels.objects(**filter_args).get()
-            channel.config = configuration['config']
+            channel.config = ChatDataProcessor.__validate_config_for_update(channel, configuration["config"])
             primary_slack_config_changed = True if channel.connector_type == 'slack' and channel.config.get(
                 'is_primary') else False
         except DoesNotExist:
@@ -48,8 +57,39 @@ class ChatDataProcessor:
             MailScheduler.request_epoch(bot)
         if primary_slack_config_changed:
             ChatDataProcessor.delete_channel_config(bot, connector_type="slack", config__is_primary=False)
+        if configuration['connector_type'] == ChannelTypes.VOICE.value:
+            from kairon.shared.data.processor import MongoProcessor
+            if not MongoProcessor.is_voice_enabled(bot):
+                raise AppException("Voice is not enabled for this bot")
+            endpoints = DataUtility.get_voice_channel_endpoints(channel)
+            Channels.objects(id=channel.id).update_one(set__config={**channel.config, **endpoints})
+            return endpoints
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
+
+    @staticmethod
+    def __validate_config_for_update(channel: Channels, config: dict) -> dict:
+        merged = dict(channel.config or {})
+        connector_type = channel.connector_type
+        if connector_type == ChannelTypes.VOICE.value:
+            provider = channel.config.get('telephony_provider', 'twilio')
+            channel_params = Utility.system_metadata.get("voice_channels", {}).get(provider, {})
+        else:
+            channel_params = Utility.system_metadata["channels"][connector_type]
+        required_fields = set(channel_params.get("required_fields", []))
+
+        for key, val in config.items():
+            if isinstance(val, str) and val.endswith("*****") and key in required_fields:
+                existing = merged.get(key)
+                if not existing or Utility.check_empty_string(existing):
+                    raise AppException(f"The field '{key}' cannot be empty or invalid. Please enter a valid value.")
+                try:
+                    merged[key] = Utility.decrypt_message(existing)
+                except Exception:
+                    raise AppException(f"Failed to process '{key}'. Please provide a valid value.")
+            else:
+                merged[key] = val
+        return merged
 
     @staticmethod
     def __attach_metadata_and_get_filter(configuration: Dict, bot: Text):
@@ -97,6 +137,15 @@ class ChatDataProcessor:
             yield data
 
     @staticmethod
+    def list_voice_channel_config(bot: Text, mask_characters: bool = True):
+        for channel in Channels.objects(bot=bot, connector_type=ChannelTypes.VOICE.value).exclude("user", "timestamp"):
+            data = channel.to_mongo().to_dict()
+            data['_id'] = data['_id'].__str__()
+            data.pop("timestamp")
+            ChatDataProcessor.__prepare_config(data, mask_characters)
+            yield data
+
+    @staticmethod
     def get_channel_config(connector_type: Text, bot: Text, mask_characters=True, **kwargs):
         """
         fetch particular channel config for bot
@@ -134,10 +183,23 @@ class ChatDataProcessor:
             bsp_type = config['config']['bsp_type']
             channel_params = Utility.system_metadata['channels'][connector_type]["business_providers"][bsp_type]
             ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
+        elif connector_type == ChannelTypes.VOICE.value:
+            ChatDataProcessor.__prepare_voice_config(config, mask_characters)
         else:
             channel_params = Utility.system_metadata['channels'][connector_type]
             ChatDataProcessor.__prepare_required_fields(config, channel_params, mask_characters)
         return config
+
+    @staticmethod
+    def __prepare_voice_config(config: dict, mask_characters: bool):
+        provider = config['config'].get('telephony_provider', 'twilio')
+        channel_params = Utility.system_metadata.get('voice_channels', {}).get(provider, {})
+        _encrypted_fields = {"account_sid", "auth_token"}
+        for field in channel_params.get('required_fields', []):
+            if field in _encrypted_fields and field in config['config']:
+                config['config'][field] = Utility.decrypt_message(config['config'][field])
+                if mask_characters:
+                    config['config'][field] = config['config'][field][:-5] + '*****'
 
     @staticmethod
     def __prepare_required_fields(data: dict, channel_params, mask_characters: bool):
@@ -174,7 +236,7 @@ class ChatDataProcessor:
         """
         campaign_id = None
         status = status_data.get('status')
-        msg_id = status_data.get('id')
+        msg_id = status_data.get('gs_id') or status_data.get('id')
 
         if msg_id and status in {"delivered", "read"}:
             campaign_id = MessageBroadcastProcessor.get_campaign_id(msg_id)
@@ -191,6 +253,7 @@ class ChatDataProcessor:
             bot=bot,
             user=user,
             recipient=recipient,
+            user_id=status_data.get('recipient_user_id'),
             campaign_id=campaign_id
         ).save()
 
@@ -235,3 +298,108 @@ class ChatDataProcessor:
         comment_response = channel.get("config", {}).get("static_comment_reply")
         return comment_response
 
+    @staticmethod
+    async def save_media_file_path(bot: Text, user: Text, file_content: File):
+        """
+        Saves the media file and validates its type.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param file_content: The uploaded file
+        :return: A dictionary of error messages if validation fails
+        """
+        content_dir = os.path.join("media_upload_records", bot)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, file_content.filename)
+
+        async with aiofiles.open(file_path, "wb") as buffer:
+            while chunk := await file_content.read(1024 * 1024):
+                await buffer.write(chunk)
+
+        await file_content.seek(0)
+        return file_path
+
+    @staticmethod
+    async def upload_media_to_bsp(bot: str, user: str, channel: str, file_path: str, file_info: File):
+        """
+        Uploads the file to BSP and deletes the temporary local file.
+        """
+        from ..channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        media_id = None
+        try:
+            channel_config = ChatDataProcessor.get_channel_config(channel, bot)
+            bsp_type = channel_config.get("config").get("bsp_type", "meta")
+            media_id = await (BusinessServiceProviderFactory.get_instance(bsp_type).upload_media_file(bot,
+                                                                        channel_config, user, file_info.filename,
+                                                                        file_info.content_type, file_info.size))
+            logger.info(f"Media uploaded successfully: {media_id}")
+        except DoesNotExist as e:
+            logger.error(f"Media upload failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
+            raise AppException(
+                    "Media upload failed: No channel found for this bot. Please configure the channel first."
+                ) from e
+        except Exception as e:
+            logger.error(f"Error uploading file to BSP: {str(e)}")
+            raise AppException(f"Media upload failed: {str(e)}") from e
+        finally:
+            if file_path:
+                try:
+                    Utility.remove_file_path(file_path)
+                except Exception as cleanup_err:
+                    logger.warning(f"Failed to cleanup temp file {file_path}: {cleanup_err}")
+
+        return media_id
+
+    @staticmethod
+    def delete_media_from_bsp(bot: str, channel: str, media_id: str):
+        from ..channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        try:
+            channel_config = ChatDataProcessor.get_channel_config(channel, bot)
+            bsp_type = channel_config.get("config").get("bsp_type", "meta")
+            BusinessServiceProviderFactory.get_instance(bsp_type).delete_media_file(bot, media_id, channel_config)
+            return "File deleted from meta"
+        except DoesNotExist as e:
+            logger.error(
+                f"Media deletion failed: No channel found for this bot. Please configure the channel first.: {str(e)}")
+            raise AppException(
+                "Media deletion failed: No channel found for this bot. Please configure the channel first."
+            ) from e
+        except Exception as e:
+            logger.error(f"Error deleting file to BSP: {str(e)}")
+            raise AppException(f"Failed to delete media: {str(e)}")
+
+    @staticmethod
+    def validate_media_file_type(bot: str, file_content: File):
+        content_type = file_content.content_type
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+        if content_type not in MIME_TYPE_LIMITS:
+            raise AppException(
+                f"Invalid file type: {content_type}. "
+                f"Allowed types are: {', '.join(MIME_TYPE_LIMITS.keys())}."
+            )
+
+        size_limit = MIME_TYPE_LIMITS[content_type]
+
+        file_content.file.seek(0, 2)
+        size = file_content.file.tell()
+        file_content.file.seek(0)
+
+        if size > size_limit:
+            raise AppException(
+                f"File size {size / (1024 * 1024):.2f} MB exceeds the "
+                f"limit of {size_limit / (1024 * 1024):.2f} MB for {content_type}."
+            )
+        user_media_data_obj = UserMediaData.objects(
+            bot=bot,
+            filename=file_content.filename
+        ).order_by('-timestamp').first()
+
+        if user_media_data_obj:
+            if user_media_data_obj.timestamp >= thirty_days_ago:
+                raise AppException(
+                    f"File '{file_content.filename}' already exists. Please upload a different file."
+                )
+            else:
+                user_media_data_obj.upload_status = UserMediaUploadStatus.expired.value
+                user_media_data_obj.save()

@@ -5,7 +5,7 @@ from kairon import Utility
 from loguru import logger
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.content_importer.content_processor import ContentImporterLogProcessor
 from kairon.shared.data.processor import MongoProcessor
 
@@ -68,7 +68,7 @@ class DocContentImporterEvent(EventsBase):
         from kairon.importer.content_importer import ContentImporter
 
         path = None
-        validation_status = 'Failure'
+        validation_status = STATUSES.FAIL.value
         try:
             file_received = ContentImporterLogProcessor.get_file_received_for_latest_event(self.bot)
             path = Utility.get_latest_file('doc_content_upload_records', self.bot)
@@ -77,10 +77,10 @@ class DocContentImporterEvent(EventsBase):
             original_row_count, summary = content_importer.validate()
             if len(summary) == original_row_count:
                 initiate_import = False
-                status = 'Failure'
+                status = STATUSES.FAIL.value
             else:
                 initiate_import = True
-                status = 'Partial_Success' if summary else 'Success'
+                status = STATUSES.PARTIAL_SUCCESS.value if summary else STATUSES.SUCCESS.value
             ContentImporterLogProcessor.add_log(self.bot, self.user, validation_errors = summary, status=status,
                                                        event_status=EVENT_STATUS.SAVE.value)
             if initiate_import:

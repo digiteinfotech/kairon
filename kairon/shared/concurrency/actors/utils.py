@@ -1,20 +1,26 @@
+import asyncio
 import json
 
 from datetime import datetime
+from http import HTTPStatus
 from typing import Text, List, Union, Dict
 from urllib import parse
 
-import litellm
 import requests
 from loguru import logger
+from orjson import orjson
 from tiktoken import get_encoding
 from urllib.parse import urljoin
 
 from kairon import Utility
+from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
 from kairon.shared.data.constant import DEFAULT_LLM, QDRANT_SUFFIX
+from kairon.shared.data.data_objects import UserMediaData
+from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
 
 
 class PyscriptUtility:
@@ -60,17 +66,31 @@ class PyscriptUtility:
 
         llm_secret = Sysadmin.get_llm_secret(llm_type=DEFAULT_LLM, bot=bot)
 
-        result = litellm.embedding(
-            model="text-embedding-3-small",
-            input=truncated_texts,
-            metadata={'user': user, 'bot': bot, 'invocation': invocation},
-            api_key=llm_secret.get("api_key"),
-            num_retries=3
+        body = {
+            "text": texts,
+            "user": user,
+            "kwargs": {
+                "truncated_texts": truncated_texts,
+                "api_key": llm_secret.get("api_key"),
+                "invocation": invocation,
+            }
+        }
+
+        timeout = Utility.environment["llm"].get("request_timeout", 30)
+        url = f"{Utility.environment['llm']['url']}/{parse.quote(bot)}/aembedding/{DEFAULT_LLM}"
+        response = requests.request(
+            method="POST",
+            url=url,
+            json=body,
+            timeout=timeout
         )
-
-        embeddings = [embedding["embedding"] for embedding in result["data"]]
-
-        return embeddings[0] if is_single_text else embeddings
+        logger.info(f"LLM request completed with status {response.status_code} for bot: {bot}")
+        if response.status_code not in [200, 201, 202, 203, 204]:
+            raise Exception(HTTPStatus(response.status_code).phrase)
+        http_response = response.json()
+        if is_single_text and isinstance(http_response, list):
+            return http_response[0]
+        return http_response
 
     @staticmethod
     def perform_operation(data: dict, user: str, **kwargs):
@@ -171,3 +191,83 @@ class PyscriptUtility:
             logger.info(response)
         print(http_response)
         return response
+
+    @staticmethod
+    def send_waba_message(payload: dict, key: Text, bot: str, predefined_objects: dict):
+        waba_url = "https://waba-v2.360dialog.io/messages"
+        headers = {"D360-API-KEY": key, "Content-TYpe": "application/json"}
+        return requests.post(url=waba_url, headers=headers, data=orjson.dumps(payload)).json
+
+    @staticmethod
+    def upload_media_to_bsp(bot: str, bsp_type: str, media_id: str):
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        bsp_class = BusinessServiceProviderFactory.get_instance(bsp_type)
+        return asyncio.run(bsp_class.upload_media(bot, bsp_type, media_id))
+
+    @staticmethod
+    def upload_media_to_360dialog(bot: str, bsp_type: str, media_id: str):
+        external_media_id = asyncio.run(BSP360Dialog.upload_media(bot, bsp_type, media_id))
+        return external_media_id
+
+    @staticmethod
+    async def get_media_content_bytes(bot: str, bsp_type: str, media_id: str):
+        """
+        Returns the PDF bytes from media ID.
+        """
+        from mongoengine import DoesNotExist
+        from kairon.shared.chat.processor import ChatDataProcessor
+        from kairon.shared.chat.user_media import UserMedia
+
+        connector_type = "whatsapp"
+        try:
+             UserMediaData.objects.get(media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        channel_config = ChatDataProcessor.get_channel_config(connector_type, bot, mask_characters=False)
+
+        if not channel_config or "config" not in channel_config or channel_config.get("config").get(
+                "bsp_type") != bsp_type:
+            raise AppException(
+                f"Channel config not found for bot: {bot}, connector_type: {connector_type}, bsp_type: {bsp_type}")
+
+        access_token = channel_config.get("config").get("api_key")
+        if not access_token:
+            raise AppException("API key (access token) not found in channel config")
+
+        try:
+            file_stream, _, _ = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            file_stream.seek(0)
+            media_bytes = file_stream.read()
+
+            return media_bytes
+
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def get_media_content(bot: str, bsp_type: str, media_id: str):
+        media_bytes = asyncio.run(PyscriptUtility.get_media_content_bytes(bot, bsp_type, media_id))
+        return media_bytes
+
+    @staticmethod
+    def fetch_media_ids(bot: str):
+        try:
+            media_data = UserMediaData.objects(
+                bot = bot,
+                upload_status = UserMediaUploadStatus.completed.value,
+                media_id__ne = "",
+                upload_type__in = [UserMediaUploadType.user_uploaded.value, UserMediaUploadType.system_uploaded.value]
+            ).only("filename", "media_id")
+
+            if not media_data:
+                return []
+
+            return [{"filename": doc.filename, "media_id": doc.media_id} for doc in media_data]
+
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")

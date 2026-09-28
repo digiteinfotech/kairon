@@ -2,29 +2,34 @@ import asyncio
 import base64
 import mimetypes
 import os
-from datetime import datetime
+from datetime import datetime , timedelta
 from pathlib import Path
 from typing import BinaryIO
 from markdown_pdf import MarkdownPdf, Section
 from loguru import logger
 from fastapi import File
 import requests
-from mongoengine import DoesNotExist
+from mongoengine import DoesNotExist, NotUniqueError
 from pathy import ClientError
 from uuid6 import uuid7
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.shared.actions.data_objects import Actions, PromptAction
+from kairon.shared.actions.models import ActionType
+from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
-from kairon.shared.data.data_objects import UserMediaData
-from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus
+from kairon.shared.constants import WhatsappBSPTypes
+from kairon.shared.data.data_objects import UserMediaData, Rules, Intents
+from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
 import fitz
 
 
 class UserMedia:
-
+    MEDIA_EXTRACTION_FLOW_NAME = "k_media_extraction"
     @staticmethod
-    def create_user_media_data(bot: str, media_id: str, filename: str, sender_id: str, upload_type: str = UserMediaUploadType.user_uploaded.value):
+    def create_user_media_data(bot: str, media_id: str, filename: str, sender_id: str, upload_type: str = UserMediaUploadType.user_uploaded.value, **kwargs):
         """
         Create user media data in processing state.
         Call mark_user_media_data_upload_done() to mark the upload as done or mark_user_media_data_upload_failed() to mark the upload as failed.
@@ -38,7 +43,8 @@ class UserMedia:
             upload_status=UserMediaUploadStatus.processing.value,
             sender_id=sender_id,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            **kwargs
         )
         user_media_data.save()
 
@@ -60,7 +66,7 @@ class UserMedia:
         user_media_data = UserMediaData.objects(media_id=media_id).first()
         if user_media_data:
             user_media_data.upload_status = UserMediaUploadStatus.failed.value
-            user_media_data.additional_log = reason
+            user_media_data.additional_info = {"message": reason}
             user_media_data.save()
 
 
@@ -72,6 +78,10 @@ class UserMedia:
                 media_id: str,
                 binary_data: bytes = None,
                 filename: str = None,
+                root_dir: str = None,
+                output_filename: str = None,
+                bucket: str = None,
+                is_validation_required: bool = True
                 ):
         """
         Save media content to cloud storage.
@@ -80,26 +90,36 @@ class UserMedia:
         :param media_id: media id
         :param binary_data: binary data of the file
         :param filename: name of the file
+        :param root_dir: Base folder for local files to upload to S3
+        :param output_filename: File path/key in S3.
+        :param bucket: s3 bucket
+        :param is_validation_required: validation for media extention
         """
 
         if not filename:
             raise AppException('filename must be provided for binary data')
-
-        bucket = Utility.environment["storage"]["user_media"].get("bucket")
-        root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
+        if not bucket:
+            bucket = Utility.environment["storage"]["user_media"].get("bucket")
+        if not root_dir:
+            root_dir = Utility.environment["storage"]["user_media"].get("root_dir")
         fpath = Path(filename)
         extension = str(fpath.suffix).lower()
         base_filename = fpath.stem
         filesize = len(binary_data)
 
-        if extension not in Utility.environment["storage"]["user_media"].get(
+        if is_validation_required and extension not in Utility.environment["storage"]["user_media"].get(
                 "allowed_extensions"
         ):
             raise AppException(
                 f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
             )
 
-        output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
+        if extension == ".jpg":
+            binary_data = Utility.convert_image_format(binary_data, "jpg", "jpeg")
+            extension = ".jpeg"
+
+        if not output_filename:
+            output_filename = os.path.join(root_dir, bot, f"{sender_id.replace('@', '_')}_{media_id}_{base_filename}{extension}")
         try:
             url = CloudUtility.upload_file_bytes(binary_data, bucket, output_filename)
             UserMedia.mark_user_media_data_upload_done(media_id=media_id,
@@ -107,6 +127,7 @@ class UserMedia:
                                                        output_filename=output_filename,
                                                        filesize=filesize)
             logger.info(f"saved {media_id} successfully")
+            return url
         except ClientError as e:
             logger.exception(e)
             UserMedia.mark_user_media_data_upload_failed(media_id=media_id, reason=str(e))
@@ -117,49 +138,30 @@ class UserMedia:
             raise AppException(f"File upload for {media_id} failed")
 
     @staticmethod
-    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict):
+    def save_whatsapp_media_content(bot: str, sender_id: str, whatsapp_media_id:str, config: dict, user_id: str = None, media_data: dict = None):
         """
-        Download media from 360 dialog or meta and save it to cloud storage via background task.
+        Download media from 360dialog, meta, or gupshup and save it to cloud storage via background task.
         :param bot: bot name
         :param sender_id: sender id
         :param whatsapp_media_id: whatsapp media id
-        :param config: configuration for 360 dialog or meta
+        :param config: channel config (bsp_type determines which provider path is used)
         :return: list of media ids
         """
-        download_url = None
-        file_path = None
-        headers = {}
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+
         provider = config.get("bsp_type", "meta")
-        if provider == '360dialog':
-            endpoint = f'https://waba-v2.360dialog.io/{whatsapp_media_id}'
-            headers = {
-                'D360-API-KEY': config.get('api_key'),
-            }
-            resp = requests.get(endpoint, headers=headers, stream=True)
-            if resp.status_code != 200:
-                raise AppException(f"Failed to download media from 360 dialog: {resp.status_code} - {resp.text}")
-            json_resp = resp.json()
-            download_url = json_resp.get("url")
-            download_url = download_url.replace('https://lookaside.fbsbx.com', 'https://waba-v2.360dialog.io')
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_360_{whatsapp_media_id}{extension}"
-        elif provider == 'meta':
-            endpoint = f'https://graph.facebook.com/v22.0/{whatsapp_media_id}'
-            access_token = config.get('access_token')
-            headers = {'Authorization': f'Bearer {access_token}'}
-            media_info_resp = requests.get(
-                endpoint,
-                params={"fields": "url", "access_token": access_token},
-                timeout=10
-            )
-            if media_info_resp.status_code != 200:
-                raise AppException(f"Failed to get url from meta for media: {whatsapp_media_id}")
-            json_resp = media_info_resp.json()
-            download_url = json_resp.get("url")
-            mime_type = json_resp.get("mime_type")
-            extension = mimetypes.guess_extension(mime_type) or ''
-            file_path = f"whataspp_meta_{whatsapp_media_id}{extension}"
+        access_token_key_map = {
+            "meta": "access_token",
+            WhatsappBSPTypes.bsp_360dialog.value: "api_key",
+            WhatsappBSPTypes.bsp_gupshup.value: "partner_app_token",
+        }
+        access_token = config.get(access_token_key_map.get(provider, "access_token"))
+        client = WhatsappFactory.get_client(provider)
+        download_url, headers, file_path = client(
+            access_token=access_token,
+            from_phone_number_id=config.get("from_phone_number_id"),
+            config=config
+        ).get_media_info(whatsapp_media_id, config, media_data=media_data)
 
         media_resp = requests.get(
             download_url,
@@ -181,15 +183,22 @@ class UserMedia:
             media_id=media_id,
             filename=file_path,
             sender_id=sender_id,
-            upload_type=UserMediaUploadType.user_uploaded.value)
+            upload_type=UserMediaUploadType.user_uploaded.value,
+            user_id=user_id)
 
-        asyncio.create_task(UserMedia.save_media_content_task(
-                bot=bot,
-                sender_id=sender_id,
-                media_id=media_id,
-                binary_data=file_buffer,
-                filename=file_path
-            ))
+        def background_task():
+            try:
+                asyncio.run(UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=file_buffer,
+                    filename=file_path
+                ))
+            except Exception as e:
+                logger.exception(f"Background task failed for media_id {media_id}: {e}")
+
+        asyncio.create_task(asyncio.to_thread(background_task))
 
         return [media_id]
 
@@ -201,6 +210,7 @@ class UserMedia:
             media_id: str,
             binary_data: bytes,
             filename: str,
+            execute_summarizarion: bool = True
     ):
         await asyncio.to_thread(
             UserMedia.save_media_content,
@@ -210,6 +220,8 @@ class UserMedia:
             binary_data,
             filename
         )
+        if execute_summarizarion:
+            await UserMedia.extract_media_information(bot, media_id, sender_id)
 
     @staticmethod
     async def upload_media_contents(
@@ -225,11 +237,13 @@ class UserMedia:
         :return: list of media ids
         """
         media_ids = []
+        file_names = []
         read_tasks = [asyncio.create_task(file.read()) for file in files]
         binary_datas = await asyncio.gather(*read_tasks)
 
         for file, binary_data in zip(files, binary_datas):
             filename = file.filename
+            file_names.append(filename)
             media_id = uuid7().hex
             media_ids.append(media_id)
             UserMedia.create_user_media_data(
@@ -245,7 +259,44 @@ class UserMedia:
                 binary_data=binary_data,
                 filename=filename
             ))
-        return media_ids
+        return media_ids, file_names
+
+    @staticmethod
+    async def upload_media_content_sync(
+            bot: str,
+            sender_id: str,
+            files: list[File],
+    ):
+        media_ids = []
+        file_names = []
+        read_tasks = [asyncio.create_task(file.read()) for file in files]
+        binary_datas = await asyncio.gather(*read_tasks)
+        tasks = []
+
+        for file, binary_data in zip(files, binary_datas):
+            filename = file.filename
+            file_names.append(filename)
+            media_id = uuid7().hex
+            media_ids.append(media_id)
+            UserMedia.create_user_media_data(
+                bot=bot,
+                media_id=media_id,
+                filename=filename,
+                sender_id=sender_id
+            )
+            tasks.append(
+                UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=binary_data,
+                    filename=filename,
+                    execute_summarizarion=False
+                )
+            )
+
+        await asyncio.gather(*tasks)
+        return media_ids, file_names
 
 
     @staticmethod
@@ -376,5 +427,305 @@ class UserMedia:
                 filename=filepath
             )
         return binary_data, media_id
+
+    @staticmethod
+    def add_media_extraction_flow_if_not_exist( bot: str):
+        try:
+            instructions = ['Extract all relevant information from the media file and return as a markdown']
+
+            llm_prompts = [
+                {'name': 'System Prompt',
+                 'instructions': f'{instructions[0]}',
+                 'type': 'system',
+                 'data': 'Extract information',
+                 },
+            ]
+
+            action_name = f"{UserMedia.MEDIA_EXTRACTION_FLOW_NAME}_prompt_action"
+            if not Actions.objects(bot=bot, name=action_name).first():
+                action = Actions(
+                    bot=bot,
+                    name=action_name,
+                    type=ActionType.prompt_action.value,
+                    status=True,
+                    user="system",
+                )
+                action.save()
+
+
+            if not PromptAction.objects(bot=bot, name=action_name).first():
+                prompt_action = PromptAction(
+                    name=action_name,
+                    instructions=instructions,
+                    llm_prompts=llm_prompts,
+                    dispatch_response=True,
+                    process_media=True,
+                    bot=bot,
+                    status=True,
+                    user="system",
+                )
+                prompt_action.save()
+            MULTIMEDIA_INTENT_NAME = "k_multimedia_msg"
+
+            if not Rules.objects(block_name=UserMedia.MEDIA_EXTRACTION_FLOW_NAME, bot=bot).first():
+                rule_data = {
+                    "block_name": UserMedia.MEDIA_EXTRACTION_FLOW_NAME,
+                    "condition_events_indices": [],
+                    "start_checkpoints": ["STORY_START"],
+                    "end_checkpoints": [],
+                    "events": [
+                        {"name": "...", "type": "action"},
+                        {"name": "k_multimedia_msg", "type": "user"},
+                        {"name": action_name, "type": "action"}
+                    ],
+                    "bot": bot,
+                    "user": "system",
+                    "timestamp": datetime.utcnow(),
+                    "status": True,
+                    "template_type": "CUSTOM",
+                    "flow_tags": [FlowTagType.agentic_flow.value]
+                }
+                Rules(**rule_data).save()
+
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to add media extraction flow: {e}")
+
+    @staticmethod
+    async def extract_media_information(bot:str, media_id: str, sender_id: str):
+        try:
+            UserMedia.add_media_extraction_flow_if_not_exist(bot)
+            slot_data = {
+                "media_ids": [media_id],
+            }
+            flow = AgenticFlow(bot, slot_vals=slot_data, sender_id=sender_id)
+            responses, errors = await flow.execute_rule(UserMedia.MEDIA_EXTRACTION_FLOW_NAME)
+            if errors:
+                raise AppException(f"Failed to extract media information: {errors}")
+            if not responses:
+                raise AppException(f"extraction prompt action execution failed: {media_id}")
+
+            user_media_data = UserMediaData.objects(media_id=media_id).get()
+
+            user_media_data.summary = responses[0].get("text")
+            user_media_data.save()
+
+        except Exception as e:
+            logger.exception(e)
+            raise AppException(f"Failed to extract media information: {e}")
+
+    @staticmethod
+    def get_media_ids(bot: str):
+        try:
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            media_data = UserMediaData.objects(
+                bot = bot,
+                upload_status = UserMediaUploadStatus.completed.value,
+                media_id__ne = "",
+                upload_type = UserMediaUploadType.broadcast.value,
+                timestamp__gte = thirty_days_ago,
+            ).only("filename", "media_id", "upload_status", "sender_id", "timestamp")
+            if not media_data:
+                return []
+
+            return [{"filename": doc.filename, "media_id": doc.media_id, "upload_status": doc.upload_status,
+                     "sender_id": doc.sender_id, "timestamp": doc.timestamp} for doc in media_data]
+
+        except Exception as e:
+            raise AppException(f"Error while fetching media ids for bot '{bot}': {str(e)}")
+
+    @staticmethod
+    def get_media_handle_id(bot: str, media_id: str):
+        try:
+            obj = UserMediaData.objects.get(
+                bot=bot,
+                media_id=media_id
+            )
+            media_data = obj.to_mongo().to_dict()
+            handle_id = media_data.get('external_upload_info', {}).get('handle_id')
+
+            return handle_id
+        except Exception as e:
+            raise AppException(f"Failed to get media handle_id:{str(e)}")
+
+    @staticmethod
+    def delete_media(bot, media_id: str, bucket: str = None):
+        """
+        Deletes a media file from the database and S3.
+        :param bot: bot name
+        :param media_id: media id
+        :param bucket: s3 bucket
+        :return: success message if deletion is successful.
+        """
+        try:
+            obj = UserMediaData.objects.get(
+                bot=bot,
+                media_id=media_id
+            )
+            filename = obj.output_filename
+            if not bucket:
+                bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
+            CloudUtility.delete_file(bucket, filename)
+            obj.delete()
+            return "Deleted successfully"
+        except Exception as e:
+            raise AppException(f"Failed to delete:{str(e)}")
+
+    @staticmethod
+    def create_media_doc(
+            bot: str,
+            sender_id: str,
+            filename: str,
+            extension: str,
+            filesize: int,
+            bsp_type: str = WhatsappBSPTypes.bsp_360dialog.value,
+    ) -> UserMediaData:
+        """
+        Create a media document in pending state, return the instance so it can be updated later.
+        """
+        media_doc = UserMediaData(
+            media_id="",
+            media_url="",
+            filename=filename,
+            extension=extension,
+            output_filename="",
+            summary="",
+            upload_status=UserMediaUploadStatus.processing.value,
+            upload_type=UserMediaUploadType.broadcast.value,
+            filesize=filesize,
+            additional_info={"message": "Upload initiated"},
+            sender_id=sender_id,
+            bot=bot,
+            external_upload_info={
+                "bsp": bsp_type,
+                "external_media_id": "",
+                "error": "",
+            },
+        )
+        media_doc.save()
+        return media_doc
+
+    @staticmethod
+    def get_user_media_data(bot: str):
+        try:
+            media_data = (
+                UserMediaData.objects(
+                    bot=bot,
+                    upload_status=UserMediaUploadStatus.completed.value,
+                    upload_type=UserMediaUploadType.user_uploaded.value,
+                )
+                .only("sender_id", "timestamp", "media_url", "additional_info")
+                .order_by("-timestamp")
+            )
+
+            return [
+                {
+                    "sender_id": doc.sender_id,
+                    "timestamp": doc.timestamp,
+                    "media_url": doc.media_url,
+                    "additional_info": doc.additional_info,
+                }
+                for doc in media_data
+            ]
+
+        except Exception as e:
+            raise AppException(
+                f"Error while fetching media info for bot '{bot}': {str(e)}"
+            )
+
+    @staticmethod
+    def save_whatsapp_media_and_get_url(
+            bot: str,
+            sender_id: str,
+            whatsapp_media_id: str,
+            config: dict,
+            description: str = None,
+            user_id: str = None
+    ):
+        """
+        Download WhatsApp media, upload to S3, save DB, and return S3 URL
+        """
+        from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
+
+        file_path = None
+        provider = config.get("bsp_type", "meta")
+        if provider == "meta":
+            access_token = config.get("access_token")
+        elif provider == WhatsappBSPTypes.bsp_gupshup.value:
+            access_token = config.get("partner_app_token")
+        else:
+            access_token = config.get("api_key")
+        from_phone_number_id = config.get("from_phone_number_id")
+        client = WhatsappFactory.get_client(provider)
+        download_url, headers, file_path = client(
+            access_token=access_token,
+            from_phone_number_id=from_phone_number_id
+        ).get_media_info(whatsapp_media_id, config)
+
+        media_resp = requests.get(
+            download_url,
+            headers=headers,
+            stream=True,
+            timeout=10
+        )
+        if media_resp.status_code != 200:
+            raise AppException(f"Failed to download media: {whatsapp_media_id}")
+        buffer = bytearray()
+        for chunk in media_resp.iter_content(chunk_size=8192):
+            if chunk:
+                buffer.extend(chunk)
+        file_buffer = bytes(buffer)
+
+        media_id = uuid7().hex
+
+        UserMedia.create_user_media_data(
+            bot=bot,
+            media_id=media_id,
+            filename=file_path,
+            sender_id=sender_id,
+            upload_type=UserMediaUploadType.user_uploaded.value,
+            additional_info={
+                "phone_number": sender_id,
+                "description": description
+            },
+            user_id=user_id,
+        )
+
+        def background_task():
+            try:
+                asyncio.run(UserMedia.save_media_content_task(
+                    bot=bot,
+                    sender_id=sender_id,
+                    media_id=media_id,
+                    binary_data=file_buffer,
+                    filename=file_path
+                ))
+            except Exception as e:
+                logger.exception(f"Background task failed for media_id {media_id}: {e}")
+
+        asyncio.create_task(asyncio.to_thread(background_task))
+
+        return [media_id]
+
+    @staticmethod
+    async def get_media_bytes_from_media_id(bot: str, media_id: str):
+        """
+        Returns the PDF bytes from media ID.
+        """
+        try:
+             UserMediaData.objects.get(bot=bot, media_id=media_id)
+        except DoesNotExist:
+            raise AppException(f"UserMediaData not found for media_id: {media_id}")
+
+        try:
+            file_stream, download_name, extension = await UserMedia.get_media_content_buffer(media_id)
+
+            if not file_stream:
+                raise AppException("File stream not found")
+
+            return file_stream, download_name, extension
+
+        except Exception as e:
+            raise e
 
 

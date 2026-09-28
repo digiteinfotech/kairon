@@ -2,6 +2,7 @@ import ast
 import asyncio
 import hashlib
 import html
+import io
 import os
 import re
 import shutil
@@ -9,7 +10,7 @@ import string
 import tarfile
 import tempfile
 import uuid
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone, time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from glob import glob, iglob
@@ -18,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from secrets import choice
 from smtplib import SMTP
-from typing import Text, List, Dict, Union, Any
+from typing import Text, List, Dict, Union, Any, Optional
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
@@ -28,6 +29,7 @@ import pytz
 import requests
 import ujson as json
 import yaml
+from PIL import Image
 from botocore.exceptions import ClientError
 from bson import InvalidDocument
 from dateutil import tz
@@ -87,7 +89,6 @@ from .data.model_data_imporer import KYAMLStoryWriter
 from .models import StoryStepType, LlmPromptType, LlmPromptSource
 from ..exceptions import AppException
 from werkzeug.utils import secure_filename
-
 
 class Utility:
     """Class contains logic for various utilities"""
@@ -272,8 +273,6 @@ class Utility:
         """
         Utility.environment = ConfigLoader(os.getenv(env, "./system.yaml")).get_config()
         Utility.load_system_metadata()
-        llm_metadata_file = Utility.environment.get("llm_metadata_file", Utility.llm_metadata_file_path)
-        Utility.load_llm_metadata(file_path=llm_metadata_file)
 
     @staticmethod
     def load_system_metadata():
@@ -289,16 +288,6 @@ class Utility:
                 Utility.system_metadata.update(
                     Utility.load_yaml(file)
                 )
-
-    @staticmethod
-    def load_llm_metadata(file_path: str = llm_metadata_file_path):
-        """
-        Loads the metadata for LLM from the llm_metadata.yml file.
-
-        :return: None
-        """
-        Utility.llm_metadata = Utility.load_yaml(file_path)
-
 
     @staticmethod
     def retrieve_field_values(document: Document, field: str, *args, **kwargs):
@@ -501,6 +490,26 @@ class Utility:
         """
         logger.info(f"deleting data from path: {path}")
         shutil.rmtree(path, ignore_errors)
+
+
+    @staticmethod
+    def remove_file_path(path: Text, default_path: Text = None):
+        path_obj = Path(path)
+
+        if default_path:
+            default_obj = Path(default_path)
+
+            if default_obj.exists():
+                if default_obj.resolve().is_relative_to(path_obj.resolve()):
+                    default_obj.unlink()
+                else:
+                    raise ValueError(
+                        f"Default path '{default_path}' is not inside '{path}'."
+                    )
+        else:
+            if path_obj.exists():
+                path_obj.unlink()
+
 
     @staticmethod
     def copy_model_file_to_directory(input_file_path: Text, output_path: Text):
@@ -729,6 +738,12 @@ class Utility:
         return date_time.timestamp()
 
     @staticmethod
+    def get_end_of_till_date(till_date: float):
+        dt = datetime.fromtimestamp(till_date, tz=timezone.utc)
+        end_of_day = datetime.combine(dt.date(), time(18, 29, 59, tzinfo=dt.tzinfo))
+        return end_of_day.timestamp()
+
+    @staticmethod
     def get_back_date_1month(request: Request):
         key = "from_date"
         if not request.query_params.get(key):
@@ -746,11 +761,11 @@ class Utility:
 
     @staticmethod
     def get_to_date(request: Request):
-        key = "to_date"
-        if not request.query_params.get(key):
+        date_str = request.query_params.get("till_date") or request.query_params.get("to_date")
+        if not date_str:
             return date.today()
         else:
-            return date.fromisoformat(request.query_params.get(key))
+            return date.fromisoformat(date_str)
 
     @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
@@ -1333,13 +1348,6 @@ class Utility:
             )
 
     @staticmethod
-    def validate_create_template_request(data: Dict):
-        required_keys = ["name", "category", "components", "language"]
-        missing_keys = [key for key in required_keys if key not in data]
-        if missing_keys:
-            raise AppException(f'Missing {", ".join(missing_keys)} in request body!')
-
-    @staticmethod
     def validate_edit_template_request(data: Dict):
         non_editable_keys = ["name", "category", "language"]
         if any(key in data for key in non_editable_keys):
@@ -1552,25 +1560,46 @@ class Utility:
     def validate_channel(channel, config, error, encrypt=True):
         if channel == ChannelTypes.WHATSAPP.value and config.get("bsp_type"):
             Utility.validate_whatsapp_bsp(channel, config, error, encrypt)
+        elif channel == ChannelTypes.VOICE.value:
+            Utility.validate_voice_provider(config, error, encrypt)
         else:
             Utility.validate_channel_config(channel, config, error, encrypt)
 
     @staticmethod
+    def validate_voice_provider(config, error, encrypt=True):
+        provider = config.get("telephony_provider", "twilio")
+        voice_providers = Utility.system_metadata.get("voice_channels", {})
+        if provider not in voice_providers:
+            raise error(f"Invalid telephony provider {provider}")
+        provider_params = voice_providers[provider]
+        _secret_fields = set(provider_params.get("secret_fields", ["account_sid", "auth_token"]))
+        for required_field in provider_params["required_fields"]:
+            if required_field not in config:
+                raise error(f"Missing {provider_params['required_fields']} all or any in config")
+            if encrypt and required_field in _secret_fields:
+                config[required_field] = Utility.encrypt_message(config[required_field])
+        config["telephony_provider"] = provider
+        if provider == "exotel" and not config.get("subdomain"):
+            config["subdomain"] = (
+                Utility.environment.get("voice", {})
+                .get("exotel", {})
+                .get("subdomain", "api.exotel.com")
+            )
+
+    @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
-        if channel in list(Utility.system_metadata["channels"].keys()):
-            for required_field in Utility.system_metadata["channels"][channel][
-                "required_fields"
-            ]:
-                err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
-                if required_field not in config:
-                    raise error(err_msg)
-                else:
-                    if encrypt:
-                        config[required_field] = Utility.encrypt_message(
-                            config[required_field]
-                        )
-        else:
+        if channel == ChannelTypes.VOICE.value:
+            Utility.validate_voice_provider(config, error, encrypt)
+            return
+        if channel not in list(Utility.system_metadata["channels"].keys()):
             raise error(f"Invalid channel type {channel}")
+        for required_field in Utility.system_metadata["channels"][channel]["required_fields"]:
+            err_msg = f"Missing {Utility.system_metadata['channels'][channel]['required_fields']} all or any in config"
+            if required_field not in config:
+                raise error(err_msg)
+            else:
+                if encrypt:
+                    config[required_field] = Utility.encrypt_message(config[required_field])
 
     @staticmethod
     def validate_whatsapp_bsp(channel, config, error, encrypt=True):
@@ -1598,10 +1627,12 @@ class Utility:
 
     @staticmethod
     def get_channels():
+        result = []
         if Utility.system_metadata.get("channels"):
-            return list(Utility.system_metadata["channels"].keys())
-        else:
-            return []
+            result.extend(list(Utility.system_metadata["channels"].keys()))
+        if Utility.system_metadata.get("voice_channels"):
+            result.append(ChannelTypes.VOICE.value)
+        return result
 
     @staticmethod
     def get_live_agents():
@@ -1643,12 +1674,15 @@ class Utility:
                 return {"account_owned": [], "shared": [bot_details]}
 
     @staticmethod
-    def verify_privacy_policy_and_terms_consent(accepted_privacy_policy: bool, accepted_terms: bool):
+    def verify_privacy_policy_and_terms_consent(accepted_privacy_policy: bool, accepted_terms: bool,
+                                                accepted_ai_guidelines: bool):
         missing_consents = []
         if not accepted_privacy_policy:
             missing_consents.append("privacy policy")
         if not accepted_terms:
             missing_consents.append("terms and conditions")
+        if not accepted_ai_guidelines:
+            missing_consents.append("ai guidelines")
 
         if missing_consents:
             raise AppException(f"Should be agreed to: {', '.join(missing_consents)}")
@@ -1710,75 +1744,75 @@ class Utility:
                             [0.0s, 0.2s, 0.4s, 0.8s, …] between retries. No backoff will ever be longer than backoff_max.
         :return: dict/response object
         """
-        session = requests.Session()
-        max_retries = kwargs.get("max_retries", 0)
-        status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
-        backoff_factor = kwargs.get("backoff_factor", 0)
-        retries = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=status_forcelist,
-            read=False,
-        )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        if not headers:
-            headers = {}
+        with requests.Session() as session:
+            max_retries = kwargs.get("max_retries", 0)
+            status_forcelist = kwargs.get("status_forcelist", [104, 502, 503, 504])
+            backoff_factor = kwargs.get("backoff_factor", 0)
+            retries = Retry(
+                total=max_retries,
+                backoff_factor=backoff_factor,
+                status_forcelist=status_forcelist,
+                read=False,
+            )
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            if not headers:
+                headers = {}
 
-        if request_body is None:
-            request_body = {}
-        try:
-            logger.info(f"Event started: {http_url}")
-            if request_method.lower() in ["get", "delete"]:
-                response = requests.request(
-                    request_method.upper(),
-                    http_url,
-                    params=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            elif request_method.lower() in ["post", "put", "patch"]:
-                response = session.request(
-                    request_method.upper(),
-                    http_url,
-                    json=request_body,
-                    headers=headers,
-                    timeout=kwargs.get("timeout"),
-                )
-            else:
-                raise AppException("Invalid request method!")
-            logger.debug("raw response: " + str(response.text))
-            logger.debug("status " + str(response.status_code))
-        except (
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ConnectionError,
-        ):
-            _, _, host, _, _, _, _ = parse_url(http_url)
-            raise AppException(f"Failed to connect to service: {host}")
-        except Exception as e:
-            logger.exception(e)
-            raise AppException(f"Failed to execute the url: {str(e)}")
-
-        if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
-            "expected_status_code", 200
-        ):
-            if Utility.check_empty_string(kwargs.get("err_msg")):
-                raise AppException("err_msg cannot be empty")
-            error_message = f"{kwargs['err_msg']}{response.reason}"
+            if request_body is None:
+                request_body = {}
             try:
-                resp_json = response.json()
-                if resp_json.get("meta"):
-                    developer_message = resp_json.get("meta", {}).get("developer_message")
-                    error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                logger.info(f"Event started: {http_url}")
+                if request_method.lower() in ["get", "delete"]:
+                    response = requests.request(
+                        request_method.upper(),
+                        http_url,
+                        params=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                elif request_method.lower() in ["post", "put", "patch"]:
+                    response = session.request(
+                        request_method.upper(),
+                        http_url,
+                        json=request_body,
+                        headers=headers,
+                        timeout=kwargs.get("timeout"),
+                    )
+                else:
+                    raise AppException("Invalid request method!")
+                logger.debug("raw response: " + str(response.text))
+                logger.debug("status " + str(response.status_code))
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ConnectionError,
+            ):
+                _, _, host, _, _, _, _ = parse_url(http_url)
+                raise AppException(f"Failed to connect to service: {host}")
             except Exception as e:
                 logger.exception(e)
+                raise AppException(f"Failed to execute the url: {str(e)}")
+
+            if kwargs.get("validate_status", False) and response.status_code != kwargs.get(
+                "expected_status_code", 200
+            ):
+                if Utility.check_empty_string(kwargs.get("err_msg")):
+                    raise AppException("err_msg cannot be empty")
                 error_message = f"{kwargs['err_msg']}{response.reason}"
-            raise AppException(f"{error_message}")
+                try:
+                    resp_json = response.json()
+                    if resp_json.get("meta"):
+                        developer_message = resp_json.get("meta", {}).get("developer_message")
+                        error_message = f"{kwargs['err_msg']}{response.reason}: {developer_message}"
+                except Exception as e:
+                    logger.exception(e)
+                    error_message = f"{kwargs['err_msg']}{response.reason}"
+                raise AppException(f"{error_message}")
 
-        if return_json:
-            response = response.json()
+            if return_json:
+                response = response.json()
 
-        return response
+            return response
 
     @staticmethod
     def get_event_server_url():
@@ -1798,12 +1832,13 @@ class Utility:
         is_scheduled: bool = False,
         cron_exp: Text = None,
         timezone: Text = None,
+        run_at: Optional[Text] = None
     ):
         """
         Trigger request to event server along with payload.
         """
         event_server_url = Utility.get_event_server_url()
-        request_body = {"data": payload, "cron_exp": cron_exp, "timezone": timezone}
+        request_body = {"data": payload, "cron_exp": cron_exp, "timezone": timezone, "run_at": run_at}
         logger.debug(request_body)
         resp = Utility.execute_http_request(
             method,
@@ -1874,13 +1909,21 @@ class Utility:
     def compare_terms_and_policy_version(user_activity_log):
         if user_activity_log:
             terms_and_policy_version = float(user_activity_log.get("data", {}).get("terms_and_policy_version"))
+            accepted_privacy_policy = user_activity_log.get("data", {}).get("accepted_privacy_policy")
+            accepted_terms = user_activity_log.get("data", {}).get("accepted_terms")
+            accepted_ai_guidelines = user_activity_log.get("data", {}).get("accepted_ai_guidelines")
             latest_terms_and_policy_version = float(Utility.environment["app"]["terms_and_policy_version"])
-            show_updated_terms_and_policy = True if latest_terms_and_policy_version > terms_and_policy_version else False
+
+            version_outdated = latest_terms_and_policy_version > terms_and_policy_version
+            need_to_accept_any = not (accepted_privacy_policy and accepted_terms and accepted_ai_guidelines)
+
+            show_updated_terms_and_policy = version_outdated or need_to_accept_any
         else:
             user_activity_log = {
                 "data": {
                     "accepted_terms": False,
                     "accepted_privacy_policy": False,
+                    "accepted_ai_guidelines": False
                 }
             }
             show_updated_terms_and_policy = True
@@ -2110,7 +2153,14 @@ class Utility:
 
     @staticmethod
     def get_llms():
-        return Utility.llm_metadata.keys()
+        from kairon.shared.admin.data_objects import LLMMetadata
+        from mongoengine.connection import ConnectionFailure
+
+        try:
+            providers = LLMMetadata.objects.distinct("provider")
+            return providers or ["openai", "anthropic"]
+        except ConnectionFailure:
+            return ["openai", "anthropic"]
 
     @staticmethod
     def get_default_llm_hyperparameters():
@@ -2118,23 +2168,41 @@ class Utility:
 
     @staticmethod
     def get_llm_hyperparameters(llm_type):
+        from kairon.shared.admin.data_objects import LLMMetadata
+
+        metadata = LLMMetadata.objects(provider=llm_type).first()
+        if not metadata:
+            raise AppException(
+                f"Could not find any hyperparameters for {llm_type} LLM."
+            )
+
         hyperparameters = {}
-        if llm_type in Utility.llm_metadata.keys():
-            for key, value in Utility.llm_metadata[llm_type]['properties'].items():
-                hyperparameters[key] = value["default"]
-            return hyperparameters
-        raise AppException(f"Could not find any hyperparameters for {llm_type} LLM.")
+        for key, value in metadata.properties.items():
+            hyperparameters[key] = value["default"]
+
+        return hyperparameters
 
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
         from jsonschema_rs import JSONSchema, ValidationError as JValidationError
-        from .admin.data_objects import LLMSecret
-        schema = Utility.llm_metadata[llm_type]
-        if bot is not None:
-            llm_secret = LLMSecret.objects(bot=bot, llm_type=llm_type).first()
-            if llm_secret:
-                models_list = list(llm_secret.models)
-                schema["properties"]["model"]["enum"] = models_list
+        from kairon.shared.llm.processor import LLMProcessor
+        from kairon.shared.admin.data_objects import LLMMetadata
+        import json
+
+        metadata = LLMMetadata.objects(provider=llm_type).first()
+        if not metadata:
+            raise exception_class(f"LLM metadata not found for provider: {llm_type}")
+
+        schema = {
+            "$schema": metadata.schema,
+            "type": metadata.type,
+            "description": metadata.description,
+            "properties": json.loads(json.dumps(metadata.properties)),
+        }
+
+        models_list = LLMProcessor.get_llm_metadata(bot, llm_type)
+        schema["properties"]["model"]["enum"] = models_list
+
         try:
             validator = JSONSchema(schema)
             validator.validate(hyperparameters)
@@ -2230,6 +2298,26 @@ class Utility:
             raise AppException("First name and last name can only contain letters, numbers, spaces and underscores.")
 
     @staticmethod
+    def normalize_types(obj):
+        if isinstance(obj, bson.Int64):
+            return int(obj)
+        elif isinstance(obj, bson.Decimal128):
+            return float(obj.to_decimal())
+        elif isinstance(obj, bson.ObjectId):
+            return str(obj)
+        elif isinstance(obj, (date, datetime)):
+            return obj.isoformat()
+        elif isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, (bytes, bytearray)):
+            return obj.decode("utf-8", errors="ignore")
+        elif isinstance(obj, dict):
+            return {k: Utility.normalize_types(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [Utility.normalize_types(v) for v in obj]
+        return obj
+
+    @staticmethod
     def get_client_ip(request):
         if request.headers.get("X-Forwarded-For"):
             client_ip = request.headers.get("X-Forwarded-For")
@@ -2276,6 +2364,40 @@ class Utility:
             return []
         return [item.strip() for item in dilim_sep_string.split(delimilter) if item.strip()]
 
+    @staticmethod
+    def load_billablebots_onstartup():
+        from kairon.chat.agent_processor import AgentProcessor
+        from kairon.shared.data.data_objects import BotSettings
+        bot_list = BotSettings.objects(is_billed=True).only("bot")
+        logger.info(f"Total number of billable bots {len(bot_list)}")
+        for botObj in bot_list:
+            try:
+                AgentProcessor.reload(botObj.bot)
+                logger.info(f"Model loaded onStartup for botid: {botObj.bot}")
+            except Exception as ex:
+                logger.exception(f"Failure while loadig model: {ex}")
+
+
+    @staticmethod
+    def convert_image_format(image_bytes: bytes, input_format: str, output_format: str, quality: int = 95) -> bytes:
+        """
+        Converts an image from one format to another using Pillow.
+
+        :param image_bytes: The original image in bytes.
+        :param input_format: Original format (e.g., 'jpg', 'png').
+        :param output_format: Target format (e.g., 'jpeg', 'png').
+        :param quality: Optional quality parameter for lossy formats like JPEG.
+        :return: Converted image bytes.
+        """
+        try:
+            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            buffer = io.BytesIO()
+            img.save(buffer, format=output_format.upper(), quality=quality)
+            logger.info(f"Converted image from {input_format} to {output_format}")
+            return buffer.getvalue()
+        except Exception as e:
+            logger.warning(f"Image conversion {input_format} → {output_format} failed: {e}")
+            return image_bytes
 
 class StoryValidator:
     @staticmethod
@@ -2516,6 +2638,7 @@ class MailUtility:
     ):
         mail_actions_dict = {
             "password_reset": MailUtility.__handle_password_reset,
+            "password_reset_unverified": MailUtility.__handle_password_reset_unverified,
             "password_reset_confirmation": MailUtility.__handle_password_reset_confirmation,
             "verification": MailUtility.__handle_verification,
             "verification_confirmation": MailUtility.__handle_verification_confirmation,
@@ -2529,6 +2652,8 @@ class MailUtility:
             "add_trusted_device": MailUtility.__handle_add_trusted_device,
             "book_a_demo": MailUtility.__handle_book_a_demo,
             "member_left_bot": MailUtility.__handle_member_left_bot,
+            "catalog_sync_status": MailUtility.__handle_catalog_sync_status,
+            "action_failure": MailUtility.__handle_action_failure
         }
         base_url = kwargs.get("base_url")
         if not base_url:
@@ -2644,6 +2769,14 @@ class MailUtility:
         return body, subject
 
     @staticmethod
+    def __handle_password_reset_unverified(**kwargs):
+        first_name = kwargs.get("first_name")
+        body = Utility.email_conf["email"]["templates"]["password_reset_unverified"]
+        body = body.replace("FIRST_NAME", first_name.capitalize())
+        subject = Utility.email_conf["email"]["templates"]["password_reset_unverified_subject"]
+        return body, subject
+
+    @staticmethod
     def __handle_password_reset_confirmation(**kwargs):
         body = Utility.email_conf["email"]["templates"]["password_reset_confirmation"]
         subject = Utility.email_conf["email"]["templates"]["password_changed_subject"]
@@ -2663,6 +2796,22 @@ class MailUtility:
         body = Utility.email_conf["email"]["templates"]["verification_confirmation"]
         body = body.replace("FIRST_NAME", first_name.capitalize())
         subject = Utility.email_conf["email"]["templates"]["confirmed_subject"]
+        return body, subject
+
+    @staticmethod
+    def __handle_catalog_sync_status(**kwargs):
+        bot = kwargs.get("bot")
+        executionID = kwargs.get("executionID")
+        sync_status = kwargs.get("sync_status")
+        message = kwargs.get("message")
+
+        body = Utility.email_conf["email"]["templates"]["catalog_sync_status"]
+
+        body = body.replace("BOT_ID", bot)
+        body = body.replace("EXECUTION_ID", executionID)
+        body = body.replace("SYNC_STATUS", sync_status)
+        body = body.replace("MESSAGE", message)
+        subject = Utility.email_conf["email"]["templates"]["catalog_sync_status_subject"]
         return body, subject
 
     @staticmethod
@@ -2810,3 +2959,20 @@ class MailUtility:
         subject = f"Notification: {user_name} has left the {bot_name} bot"
         return body, subject
 
+    def __handle_action_failure(**kwargs):
+        bot_name = kwargs.get("bot_name", "NA")
+        action_name = kwargs.get("action_name", "NA")
+        stack_trace = kwargs.get("stack_trace", "NA")
+        user_query_history = kwargs.get("user_query_history", {})
+        slot_values = kwargs.get("slot_values", {})
+        url = Utility.environment.get("action",{}).get("url")
+        body = Utility.email_conf["email"]["templates"]["action_failure"]
+        body = body.replace("BOT_NAME", bot_name)
+        body = body.replace("ACTION_NAME", action_name)
+        body = body.replace("STACK_TRACE", str(stack_trace))
+        body = body.replace("USER_QUERY_HISTORY", str(user_query_history))
+        body = body.replace("SLOT_VALUES", str(slot_values))
+        body = body.replace("ACTION_URL", str(url))
+        subject = Utility.email_conf["email"]["templates"]["action_failure_subject"]
+        subject = subject.replace("BOT_NAME", bot_name)
+        return body, subject

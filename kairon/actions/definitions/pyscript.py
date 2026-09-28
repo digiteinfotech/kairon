@@ -6,11 +6,14 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, PyscriptActionConfig
+from kairon.shared.actions.data_objects import ActionServerLogs, PyscriptActionConfig, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType, DispatchType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KaironSystemSlots
+from kairon.shared.data.constant import STATUSES
+
 
 
 class ActionPyscript(ActionsBase):
@@ -41,7 +44,7 @@ class ActionPyscript(ActionsBase):
             logger.exception(e)
             raise ActionFailure("No pyscript action found for given action and bot")
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves action config and executes it.
         Information regarding the execution is logged in ActionServerLogs.
@@ -51,10 +54,12 @@ class ActionPyscript(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
+        action_call = kwargs.get('action_call', {})
+
         pyscript_action_config = None
         bot_response = None
         exception = None
-        status = "SUCCESS"
+        status = STATUSES.SUCCESS.value
         dispatch_bot_response = False
         dispatch_type = DispatchType.text.value
         filled_slots = {}
@@ -66,7 +71,7 @@ class ActionPyscript(ActionsBase):
             dispatch_bot_response = pyscript_action_config['dispatch_response']
             source_code = pyscript_action_config['source_code']
             response = ActionUtility.run_pyscript(source_code, tracker_data)
-            dispatch_type = response.get('type')
+            dispatch_type = response.get('type',dispatch_type)
             bot_response = response.get('bot_response')
             slot_values = ActionUtility.filter_out_kairon_system_slots(response.get('slots', {}))
             filled_slots.update(slot_values)
@@ -74,13 +79,18 @@ class ActionPyscript(ActionsBase):
         except Exception as e:
             exception = str(e)
             logger.exception(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
             bot_response = "I have failed to process your request"
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot,
+                                                      action_name=self.name,
+                                                      user_query_history=tracker.latest_message.get('text'))
         finally:
             if dispatch_bot_response:
                 bot_response, message = ActionUtility.handle_utter_bot_response(dispatcher, dispatch_type, bot_response)
                 if message:
                     msg_logger.append(message)
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.pyscript_action.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -92,7 +102,9 @@ class ActionPyscript(ActionsBase):
                 exception=exception,
                 bot=self.bot,
                 status=status,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         filled_slots.update({KaironSystemSlots.kairon_action_response.value: bot_response})
         return filled_slots

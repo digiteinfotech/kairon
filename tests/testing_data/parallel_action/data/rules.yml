@@ -1,0 +1,30 @@
+version: "3.1"
+rules:
+- rule: ask the user to rephrase whenever they send a message with low nlu confidence
+  steps:
+  - intent: nlu_fallback
+  - action: utter_please_rephrase
+  metadata:
+    flow_tags:
+    - chatbot_flow
+- rule: bye
+  steps:
+  - intent: bye
+  - action: utter_bye
+  metadata:
+    flow_tags:
+    - chatbot_flow
+- rule: greet
+  steps:
+  - intent: greet
+  - action: utter_greet
+  metadata:
+    flow_tags:
+    - chatbot_flow
+- rule: parallel_test_rule
+  steps:
+  - intent: parallel_test
+  - action: parallel_action
+  metadata:
+    flow_tags:
+    - chatbot_flow

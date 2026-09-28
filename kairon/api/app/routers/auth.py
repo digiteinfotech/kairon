@@ -176,11 +176,13 @@ async def sso_callback(
 
 @router.post("/logout", response_model=Response)
 async def logout(
-        current_user: User = Depends(Authentication.get_current_user)
+        current_user: User = Depends(Authentication.get_current_user),
+        token: str = Depends(DataUtility.oauth2_scheme)
 ):
     """
     Invalidate user session and revoke authentication token upon successful logout.
     """
+    Authentication.logout(token, current_user.email)
     UserActivityLogger.add_log(a_type=UserActivityType.logout.value, account=current_user.account,
                                email=current_user.email, data={"username": current_user.email})
     return Response(message="User Logged out!")

@@ -8,11 +8,12 @@ import os
 import uuid
 from collections import ChainMap
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from pathlib import Path
 from typing import Text, Dict, List, Any, Optional
 from urllib.parse import urljoin
 
+from bson import ObjectId
 from loguru import logger
 
 import networkx as nx
@@ -87,6 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
+    ParallelActionConfig, VoiceCallAction, StorePageAction,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -108,6 +110,7 @@ from kairon.shared.models import (
 )
 from kairon.shared.plugins.factory import PluginFactory
 from kairon.shared.utils import Utility, StoryValidator
+from .collection_processor import DataProcessor
 from .constant import (
     DOMAIN,
     SESSION_CONFIG,
@@ -133,8 +136,9 @@ from .constant import (
     DEFAULT_NLU_FALLBACK_UTTERANCE_NAME,
     ACCESS_ROLES,
     LogType,
-    DEMO_REQUEST_STATUS, RE_VALID_NAME,
+    DEMO_REQUEST_STATUS, RE_VALID_NAME, LogTypes, STATUSES,
 )
+
 from .data_objects import (
     Responses,
     SessionConfigs,
@@ -158,22 +162,50 @@ from .data_objects import (
     Rules,
     Utterances, BotSettings, ChatClientConfig, SlotMapping, KeyVault, EventConfig,
     MultiflowStories, MultiflowStoryEvents, MultiFlowStoryMetadata,
-    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs
+    Synonyms, Lookup, Analytics, ModelTraining, ConversationsHistoryDeleteLogs, DemoRequestLogs,
+    StorePageMetadata
 )
 from .action_serializer import ActionSerializer
 from .data_validation import DataValidation
 from .model_data_imporer import KRasaFileImporter, CustomRuleStep
 from .utils import DataUtility
 from ..callback.data_objects import CallbackConfig, CallbackLog, CallbackResponseType
-from ..chat.broadcast.data_objects import MessageBroadcastLogs
+from ..chat.broadcast.data_objects import MessageBroadcastLogs, AnalyticsPipelineLogs
 from ..cognition.data_objects import CognitionSchema, CognitionData, ColumnMetadata
-from ..constants import KaironSystemSlots, PluginTypes, EventClass
+from ..constants import KaironSystemSlots, PluginTypes, EventClass, EXCLUDED_INTENTS, UploadHandlerClass
 from ..content_importer.content_processor import ContentImporterLogProcessor
-from ..custom_widgets.data_objects import CustomWidgets
+from ..custom_widgets.data_objects import CustomWidgets, CustomWidgetsRequestLog
 from ..importer.data_objects import ValidationLogs
 from ..live_agent.live_agent import LiveAgentHandler
+from ..log_system.base import BaseLogHandler
+from ..log_system.factory import LogHandlerFactory
 from ..multilingual.data_objects import BotReplicationLogs
 from ..test.data_objects import ModelTestingLogs
+from ..upload_handler.upload_handler_log_processor import UploadHandlerLogProcessor
+from ..upload_handler.data_objects import UploadHandlerLogs
+
+ACTION_TYPE_MODEL_MAP = {
+    ActionType.http_action.value:            (HttpActionConfig,             "action_name"),
+    ActionType.slot_set_action.value:        (SlotSetAction,                "name"),
+    ActionType.form_validation_action.value: (FormValidationAction,         "name"),
+    ActionType.email_action.value:           (EmailActionConfig,            "action_name"),
+    ActionType.google_search_action.value:   (GoogleSearchAction,           "name"),
+    ActionType.jira_action.value:            (JiraAction,                   "name"),
+    ActionType.zendesk_action.value:         (ZendeskAction,                "name"),
+    ActionType.pipedrive_leads_action.value: (PipedriveLeadsAction,         "name"),
+    ActionType.hubspot_forms_action.value:   (HubspotFormsAction,           "name"),
+    ActionType.two_stage_fallback.value:     (KaironTwoStageFallbackAction, "name"),
+    ActionType.razorpay_action.value:        (RazorpayAction,               "name"),
+    ActionType.database_action.value:        (DatabaseAction,               "name"),
+    ActionType.web_search_action.value:      (WebSearchAction,              "name"),
+    ActionType.prompt_action.value:          (PromptAction,                 "name"),
+    ActionType.pyscript_action.value:        (PyscriptActionConfig,         "name"),
+    ActionType.schedule_action.value:        (ScheduleAction,               "name"),
+    ActionType.parallel_action.value:        (ParallelActionConfig,         "name"),
+    ActionType.voice_call_action.value:      (VoiceCallAction,              "name"),
+    ActionType.callback_action.value:        (CallbackActionConfig,         "name"),
+    ActionType.store_page_action.value:      (StorePageAction,              "name"),
+}
 
 
 class MongoProcessor:
@@ -278,11 +310,13 @@ class MongoProcessor:
             ActionType.database_action.value: MongoProcessor.is_slot_in_database_action_config,
             ActionType.callback_action.value: MongoProcessor.is_slot_in_callback_action_config,
             ActionType.schedule_action.value: MongoProcessor.is_slot_in_schedule_action_config,
+            ActionType.store_page_action.value: MongoProcessor.is_slot_in_store_page_action_config,
         }
         actions_to_exclude = [ActionType.form_validation_action.value,
                               ActionType.live_agent_action.value,
                               ActionType.hubspot_forms_action.value,
-                              ActionType.two_stage_fallback.value]
+                              ActionType.two_stage_fallback.value,
+                              ActionType.parallel_action.value]
         for key, value in actions.items():
             if key in actions_to_exclude:
                 continue
@@ -312,6 +346,12 @@ class MongoProcessor:
         if config.get('dynamic_url_slot_name') == slot:
             return True
 
+        return False
+
+    @staticmethod
+    def is_slot_in_store_page_action_config(config: dict, slot: Text):
+        if config.get('identifier_slot') == slot:
+            return True
         return False
 
     @staticmethod
@@ -666,7 +706,7 @@ class MongoProcessor:
         :param bot: The ID of the bot for which to aggregate data.
         :return: A list of dictionaries containing aggregated data for the bot.
         """
-        schema_results = CognitionSchema.objects(bot=bot).only("collection_name", "metadata")
+        schema_results = CognitionSchema.objects(bot=bot, schema_metadata__training_needed = True).only("collection_name", "metadata")
 
         formatted_result = []
         for schema_result in schema_results:
@@ -1270,7 +1310,7 @@ class MongoProcessor:
         """
         saved_intents = self.__prepare_training_intents(bot)
         for intent in intents:
-            if intent.strip().lower() not in saved_intents:
+            if intent.strip().lower() not in saved_intents and intent.strip().lower() not in EXCLUDED_INTENTS:
                 entities = intents[intent].get("used_entities")
                 use_entities = True if entities else False
                 new_intent = Intents(
@@ -1675,7 +1715,9 @@ class MongoProcessor:
         non_conversational_slots = {
             KaironSystemSlots.kairon_action_response.value, KaironSystemSlots.bot.value,
             KaironSystemSlots.order.value, KaironSystemSlots.flow_reply.value,
-            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value
+            KaironSystemSlots.http_status_code.value, KaironSystemSlots.payment.value,
+            KaironSystemSlots.user_identifier.value, KaironSystemSlots.temp_token.value,
+            KaironSystemSlots.store_page_name.value, KaironSystemSlots.callback_identifier.value,
         }
         for slot in [s for s in KaironSystemSlots if s.value in non_conversational_slots]:
             initial_value = None
@@ -1950,6 +1992,21 @@ class MongoProcessor:
             ),
             StoryStepType.callback_action.value: dict(
                 CallbackActionConfig.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.voice_call_action.value: dict(
+                VoiceCallAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.store_page_action.value: dict(
+                StorePageAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.kairon_voice_disconnect.value: dict(
+                Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).values_list(
                     "name", "id"
                 )
             ),
@@ -3689,6 +3746,9 @@ class MongoProcessor:
         web_search_actions = set(WebSearchAction.objects(bot=bot, status=True).values_list('name'))
         callback_actions = set(CallbackActionConfig.objects(bot=bot, status=True).values_list('name'))
         schedule_action = set(ScheduleAction.objects(bot=bot, status=True).values_list('name'))
+        parallel_actions = set(ParallelActionConfig.objects(bot=bot, status=True).values_list('name'))
+        voice_call_actions = set(VoiceCallAction.objects(bot=bot, status=True).values_list('name'))
+        store_page_actions = set(StorePageAction.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3758,8 +3818,16 @@ class MongoProcessor:
                         step["type"] = StoryStepType.live_agent_action.value
                     elif event['name'] in callback_actions:
                         step["type"] = StoryStepType.callback_action.value
+                    elif event['name'] in parallel_actions:
+                        step["type"] = StoryStepType.parallel_action.value
                     elif event['name'] in schedule_action:
                         step["type"] = StoryStepType.schedule_action.value
+                    elif event['name'] in voice_call_actions:
+                        step["type"] = StoryStepType.voice_call_action.value
+                    elif event['name'] in store_page_actions:
+                        step["type"] = StoryStepType.store_page_action.value
+                    elif event['name'] == ActionType.kairon_voice_disconnect.value:
+                        step["type"] = StoryStepType.kairon_voice_disconnect.value
                     elif event['name'] == 'action_listen':
                         step["type"] = StoryStepType.stop_flow_action.value
                         step["name"] = 'stop_flow_action'
@@ -4815,6 +4883,41 @@ class MongoProcessor:
             action.pop("timestamp")
             yield action
 
+    def list_existing_actions_for_parallel_action(self, bot: str, with_doc_id: bool = True):
+        """
+        Fetches actions filtered by predefined action types from the collection.
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        :return: List of filtered actions.
+        """
+        action_types = [
+            ActionType.http_action,
+            ActionType.email_action,
+            ActionType.jira_action,
+            ActionType.zendesk_action,
+            ActionType.pipedrive_leads_action,
+            ActionType.hubspot_forms_action,
+            ActionType.prompt_action,
+            ActionType.pyscript_action,
+            ActionType.database_action,
+            ActionType.callback_action,
+            ActionType.schedule_action
+        ]
+
+        query = {"bot": bot, "status": True, "type": {"$in": [action.value for action in action_types]}}
+
+        for action in Actions.objects(**query):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = str(action["_id"])
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("status")
+            action.pop("timestamp")
+            yield action
+
     def add_slot(self, slot_value: Dict, bot: str, user: str, raise_exception_if_exists=True, is_default = False):
         """
         Adds slot if it doesn't exist, updates slot if it exists
@@ -4992,15 +5095,20 @@ class MongoProcessor:
         :param page_size: number of rows
         :return: List of Http actions.
         """
+        query = {
+            "bot": bot,
+            "trigger_info.trigger_id": ""
+        }
+
         for log in (
-                ActionServerLogs.objects(bot=bot)
+                ActionServerLogs.objects(__raw__=query)
                         .order_by("-timestamp")
                         .skip(start_idx)
                         .limit(page_size)
         ):
             log = log.to_mongo().to_dict()
             log.pop("bot")
-            log.pop("_id")
+            log["_id"] = str(log["_id"])
             yield log
 
     def __extract_rules(self, story_steps, bot: str, user: str):
@@ -5074,11 +5182,9 @@ class MongoProcessor:
         :param user: user id
         :return: None
         """
-        Utility.hard_delete_document([
-            HttpActionConfig, SlotSetAction, FormValidationAction, EmailActionConfig, GoogleSearchAction, JiraAction,
-            ZendeskAction, PipedriveLeadsAction, HubspotFormsAction, KaironTwoStageFallbackAction, PromptAction,
-            PyscriptActionConfig, RazorpayAction, DatabaseAction
-        ], bot=bot, user=user)
+        Utility.hard_delete_document(
+            [model_cls for model_cls, _ in ACTION_TYPE_MODEL_MAP.values()], bot=bot, user=user
+        )
         Utility.hard_delete_document([Actions], bot=bot, type__ne=None, user=user)
 
     def __get_rules(self, bot: Text):
@@ -5202,6 +5308,7 @@ class MongoProcessor:
         action_config.update(self.load_pyscript_action(bot))
         action_config.update(self.load_database_action(bot))
         action_config.update(self.load_live_agent_action(bot))
+        action_config.update(self.load_store_page_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -5410,11 +5517,11 @@ class MongoProcessor:
             bot, user, is_data_uploaded=True, files_received=list(files_received)
         )
         if not is_event_data:
-            status = "Failure"
+            status = STATUSES.FAIL.value
             summary = non_event_validation_summary["summary"]
             component_count = non_event_validation_summary["component_count"]
             if not non_event_validation_summary["validation_failed"]:
-                status = "Success"
+                status = STATUSES.SUCCESS.value
             DataImporterLogProcessor.update_summary(
                 bot,
                 user,
@@ -6984,7 +7091,10 @@ class MongoProcessor:
         """
         try:
             action = Actions.objects(name=name, bot=bot, status=True).get()
+
             MongoProcessor.get_attached_flows(bot, name, "action")
+            MongoProcessor.check_action_usage_in_parallel_actions(bot, name)
+
             Utility.is_exist(
                 PromptAction,
                 bot=bot,
@@ -6992,95 +7102,25 @@ class MongoProcessor:
                 llm_prompts__data=name,
                 exp_message=f"Action with name {name} is attached with PromptAction!",
             )
-            if action.type == ActionType.slot_set_action.value:
+
+            entry = ACTION_TYPE_MODEL_MAP.get(action.type)
+            if entry:
+                model_cls, name_field = entry
                 Utility.hard_delete_document(
-                    [SlotSetAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.form_validation_action.value:
-                Utility.hard_delete_document(
-                    [FormValidationAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.email_action.value:
-                Utility.hard_delete_document(
-                    [EmailActionConfig],
-                    action_name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.google_search_action.value:
-                Utility.hard_delete_document(
-                    [GoogleSearchAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.jira_action.value:
-                Utility.hard_delete_document(
-                    [JiraAction],
-                    name__iexact=name,
-                    bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.http_action.value:
-                Utility.hard_delete_document(
-                    [HttpActionConfig], action_name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.zendesk_action.value:
-                Utility.hard_delete_document(
-                    [ZendeskAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.pipedrive_leads_action.value:
-                Utility.hard_delete_document(
-                    [PipedriveLeadsAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.hubspot_forms_action.value:
-                Utility.hard_delete_document(
-                    [HubspotFormsAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.two_stage_fallback.value:
-                Utility.hard_delete_document(
-                    [KaironTwoStageFallbackAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.razorpay_action.value:
-                Utility.hard_delete_document(
-                    [RazorpayAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.database_action.value:
-                Utility.hard_delete_document(
-                    [DatabaseAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.web_search_action.value:
-                Utility.hard_delete_document(
-                    [WebSearchAction], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.prompt_action.value:
-                Utility.hard_delete_document([PromptAction], name__iexact=name, bot=bot, user=user)
-            elif action.type == ActionType.pyscript_action.value:
-                Utility.hard_delete_document(
-                    [PyscriptActionConfig], name__iexact=name, bot=bot,
-                    user=user
-                )
-            elif action.type == ActionType.schedule_action.value:
-                Utility.hard_delete_document(
-                    [ScheduleAction], name__iexact=name, bot=bot
+                    [model_cls], **{f"{name_field}__iexact": name}, bot=bot, user=user
                 )
             action.delete()
         except DoesNotExist:
             raise AppException(f'Action with name "{name}" not found')
+
+    @staticmethod
+    def check_action_usage_in_parallel_actions(bot: Text, name: Text):
+        parallel_actions_using_action = ParallelActionConfig.objects(bot=bot, status=True, actions=name)
+        if parallel_actions_using_action:
+            parallel_action_names = [parallel_action.name for parallel_action in parallel_actions_using_action]
+            raise AppException(
+                f"Action '{name}' cannot be deleted because it is used in parallel actions: {parallel_action_names}"
+            )
 
     def add_email_action(self, action: Dict, bot: str, user: str):
         """
@@ -7149,6 +7189,7 @@ class MongoProcessor:
         email_action.subject = action["subject"]
         email_action.to_email = CustomActionParameters(**action['to_email']) if action.get('to_email') else None
         email_action.response = action["response"]
+        email_action.dispatch_bot_response = action["dispatch_bot_response"]
         email_action.tls = action["tls"]
         email_action.user = user
         email_action.timestamp = datetime.utcnow()
@@ -7171,6 +7212,135 @@ class MongoProcessor:
             action.pop("timestamp")
             action.pop("status")
             yield action
+
+    def add_voice_call_action(self, action: Dict, bot: str, user: str):
+        if not MongoProcessor.is_voice_enabled(bot):
+            raise AppException("Voice is not enabled for this bot")
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        Utility.is_valid_action_name(action.get("name"), bot, VoiceCallAction)
+        doc = VoiceCallAction(
+            name=action["name"],
+            to_phone_number=CustomActionParameters(**action["to_phone_number"]),
+            telephony_provider=action.get("telephony_provider", "twilio"),
+            response=action.get("response"),
+            dispatch_bot_response=action.get("dispatch_bot_response", True),
+            bot=bot,
+            user=user,
+        ).save()
+        self.add_action(action["name"], bot, user,
+                        action_type=ActionType.voice_call_action.value, raise_exception=False)
+        return doc.id.__str__()
+
+    def edit_voice_call_action(self, action: Dict, bot: str, user: str):
+        if not MongoProcessor.is_voice_enabled(bot):
+            raise AppException("Voice is not enabled for this bot")
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if not Utility.is_exist(VoiceCallAction, raise_error=False,
+                                name=action.get("name"), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        voice_action = VoiceCallAction.objects(
+            name=action["name"], bot=bot, status=True
+        ).get()
+        voice_action.to_phone_number = CustomActionParameters(**action["to_phone_number"])
+        voice_action.telephony_provider = action.get("telephony_provider", "twilio")
+        voice_action.response = action.get("response")
+        voice_action.dispatch_bot_response = action.get("dispatch_bot_response", True)
+        voice_action.user = user
+        voice_action.timestamp = datetime.utcnow()
+        voice_action.save()
+
+    def list_voice_call_action(self, bot: Text, with_doc_id: bool = True):
+        for action in VoiceCallAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def delete_voice_call_action(self, action_name: str, bot: str, user: str):
+        if not Utility.is_exist(VoiceCallAction, raise_error=False,
+                                name=action_name, bot=bot, status=True):
+            raise AppException(f'Action with name "{action_name}" not found')
+        VoiceCallAction.objects(name=action_name, bot=bot, status=True).get().delete()
+        self.delete_action(action_name, bot, user)
+
+    def add_store_page_action(self, action: Dict, bot: str, user: str) -> str:
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        Utility.is_valid_action_name(action.get("name"), bot, StorePageAction)
+        doc = StorePageAction(
+            name=action["name"],
+            page_name=action["page_name"],
+            identifier_slot=action["identifier_slot"],
+            callback_identifier=action.get("callback_identifier"),
+            bot=bot,
+            user=user,
+        ).save()
+        self.add_action(action["name"], bot, user,
+                        action_type=ActionType.store_page_action.value, raise_exception=False)
+        return doc.id.__str__()
+
+    def edit_store_page_action(self, action: Dict, bot: str, user: str):
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if not Utility.is_exist(StorePageAction, raise_error=False,
+                                name=action.get("name"), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        store_page_action = StorePageAction.objects(name=action["name"], bot=bot, status=True).get()
+        store_page_action.page_name = action["page_name"]
+        store_page_action.identifier_slot = action["identifier_slot"]
+        store_page_action.callback_identifier = action.get("callback_identifier")
+        store_page_action.user = user
+        store_page_action.timestamp = datetime.utcnow()
+        store_page_action.save()
+
+    def list_store_page_action(self, bot: Text, with_doc_id: bool = True):
+        for action in StorePageAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def load_store_page_action(self, bot: Text):
+        return {ActionType.store_page_action.value: list(self.list_store_page_action(bot, with_doc_id=False))}
+
+    def delete_store_page_action(self, action_name: Text, bot: Text, user: Text):
+        if not Utility.is_exist(StorePageAction, raise_error=False,
+                                name=action_name, bot=bot, status=True):
+            raise AppException(f'Action with name "{action_name}" not found')
+        StorePageAction.objects(name=action_name, bot=bot, status=True).get().delete()
+        self.delete_action(action_name, bot, user)
+
+    def add_kairon_voice_disconnect(self, bot: Text, user: Text):
+        """Register the kairon_voice_disconnect built-in action for this bot."""
+        if not Actions.objects(bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value).first():
+            Actions(
+                name=ActionType.kairon_voice_disconnect.value,
+                type=ActionType.kairon_voice_disconnect.value,
+                bot=bot,
+                user=user,
+                status=True,
+            ).save()
+
+    def list_kairon_voice_disconnect(self, bot: Text):
+        return list(
+            Actions.objects(
+                bot=bot, status=True, type=ActionType.kairon_voice_disconnect.value
+            ).values_list("name")
+        )
 
     def add_jira_action(self, action: Dict, bot: str, user: str):
         """
@@ -7860,7 +8030,7 @@ class MongoProcessor:
         if request_data.get("name") and Utility.special_match(request_data.get("name")):
             raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
 
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("llm_prompts", []), request_data.get("llm_type", 'openai'), bot)
         Utility.is_valid_action_name(request_data.get("name"), bot, PromptAction)
         request_data["bot"] = bot
         request_data["user"] = user
@@ -7875,7 +8045,7 @@ class MongoProcessor:
         )
         return prompt_action_id
 
-    def __validate_llm_prompts(self, llm_prompts, bot: Text):
+    def __validate_llm_prompts(self, llm_prompts, llm_type,  bot: Text):
         for prompt in llm_prompts:
             if prompt["source"] == "slot":
                 if not Utility.is_exist(
@@ -7901,6 +8071,23 @@ class MongoProcessor:
                 ):
                     raise AppException(f'Action with name {prompt["data"]} not found!')
 
+            if prompt["source"] == "crud":
+                collections_list = DataProcessor.get_all_collections(bot)
+                existing_collections = {item['collection_name'] for item in collections_list}
+                missing_collections = [col for col in prompt.get('crud_config').get("collections",[]) if col not in existing_collections]
+
+                if missing_collections:
+                    raise AppException(f'Collections not found: {missing_collections}')
+
+            if prompt["source"] == "bot_content":
+                collection = prompt["data"]
+                EmbeddingMetaData = CognitionSchema.objects(bot=bot, collection_name=collection).first()
+                training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+                provider = EmbeddingMetaData.schema_metadata.provider if EmbeddingMetaData else "openai"
+                if not training_needed:
+                    if not llm_type == provider:
+                        raise AppException(f'LLM Type must be {provider} for the chosen faq table')
+
     def edit_prompt_action(
             self, prompt_action_id: str, request_data: dict, bot: Text, user: Text
     ):
@@ -7919,7 +8106,7 @@ class MongoProcessor:
                 PromptAction, id=prompt_action_id, raise_error=False, bot=bot, status=True
         ):
             raise AppException("Action not found")
-        self.__validate_llm_prompts(request_data.get("llm_prompts", []), bot)
+        self.__validate_llm_prompts(request_data.get("llm_prompts", []), request_data.get("llm_type", 'openai'), bot)
         action = PromptAction.objects(id=prompt_action_id, bot=bot, status=True).get()
         action.name = request_data.get("name")
         action.failure_message = request_data.get("failure_message")
@@ -7934,6 +8121,7 @@ class MongoProcessor:
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
         action.timestamp = datetime.utcnow()
+        action.process_media=request_data.get("process_media", False)
         action.user = user
         action.save()
 
@@ -8030,8 +8218,11 @@ class MongoProcessor:
             LogType.data_importer.value: ValidationLogs,
             LogType.history_deletion.value: ConversationsHistoryDeleteLogs,
             LogType.multilingual.value: BotReplicationLogs,
+            LogType.file_upload.value: UploadHandlerLogs,
+            LogType.analytics_pipeline: AnalyticsPipelineLogs,
+            LogType.custom_widgets: CustomWidgetsRequestLog
         }
-        if logtype == LogType.action_logs.value:
+        if logtype == LogType.action_logs.value or logtype == LogType.custom_widgets.value:
             filter_query = {
                 "bot": bot,
                 "timestamp__gte": start_time,
@@ -8462,6 +8653,16 @@ class MongoProcessor:
             return True
         return Utility.is_exist(LiveAgentActionConfig, raise_error=False, bot=bot, status=True)
 
+    @staticmethod
+    def is_pos_enabled(bot: str):
+        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
+        return bot_setting.get("pos_enabled")
+
+    @staticmethod
+    def is_voice_enabled(bot: str):
+        settings = MongoProcessor.get_bot_settings(bot, "")
+        return settings.enable_voice or False
+
     def add_callback(self, request_data: dict, bot: Text):
         """
         Add callback config.
@@ -8477,6 +8678,8 @@ class MongoProcessor:
         expire_in = request_data.get("expire_in")
         standalone_id_path = request_data.get("standalone_id_path")
         response_type = request_data.get("response_type", CallbackResponseType.KAIRON_JSON.value)
+        redirect_enabled = request_data.get("redirect_enabled", False)
+        redirect = request_data.get("redirect")
         if standalone and not standalone_id_path:
             raise AppException("Standalone id path is required!")
         if compile_error := DataValidation.validate_python_script_compile_time(pyscript_code):
@@ -8489,7 +8692,9 @@ class MongoProcessor:
                                              shorten_token,
                                              standalone,
                                              standalone_id_path,
-                                             response_type)
+                                             response_type,
+                                             redirect_enabled,
+                                             redirect)
         config.pop('_id')
         return config
 
@@ -8625,7 +8830,8 @@ class MongoProcessor:
         if not callback_action:
             raise AppException("Async callback action not found")
 
-    def get_callback_action(self, bot: Text, name: Text):
+    @staticmethod
+    def get_callback_action(bot: Text, name: Text):
         """
         Retrieve async callback action config.
 
@@ -8832,7 +9038,7 @@ class MongoProcessor:
             ContentImporterLogProcessor.add_log(
                 bot,
                 user,
-                status="Failure",
+                status=STATUSES.FAIL.value,
                 event_status=EVENT_STATUS.COMPLETED.value,
                 validation_errors= error_message
             )
@@ -8880,6 +9086,51 @@ class MongoProcessor:
                 error_message['Extra columns'] = f"{extra_columns}."
 
         return error_message
+
+    def file_upload_validate_schema_and_log(self, bot: Text, user: Text, file_content: File, collection_name:str):
+        """
+        Validates the schema of the document content (e.g., CSV) against the required table schema and logs the results.
+
+        :param bot: The bot ID
+        :param user: The user ID
+        :param file_content: The content of the file being uploaded
+        :param type: The Class type of the file to validate against
+        :return: True if the schema is valid, else False
+        """
+        UploadHandlerLogProcessor.add_log(
+            bot=bot,
+            user=user,
+            file_name=file_content.filename,
+            collection_name=collection_name,
+            event_status=EVENT_STATUS.VALIDATING.value
+        )
+
+        self.file_handler_save_and_validate(bot, user, collection_name, file_content)
+
+        return True
+
+    def file_handler_save_and_validate(self, bot: Text, user: Text, collection_name: str, file_content: File):
+        """
+        Saves the training file and performs validation.
+
+        :param bot: The bot ID
+        :param file_content: The file to be saved and validated
+        :return: A dictionary of error messages if validation fails
+        """
+        content_dir = os.path.join('file_content_upload_records', bot, user, collection_name)
+        Utility.make_dirs(content_dir)
+        file_path = os.path.join(content_dir, file_content.filename)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file_content.file, buffer)
+
+        file_content.file.seek(0)
+
+    @staticmethod
+    def validate_file_type(file_content):
+        valid_csv_types = ["text/csv"]
+        if file_content.content_type not in valid_csv_types and not file_content.filename.lower().endswith('.csv'):
+            raise AppException(f"Invalid file type: {file_content.content_type}. Please upload a CSV file.")
 
     def get_column_datatype_dict(self, bot, table_name):
         from ..cognition.processor import CognitionDataProcessor
@@ -8994,7 +9245,6 @@ class MongoProcessor:
 
         return file_path
 
-
     @staticmethod
     def get_flows_by_tag(bot: str, tag: str):
         data = {
@@ -9012,5 +9262,255 @@ class MongoProcessor:
 
         return data
 
+    def add_parallel_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Add Parallel Action
+        :param request_data: data object for parallel action
+        :param bot: bot id
+        :param user: user
+        """
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        Utility.is_exist(
+            Actions,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+        Utility.is_exist(
+            ParallelActionConfig,
+            exp_message="Action exists!",
+            name__iexact=request_data.get("name"),
+            bot=bot,
+            status=True,
+        )
+
+        settings = BotSettings.objects(bot=bot, status=True).first()
+
+        if len(request_data.get("actions")) > settings.max_actions_per_parallel_action:
+            raise AppException(
+                f"Maximum {settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+            )
+
+        for action in request_data.get("actions"):
+            if not Actions.objects(name__iexact=action, bot=bot, status=True).first():
+                raise AppException(f"Action with name {action} does not exist!")
 
 
+        request_data["bot"] = bot
+        request_data["user"] = user
+        action_id = ParallelActionConfig(**request_data).save().id.__str__()
+        self.add_action(
+            request_data["name"],
+            bot,
+            user,
+            raise_exception=False,
+            action_type=ActionType.parallel_action,
+        )
+        return action_id
+
+
+    def update_parallel_action(self, request_data: dict, bot: Text, user: Text):
+        """
+        Update Parallel Action
+        :param request_data: data object for parallel action
+        :param bot: bot id
+        :param user: user who edit/update this
+        """
+        if request_data.get("name") and Utility.special_match(request_data.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        if not Utility.is_exist(
+                ParallelActionConfig,
+                raise_error=False,
+                name__iexact=request_data["name"],
+                bot=bot,
+                status=True,
+        ):
+            parallel_action_name = request_data["name"]
+            raise AppException(f"Parallel Action with name '{parallel_action_name}' not found!")
+
+        settings = BotSettings.objects(bot=bot, status=True).first()
+        if len(request_data.get("actions")) > settings.max_actions_per_parallel_action:
+            raise AppException(
+                f"Maximum {settings.max_actions_per_parallel_action} actions are allowed in a parallel action."
+            )
+
+        for action in request_data.get("actions"):
+            if not Actions.objects(name__iexact=action, bot=bot, status=True).first():
+                raise AppException(f"Action with name {action} does not exist!")
+
+        parallel_action = ParallelActionConfig.objects(bot=bot, name=request_data["name"], status=True).get()
+        parallel_action.response_text = request_data.get("response_text")
+        parallel_action.actions = request_data.get("actions")
+        parallel_action.dispatch_response_text = request_data.get("dispatch_response_text")
+        parallel_action.user = user
+        parallel_action.timestamp = datetime.utcnow()
+        parallel_action.save()
+        return parallel_action.id.__str__()
+
+    def list_parallel_action(self, bot: Text, with_doc_id: bool = True):
+        """
+        List Parallel Action
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in ParallelActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def fetch_action_logs_for_parallel_action(self, trigger_id: str, bot: str) -> List[dict]:
+        """
+        Helper to fetch ActionServerLogs for all actions in a given parallel action.
+
+        :param name: Name of the parallel action
+        :param bot: Bot ID
+        :return: List of ActionServerLogs as dicts
+        """
+        logs = list(
+            ActionServerLogs
+            .objects(trigger_info__trigger_id=trigger_id, bot=bot)
+            .order_by("-timestamp")
+            .as_pymongo()
+        )
+        if not logs:
+            raise AppException("Logs for Actions in Parallel Action not found")
+
+        for log in logs:
+            if "_id" in log and isinstance(log["_id"], ObjectId):
+                log["_id"] = str(log["_id"])
+
+        return logs
+
+    @staticmethod
+    def prepare_log_query_params(request, bot_account: str) -> Dict[str, Any]:
+        raw_params = dict(request.query_params)
+        query_params = {}
+
+        for key, value in raw_params.items():
+            if key in {"start_idx", "page_size"}:
+                query_params[key] = int(value)
+            elif key in {"from_date", "to_date"}:
+                query_params[key] = date.fromisoformat(value)
+            else:
+                query_params[key] = value
+
+        query_params["bot_account"] = bot_account
+        return query_params
+
+    @staticmethod
+    def get_metadata_for_any_log_type(bot: Text):
+        return Utility.system_metadata.get("logs", {})
+
+    @staticmethod
+    def get_logs_for_any_type(
+            bot: Text,
+            log_type: str,
+            start_idx: int = 0,
+            page_size: int = 10,
+            **kwargs):
+
+        return BaseLogHandler.get_logs(
+            bot = bot,
+            log_type = log_type,
+            start_idx = start_idx,
+            page_size = page_size,
+            **kwargs
+        )
+
+    @staticmethod
+    def get_logs_for_search_query(
+            bot: Text,
+            log_type: str,
+            start_idx: int = 0,
+            page_size: int = 10,
+            **kwargs):
+        return BaseLogHandler.get_logs_search_result(
+            bot = bot,
+            log_type = log_type,
+            start_idx = start_idx,
+            page_size = page_size,
+            **kwargs
+        )
+
+    @staticmethod
+    def get_field_ids_for_log_type(log_type):
+        logs_metadata = Utility.system_metadata.get("logs", {})
+        return {col["id"] for col in logs_metadata.get(log_type, []) if "id" in col}
+
+    @staticmethod
+    def get_isoformat_date(date_type, date_value):
+        try:
+            formatted_date = date.fromisoformat(date_value)
+        except ValueError:
+            raise AppException(f"Invalid date format for '{date_type}': '{date_value}'. Use YYYY-MM-DD.")
+        return formatted_date
+
+    @staticmethod
+    def sanitize_query_filter(log_type: str, request) -> dict:
+        """
+        Sanitize and validate query parameters for the given log type.
+        """
+        doc_type = BaseLogHandler._get_doc_type(log_type)
+        if doc_type is None:
+            raise ValueError(f"Unsupported log type: {log_type}")
+
+        raw_params = dict(request.query_params)
+        valid_fields = MongoProcessor.get_field_ids_for_log_type(log_type)
+        sanitized = {}
+        if raw_params:
+            if raw_params.get("from_date"):
+                from_date = raw_params.pop("from_date")
+                sanitized["from_date"] = MongoProcessor.get_isoformat_date("from_date", from_date)
+            if raw_params.get("to_date"):
+                to_date = raw_params.pop("to_date")
+                sanitized["to_date"] = MongoProcessor.get_isoformat_date("to_date", to_date)
+            if "from_date" in sanitized and "to_date" in sanitized and sanitized["from_date"] > sanitized["to_date"]:
+                raise AppException("'from date' should be less than or equal to 'to date'")
+
+        for k, v in raw_params.items():
+            if k in {"start_idx", "page_size"}:
+                if not v.isdigit():
+                    raise AppException(f"'{k}' must be a valid integer.")
+                sanitized[k] = int(v)
+            else:
+                if Utility.check_empty_string(k):
+                    raise AppException("Search key cannot be empty or blank.")
+
+                if k not in valid_fields:
+                    raise AppException(f"Invalid query key: '{k}' for log_type: '{log_type}'")
+
+                if Utility.check_empty_string(v):
+                    raise AppException(f"Search value for key '{k}' cannot be empty or blank.")
+
+                sanitized[k] = v
+        return sanitized
+
+    @staticmethod
+    def get_store_page_metadata(bot: Text):
+        try:
+            metadata = StorePageMetadata.objects(bot=bot).get()
+            data = metadata.to_mongo().to_dict()
+            data.pop("_id", None)
+            return data
+        except DoesNotExist:
+            raise AppException("Store page metadata not found for this bot.")
+
+    @staticmethod
+    def save_store_page_metadata(bot: Text, user: Text, config: dict):
+        StorePageMetadata.objects(bot=bot).update_one(
+            set__config=config,
+            set__user=user,
+            set__timestamp=datetime.utcnow(),
+            upsert=True,
+        )

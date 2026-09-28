@@ -1,0 +1,263 @@
+import logging
+from typing import List, Text
+
+from fastapi import HTTPException
+from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
+from starlette.requests import Request
+
+from kairon.chat.agent_processor import AgentProcessor
+from kairon.chat.handlers.channels.base import ChannelHandlerBase
+from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+from kairon.shared.chat.data_objects import ChannelLogs
+from kairon.shared.chat.processor import ChatDataProcessor
+from kairon.shared.constants import ChannelTypes
+from kairon.shared.models import User
+
+logger = logging.getLogger(__name__)
+
+
+class VoiceOutput(OutputChannel):
+
+    @classmethod
+    def name(cls) -> Text:
+        return ChannelTypes.VOICE.value
+
+    def __init__(self):
+        """Initialise empty message accumulator for the voice turn."""
+        self._messages: list = []
+        self._should_hangup: bool = False
+
+    async def send_text_message(self, recipient_id: Text, text: Text, **kwargs):
+        self._messages.append(text)
+
+    async def send_text_with_buttons(self, recipient_id: Text, text: Text, buttons, **kwargs):
+        self._messages.append(text)
+        for b in buttons:
+            self._messages.append(b["title"])
+
+    async def send_image_url(self, recipient_id: Text, image: Text, **kwargs):
+        pass
+
+    async def send_attachment(self, recipient_id: Text, attachment: Text, **kwargs):
+        pass
+
+    async def send_custom_json(self, recipient_id: Text, json_message, **kwargs):
+        if json_message.get("disconnect"):
+            self._should_hangup = True
+        text = json_message.get("text") or json_message.get("data", {}).get("text")
+        if text:
+            self._messages.append(text)
+
+    def get_accumulated_text(self) -> Text:
+        return " ".join(self._messages)
+
+    def get_messages(self) -> list:
+        return list(self._messages)
+
+    def should_hangup(self) -> bool:
+        return self._should_hangup
+
+
+class VoiceHandler(InputChannel, ChannelHandlerBase):
+
+    def __init__(self, bot: Text, user: User, request: Request, provider: Text):
+        """Initialise the voice call handler for a single inbound request.
+
+        :param bot: bot ID
+        :param user: authenticated User object from JWT
+        :param request: incoming Starlette HTTP request from the telephony webhook
+        :param provider: telephony provider name (e.g. "twilio")
+        """
+        self.bot = bot
+        self.user = user
+        self.request = request
+        self.provider = provider
+
+    @classmethod
+    def name(cls) -> Text:
+        return ChannelTypes.VOICE.value
+
+    async def validate(self):
+        return {"status": "ok"}
+
+    async def handle_message(self):
+        raise NotImplementedError("Use handle_incoming_call or handle_call_status")
+
+    def _load_provider(self):
+        config = ChatDataProcessor.get_channel_config(
+            ChannelTypes.VOICE.value, self.bot, mask_characters=False
+        )["config"]
+        return VoiceProviderFactory.get_provider(self.provider)(self.bot, config), config
+
+    async def handle_incoming_call(self) -> Text:
+        provider_impl, config = self._load_provider()
+        form = dict(await self.request.form())
+        if not provider_impl.validate_signature(self.request, config["call_url"], form):
+            logger.warning("Invalid %s signature on /call — bot=%s provider=%s", self.provider, self.bot, self.provider)
+            raise HTTPException(status_code=403, detail=f"Invalid {self.provider} signature")
+
+        speech_result = form.get("SpeechResult", "")
+        sender_id = form.get("CallSid", "anonymous")
+
+        metadata = {
+            "is_integration_user": True,
+            "bot": self.bot,
+            "account": self.user.account,
+            "channel_type": ChannelTypes.VOICE.value,
+            "tabname": "default",
+            "caller_phone": form.get("Called", form.get("To", "")),
+            "call_sid": sender_id,
+        }
+
+        if not speech_result:
+            has_history = await self._has_prior_conversation(sender_id)
+            if not has_history:
+                welcome = config.get("welcome_message", "Hello! How can I help you?")
+                await self._record_welcome_conversation(sender_id, welcome, metadata, form)
+                return provider_impl.build_voice_response([welcome], config["call_url"])
+
+            noinput_count = await self._count_noinput(sender_id)
+            max_attempts = int(config.get("max_noinput_attempts", 1))
+
+            if noinput_count >= max_attempts:
+                timeout_msg = config.get(
+                    "timeout_message",
+                    "We didn't hear from you. Thanks for your time. Goodbye."
+                )
+                return provider_impl.build_hangup_response([timeout_msg])
+
+            noinput_channel = VoiceOutput()
+            noinput_msg = UserMessage(
+                text="noinput",
+                output_channel=noinput_channel,
+                sender_id=sender_id,
+                input_channel=self.name(),
+                metadata=metadata,
+            )
+            await AgentProcessor.handle_channel_message(self.bot, noinput_msg)
+            if noinput_channel.should_hangup():
+                messages = noinput_channel.get_messages() or [config.get(
+                    "timeout_message",
+                    "We didn't hear from you. Thanks for your time. Goodbye."
+                )]
+                return provider_impl.build_hangup_response(messages)
+            messages = await self._get_reprompt(sender_id, config)
+            return provider_impl.build_voice_response(messages, config["call_url"])
+
+        out_channel = VoiceOutput()
+        user_msg = UserMessage(
+            text=speech_result,
+            output_channel=out_channel,
+            sender_id=sender_id,
+            input_channel=self.name(),
+            metadata=metadata,
+        )
+        await AgentProcessor.handle_channel_message(self.bot, user_msg)
+        messages = out_channel.get_messages()
+
+        if out_channel.should_hangup():
+            return provider_impl.build_hangup_response(messages)
+
+        return provider_impl.build_voice_response(messages, config["call_url"])
+
+    async def _has_prior_conversation(self, sender_id: Text) -> bool:
+        """Check ChannelLogs for a welcome_sent entry — true means this call was already greeted."""
+        try:
+            return ChannelLogs.objects(
+                bot=self.bot, message_id=sender_id,
+                type=ChannelTypes.VOICE.value, status="welcome_sent"
+            ).count() > 0
+        except Exception:
+            return False
+
+    async def _count_noinput(self, sender_id: Text) -> int:
+        from rasa.shared.core.events import UserUttered
+        try:
+            agent = AgentProcessor.get_agent(self.bot)
+            tracker = await agent.tracker_store.retrieve(sender_id)
+            if not tracker:
+                return 0
+            count = 0
+            for event in reversed(tracker.events):
+                if isinstance(event, UserUttered) and event.text == "noinput":
+                    count += 1
+                elif isinstance(event, UserUttered):
+                    break
+            return count
+        except Exception:
+            return 0
+
+    async def _get_reprompt(self, sender_id: Text, config: dict) -> List[str]:
+        from rasa.shared.core.events import BotUttered
+        fallback = config.get("reprompt_fallback_phrase",
+                              "I'm sorry, I didn't get that. Could you please repeat?")
+        try:
+            agent = AgentProcessor.get_agent(self.bot)
+            tracker = await agent.tracker_store.retrieve(sender_id)
+            if tracker:
+                last = next((e for e in reversed(tracker.events)
+                             if isinstance(e, BotUttered)), None)
+                if last and last.text:
+                    return [last.text]
+        except Exception:
+            pass
+        return [fallback]
+
+    async def _record_welcome_conversation(self, sender_id: Text, welcome_msg: Text, metadata: dict, form: dict) -> None:
+        try:
+            ChannelLogs(
+                type=ChannelTypes.VOICE.value,
+                status="welcome_sent",
+                message_id=sender_id,
+                bot=self.bot,
+                user=self.user.get_user(),
+                data={**form, "provider": self.provider},
+            ).save()
+        except Exception:
+            pass
+
+    async def handle_call_status(self) -> None:
+        provider_impl, config = self._load_provider()
+        form = dict(await self.request.form())
+        if not provider_impl.validate_signature(self.request, config.get("status_url", ""), form):
+            logger.warning("Invalid %s signature on /status — bot=%s provider=%s", self.provider, self.bot, self.provider)
+            raise HTTPException(status_code=403, detail=f"Invalid {self.provider} signature")
+        await provider_impl.handle_call_status(self.request, self.bot)
+
+    async def handle_resolver_request(self) -> dict:
+        """Handle dynamic HTTP(S) resolver GET from telephony provider (e.g. Exotel).
+
+        Returns JSON dict with WSS stream URL.
+        """
+        params = dict(self.request.query_params)
+        call_sid = params.get("CallSid", "unknown")
+        logger.info(
+            "Resolver: bot=%s provider=%s call_sid=%s from=%s",
+            self.bot, self.provider, call_sid, params.get("From", ""),
+        )
+        provider_impl, _ = self._load_provider()
+        payload = provider_impl.build_resolver_response(params, self.bot, self.user.get_user())
+        ChannelLogs(
+            type="voice", status="resolver", data=params,
+            message_id=call_sid, bot=self.bot, user=self.user.get_user(),
+        ).save()
+        return payload
+
+    async def handle_greeting_request(self) -> str:
+        """Handle greeting/initializer GET from telephony provider (e.g. Exotel).
+
+        Plays greeting WAV then connects to WSS stream via ExoML.
+        """
+        params = dict(self.request.query_params)
+        call_sid = params.get("CallSid", "unknown")
+        logger.info(
+            "Greeting: bot=%s provider=%s call_sid=%s from=%s",
+            self.bot, self.provider, call_sid, params.get("From", ""),
+        )
+        provider_impl, _ = self._load_provider()
+        xml = provider_impl.build_greeting_response(params, self.bot, self.user.get_user())
+        ChannelLogs(
+            type="voice", status="greeting", data=params,
+            message_id=call_sid, bot=self.bot, user=self.user.get_user(),
+        ).save()
+        return xml

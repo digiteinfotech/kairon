@@ -23,8 +23,12 @@ storage:
     allowed_extensions: ${BOT_ASSETS_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg"]}
   user_media:
     root_dir: ${USER_MEDIA_ROOT_DIRECTORY:"user_media"}
-    bucket: ${USER_MEDIA_BUCKET}
+    bucket: ${USER_MEDIA_BUCKET:}
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
+  temp_media_url_expiry_time: ${S3_TEMP_URL_EXPIRY_TIME:900}
+  whatsapp_media:
+    root_dir: ${WHATSAPP_MEDIA_ROOT_DIRECTORY:"template_media"}
+    bucket: ${WHATSAPP_MEDIA_BUCKET:"meta-catalog-images"}
 
 security:
   secret_key: ${SECRET_KEY:"b9d01861392757c66daaf1f214268e2739a5baac935071d06e2ea71a66dc5bcd"}
@@ -82,6 +86,7 @@ model:
     custom:
       - kairon.shared.nlu.classifier.openai.OpenAIClassifier
       - kairon.shared.nlu.featurizer.openai.OpenAIFeaturizer
+  load_isbilled_models: true
 
 
 action:
@@ -122,12 +127,19 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
 
+voice:
+  exotel:
+    subdomain: ${EXOTEL_DEFAULT_SUBDOMAIN:"api.exotel.com"}
+
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
   executor:
-    type: ${EVENTS_EXECUTOR_TYPE}
+    type: ${EVENTS_EXECUTOR_TYPE:"standalone"}
+    callback_executor: ${CALLBACK_EXECUTOR_TYPE:"callback"}
     region: ${EVENTS_EXECUTOR_REGION}
     timeout: ${EVENTS_EXECUTOR_TIMEOUT_MINUTES:60}
+    callback_executor_url: ${CALLBACK_EXECUTOR_URL:"http://localhost:5059/callback/handle_event"}
+    dynamic_token_lifespan: ${DYNAMIC_TOKEN_LIFESPAN:1}
   queue:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
@@ -144,8 +156,11 @@ events:
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
+    upload_file_handler: ${FILE_CONTENT_IMPORTER_TASK_DEFINITION}
     email_channel_read_mails: ${MAIL_CHANNEL_READ_TASK_DEFINITION}
     agentic_flow: ${AGENTIC_FLOW_TASK_DEFINITION}
+    catalog_integration: ${CATALOG_SYNC_TASK_DEFINITION}
+    analytics_pipeline: ${ANALYTICS_PIPELINE_TASK_DEFINITION}
   scheduler:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
@@ -205,6 +220,9 @@ cors:
   origin: ${ALLOWED_ORIGIN:["*"]}
 
 channels:
+  gupshup:
+    partner_email: ${GUPSHUP_PARTNER_EMAIL}
+    partner_password: ${GUPSHUP_PARTNER_PASSWORD}
   360dialog:
     partner_id: ${360_DIALOG_PARTNER_ID}
     partner_username: ${360_DIALOG_PARTNER_USERNAME}
@@ -215,6 +233,9 @@ llm:
   key: ${TEMPLATE_LLM_KEY}
   url: ${LLM_SERVER_URL:http://localhost}
   request_timeout: ${LLM_REQUEST_TIMEOUT:30}
+
+llama_parse:
+  key: ${LLAMA_PARSER_API_KEY:"test-key"}
 
 vector:
   db: ${VECTOR_DB:http://localhost:6333}
@@ -227,6 +248,9 @@ verify:
     type: ${VERIFY_EMAIl_TYPE:quickemail}
     key: ${VERIFY_EMAIL_KEY}
 
+integrations:
+  email:
+    interval: ${MINIMUM_EMAIL_TRIGGER_TIME:10}
 
 actors:
   default_timeout: ${ACTORS_DEFAULT_TIMEOUT:10}
@@ -264,7 +288,17 @@ async_callback_action:
     aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
+    url: ${TRIGGER_MAIN_PYSCRIPT_URL:"http://localhost:5059/main_pyscript/execute-python"}
 
 broadcast:
   whatsapp_broadcast_rate_per_second: ${WHATSAPP_BROADCAST_RATE_PER_SECOND:20}
   whatsapp_broadcast_batch_size: ${WHATSAPP_BROADCAST_BATCH_SIZE:10}
+
+pos:
+  odoo:
+    odoo_url: ${ODOO_URL:"http://localhost:8080"}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD}
+    odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}
+
+store_page:
+  url: ${STORE_PAGE_URL}

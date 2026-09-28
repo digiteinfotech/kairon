@@ -1,17 +1,27 @@
+import json
 from datetime import datetime
-from typing import Text, Dict, Any, List
+from pathlib import Path
+from typing import Text, Dict, Any, List, Optional
 import json
 from loguru import logger
 from mongoengine import DoesNotExist, Q
 from pydantic import constr, create_model, ValidationError
+from pymongo import UpdateOne
 
 from kairon import Utility
 from kairon.exceptions import AppException
+from kairon.meta.processor import MetaProcessor
 from kairon.shared.actions.data_objects import PromptAction, DatabaseAction
+from kairon.shared.admin.processor import Sysadmin
+from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData
-from kairon.shared.data.constant import DEFAULT_LLM
+from kairon.shared.data.constant import DEFAULT_LLM, SyncType
+from kairon.shared.data.data_objects import POSIntegrations, PetpoojaSyncConfig
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.models import CognitionDataType, CognitionMetadataType, VaultSyncEventType
+from kairon.shared.data.utils import DataUtility
+from kairon.shared.models import CognitionDataType, CognitionMetadataType, VaultSyncType
+from tqdm import tqdm
+import uuid
 
 
 class CognitionDataProcessor:
@@ -128,198 +138,11 @@ class CognitionDataProcessor:
             item = value.to_mongo().to_dict()
             metadata = item.pop("metadata")
             collection = item.pop('collection_name', None)
+            schema_metadata = item.pop("schema_metadata", {})
             final_data["_id"] = item["_id"].__str__()
             final_data['metadata'] = metadata
             final_data['collection_name'] = collection
-            yield final_data
-
-    def delete_collection_data(self, collection_id: str, bot: Text, user: Text):
-        try:
-            collection = CollectionData.objects(bot=bot, id=collection_id).get()
-            collection.delete(user=user)
-        except DoesNotExist:
-            raise AppException("Collection Data does not exists!")
-
-    @staticmethod
-    def validate_collection_payload(collection_name, is_secure, data):
-        if not collection_name:
-            raise AppException("collection name is empty")
-
-        if not isinstance(is_secure, list):
-            raise AppException("is_secure should be list of keys")
-
-        if is_secure:
-            if not data or not isinstance(data, dict):
-                raise AppException("Invalid value for data")
-
-    def save_collection_data(self, payload: Dict, user: Text, bot: Text):
-        collection_name = payload.get("collection_name", None)
-        data = payload.get('data')
-        is_secure = payload.get('is_secure')
-        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
-
-        data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
-
-        collection_obj = CollectionData()
-        collection_obj.data = data
-        collection_obj.is_secure = is_secure
-        collection_obj.collection_name = collection_name
-        collection_obj.user = user
-        collection_obj.bot = bot
-        collection_id = collection_obj.save().to_mongo().to_dict()["_id"].__str__()
-        return collection_id
-
-    def update_collection_data(self, collection_id: str, payload: Dict, user: Text, bot: Text):
-        collection_name = payload.get("collection_name", None)
-        data = payload.get('data')
-        is_secure = payload.get('is_secure')
-        CognitionDataProcessor.validate_collection_payload(collection_name, is_secure, data)
-
-        data = CognitionDataProcessor.prepare_encrypted_data(data, is_secure)
-
-        try:
-            collection_obj = CollectionData.objects(bot=bot, id=collection_id, collection_name=collection_name).get()
-            collection_obj.data = data
-            collection_obj.collection_name = collection_name
-            collection_obj.is_secure = is_secure
-            collection_obj.user = user
-            collection_obj.timestamp = datetime.utcnow()
-            collection_obj.save()
-        except DoesNotExist:
-            raise AppException("Collection Data with given id and collection_name not found!")
-        return collection_id
-
-    @staticmethod
-    def prepare_encrypted_data(data, is_secure):
-        encrypted_data = {}
-        for key, value in data.items():
-            if key in is_secure:
-                encrypted_data[key] = Utility.encrypt_message(value)
-            else:
-                encrypted_data[key] = value
-        return encrypted_data
-
-    @staticmethod
-    def prepare_decrypted_data(data, is_secure):
-        decrypted_data = {}
-        for key, value in data.items():
-            if key in is_secure:
-                decrypted_data[key] = Utility.decrypt_message(value)
-            else:
-                decrypted_data[key] = value
-        return decrypted_data
-
-    def list_collection_data(self, bot: Text):
-        """
-        fetches collection data
-
-        :param bot: bot id
-        :return: yield dict
-        """
-        for value in CollectionData.objects(bot=bot):
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            collection_name = item.pop('collection_name', None)
-            is_secure = item.pop('is_secure')
-            data = item.pop('data')
-            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
-            final_data["_id"] = item["_id"].__str__()
-            final_data['collection_name'] = collection_name
-            final_data['is_secure'] = is_secure
-            final_data['data'] = data
-            yield final_data
-
-    def get_collection_data_with_id(self, bot: Text, **kwargs):
-        """
-        fetches collection data based on the filters provided
-
-        :param bot: bot id
-        :return: yield dict
-        """
-        try:
-            collection_id = kwargs.pop("collection_id")
-            collection_data = CollectionData.objects(bot=bot, id=collection_id).get()
-            final_data = {}
-            item = collection_data.to_mongo().to_dict()
-            collection_name = item.pop('collection_name', None)
-            is_secure = item.pop('is_secure')
-            data = item.pop('data')
-            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
-            final_data["_id"] = item["_id"].__str__()
-            final_data['collection_name'] = collection_name
-            final_data['is_secure'] = is_secure
-            final_data['data'] = data
-        except DoesNotExist:
-            raise AppException("Collection data does not exists!")
-        return final_data
-
-    def get_collection_data(self, bot: Text, **kwargs):
-        """
-        fetches collection data based on the filters provided
-
-        :param bot: bot id
-        :return: yield dict
-        """
-        collection_name = kwargs.pop("collection_name")
-        collection_name = collection_name.lower()
-        keys = kwargs.pop("key", None)
-        values = kwargs.pop("value", None)
-        if len(keys) != len(values):
-            raise AppException("Keys and values lists must be of the same length.")
-
-        query = {"bot": bot, "collection_name": collection_name}
-        query.update({
-            f"data__{key}": value for key, value in zip(keys, values) if key and value
-        })
-
-        for value in CollectionData.objects(**query):
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            collection_name = item.pop('collection_name', None)
-            is_secure = item.pop('is_secure')
-            data = item.pop('data')
-            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
-            final_data["_id"] = item["_id"].__str__()
-            final_data['collection_name'] = collection_name
-            final_data['is_secure'] = is_secure
-            final_data['data'] = data
-            yield final_data
-
-    def get_collection_data_with_timestamp(self, bot: Text, collection_name: Text, **kwargs):
-        """
-        fetches collection data based on the filters provided
-
-        :param bot: bot id
-        :param collection_name: collection name
-        :return: yield dict
-        """
-        collection_name = collection_name.lower()
-        start_time = kwargs.pop("start_time", None)
-        end_time = kwargs.pop("end_time", None)
-        data_filter = kwargs.pop("data_filter", {}) if isinstance(kwargs.get("data_filter"), dict) else json.loads(
-            kwargs.pop("data_filter", "{}"))
-
-        query = {"bot": bot, "collection_name": collection_name}
-        if start_time:
-            query["timestamp__gte"] = start_time
-        if end_time:
-            query["timestamp__lte"] = end_time
-
-        query.update({
-            f"data__{key}": value for key, value in data_filter.items() if key and value
-        })
-
-        for value in CollectionData.objects(**query):
-            final_data = {}
-            item = value.to_mongo().to_dict()
-            collection_name = item.pop('collection_name', None)
-            is_secure = item.pop('is_secure')
-            data = item.pop('data')
-            data = CognitionDataProcessor.prepare_decrypted_data(data, is_secure)
-            final_data["_id"] = item["_id"].__str__()
-            final_data['collection_name'] = collection_name
-            final_data['is_secure'] = is_secure
-            final_data['data'] = data
+            final_data["schema_metadata"] = schema_metadata
             yield final_data
 
     @staticmethod
@@ -512,22 +335,22 @@ class CognitionDataProcessor:
         else:
             raise ValueError(f"Unsupported data type: {data_type}")
 
-    def validate_data(self, primary_key_col: str, collection_name: str, event_type: str, data: List[Dict], bot: str) -> Dict:
+    def validate_data(self, primary_key_col: str, collection_name: str, sync_type: str, data: List[Dict], bot: str) -> Dict:
         """
         Validates each dictionary in the data list according to the expected schema from column_dict.
 
         Args:
             data: List of dictionaries where each dictionary represents a row to be validated.
             collection_name: The name of the collection (table name).
-            event_type: The type of the event being validated.
+            sync_type: The type of the event being validated.
             bot: The bot identifier.
             primary_key_col: The primary key column for identifying rows.
 
         Returns:
             Dict: Summary of validation errors, if any.
         """
-        self._validate_event_type(event_type)
-        event_validations = VaultSyncEventType[event_type].value
+        self._validate_sync_type(sync_type)
+        event_validations = VaultSyncType[sync_type].value
 
         self._validate_collection_exists(collection_name)
         column_dict = MongoProcessor().get_column_datatype_dict(bot, collection_name)
@@ -555,10 +378,9 @@ class CognitionDataProcessor:
                         "expected_columns": list(column_dict.keys()),
                         "actual_columns": list(row.keys())
                     })
-
             if "invalid_columns" in event_validations:
                 expected_columns = list(column_dict.keys())
-                if event_type == "field_update":
+                if sync_type == VaultSyncType.item_toggle.name:
                     expected_columns = [primary_key_col + " + any from " + str([col for col in column_dict.keys() if col != primary_key_col])]
                 if not set(row.keys()).issubset(set(column_dict.keys())):
                     row_errors.append({
@@ -604,19 +426,289 @@ class CognitionDataProcessor:
 
         return error_summary
 
-    async def upsert_data(self, primary_key_col: str, collection_name: str, event_type: str, data: List[Dict], bot: str, user: Text):
+    def _validate_sync_type(self, sync_type: str):
+        if sync_type not in VaultSyncType.__members__.keys():
+            raise AppException("Sync type does not exist")
+
+    def _validate_collection_exists(self, collection_name: str):
+        if not CognitionSchema.objects(collection_name=collection_name).first():
+            raise AppException(f"Collection '{collection_name}' does not exist.")
+
+    async def save_pos_integration_config(self, configuration: Dict, bot: Text, user: Text, sync_type: Text = None):
         """
-        Upserts data into the CognitionData collection.
-        If document with the primary key exists, it will be updated.
-        If not, it will be inserted.
+        Creates or updates POS integration config for a given bot and provider.
+
+        :param configuration: Input config dictionary (from request)
+        :param bot: Bot ID
+        :param user: User ID
+        :param sync_type: Optional sync type
+        :return: integration endpoint
+        """
+        self._validate_sync_type(sync_type)
+
+        provider = configuration["provider"]
+        config_data = configuration["config"]
+        meta_config = configuration.get("meta_config", {})
+        smart_catalog_enabled = configuration.get("smart_catalog_enabled", False)
+        meta_enabled = configuration.get("meta_enabled", False)
+        sync_options = configuration.get("sync_options")
+
+        sync_options = PetpoojaSyncConfig(**sync_options)
+
+        integration = POSIntegrations.objects(
+            bot=bot,
+            provider=provider,
+            sync_type=sync_type
+        ).first()
+
+        if integration and integration.smart_catalog_enabled and not smart_catalog_enabled:
+            await self.delete_existing_kv_catalog_data(bot)
+
+        if integration and integration.meta_enabled and not meta_enabled:
+            await self.delete_existing_meta_catalog_data(bot, meta_config)
+
+        if integration:
+            integration.config = config_data
+            integration.meta_config = meta_config
+            integration.smart_catalog_enabled = smart_catalog_enabled
+            integration.meta_enabled = meta_enabled
+            integration.sync_options = sync_options
+            integration.timestamp = datetime.utcnow()
+            integration.user = user
+        else:
+            integration = POSIntegrations(
+                bot=bot,
+                user=user,
+                provider=provider,
+                sync_type=sync_type,
+                config=config_data,
+                meta_config=meta_config,
+                smart_catalog_enabled=smart_catalog_enabled,
+                meta_enabled=meta_enabled,
+                sync_options=sync_options,
+                timestamp=datetime.utcnow(),
+            )
+        integration.save()
+
+        other_provider_integrations = POSIntegrations.objects(bot=bot, provider=provider, sync_type__ne=sync_type)
+
+        for doc in other_provider_integrations:
+            doc.smart_catalog_enabled = smart_catalog_enabled
+            doc.meta_enabled = meta_enabled
+            doc.config = config_data
+            doc.meta_config = meta_config
+            doc.sync_options = sync_options
+            doc.timestamp = datetime.utcnow()
+            doc.save()
+
+        integration_endpoint = DataUtility.get_integration_endpoint(integration)
+        return integration_endpoint
+
+    async def delete_existing_meta_catalog_data(self, bot: str, meta_config: Dict):
+        """
+        Deletes metadata items from Meta catalog if meta_enabled is turned off.
+        """
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+        existing_docs = CollectionData.objects(
+            collection_name=catalog_data_collection,
+            bot=bot,
+            status=True
+        )
+
+        meta_ids = [
+            doc.data.get("meta", {}).get("id")
+            for doc in existing_docs
+            if doc.data.get("meta", {}).get("id")
+        ]
+
+        access_token = meta_config.get("access_token")
+        catalog_id = meta_config.get("catalog_id")
+
+        if meta_ids:
+            meta_processor = MetaProcessor(access_token, catalog_id)
+            delete_payload = meta_processor.preprocess_delete_data(meta_ids)
+            await meta_processor.delete_meta_catalog(delete_payload)
+
+    async def delete_existing_kv_catalog_data(self, bot: str):
+        """
+        Deletes entire knowledge vault collection (Mongo and Qdrant) if smart_catalog_enabled is turned off.
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        collection_name = f"{restaurant_name}_{branch_name}_catalog"
+
+        CognitionData.objects(bot=bot, collection=collection_name).delete()
+        logger.info(f"Deleted documents from collection '{collection_name}' from MongoDB.")
+
+        CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
+        logger.info(f"Deleted schema of collection '{collection_name}' from MongoDB.")
+
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}"
+
+        await llm_processor._delete_single_collection(qdrant_collection)
+        logger.info(f"Deleted Qdrant collection '{qdrant_collection}' for bot '{bot}'.")
+
+    @staticmethod
+    def list_pos_integration_configs(bot: str) -> List[Dict]:
+        """
+        Helper to fetch POS integration config for a provider and bot.
+        If provider is 'petpooja', merge all its sync_types into one document.
+        """
+        documents = POSIntegrations.objects(bot=bot)
+        if not documents:
+            return []
+
+        sync_types = list({doc.sync_type for doc in documents if doc.sync_type})
+        base_doc = documents[0].to_mongo().to_dict()
+        base_doc.pop("_id", None)
+        base_doc["sync_type"] = sync_types
+
+        return [base_doc]
+
+    @staticmethod
+    def delete_pos_integration_config(bot: str, provider: str, sync_type: Optional[str] = None) -> Dict:
+        """
+        Helper to delete POS integration config for a provider and sync_type
+        """
+        query = {"bot": bot, "provider": provider}
+        if sync_type:
+            query["sync_type"] = sync_type
+
+        integration = POSIntegrations.objects(**query)
+        if not integration:
+            raise AppException("Integration config not found")
+
+        deleted_count = integration.count()
+        integration.delete()
+
+        result = {"provider": provider, "deleted_count": deleted_count}
+        if sync_type:
+            result["sync_type"] = sync_type
+        return result
+
+    @staticmethod
+    def get_pos_integration_endpoint(bot: str, provider: str, sync_type: str):
+        """
+        Helper to retrieve POS integration endpoint
+        """
+        integration = POSIntegrations.objects(bot=bot, provider=provider,
+                                              sync_type=sync_type).get()
+        DataUtility.get_integration_endpoint(integration)
+        return DataUtility.get_integration_endpoint(integration)
+
+    @staticmethod
+    def preprocess_push_menu_data(bot, json_data, provider):
+        """
+        Preprocess the JSON data received from Petpooja to extract relevant fields for knowledge base or meta synchronization.
+        Handles different event types ("push_menu" vs others) and uses metadata to drive the field extraction and defaulting.
+        """
+        doc = CatalogProviderMapping.objects(provider=provider).first()
+        if not doc:
+            raise Exception(f"Metadata mappings not found for provider={provider}")
+
+        category_map = {
+            cat["categoryid"]: cat["categoryname"]
+            for cat in json_data.get("categories", [])
+        }
+
+        provider_mappings = {
+            "meta": doc.meta_mappings,
+            "kv": doc.kv_mappings
+        }
+
+        data = {sync_target: [] for sync_target in provider_mappings}
+        for item in json_data.get("items", []):
+            for sync_target, fields in provider_mappings.items():
+                transformed_item = {"id": item["itemid"]}
+
+                for target_field, field_config in fields.items():
+                    source_key = field_config.get("source")
+                    default_value = field_config.get("default")
+                    value = item.get(source_key) if source_key else None
+
+                    if target_field == "availability":
+                        value = "in stock" if int(value or 0) > 0 else default_value
+                    elif target_field == "facebook_product_category":
+                        category_id = value or ""
+                        value = f"Food and drink > {category_map.get(category_id, 'General')}"
+                    elif target_field == "image_url":
+                        value = CognitionDataProcessor.resolve_image_link(bot, item["itemid"])
+                    elif target_field == "price":
+                        value = float(value)
+                    if not value:
+                        value = default_value
+
+                    transformed_item[target_field] = value
+
+                data[sync_target].append(transformed_item)
+
+        return data
+
+    @staticmethod
+    def preprocess_item_toggle_data(bot, json_data, provider):
+        doc = CatalogProviderMapping.objects(provider=provider).first()
+        if not doc:
+            raise Exception(f"Metadata mappings not found for provider={provider}")
+
+        provider_mappings = {
+            "meta": doc.meta_mappings,
+            "kv": doc.kv_mappings
+        }
+
+        in_stock = json_data["inStock"]
+        item_ids = json_data["itemID"]
+        availability = "in stock" if in_stock else "out of stock"
+        processed_data = [{"id": item_id, "availability": availability} for item_id in item_ids]
+
+        data = {sync_target: processed_data for sync_target in provider_mappings}
+
+        return data
+
+    @staticmethod
+    def resolve_image_link(bot: str, item_id: str):
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+
+        document = CollectionData.objects(
+            collection_name=catalog_images_collection,
+            data__item_id=int(item_id),
+            data__image_type="local"
+        ).first()
+
+        if not document:
+            document = CollectionData.objects(
+                collection_name=catalog_images_collection,
+                bot=bot,
+                data__image_type="global"
+            ).first()
+
+        if document:
+            data = document.data or {}
+            image_link = data.get("image_url")
+
+            if image_link:
+                return image_link
+        else:
+            raise Exception(f"Image URL not found for {item_id} in {catalog_images_collection}")
+
+    async def upsert_data(self, primary_key_col: str, collection_name: str, sync_type: str, data: List[Dict], bot: str,
+                          user: Text):
+        """
+        Upserts data into the CognitionData collection in batches and syncs embeddings with Qdrant.
 
         Args:
             primary_key_col: The primary key column name to check for uniqueness.
             collection_name: The collection name (table).
-            event_type: The type of the event being upserted
+            sync_type: The type of the event being upserted.
             data: List of rows of data to upsert.
             bot: The bot identifier associated with the data.
-            user: The user
+            user: The user.
         """
 
         from kairon.shared.llm.processor import LLMProcessor
@@ -624,7 +716,7 @@ class CognitionDataProcessor:
         suffix = "_faq_embd"
         qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
 
-        if await llm_processor.__collection_exists__(qdrant_collection) is False:
+        if not await llm_processor.__collection_exists__(qdrant_collection):
             await llm_processor.__create_collection__(qdrant_collection)
 
         existing_documents = CognitionData.objects(bot=bot, collection=collection_name).as_pymongo()
@@ -633,73 +725,326 @@ class CognitionDataProcessor:
             doc["data"].get(primary_key_col): doc for doc in existing_documents
         }
 
-        for row in data:
-            primary_key_value = row.get(primary_key_col)
+        processed_keys = set()
 
-            existing_document = existing_document_map.get(primary_key_value)
+        update_operations = []
+        insert_operations = []
 
-            if event_type == "field_update" and existing_document:
-                existing_data = existing_document.get("data", {})
-                merged_data = {**existing_data, **row}
-                logger.debug(f"Merged row for {primary_key_col} {primary_key_value}: {merged_data}")
-            else:
+        embedding_payloads = []
+        search_payloads = []
+        vector_ids = []
+
+        batch_size = 50
+        for i in tqdm(range(0, len(data), batch_size), desc="Syncing Knowledge Vault"):
+            batch_contents = data[i:i + batch_size]
+
+            for row in batch_contents:
+                primary_key_value = row.get(primary_key_col)
+                existing_document = existing_document_map.get(primary_key_value)
+
+                vector_id = str(uuid.uuid4()) if not existing_document else existing_document.get("vector_id")
+
                 merged_data = row
+                if existing_document:
+                    existing_data = existing_document.get("data", {})
+                    merged_data = {**existing_data, **row}
+                    update_operations.append(UpdateOne(
+                        {"_id": existing_document["_id"]},
+                        {"$set": {"data": merged_data, "timestamp": datetime.utcnow()}}
+                    ))
+                else:
+                    new_doc = CognitionData(
+                        data=merged_data,
+                        vector_id=vector_id,
+                        content_type=CognitionDataType.json.value,
+                        collection=collection_name,
+                        bot=bot,
+                        user=user
+                    )
+                    insert_operations.append(new_doc)
 
-            payload = {
-                "data": merged_data,
-                "content_type": CognitionDataType.json.value,
-                "collection": collection_name
-            }
+                processed_keys.add(primary_key_value)
 
-            if existing_document:
-                row_id = str(existing_document["_id"])
-                self.update_cognition_data(row_id, payload, user, bot)
-                updated_document = CognitionData.objects(id=row_id).first()
-                if not isinstance(updated_document, dict):
-                    updated_document = updated_document.to_mongo().to_dict()
-                logger.info(f"Row with {primary_key_col}: {primary_key_value} updated in MongoDB")
-                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, updated_document, user,
-                                            primary_key_col)
+                metadata = self.find_matching_metadata(bot, merged_data, collection_name)
+                search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(merged_data,
+                                                                                                          metadata)
+
+                embedding_payloads.append(embedding_payload)
+                search_payloads.append(search_payload)
+                vector_ids.append(vector_id)
+
+            if update_operations:
+                CognitionData._get_collection().bulk_write(update_operations)
+                logger.info(f"Updated {len(update_operations)} documents in MongoDB")
+
+            if insert_operations:
+                CognitionData.objects.insert(insert_operations, load_bulk=False)
+                logger.info(f"Inserted {len(insert_operations)} new documents in MongoDB")
+
+            update_operations.clear()
+            insert_operations.clear()
+            if embedding_payloads:
+                embeddings = await llm_processor.get_embedding(embedding_payloads, user,
+                                                               invocation="knowledge_vault_sync", collection = collection_name)
+                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                          for idx in range(len(vector_ids))]
+                await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},
+                                                          err_msg="Unable to upsert data in qdrant! Contact support")
+                logger.info(f"Upserted {len(points)} points in Qdrant.")
+
+            embedding_payloads.clear()
+            search_payloads.clear()
+            vector_ids.clear()
+
+        remaining_primary_keys = []
+        if sync_type == VaultSyncType.push_menu.name:
+            stale_docs = [doc for key, doc in existing_document_map.items() if key not in processed_keys]
+
+            if stale_docs:
+                doc_ids = []
+                vector_ids = []
+                remaining_primary_keys = []
+
+                for doc in stale_docs:
+                    doc_ids.append(doc["_id"])
+                    vector_ids.append(doc["vector_id"])
+                    remaining_primary_keys.append(doc["data"].get(primary_key_col))
+
+                CognitionData.objects(id__in=doc_ids).delete()
+                logger.info(f"Deleted {len(stale_docs)} stale documents from MongoDB.")
+
+                await llm_processor.__delete_collection_points__(qdrant_collection, vector_ids,
+                                                                 "Cannot delete stale points fro Qdrant!")
+                logger.info(f"Deleted {len(stale_docs)} stale points from Qdrant.")
+
+        return {"message": "Upsert complete!", "stale_ids": remaining_primary_keys}
+
+    async def upsert_vector_data(self, primary_key_col: str, collection_name: str, data: List[Dict], bot: str,
+                          user: Text):
+        """
+       Insert data to Qdrant collection
+        """
+
+        from kairon.shared.llm.processor import LLMProcessor
+        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
+        EmbeddingMetaData = CognitionSchema.objects(bot=bot, collection_name=collection_name).first()
+        training_needed = EmbeddingMetaData.schema_metadata.training_needed if EmbeddingMetaData else True
+        if not training_needed:
+            llm_processor.llm_type = "openrouter"
+            llm_processor.llm_secret = Sysadmin.get_llm_secret("openrouter", bot)
+            llm_processor.llm_secret_embedding = llm_processor.llm_secret
+        suffix = "_faq_embd"
+        qdrant_collection = f"{bot}_{collection_name}{suffix}" if collection_name else f"{bot}{suffix}"
+
+        if not await llm_processor.__collection_exists__(qdrant_collection):
+            await llm_processor.__create_collection__(qdrant_collection)
+
+        existing_documents = CognitionData.objects(bot=bot, collection=collection_name).as_pymongo()
+
+        existing_document_map = {
+            doc["data"].get(primary_key_col): doc for doc in existing_documents
+        }
+
+        processed_keys = set()
+
+        update_operations = []
+        insert_operations = []
+
+        embedding_payloads = []
+        search_payloads = []
+        vector_ids = []
+
+        batch_size = 50
+        for i in tqdm(range(0, len(data), batch_size), desc="Inserting data to Qdrant"):
+            batch_contents = data[i:i + batch_size]
+
+            for row in batch_contents:
+                primary_key_value = row.get(primary_key_col)
+                existing_document = existing_document_map.get(primary_key_value)
+
+                vector_id = str(uuid.uuid4()) if not existing_document else existing_document.get("vector_id")
+
+                merged_data = row
+                if existing_document:
+                    existing_data = existing_document.get("data", {})
+                    merged_data = {**existing_data, **row}
+                    update_operations.append(UpdateOne(
+                        {"_id": existing_document["_id"]},
+                        {"$set": {"data": merged_data, "timestamp": datetime.utcnow()}}
+                    ))
+                else:
+                    new_doc = CognitionData(
+                        data=merged_data,
+                        vector_id=vector_id,
+                        content_type=CognitionDataType.json.value,
+                        collection=collection_name,
+                        bot=bot,
+                        user=user
+                    )
+                    insert_operations.append(new_doc)
+
+                processed_keys.add(primary_key_value)
+
+                metadata = self.find_matching_metadata(bot, merged_data, collection_name)
+                search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(merged_data,
+                                                                                                          metadata)
+
+                embedding_payloads.append(embedding_payload)
+                search_payloads.append(search_payload)
+                vector_ids.append(vector_id)
+
+            if update_operations:
+                CognitionData._get_collection().bulk_write(update_operations)
+                logger.info(f"Updated {len(update_operations)} documents in MongoDB")
+
+            if insert_operations:
+                CognitionData.objects.insert(insert_operations, load_bulk=False)
+                logger.info(f"Inserted {len(insert_operations)} new documents in MongoDB")
+
+            update_operations.clear()
+            insert_operations.clear()
+            if embedding_payloads:
+                embeddings = await llm_processor.get_embedding(embedding_payloads, user,
+                                                               invocation="knowledge_vault_sync", collection = collection_name)
+                points = [{'id': vector_ids[idx], 'vector': embeddings[idx], 'payload': search_payloads[idx]}
+                          for idx in range(len(vector_ids))]
+                await llm_processor.__collection_upsert__(qdrant_collection, {'points': points},
+                                                          err_msg="Unable to upsert data in qdrant! Contact support")
+                logger.info(f"Upserted {len(points)} points in Qdrant.")
+
+            embedding_payloads.clear()
+            search_payloads.clear()
+            vector_ids.clear()
+
+        remaining_primary_keys = []
+
+        stale_docs = [doc for key, doc in existing_document_map.items() if key not in processed_keys]
+
+        if stale_docs:
+            doc_ids = []
+            vector_ids = []
+            remaining_primary_keys = []
+
+            for doc in stale_docs:
+                doc_ids.append(doc["_id"])
+                vector_ids.append(doc["vector_id"])
+                remaining_primary_keys.append(doc["data"].get(primary_key_col))
+
+            CognitionData.objects(id__in=doc_ids).delete()
+            logger.info(f"Deleted {len(stale_docs)} stale documents from MongoDB.")
+
+            await llm_processor.__delete_collection_points__(qdrant_collection, vector_ids,
+                                                             "Cannot delete stale points fro Qdrant!")
+            logger.info(f"Deleted {len(stale_docs)} stale points from Qdrant.")
+
+        return {"message": "Upsert complete!", "stale_ids": remaining_primary_keys}
+
+    @staticmethod
+    def save_ai_data(processed_data: dict, bot: str, user: str, sync_type: str):
+        """
+        Save each item in kv + meta of the processed payload into CollectionData,
+        with 'data' stored as {"kv": {...}, "meta": {...}}.
+        Performs partial update for `item_toggle`, full replace otherwise.
+        """
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+
+        kv_items = {item["id"]: item for item in processed_data.get("kv", [])}
+        meta_items = {item["id"]: item for item in processed_data.get("meta", [])}
+        incoming_ids = set(kv_items.keys())
+
+        existing_docs = CollectionData.objects(
+            collection_name=catalog_data_collection,
+            bot=bot,
+            status=True
+        )
+        existing_data_map = {doc.data.get("kv", {}).get("id"): doc for doc in existing_docs}
+        existing_ids = set(existing_data_map.keys())
+
+        for item_id in incoming_ids:
+            kv = kv_items[item_id]
+            meta = meta_items.get(item_id, {})
+            existing_doc = existing_data_map.get(item_id)
+
+            if existing_doc:
+                if sync_type == SyncType.item_toggle:
+                    for key, value in kv.items():
+                        existing_doc.data["kv"][key] = value
+                    for key, value in meta.items():
+                        existing_doc.data["meta"][key] = value
+                else:
+                    existing_doc.data = {"kv": kv, "meta": meta}
+
+                existing_doc.timestamp = datetime.utcnow()
+                existing_doc.user = user
+                existing_doc.save()
             else:
-                row_id = self.save_cognition_data(payload, user, bot)
-                new_document = CognitionData.objects(id=row_id).first()
-                if not isinstance(new_document, dict):
-                    new_document = new_document.to_mongo().to_dict()
-                logger.info(f"Row with {primary_key_col}: {primary_key_value} inserted in MongoDB")
-                await self.sync_with_qdrant(llm_processor, qdrant_collection, bot, new_document, user, primary_key_col)
+                CollectionData(
+                    collection_name=catalog_data_collection,
+                    data={"kv": kv, "meta": meta},
+                    user=user,
+                    bot=bot,
+                    timestamp=datetime.utcnow(),
+                    status=True
+                ).save()
 
-        return {"message": "Upsert complete!"}
+        stale_ids = []
+        if sync_type == SyncType.push_menu:
+            stale_ids = list(existing_ids - incoming_ids)
+            if stale_ids:
+                CollectionData.objects(
+                    collection_name=catalog_data_collection,
+                    bot=bot,
+                    status=True,
+                    data__kv__id__in=stale_ids
+                ).delete()
 
-    async def sync_with_qdrant(self, llm_processor, collection_name, bot, document, user, primary_key_col):
+        return stale_ids
+
+    @staticmethod
+    def load_catalog_provider_mappings():
         """
-        Syncs a document with Qdrant vector database by generating embeddings and upserting them.
+        Load and store catalog provider mappings from a JSON file.
 
-        Args:
-            llm_processor (LLMProcessor): Instance of LLMProcessor for embedding and Qdrant operations.
-            collection_name (str): Name of the Qdrant collection.
-            bot (str): Bot identifier.
-            document (CognitionData): Document to sync with Qdrant.
-            user (Text): User performing the operation.
-
-        Raises:
-            AppException: If Qdrant upsert operation fails.
+        :param file_path: Path to the mappings JSON file.
+        :raises AppException: If file does not exist or mapping format is invalid.
         """
-        try:
-            metadata = self.find_matching_metadata(bot, document['data'], document.get('collection'))
-            search_payload, embedding_payload = Utility.retrieve_search_payload_and_embedding_payload(
-                document['data'], metadata)
-            embeddings = await llm_processor.get_embedding(embedding_payload, user, invocation='knowledge_vault_sync')
-            points = [{'id': document['vector_id'], 'vector': embeddings, 'payload': search_payload}]
-            await llm_processor.__collection_upsert__(collection_name, {'points': points},
-                                                      err_msg="Unable to train FAQ! Contact support")
-            logger.info(f"Row with {primary_key_col}: {document['data'].get(primary_key_col)} upserted in Qdrant.")
-        except Exception as e:
-            raise AppException(f"Failed to sync document with Qdrant: {str(e)}")
+        file_path = "./metadata/catalog_provider_mappings.json"
+        path = Path(file_path)
 
-    def _validate_event_type(self, event_type: str):
-        if event_type not in VaultSyncEventType.__members__.keys():
-            raise AppException("Event type does not exist")
+        if not path.exists():
+            raise AppException(f"Mappings file not found at {file_path}")
 
-    def _validate_collection_exists(self, collection_name: str):
-        if not CognitionSchema.objects(collection_name=collection_name).first():
-            raise AppException(f"Collection '{collection_name}' does not exist.")
+        with open(path, "r") as f:
+            mapping_data = json.load(f)
+
+        for provider, mappings in mapping_data.items():
+            meta = mappings.get("meta")
+            kv = mappings.get("kv")
+
+            if not meta or not kv:
+                raise AppException(f"Mappings for provider '{provider}' is missing required 'meta' or 'kv' fields.")
+
+            try:
+                metadata_doc = CatalogProviderMapping.objects.get(provider=provider)
+                metadata_doc.update(
+                    set__meta_mappings=meta,
+                    set__kv_mappings=kv
+                )
+            except DoesNotExist:
+                CatalogProviderMapping(
+                    provider=provider,
+                    meta_mappings=meta,
+                    kv_mappings=kv
+                ).save()
+
+
+    @staticmethod
+    def get_restaurant_and_branch_name(bot: Text):
+        integration = POSIntegrations.objects(bot=bot).first()
+        if not integration:
+            raise Exception(f"No POS integration config found for bot: {bot}")
+
+        restaurant_name = integration.config.get("restaurant_name").replace(" ", "_")
+        branch_name = integration.config.get("branch_name").replace(" ", "_")
+        return restaurant_name.lower(), branch_name.lower()

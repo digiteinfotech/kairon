@@ -113,11 +113,17 @@ notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT}
 
+voice:
+  exotel:
+    subdomain: ${EXOTEL_DEFAULT_SUBDOMAIN:"api.exotel.com"}
+
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}
   executor:
     type: ${EVENTS_EXECUTOR_TYPE}
     region: ${EVENTS_EXECUTOR_REGION}
+    callback_executor_url: ${CALLBACK_EXECUTOR_URL:"http://localhost:5059//callback/handle_event"}
+    dynamic_token_lifespan: ${DYNAMIC_TOKEN_LIFESPAN:1}
   queue:
     type: ${EVENTS_QUEUE_TYPE:"mongo"}
     url: ${EVENTS_QUEUE_URL:"mongodb://localhost:27017/events"}
@@ -135,6 +141,7 @@ events:
     pyscript_evaluator: ${PYSCRIPT_TASK_DEFINITION}
     scheduler_evaluator: ${SCHEDULER_TASK_DEFINITION}
     content_importer: ${DOC_CONTENT_IMPORTER_TASK_DEFINITION}
+    upload_file_handler: ${FILE_CONTENT_IMPORTER_TASK_DEFINITION}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
     attributes:
@@ -255,9 +262,19 @@ async_callback_action:
     aes_iv: ${ASYNC_CALLBACK_AES_IV:"2f7b56a2c3e4d5f681d8ab92bc9d8f47"}
   pyscript:
     trigger_task: ${CALLBACK_PYSCRIPT_TRIGGER_TASK:false}
+    url: ${TRIGGER_MAIN_PYSCRIPT_URL:"http://localhost:5059/main_pyscript/execute-python"}
 
 llm_metadata_file: "./tests/testing_data/llm_metadata.yml"
 
 broadcast:
   whatsapp_broadcast_rate_per_second: ${WHATSAPP_BROADCAST_RATE_PER_SECOND:20}
   whatsapp_broadcast_batch_size: ${WHATSAPP_BROADCAST_BATCH_SIZE:10}
+
+pos:
+  odoo:
+    odoo_url: ${ODOO_URL:"http://localhost:8080"}
+    odoo_master_password: ${ODOO_MASTER_PASSWORD:"testpassword"}
+    odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
+
+store_page:
+  url: ${STORE_PAGE_URL:"http://localhost:8080"}

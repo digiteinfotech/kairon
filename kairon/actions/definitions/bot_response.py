@@ -7,10 +7,11 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
 from kairon.shared.constants import KaironSystemSlots
-from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM
+from kairon.shared.data.constant import DOMAIN, DEFAULT_LLM, STATUSES
 from kairon.shared.data.data_objects import BotSettings
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.data_objects import ActionServerLogs, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 
@@ -44,7 +45,7 @@ class ActionKaironBotResponse(ActionsBase):
         logger.debug("bot_settings: " + str(bot_settings))
         return bot_settings
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves bot settings and triggers gpt api if response rephrasing
         is set to true else returns the response template as it is.
@@ -55,7 +56,10 @@ class ActionKaironBotResponse(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
-        status = "SUCCESS"
+        action_call = kwargs.get('action_call', {})
+
+
+        status = STATUSES.SUCCESS.value
         exception = None
         is_rephrased = False
         raw_resp = None
@@ -74,8 +78,12 @@ class ActionKaironBotResponse(ActionsBase):
             logger.exception(e)
             logger.debug(e)
             exception = str(e)
-            status = "FAILURE"
+            status = STATUSES.FAIL.value
+            ActionUtility.trigger_action_failure_mail(slot_values=tracker.current_slot_values(), bot_name=self.bot, action_name=self.name, user_query_history=tracker.latest_message.get('text')
+                                                   )
         finally:
+            trigger_info_data = action_call.get('trigger_info') or {}
+            trigger_info_obj = TriggerInfo(**trigger_info_data)
             ActionServerLogs(
                 type=ActionType.kairon_bot_response.value,
                 intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -88,7 +96,9 @@ class ActionKaironBotResponse(ActionsBase):
                 enable_rephrasing=bot_settings['rephrase_response'],
                 is_rephrased=is_rephrased,
                 raw_gpt_response=raw_resp,
-                user_msg=tracker.latest_message.get('text')
+                user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj,
+                request_id=get_request_id()
             ).save()
         dispatcher.utter_message(**bot_response)
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

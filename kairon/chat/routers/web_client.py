@@ -135,6 +135,29 @@ async def execute_flow(
     }
 
 
+@router.post('/chat/exec/flow/media', response_model=Response)
+async def execute_flow_media(
+        name: str = Form(...),
+        sender_id: str = Form(...),
+        slot_vals: str = Form('{}'),
+        files: list[UploadFile] = File(...),
+        bot: Text = Path(description="Bot id"),
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
+):
+
+    resp, errs = await ChatUtils.handle_media_agentic_flow(bot=bot,
+                                                           sender_id=sender_id,
+                                                           name=name,
+                                                           slot_vals=slot_vals,
+                                                           files=files)
+    return {
+        "data": {
+            "responses": resp,
+            "errors": errs,
+        },
+        "message": "Rule executed successfully!"
+    }
+
 @router.get('/chat/media/download/{media_id}', response_class=StreamingResponse)
 async def media_download(
         bot: Text = Path(description="Bot id"),

@@ -16,12 +16,20 @@ class DataValidation:
         if DataValidation.model_llm_type_map:
             return DataValidation.model_llm_type_map
         else:
-            metadata = Utility.load_yaml(Utility.llm_metadata_file_path)
+            # Fetch all metadata records from MongoDB dynamically
+            from kairon.shared.admin.data_objects import LLMMetadata
+            metadata_records = LLMMetadata.objects()
+
             DataValidation.model_llm_type_map = {}
-            for llm_type in metadata:
-                models = metadata[llm_type]['properties']['model']['enum']
-                for model in models:
-                    DataValidation.model_llm_type_map[model] = llm_type
+            for record in metadata_records:
+                # record.provider matches your dict key (e.g., 'openai')
+                llm_type = record.provider
+
+                # Dig into the properties dictionary just like before
+                if record.properties and "model" in record.properties:
+                    models = record.properties["model"].get("enum", [])
+                    for model in models:
+                        DataValidation.model_llm_type_map[model] = llm_type
 
             return DataValidation.model_llm_type_map
 

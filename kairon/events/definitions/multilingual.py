@@ -7,7 +7,7 @@ from kairon.events.definitions.base import EventsBase
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
-from kairon.shared.data.constant import EVENT_STATUS
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 
 
@@ -65,7 +65,7 @@ class MultilingualEvent(EventsBase):
         """
         from kairon.multilingual.processor import MultilingualTranslator
 
-        translation_status = 'Failure'
+        translation_status = STATUSES.FAIL.value
         try:
             bot_info = AccountProcessor.get_bot(self.bot)
             account = bot_info['account']
@@ -83,7 +83,7 @@ class MultilingualEvent(EventsBase):
                 base_bot_id=self.bot, base_bot_name=source_bot_name, s_lang=s_lang, d_lang=self.dest_lang,
                 translate_responses=self.translate_responses, translate_actions=self.translate_actions
             )
-            translation_status = 'Success' if destination_bot else 'Failure'
+            translation_status = STATUSES.SUCCESS.value if destination_bot else STATUSES.FAIL.value
             MultilingualLogProcessor.update_summary(
                 self.bot, self.user, destination_bot=destination_bot, status=translation_status,
                 event_status=EVENT_STATUS.COMPLETED.value

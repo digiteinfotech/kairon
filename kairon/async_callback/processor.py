@@ -3,6 +3,7 @@ import functools
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Any, Text
 
+from kairon.shared.actions.utils import ActionUtility
 from loguru import logger
 from kairon import Utility
 from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
@@ -14,7 +15,6 @@ from kairon.shared.constants import EventClass
 from kairon.shared.data.constant import TASK_TYPE
 
 async_task_executor = ThreadPoolExecutor(max_workers=64)
-
 
 class CallbackProcessor:
     @staticmethod
@@ -56,7 +56,8 @@ class CallbackProcessor:
         bot_response = data.get('bot_response')
         state = data.get('state')
         invalidate = data.get('invalidate')
-        return bot_response, state, invalidate
+        dispatch_bot_response=data.get('dispatch_bot_response', False)
+        return bot_response, state, invalidate, dispatch_bot_response
 
     @staticmethod
     def run_pyscript_async(script: str, predefined_objects: dict, callback: Any):
@@ -74,7 +75,10 @@ class CallbackProcessor:
         def run_async_task():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(execute_script_task(callback, script, predefined_objects))
+            try:
+                loop.run_until_complete(execute_script_task(callback, script, predefined_objects))
+            finally:
+                loop.close()
 
         try:
             async_task_executor.submit(run_async_task)
@@ -87,15 +91,15 @@ class CallbackProcessor:
             if not obj:
                 raise AppException("No response received from callback script")
             elif res := obj.get('result'):
-                bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(res)
+                bot_response, state, invalidate, dispatch_bot_response = CallbackProcessor.parse_pyscript_data(res)
                 CallbackData.update_state(ent['bot'], ent['identifier'], state, invalidate)
-                if bot_response:
+                if dispatch_bot_response and bot_response:
                     await ChannelMessageDispatcher.dispatch_message(bot_id, sid, bot_response, chnl)
                 CallbackLog.create_success_entry(name=ent.get("action_name"),
                                                  bot=bot_id,
                                                  channel=chnl,
                                                  identifier=ent.get("identifier"),
-                                                 pyscript_code=cb.get("pyscript_code"),
+                                                 pyscript_code=cb.get("name"),
                                                  sender_id=sid,
                                                  log=str(bot_response),
                                                  request_data=rd,
@@ -113,13 +117,16 @@ class CallbackProcessor:
                                              bot=bot_id,
                                              channel=chnl,
                                              identifier=ent.get("identifier"),
-                                             pyscript_code=cb.get("pyscript_code"),
+                                             pyscript_code=cb.get("name"),
                                              sender_id=sid,
                                              error_log=error_msg,
                                              request_data=rd,
                                              metadata=ent.get("metadata"),
                                              callback_url=ent.get("callback_url"),
                                              callback_source=c_src)
+            ActionUtility.trigger_action_failure_mail(slot_values=ent.get('metadata'), bot_name=bot_id,
+                                                      action_name=ent.get("action_name"),
+                                                      user_query_history=rd.get('body'))
 
     @staticmethod
     async def process_async_callback_request(token: str,
@@ -141,32 +148,42 @@ class CallbackProcessor:
         bot = entry.get("bot")
         execution_mode = callback.get("execution_mode")
         response_type = callback.get("response_type", CallbackResponseType.KAIRON_JSON.value)
+        redirect = callback.get("redirect")
+        redirect_enabled = callback.get("redirect_enabled", False)
+        redirect_url = None
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
 
                 async def callback_function(rsp: dict):
-                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback, callback_source, bot, entry.get("sender_id"), entry.get("channel"), request_data)
+                    copied_func = functools.partial(CallbackProcessor.async_callback, rsp, entry, callback,
+                                                        callback_source, bot, entry.get("sender_id"),
+                                                        entry.get("channel"), request_data)
                     await copied_func()
-
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
-                                                     predefined_objects=predefined_objects,
-                                                     callback=callback_function)
+                                                         predefined_objects=predefined_objects,
+                                                         callback=callback_function)
+                return {"message": "Request Acknowledged"}, message, error_code, response_type, None
+
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
+
+                if redirect_enabled and redirect:
+                    redirect_url = CallbackUtility.resolve_redirect_url(redirect, entry.get('metadata'))
+
                 result = CallbackProcessor.run_pyscript(script=callback.get("pyscript_code"),
                                                         predefined_objects=predefined_objects)
-                bot_response, state, invalidate = CallbackProcessor.parse_pyscript_data(result)
+                bot_response, state, invalidate, dispatch_bot_response = CallbackProcessor.parse_pyscript_data(result)
                 CallbackData.update_state(entry['bot'], entry['identifier'], state, invalidate)
                 data = bot_response
                 logger.info(f'Pyscript output: {bot_response, state, invalidate}')
-                if data:
+                if dispatch_bot_response and bot_response:
                     await ChannelMessageDispatcher.dispatch_message(bot, entry.get("sender_id"), data, entry.get("channel"))
                 CallbackLog.create_success_entry(name=entry.get("action_name"),
                                                  bot=bot,
                                                  channel=entry.get("channel"),
                                                  identifier=entry.get("identifier"),
-                                                 pyscript_code=callback.get("pyscript_code"),
+                                                 pyscript_code=callback.get("name"),
                                                  sender_id=entry.get("sender_id"),
                                                  log=str(data),
                                                  request_data=request_data,
@@ -177,16 +194,20 @@ class CallbackProcessor:
         except AppException as e:
             error_code = 400
             message = str(e)
+            redirect_url = None
             CallbackLog.create_failure_entry(name=entry.get("action_name"),
                                              bot=bot,
                                              channel=entry.get("channel"),
                                              identifier=entry.get("identifier"),
-                                             pyscript_code=callback.get("pyscript_code"),
+                                             pyscript_code=callback.get("name"),
                                              sender_id=entry.get("sender_id"),
                                              error_log=message,
                                              request_data=request_data,
                                              metadata=entry.get("metadata"),
                                              callback_url=entry.get("callback_url"),
                                              callback_source=callback_source)
+            ActionUtility.trigger_action_failure_mail(slot_values=entry.get('metadata'), bot_name=bot,
+                                                      action_name=entry.get("action_name"),
+                                                      user_query_history=request_data.get('body'))
 
-        return data, message, error_code, response_type
+        return data, message, error_code, response_type, redirect_url

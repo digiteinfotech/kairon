@@ -1,6 +1,5 @@
 from enum import Enum
 
-
 class ParameterType(str, Enum):
     user = "user"
     action = "action"
@@ -50,6 +49,10 @@ class ActionType(str, Enum):
     live_agent_action = "live_agent_action"
     callback_action = "callback_action"
     schedule_action = "schedule_action"
+    parallel_action = "parallel_action"
+    voice_call_action = "voice_call_action"
+    kairon_voice_disconnect = "kairon_voice_disconnect"
+    store_page_action = "store_page_action"
 
 
 class HttpRequestContentType(str, Enum):

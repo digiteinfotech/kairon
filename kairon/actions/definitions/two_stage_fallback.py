@@ -7,10 +7,11 @@ from rasa_sdk.executor import CollectingDispatcher
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.constants import KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_UTTERANCE_NAME
+from kairon.shared.data.constant import DEFAULT_NLU_FALLBACK_UTTERANCE_NAME, STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.actions.definitions.base import ActionsBase
-from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction
+from kairon.shared.actions.data_objects import ActionServerLogs, KaironTwoStageFallbackAction, TriggerInfo
+from kairon.shared.request_context import get_request_id
 from kairon.shared.actions.models import ActionType
 from loguru import logger
 
@@ -41,7 +42,7 @@ class ActionTwoStageFallback(ActionsBase):
             raise ActionFailure("Two stage fallback action config not found")
         return action
 
-    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]):
+    async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         """
         Retrieves top intents that were predicted apart
         from nlu fallback and fetches one training example for that intent.
@@ -51,7 +52,9 @@ class ActionTwoStageFallback(ActionsBase):
         @param domain: Bot domain
         :return: Dict containing slot name as keys and their values.
         """
-        status = "SUCCESS"
+        action_call = kwargs.get('action_call', {})
+
+        status = STATUSES.SUCCESS.value
         exception = None
         action_config = self.retrieve_config()
         intent_ranking = tracker.latest_message.get("intent_ranking")
@@ -88,6 +91,8 @@ class ActionTwoStageFallback(ActionsBase):
             dispatcher.utter_message(buttons=recommendations, text=action_config.get('fallback_message'))
         else:
             dispatcher.utter_message(response=DEFAULT_NLU_FALLBACK_UTTERANCE_NAME)
+        trigger_info_data = action_call.get('trigger_info') or {}
+        trigger_info_obj = TriggerInfo(**trigger_info_data)
         ActionServerLogs(
             type=ActionType.two_stage_fallback.value,
             intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
@@ -97,6 +102,8 @@ class ActionTwoStageFallback(ActionsBase):
             exception=exception,
             bot_response=str(recommendations),
             status=status,
-            user_msg=tracker.latest_message.get('text')
+            user_msg=tracker.latest_message.get('text'),
+                trigger_info=trigger_info_obj,
+            request_id=get_request_id()
         ).save()
         return {}

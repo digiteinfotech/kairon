@@ -1,12 +1,15 @@
 import logging
 import re
 import time
+import traceback
 from datetime import datetime
 from typing import Any, List, Text, Dict
 
 import ujson as json
 
-from ..utils import Utility
+from kairon.shared.account.data_objects import Bot
+from ..utils import Utility, MailUtility
+import asyncio
 
 Utility.load_system_metadata()
 
@@ -93,7 +96,7 @@ class ActionUtility:
 
     @staticmethod
     def execute_http_request(http_url: str, request_method: str, request_body=None, headers=None,
-                             content_type: str = HttpRequestContentType.json.value):
+                             content_type: str = HttpRequestContentType.json.value, **kwargs):
         """Executes http urls provided.
 
         @param http_url: HTTP url to be executed
@@ -117,7 +120,8 @@ class ActionUtility:
                 )
             elif request_method.lower() in {'post', 'put', 'delete'}:
                 response = requests.request(
-                    request_method.upper(), http_url, headers=headers, timeout=timeout, **{content_type: request_body}
+                    request_method.upper(), http_url, headers=headers, timeout=timeout,
+                    **{content_type: request_body}, **kwargs
                 )
             else:
                 raise ActionFailure("Invalid request method!")
@@ -153,6 +157,78 @@ class ActionUtility:
 
         if isinstance(request_body, dict):
             return mask_nested_json_values(request_body)
+
+    @staticmethod
+    def validate_media_sizes(bot: str, media_ids: list):
+        from kairon.shared.data.data_objects import UserMediaData
+
+        bot_settings = ActionUtility.get_bot_settings(bot)
+
+        media_size_limit_mb = bot_settings.get("media_size_limit", 10)
+        media_size_limit_bytes = media_size_limit_mb * 1024 * 1024
+
+        media_docs = UserMediaData.objects(bot=bot, media_id__in=media_ids)
+
+        if len(media_docs) != len(media_ids):
+            raise AppException("One or more media files not found")
+
+        total_size = sum(doc.filesize for doc in media_docs)
+
+        if total_size > media_size_limit_bytes:
+            raise AppException(
+                f"Total media size exceeded limit of {media_size_limit_mb}MB"
+            )
+
+        return media_docs
+
+    @staticmethod
+    async def process_media_and_execute_requests(
+            bot,
+            media_ids,
+            headers,
+            http_url,
+            request_method,
+            request_body,
+            content_type
+    ):
+        import mimetypes
+        from kairon.shared.chat.user_media import UserMedia
+
+        ActionUtility.validate_media_sizes(bot, media_ids)
+
+        file_tasks = [
+            UserMedia.get_media_bytes_from_media_id(bot, media_id)
+            for media_id in media_ids
+        ]
+
+        results = await asyncio.gather(*file_tasks)
+
+        files = []
+        for file_buffer, download_name, _ in results:
+            file_bytearray = bytearray(file_buffer.read())
+
+            mime_type = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
+
+            files.append(
+                ("file", (download_name, file_bytearray, mime_type))
+            )
+
+        tasks = [
+            asyncio.to_thread(
+                ActionUtility.execute_http_request,
+                headers=headers,
+                http_url=http_url,
+                request_method=request_method,
+                request_body=request_body,
+                content_type=content_type,
+                files=[file]
+            )
+            for file in files
+        ]
+
+        responses = await asyncio.gather(*tasks)
+
+        return responses
 
     @staticmethod
     def prepare_request(tracker_data: dict, http_action_config_params: List[dict], bot: Text):
@@ -434,7 +510,9 @@ class ActionUtility:
         @param bot: bot id
         @param name: action name
         """
-        if name.startswith(UTTER_PREFIX):
+        if name == ActionType.kairon_voice_disconnect.value:
+            action_type = ActionType.kairon_voice_disconnect
+        elif name.startswith(UTTER_PREFIX):
             action_type = ActionType.kairon_bot_response
         else:
             action = ActionUtility.get_action(bot=bot, name=name)
@@ -680,7 +758,6 @@ class ActionUtility:
     @staticmethod
     def run_pyscript(source_code: Text, context: dict):
         trigger_task = Utility.environment['evaluator']['pyscript']['trigger_task']
-        pyscript_evaluator_url = Utility.environment['evaluator']['pyscript']['url']
         request_body = {"source_code": source_code, "predefined_objects": context}
 
         if trigger_task:
@@ -691,10 +768,19 @@ class ActionUtility:
                 raise ActionFailure(f"{err}")
             result = lambda_response["Payload"].get('body')
         else:
-            resp = ActionUtility.execute_http_request(pyscript_evaluator_url, "POST", request_body)
-            if resp.get('error_code') != 0:
+            callback_url=Utility.environment['async_callback_action']['pyscript']['url']
+            resp = Utility.execute_http_request(
+                "POST",
+                http_url=callback_url,
+                request_body={
+                    "source_code": source_code,
+                    "predefined_objects": context
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            if resp.get('statusCode') != 200:
                 raise ActionFailure(f'Pyscript evaluation failed: {resp}')
-            result = resp.get('data')
+            result = resp.get('body')
 
         return result
 
@@ -1030,6 +1116,8 @@ class ActionUtility:
             output = result['body']
         else:
             output = {}
+        if result.get('media_ids'):
+            output.update({"media_ids": result['media_ids']})
         end_time = time.time()
         elapsed_time = end_time - start_time
         return output, log, slot_values, elapsed_time
@@ -1047,3 +1135,23 @@ class ActionUtility:
             raw_resp = PluginFactory.get_instance(PluginTypes.gpt).execute(key=gpt_key, prompt=prompt)
             rephrased_message = Utility.retrieve_gpt_response(raw_resp)
         return raw_resp, rephrased_message
+
+    @staticmethod
+    def trigger_action_failure_mail(**kwargs):
+        try:
+            bot_name = Bot.objects(id=kwargs.get("bot_name","")).only("name").get().name
+            email = Utility.environment.get("support_mail")
+            stack_trace = traceback.format_exc()
+            asyncio.create_task(
+                MailUtility.format_and_send_mail(mail_type="action_failure",
+                                                   email=email,
+                                                   first_name="Team kAIron",
+                                                   stack_trace=stack_trace,
+                                                   slot_values=kwargs.get("slot_values", {}),
+                                                   bot_name=bot_name,
+                                                   action_name=kwargs.get("action_name"),
+                                                   user_query_history=kwargs.get("user_query_history", []),
+                                                   )
+            )
+        except Exception as mail_err:
+            logger.exception(mail_err)

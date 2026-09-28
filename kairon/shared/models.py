@@ -31,6 +31,10 @@ class StoryStepType(str, Enum):
     stop_flow_action = "STOP_FLOW_ACTION"
     callback_action = "CALLBACK_ACTION"
     schedule_action = "SCHEDULE_ACTION"
+    parallel_action = "PARALLEL_ACTION"
+    voice_call_action = "VOICE_CALL_ACTION"
+    kairon_voice_disconnect = "KAIRON_VOICE_DISCONNECT"
+    store_page_action = "STORE_PAGE_ACTION"
 
 
 class StoryType(str, Enum):
@@ -98,6 +102,7 @@ class LlmPromptSource(str, Enum):
     action = "action"
     history = "history"
     tag = "tag"
+    crud = "crud"
     bot_content = "bot_content"
 
 
@@ -117,9 +122,9 @@ class CognitionMetadataType(str, Enum):
     int = "int"
     float = "float"
 
-class VaultSyncEventType(str, Enum):
+class VaultSyncType(str, Enum):
     push_menu = ["column_length_mismatch", "invalid_columns", "pydantic_validation"]
-    field_update = ["invalid_columns", "document_non_existence", "pydantic_validation"]
+    item_toggle = ["invalid_columns", "document_non_existence", "pydantic_validation"]
 
 class GlobalSlotsEntryType(str, Enum):
     agentic_flow = "agentic_flow"
@@ -130,12 +135,14 @@ class FlowTagType(str, Enum):
 
 
 class UserMediaUploadType(str, Enum):
-    user_uploaded = "user_uploaded"
-    system_uploaded = "system_uploaded"
+    user_uploaded = "user"
+    system_uploaded = "system"
+    broadcast = "broadcast"
 
 
 class UserMediaUploadStatus(str, Enum):
     processing = "processing"
-    completed = "completed"
-    failed = "failed"
+    completed = "Completed"
+    failed = "Failed"
+    expired = "Expired"
 

@@ -4,17 +4,20 @@ import os
 import re
 import shutil
 import tempfile
-import urllib
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import List
-from urllib.parse import urljoin
+from unittest import mock
 
 import ujson as json
 import yaml
+from bson import ObjectId
 
+from kairon.meta.processor import MetaProcessor
+from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
-from kairon.shared.rest_client import AioRestClient
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.utils import Utility
 from kairon.shared.llm.processor import LLMProcessor
 
@@ -23,7 +26,7 @@ Utility.load_environment()
 Utility.load_system_metadata()
 
 
-from unittest.mock import patch, ANY
+from unittest.mock import patch, AsyncMock, MagicMock
 import numpy as np
 import pandas as pd
 import pytest
@@ -34,7 +37,7 @@ from mongoengine import connect, DoesNotExist
 from mongoengine.errors import ValidationError
 from mongoengine.queryset.base import BaseQuerySet
 from pipedrive.exceptions import UnauthorizedError
-from pydantic import SecretStr, constr
+from pydantic import SecretStr
 from rasa.core.agent import Agent
 from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAULT_CONFIG_PATH, \
     DEFAULT_NLU_FALLBACK_INTENT_NAME
@@ -58,18 +61,18 @@ from kairon.shared.actions.data_objects import HttpActionConfig, ActionServerLog
     HttpActionRequestBody, EmailActionConfig, CustomActionRequestParameters, ZendeskAction, RazorpayAction, \
     DatabaseAction, SetSlotsFromResponse, PyscriptActionConfig, WebSearchAction, PromptAction, UserQuestion, DbQuery, \
     CallbackActionConfig, CustomActionDynamicParameters, ScheduleAction, LiveAgentActionConfig, \
-    KaironTwoStageFallbackAction
+    KaironTwoStageFallbackAction, ParallelActionConfig, TriggerInfo
 from kairon.shared.callback.data_objects import CallbackConfig, encrypt_secret
 from kairon.shared.actions.models import ActionType, DispatchType, DbActionOperationType, DbQueryValueType, \
     ActionParameterType
-from kairon.shared.admin.data_objects import LLMSecret
+from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.auth import Authentication
 from kairon.shared.chat.data_objects import Channels
-from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata
+from kairon.shared.cognition.data_objects import CognitionData, CognitionSchema, ColumnMetadata, CollectionData, SchemaMetadata
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import SLOT_SET_TYPE, EventClass
 from kairon.shared.data.audit.data_objects import AuditLogData
-from kairon.shared.data.constant import ENDPOINT_TYPE
+from kairon.shared.data.constant import ENDPOINT_TYPE, STATUSES
 from kairon.shared.data.constant import UTTERANCE_TYPE, EVENT_STATUS, STORY_EVENT, ALLOWED_DOMAIN_FORMATS, \
     ALLOWED_CONFIG_FORMATS, ALLOWED_NLU_FORMATS, ALLOWED_STORIES_FORMATS, ALLOWED_RULES_FORMATS, REQUIREMENTS, \
     DEFAULT_NLU_FALLBACK_RULE, SLOT_TYPE, KAIRON_TWO_STAGE_FALLBACK, AuditlogActions, TOKEN_TYPE, GPT_LLM_FAQ, \
@@ -84,7 +87,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
                                              SlotMapping, KeyVault, MultiflowStories, LLMSettings,
                                              MultiflowStoryEvents, Synonyms,
-                                             Lookup
+                                             Lookup, POSIntegrations, PetpoojaSyncConfig
                                              )
 from kairon.shared.data.history_log_processor import HistoryDeletionLogProcessor
 from kairon.shared.data.model_processor import ModelProcessor
@@ -94,13 +97,12 @@ from kairon.shared.importer.processor import DataImporterLogProcessor
 from kairon.shared.live_agent.live_agent import LiveAgentHandler
 from kairon.shared.metering.constants import MetricType
 from kairon.shared.metering.data_object import Metering
-from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncEventType
+from kairon.shared.models import StoryEventType, HttpContentType, CognitionDataType, VaultSyncType
 from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.train import train_model_for_bot, start_training
 from deepdiff import DeepDiff
-import litellm
 
 
 class TestMongoProcessor:
@@ -108,6 +110,125 @@ class TestMongoProcessor:
     @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         connect(**Utility.mongoengine_connection())
+
+        LLMMetadata.objects.delete()
+
+        LLMMetadata(
+            provider="openai",
+            schema="https://json-schema.org/draft/2020-12/schema",
+            type="object",
+            description="Open AI Models for Prompt",
+            properties={
+                "temperature": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 2.0,
+                    "description": "The temperature hyperparameter controls the creativity or randomness of the generated responses."
+                },
+                "max_tokens": {
+                    "type": "integer",
+                    "default": 300,
+                    "minimum": 5,
+                    "maximum": 4096,
+                    "description": "The max_tokens hyperparameter limits the length of generated responses in chat completion using ChatGPT."
+                },
+                "model": {
+                    "type": "string",
+                    "default": "gpt-4.1-mini",
+                    "enum": [
+                        "gpt-3.5-turbo",
+                        "gpt-4.1-nano",
+                        "gpt-4.1-mini",
+                        "gpt-4.1"
+                    ],
+                    "description": "The model hyperparameter is the ID of the model to use."
+                },
+                "top_p": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "The top_p hyperparameter is a value that controls the diversity of the generated responses."
+                },
+                "n": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1,
+                    "maximum": 5,
+                    "description": "The n hyperparameter controls the number of different response options that are generated by the model."
+                },
+                "stop": {
+                    "anyOf": [
+                        {"type": "string"},
+                        {
+                            "type": "array",
+                            "maxItems": 4,
+                            "items": {"type": "string"}
+                        },
+                        {"type": "integer"},
+                        {"type": "null"}
+                    ],
+                    "type": [
+                        "string",
+                        "array",
+                        "integer",
+                        "null"
+                    ],
+                    "default": None,
+                    "description": "The stop hyperparameter is used to specify a list of tokens that should be used to indicate the end of a generated response."
+                },
+                "presence_penalty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": -2.0,
+                    "maximum": 2.0,
+                    "description": "The presence_penalty hyperparameter penalizes the model for generating words that are not present in the context or input prompt."
+                },
+                "frequency_penalty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": -2.0,
+                    "maximum": 2.0,
+                    "description": "The frequency_penalty hyperparameter penalizes the model for generating words that have already been generated in the current response."
+                },
+                "logit_bias": {
+                    "type": "object",
+                    "default": {},
+                    "description": "The logit_bias hyperparameter helps prevent GPT-3 from generating unwanted tokens or encourage generation of desired tokens."
+                }
+            },
+            user="user"
+        ).save()
+
+        LLMMetadata(
+            provider="anthropic",
+            schema="https://json-schema.org/draft/2020-12/schema",
+            type="object",
+            description="Anthropic AI Models for Prompt",
+            properties={
+                "max_tokens": {
+                    "type": "integer",
+                    "default": 1024,
+                    "minimum": 5,
+                    "maximum": 4096,
+                    "description": "The max_tokens hyperparameter limits the length of generated responses."
+                },
+                "model": {
+                    "type": "string",
+                    "default": "claude-3-7-sonnet-20250219",
+                    "enum": [
+                        "claude-3-7-sonnet-20250219"
+                    ],
+                    "description": "The model hyperparameter is the ID of the Anthropic model."
+                }
+            },
+            user="user"
+        ).save()
+
+        yield
+
+        LLMMetadata.objects.delete()
 
     @pytest.fixture()
     def get_training_data(self):
@@ -134,25 +255,522 @@ class TestMongoProcessor:
             return nlu, story_graph, domain, config, http_actions, multiflow_stories, bot_content, chat_client_config
 
         return _read_and_get_data
+    
+    @pytest.fixture()
+    def mock_collection_data(self):
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Mayank",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "23"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot", 
+            user="test_user_1", 
+            collection_name="crop_details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543001",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543002",
+                "crop": "wheat",
+                "status": "stage-3",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details",
+            data={
+                "name": "Aniket",
+                "mobile_number": "9876543003",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
 
-    # def test_add_schedule_action_a(self):
-    #     bot = "test"
-    #     user = "test"
-    #     expected_data = {
-    #         "name": "test_schedule_action",
-    #         "schedule_time": {"value": "2024-08-06T09:00:00.000+0530", "parameter_type": "value"},
-    #         "timezone": None,
-    #         "schedule_action": "test_pyscript",
-    #         "response_text": "action scheduled",
-    #         "params_list": [],
-    #         "dispatch_bot_response": True
-    #     }
-    #
-    #     processor = MongoProcessor()
-    #     processor.add_schedule_action(expected_data, bot, user)
-    #
-    #     actual_data = list(processor.list_schedule_action(bot))
-    #     assert expected_data.get("name") == actual_data[0]["name"]
+    def test_collection_data_filterable_attrs_populated_on_save(self):
+        from kairon.shared.cognition.data_objects import build_collection_filterable_attrs
+        data = {
+            "name": "Test",
+            "age": 30,
+            "score": 9.5,
+            "active": True,
+            "nested": {"key": "val"},
+            "items": [1, 2, 3],
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable",
+            data=data
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable").first()
+        expected = build_collection_filterable_attrs(data)
+        assert saved.filterable_attrs == expected
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "score", "active"}
+        assert "nested" not in attr_keys
+        assert "items" not in attr_keys
+
+        saved.delete()
+
+    def test_collection_data_filterable_attrs_excludes_secure_fields(self):
+        data = {
+            "name": "Test",
+            "age": 30,
+            "token": "secret123",
+            "active": True,
+        }
+        doc = CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="test_filterable_secure",
+            data=data,
+            is_secure=["token"]
+        )
+        doc.save()
+
+        saved = CollectionData.objects(bot="test_bot", collection_name="test_filterable_secure").first()
+        attr_keys = {a["k"] for a in saved.filterable_attrs}
+        assert attr_keys == {"name", "age", "active"}
+        assert "token" not in attr_keys
+
+        saved.delete()
+
+    def test_get_collection_data_with_filters_list(self, mock_collection_data):
+        collection_name = "crop_details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "gte",
+                "value": "26"
+            },
+            {
+                "column": "name",
+                "condition": "iendswith",
+                "value": "esh"
+            },
+        ]
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 4
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+            {'name': 'Hitesh', 'mobile_number': '9876543001', 'crop': 'Okra', 'status': 'stage-4', 'age': '27'},
+            {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
+        ]
+
+        collection_name = "details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "lt",
+                "value": "26"
+            },
+            {
+                "column": "age",
+                "condition": "gt",
+                "value": "20"
+            },
+            {
+                "column": "name",
+                "condition": "nin",
+                "value": ["Mahesh", "Hitesh"]
+            },
+        ]
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 2
+        assert result == [
+            {'name': 'Mayank', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '22'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '23'}
+        ]
+
+        collection_name = "crop_details"
+        filters = [
+            {
+                "column": "age",
+                "condition": "",
+                "value": "26"
+            }
+        ]
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 2
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+        ]
+
+        collection_name = "crop_details"
+        filters = []
+        result = DataProcessor.get_broadcast_collection_data(bot="test_bot",
+                                                             collection_name=collection_name,
+                                                             filters=filters)
+        assert len(result) == 4
+        assert result == [
+            {'name': 'Mahesh', 'mobile_number': '9876543000', 'crop': 'wheat', 'status': 'stage-1', 'age': '26'},
+            {'name': 'Ganesh', 'mobile_number': '9876543001', 'crop': 'Paddy', 'status': 'stage-2', 'age': '26'},
+            {'name': 'Hitesh', 'mobile_number': '9876543001', 'crop': 'Okra', 'status': 'stage-4', 'age': '27'},
+            {'name': 'Hitesh', 'mobile_number': '9876543002', 'crop': 'wheat', 'status': 'stage-3', 'age': '27'}
+        ]
+
+    def test_get_collection_filter_data_count(self):
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Mayank",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "22"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "23"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Mahesh",
+                "mobile_number": "9876543000",
+                "crop": "wheat",
+                "status": "stage-1",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Ganesh",
+                "mobile_number": "9876543001",
+                "crop": "Paddy",
+                "status": "stage-2",
+                "age": "26"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="crop_details_1",
+            data={
+                "name": "Hitesh",
+                "mobile_number": "9876543001",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "27"
+            }
+        ).save()
+        CollectionData(
+            bot="test_bot",
+            user="test_user_1",
+            collection_name="details_1",
+            data={
+                "name": "Aniket",
+                "mobile_number": "9876543003",
+                "crop": "Okra",
+                "status": "stage-4",
+                "age": "26"
+            }
+        ).save()
+        collection_name = "crop_details_1"
+        filters = """[
+            {
+                "column": "age",
+                "condition": "gte",
+                "value": "26"
+            },
+            {
+                "column": "name",
+                "condition": "iendswith",
+                "value": "esh"
+            }
+        ]"""
+        result = DataProcessor.get_collection_filter_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 3
+
+        collection_name = "details_1"
+        filters = '''[
+            {
+                "column": "age",
+                "condition": "lt",
+                "value": "26"
+            },
+            {
+                "column": "age",
+                "condition": "gt",
+                "value": "20"
+            },
+            {
+                "column": "name",
+                "condition": "nin",
+                "value": ["Mahesh", "Hitesh"]
+            }
+        ]'''
+        result = DataProcessor.get_collection_filter_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 2
+
+        collection_name = "details_1"
+        filters = """[
+            {
+                "column": "age",
+                "condition": "",
+                "value": "26"
+            }
+        ]"""
+        result = DataProcessor.get_collection_filter_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 1
+
+        collection_name = "details_1"
+        filters = []
+        result = DataProcessor.get_collection_filter_data_count(
+            bot="test_bot",
+            collection_name=collection_name,
+            filters=filters
+        )
+        assert result == 4
+        CollectionData.objects(bot = "test_bot", collection_name="crop_details_1").delete()
+        CollectionData.objects(bot = "test_bot", collection_name="details_1").delete()
+
+    def test_single_filter_with_condition(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "age", "condition": "gte", "value": 25}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 25}}}}]
+        }
+
+    def test_multiple_filters_with_conditions(self):
+        bot = "test_bot"
+        collection_name = "farmers"
+        filters = [
+            {"column": "age", "condition": "gte", "value": 20},
+            {"column": "city", "condition": "iexact", "value": "Delhi"},
+            {"column": "status", "condition": "in", "value": ["active", "pending"]}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "farmers",
+            "$and": [
+                {"filterable_attrs": {"$elemMatch": {"k": "age", "v": {"$gte": 20}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "city", "v": {"$regex": "^Delhi$", "$options": "i"}}}},
+                {"filterable_attrs": {"$elemMatch": {"k": "status", "v": {"$in": ["active", "pending"]}}}}
+            ]
+        }
+
+    def test_filter_without_condition(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "name", "condition": "", "value": "Mahesh"}
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
+        }
+
+    def test_empty_filters_list(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = []
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details"
+        }
+
+    def test_missing_keys_in_filter(self):
+        bot = "test_bot"
+        collection_name = "crop_details"
+        filters = [
+            {"column": "name", "value": "Mahesh"}  # no condition key
+        ]
+
+        result = DataProcessor.get_collection_filter(bot, collection_name, filters)
+
+        assert result == {
+            "bot": "test_bot",
+            "collection_name": "crop_details",
+            "$and": [{"filterable_attrs": {"$elemMatch": {"k": "name", "v": "Mahesh"}}}]
+        }
+
+    def test_get_decoded_data_with_valid_encoded_json(self):
+        """Should decode and parse valid URL-encoded JSON string."""
+        data = '[{"column": "brand", "condition": "equals", "value": "city"}]'
+        result = DataProcessor.get_decoded_data(data)
+        assert isinstance(result, list)
+        assert result[0]["column"] == "brand"
+        assert result[0]["value"] == "city"
+
+    def test_get_decoded_data_with_valid_json_string(self):
+        """Should parse normal JSON string without URL encoding."""
+        data = '[{"column": "brand", "condition": "equals"}]'
+        result = DataProcessor.get_decoded_data(data)
+        assert isinstance(result, list)
+        assert result[0]["column"] == "brand"
+
+    def test_get_decoded_data_with_none(self):
+        """Should return default '[]' when data is None."""
+        result = DataProcessor.get_decoded_data(None)
+        assert result == []
+
+    def test_get_decoded_data_with_empty_string(self):
+        """Should return default '[]' when data is empty."""
+        result = DataProcessor.get_decoded_data("")
+        assert result == []
+
+    def test_get_decoded_data_with_invalid_json(self):
+        """Should raise ValueError for invalid JSON."""
+        with pytest.raises(ValueError, match="Invalid data format."):
+            DataProcessor.get_decoded_data("not_json")
+
+    def test_get_decoded_data_with_partial_encoding(self):
+        """Should handle cases with partial URL encoding correctly."""
+        raw_data = '[{"key":"val ue"}]'
+        encoded = '%5B%7B%22key%22%3A%22val ue%22%7D%5D'
+        result = DataProcessor.get_decoded_data(encoded)
+        assert isinstance(result, list)
+        assert result[0]["key"] == "val ue"
 
     def test_add_complex_story_with_slot(self):
         processor = MongoProcessor()
@@ -186,20 +804,52 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='keyvalue',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         request = {"system_prompt": DEFAULT_SYSTEM_PROMPT, "context_prompt": DEFAULT_CONTEXT_PROMPT,
                    "failure_message": DEFAULT_NLU_FALLBACK_RESPONSE,
                    "num_bot_responses": 5}
         with pytest.raises(AppException, match="Faq feature is disabled for the bot! Please contact support."):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_slots(self):
         processor = MongoProcessor()
         bot = 'testing_bot'
         user = 'testing_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -208,7 +858,7 @@ class TestMongoProcessor:
                                     'source': 'static',
                                     'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    "data": "Bot_collection",
+                                    "data": "test",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -220,14 +870,35 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Slot with name info not found!"):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_http_action(self):
         processor = MongoProcessor()
         bot = 'testt_bot'
         user = 'testt_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -238,7 +909,7 @@ class TestMongoProcessor:
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70}},
                                    {'name': 'Http action Prompt',
@@ -249,14 +920,35 @@ class TestMongoProcessor:
         with pytest.raises(AppException, match="Action with name test_http_action not found!"):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_similarity_threshold(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -265,7 +957,7 @@ class TestMongoProcessor:
                                    {'name': 'Similarity Prompt',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True,
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 10,
                                                         'similarity_threshold': 1.70},
                                     },
@@ -278,22 +970,37 @@ class TestMongoProcessor:
                                     'instructions': 'Answer according to the context', 'type': 'query',
                                     'source': 'static', 'is_enabled': True}]}
         with pytest.raises(ValidationError, match="similarity_threshold should be within 0.3 and 1"):
+
             processor.add_prompt_action(request, bot, user)
+
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_top_results(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+
         request = {'name': 'test_prompt_action_invalid_top_results', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    "data": "Bot_collection",
+                                    "data": "test_collection",
                                     'hyperparameters': {'top_results': 40,
                                                         'similarity_threshold': 0.3},
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
@@ -325,6 +1032,25 @@ class TestMongoProcessor:
         bot = 'bot'
         user = 'user'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
@@ -345,38 +1071,70 @@ class TestMongoProcessor:
         processor.add_prompt_action(request, bot, user)
         prompt_action = processor.get_prompt_action(bot)
         prompt_action[0].pop("_id")
-        assert not DeepDiff(prompt_action, [
-            {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
-             'num_bot_responses': 5,
-             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-             'user_question': {'type': 'from_user_message'},
-             'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
-                                 'n': 1, 'stop': None, 'presence_penalty': 0.0,
-                                 'frequency_penalty': 0.0, 'logit_bias': {}},
-             'llm_type': 'openai',
-             'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                              'type': 'system', 'source': 'static', 'is_enabled': True},
-                             {'name': 'Similarity Prompt', 'data': 'default',
-                              'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                              'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                              'is_enabled': True},
-                             {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                              'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-             'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}], ignore_order=True)
+        assert not DeepDiff(prompt_action[0], {
+            'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',  # corrected name
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
+                                'n': 1, 'stop': None, 'presence_penalty': 0.0,
+                                'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                    {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                     'type': 'system', 'source': 'static', 'is_enabled': True},
+
+                    {'name': 'Similarity Prompt', 'data': 'default',
+                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+
+                    {'name': 'Query Prompt',
+                     'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                     'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                     'is_enabled': True},
+
+                    {'name': 'Query Prompt',
+                     'data': 'If there is no specific query, assume that user is aking about java programming.',
+                     'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                     'is_enabled': True}
+                ],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
+        }, ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_bot_content_prompt(self):
         processor = MongoProcessor()
         bot = 'bot'
         user = 'user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
+                   "process_media": False,
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'Similarity Prompt',
-                                    'data': 'Bot_collection',
+                                    'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -395,30 +1153,50 @@ class TestMongoProcessor:
             'num_bot_responses': 5,
             'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
             'user_question': {'type': 'from_user_message'},
-            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini', 'top_p': 0.0,
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini', 'top_p': 0.0,
                                 'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                 'frequency_penalty': 0.0, 'logit_bias': {}},
             'llm_type': 'openai',
-            'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                             'type': 'system', 'source': 'static', 'is_enabled': True},
-                            {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                             'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                             'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                            {'name': 'Query Prompt', 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                             'is_enabled': True},
-                            {'name': 'Query Prompt', 'data': 'If there is no specific query, assume that user is aking about java programming.',
-                             'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static', 'is_enabled': True}],
-            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True}, ignore_order=True)
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.',
+                 'type': 'system', 'source': 'static', 'is_enabled': True},
+                {'name': 'Similarity Prompt', 'data': 'test_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True},
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                 'is_enabled': True}
+            ],
+            'instructions': [], 'set_slots': [], 'dispatch_response': True, 'status': True
+        }, ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_query_prompt(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -434,10 +1212,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -457,11 +1246,22 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_system_prompt_source',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -480,6 +1280,17 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
@@ -487,7 +1298,7 @@ class TestMongoProcessor:
                                     'instructions': 'Answer question based on the context below.', 'type': 'system',
                                     'source': 'static',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -502,14 +1313,70 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match="Only one system prompt can be present!"):
             processor.add_prompt_action(request, bot, user)
 
+    def test_validate_llm_prompts_bot_content_provider_mismatch(self):
+        processor = MongoProcessor()
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = "test_collection_mismatch"
+
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(
+                training_needed=False,
+                provider="openai",
+                model_id="text-embedding-3-large"
+            )
+        ).save()
+
+        request = {
+            'name': 'test_llm_mismatch_action',
+            'llm_type': 'anthropic',
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True},
+                {
+                    'name': 'Similarity Prompt',
+                    'data': collection_name,
+                    'instructions': 'Search this collection',
+                    'type': 'user',
+                    'source': 'bot_content',
+                    'is_enabled': True
+                }
+            ],
+            "failure_message": "Error",
+            "num_bot_responses": 1
+        }
+
+        # 3. Assert that AppException is raised due to the provider mismatch
+        expected_error = "LLM Type must be openai for the chosen faq table"
+        with pytest.raises(AppException, match=expected_error):
+            processor.add_prompt_action(request, bot, user)
+
     def test_add_prompt_action_with_empty_llm_prompt_name(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
                    'llm_prompts': [{'name': '', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -528,10 +1395,21 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -549,13 +1427,24 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
                                    {'name': 'Analytical Prompt', 'type': 'user', 'source': 'history',
                                     'is_enabled': True},
-                                   {'name': 'Similarity Prompt', "data": "Bot_collection",
+                                   {'name': 'Similarity Prompt', "data": "test_collection",
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -574,13 +1463,35 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection_1",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection_2",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
                    'llm_prompts': [
                        {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True},
-                       {'name': 'Similarity Prompt', "data": "Bot_collection",
+                       {'name': 'Similarity Prompt', "data": "test_collection_1",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                       {'name': 'Another Similarity Prompt', "data": "Bot_collection_two",
+                       {'name': 'Another Similarity Prompt', "data": "test_collection_2",
                         'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                         'type': 'user', 'source': 'bot_content', 'is_enabled': True}
                    ],
@@ -592,9 +1503,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompts', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -606,6 +1518,14 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
                    'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
@@ -619,30 +1539,48 @@ class TestMongoProcessor:
         pytest.action_id = processor.add_prompt_action(request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_add_prompt_action_faq_action_with_default_values', 'num_bot_responses': 5,
-                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_type': 'openai',
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}],
-                           'instructions': ['Answer in a short manner.', 'Keep it simple.'],
-                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                                         {'name': 'gpt_result_type', 'value': '${data.type}',
-                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}], ignore_order=True)
+
+        assert not DeepDiff(action, [{
+            'name': 'test_add_prompt_action_faq_action_with_default_values',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
+                                'top_p': 0.0, 'n': 1, 'stop': None,
+                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_type': 'openai',
+            'process_media': False,
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True},
+                {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}
+            ],
+            'instructions': ['Answer in a short manner.', 'Keep it simple.'],
+            'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                          {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_add_prompt_action_with_invalid_temperature_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_one'
         user = 'test_user_one'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_temperature_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 3.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': None, 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -652,14 +1590,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['temperature']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_stop_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_two'
         user = 'test_user_two'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_stop_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': ["\n", ".", "?", "!", ";"],
                                        'presence_penalty': 0.0,
@@ -671,15 +1619,25 @@ class TestMongoProcessor:
                            match=re.escape('[\'stop\']: ["\\n",".","?","!",";"] is not valid under any of the schemas listed in the \'anyOf\' keyword')):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_presence_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_three'
         user = 'test_user_three'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_presence_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': -3.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -689,15 +1647,25 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['presence_penalty']: -3.0 is less than the minimum of -2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_four'
         user = 'test_user_four'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_frequency_penalty_hyperparameter',
                    'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 3.0, 'logit_bias': {}},
@@ -707,14 +1675,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['frequency_penalty']: 3.0 is greater than the maximum of 2.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_five'
         user = 'test_user_five'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 2, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -724,14 +1702,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 2 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_zero_max_tokens_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_six'
         user = 'test_user_six'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_max_tokens_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 0, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -741,14 +1729,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['max_tokens']: 0 is less than the minimum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_top_p_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_seven'
         user = 'test_user_seven'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_top_p_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 256, 'model': 'gpt-4.1-mini',
                                        'top_p': 3.0,
                                        'n': 1, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -758,14 +1756,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['top_p']: 3.0 is greater than the maximum of 1.0")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_eight'
         user = 'test_user_eight'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 7, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -775,14 +1783,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['n']: 7 is greater than the maximum of 5")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_zero_n_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_nine'
         user = 'test_user_nine'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_zero_n_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 0, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': {}},
@@ -792,14 +1810,24 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape("['n']: 0 is less than the minimum of 1")):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_with_invalid_logit_bias_hyperparameter(self):
         processor = MongoProcessor()
         bot = 'test_bot_ten'
         user = 'test_user_ten'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'test_add_prompt_action_with_invalid_logit_bias_hyperparameter', 'num_bot_responses': 5,
                    'failure_message': DEFAULT_NLU_FALLBACK_RESPONSE,
-                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4o-mini',
+                   'hyperparameters': {'temperature': 0.0, 'max_tokens': 200, 'model': 'gpt-4.1-mini',
                                        'top_p': 0.0,
                                        'n': 2, 'stop': '?', 'presence_penalty': 0.0,
                                        'frequency_penalty': 0.0, 'logit_bias': 'a'},
@@ -809,16 +1837,28 @@ class TestMongoProcessor:
         with pytest.raises(ValidationError, match=re.escape('[\'logit_bias\']: "a" is not of type "object"')):
             processor.add_prompt_action(request, bot, user)
 
+        LLMSecret.objects.delete()
+
     def test_add_prompt_action_faq_action_already_exist(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         request = {'name': 'test_add_prompt_action_faq_action_with_default_values',
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         with pytest.raises(AppException, match='Action exists!'):
             processor.add_prompt_action(request, bot, user)
+
+        LLMSecret.objects.delete()
 
     def test_edit_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -848,11 +1888,32 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                   {'name': 'Similarity Prompt', 'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -873,61 +1934,122 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
-                           'failure_message': 'updated_failure_message', 'user_question': {'type': 'from_user_message'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_type': 'openai',
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                               'instructions': 'Answer according to the context',
-                                                                                               'type': 'query',
-                                                                                               'source': 'static',
-                                                                                               'is_enabled': True},
-                               {'name': 'Query Prompt',
-                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                                'is_enabled': True}], 'instructions': [],
-                           'set_slots': [{'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                                         {'name': 'gpt_result_type', 'value': '${data.type}',
-                                          'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
-                            ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            'process_media': False,
+            'llm_prompts': [
+                {
+                    'name': 'System Prompt',
+                    'data': 'You are a personal assistant.',
+                    'type': 'system',
+                    'source': 'static',
+                    'is_enabled': True
+                },
+                {
+                    'name': 'Similarity Prompt',
+                    'data': 'test_collection',
+                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                    'type': 'user',
+                    'source': 'bot_content',
+                    'is_enabled': True
+                },
+                {
+                    'name': 'Query Prompt',
+                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                    'instructions': 'Answer according to the context',
+                    'type': 'query',
+                    'source': 'static',
+                    'is_enabled': True
+                },
+                {
+                    'name': 'Query Prompt',
+                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                    'instructions': 'Answer according to the context',
+                    'type': 'query',
+                    'source': 'static',
+                    'is_enabled': True
+                }
+            ],
+            'instructions': [],
+            'set_slots': [
+                {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}
+            ],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
         request = {'name': 'test_edit_prompt_action_faq_action_again',
-                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                   'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                    'source': 'static'}],
-                   'instructions': ['Answer in a short manner.', 'Keep it simple.']}
+               'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+               'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                                'source': 'static'}],
+               'instructions': ['Answer in a short manner.', 'Keep it simple.']}
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action_again', 'num_bot_responses': 5,
-                           'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'llm_type': 'openai',
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True}],
-                           'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
-                           'dispatch_response': True, 'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action_again',
+            'num_bot_responses': 5,
+            'failure_message': "I'm sorry, I didn't quite understand that. Could you rephrase?",
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'llm_type': 'openai',
+            "process_media": False,
+            'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4.1-mini',
+                                'top_p': 0.0, 'n': 1, 'stop': None,
+                                'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
+            'llm_prompts': [
+                {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                 'source': 'static', 'is_enabled': True}],
+            'instructions': ['Answer in a short manner.', 'Keep it simple.'], 'set_slots': [],
+            'dispatch_response': True, 'status': True}], ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_edit_prompt_action_faq_action_llm_type_and_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="anthropic",
+            api_key='value',
+            models=["claude-3-7-sonnet-20250219"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+
         request = {'name': 'test_edit_prompt_action_faq_action',
                    'user_question': {'type': 'from_user_message'},
                    'llm_prompts': [{'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
                                     'source': 'static', 'is_enabled': True},
-                                   {'name': 'Similarity Prompt', 'data': 'Bot_collection',
+                                   {'name': 'Similarity Prompt', 'data': 'test_collection',
                                     'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
                                     'type': 'user', 'source': 'bot_content', 'is_enabled': True},
                                    {'name': 'Query Prompt',
@@ -950,90 +2072,161 @@ class TestMongoProcessor:
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        print(action)
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_faq_action', 'num_bot_responses': 5,
-                                      'failure_message': 'updated_failure_message',
-                                      'user_question': {'type': 'from_user_message'},
-                                      'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-haiku-20240307'},
-                                      'llm_type': 'anthropic',
-                                      'llm_prompts': [
-                                          {'name': 'System Prompt', 'data': 'You are a personal assistant.',
-                                           'type': 'system',
-                                           'source': 'static', 'is_enabled': True},
-                                          {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                                           'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                           'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                                          {'name': 'Query Prompt',
-                                           'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                           'instructions': 'Answer according to the context',
-                                           'type': 'query',
-                                           'source': 'static',
-                                           'is_enabled': True},
-                                          {'name': 'Query Prompt',
-                                           'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                           'instructions': 'Answer according to the context', 'type': 'query',
-                                           'source': 'static',
-                                           'is_enabled': True}], 'instructions': [],
-                                      'set_slots': [
-                                          {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
-                                          {'name': 'gpt_result_type', 'value': '${data.type}',
-                                           'evaluation_type': 'script'}], 'dispatch_response': False, 'status': True}],
-                            ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_faq_action',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_user_message'},
+            'hyperparameters': {'max_tokens': 1024, 'model': 'claude-3-7-sonnet-20250219'},
+            'llm_type': 'anthropic',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'test_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [
+                {'name': 'gpt_result', 'value': '${data}', 'evaluation_type': 'expression'},
+                {'name': 'gpt_result_type', 'value': '${data.type}', 'evaluation_type': 'script'}
+            ],
+            'dispatch_response': False,
+            'status': True
+        }], ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_edit_prompt_action_with_less_hyperparameters(self):
         processor = MongoProcessor()
         bot = 'test_bot'
         user = 'test_user'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+
         request = {'name': 'test_edit_prompt_action_with_less_hyperparameters',
-                   'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                   'llm_prompts': [
-                       {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                        'source': 'static', 'is_enabled': True},
-                       {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                        'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                        'type': 'user', 'source': 'bot_content', 'is_enabled': True},
-                       {'name': 'Query Prompt',
-                        'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                        'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                        'is_enabled': True},
-                       {'name': 'Query Prompt',
-                        'data': 'If there is no specific query, assume that user is aking about java programming.',
-                        'instructions': 'Answer according to the context', 'type': 'query',
-                        'source': 'static', 'is_enabled': True}],
-                   "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
-                   "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
-                   "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
-                                                               "max_tokens": 300,
-                                                               "model": "gpt-4o-mini",
-                                                               "top_p": 0.0,
-                                                               "n": 1}}
+               'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+               "process_media": False,
+               'llm_prompts': [
+                   {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
+                    'source': 'static', 'is_enabled': True},
+                   {'name': 'Similarity Prompt', 'data': 'test_collection',
+                    'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                    'type': 'user', 'source': 'bot_content', 'is_enabled': True},
+                   {'name': 'Query Prompt',
+                    'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                    'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
+                    'is_enabled': True},
+                   {'name': 'Query Prompt',
+                    'data': 'If there is no specific query, assume that user is aking about java programming.',
+                    'instructions': 'Answer according to the context', 'type': 'query',
+                    'source': 'static', 'is_enabled': True}],
+               "failure_message": "updated_failure_message", "top_results": 10, "similarity_threshold": 0.70,
+               "use_query_prompt": True, "use_bot_responses": True, "query_prompt": "updated_query_prompt",
+               "num_bot_responses": 5, "hyperparameters": {"temperature": 0.0,
+                                                           "max_tokens": 300,
+                                                           "model": "gpt-4.1-mini",
+                                                           "top_p": 0.0,
+                                                           "n": 1}}
 
         processor.edit_prompt_action(pytest.action_id, request, bot, user)
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
-                           'failure_message': 'updated_failure_message',
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_type': 'openai',
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                               'instructions': 'Answer according to the context',
-                                                                                               'type': 'query',
-                                                                                               'source': 'static',
-                                                                                               'is_enabled': True},
-                               {'name': 'Query Prompt',
-                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-                           'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_with_less_hyperparameters',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'test_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [],
+            'dispatch_response': True,
+            'status': True
+        }], ignore_order=True)
+
+        LLMSecret.objects.delete()
 
     def test_get_prompt_action_does_not_exist(self):
         processor = MongoProcessor()
@@ -1044,31 +2237,84 @@ class TestMongoProcessor:
     def test_get_prompt_faq_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
+        user = "test+user"
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+        CognitionSchema(
+            metadata=[
+                {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
+                {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True}
+            ],
+            collection_name="test_collection",
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow(),
+            schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
+        ).save()
+
         action = list(processor.get_prompt_action(bot))
         action[0].pop("_id")
-        assert not DeepDiff(action, [{'name': 'test_edit_prompt_action_with_less_hyperparameters', 'num_bot_responses': 5,
-                           'failure_message': 'updated_failure_message',
-                           'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
-                           'hyperparameters': {'temperature': 0.0, 'max_tokens': 300, 'model': 'gpt-4o-mini',
-                                               'top_p': 0.0, 'n': 1, 'stop': None,
-                                               'presence_penalty': 0.0, 'frequency_penalty': 0.0, 'logit_bias': {}},
-                           'llm_type': 'openai',
-                           'llm_prompts': [
-                               {'name': 'System Prompt', 'data': 'You are a personal assistant.', 'type': 'system',
-                                'source': 'static', 'is_enabled': True},
-                               {'name': 'Similarity Prompt', 'data': 'Bot_collection',
-                                'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
-                                'type': 'user', 'source': 'bot_content', 'is_enabled': True}, {'name': 'Query Prompt',
-                                                                                               'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
-                                                                                               'instructions': 'Answer according to the context',
-                                                                                               'type': 'query',
-                                                                                               'source': 'static',
-                                                                                               'is_enabled': True},
-                               {'name': 'Query Prompt',
-                                'data': 'If there is no specific query, assume that user is aking about java programming.',
-                                'instructions': 'Answer according to the context', 'type': 'query', 'source': 'static',
-                                'is_enabled': True}], 'instructions': [], 'set_slots': [], 'dispatch_response': True,
-                           'status': True}], ignore_order=True)
+        assert not DeepDiff(action, [{
+            'name': 'test_edit_prompt_action_with_less_hyperparameters',
+            'num_bot_responses': 5,
+            'failure_message': 'updated_failure_message',
+            'user_question': {'type': 'from_slot', 'value': 'prompt_question'},
+            'hyperparameters': {
+                'temperature': 0.0,
+                'max_tokens': 300,
+                'model': 'gpt-4.1-mini',
+                'top_p': 0.0,
+                'n': 1,
+                'stop': None,
+                'presence_penalty': 0.0,
+                'frequency_penalty': 0.0,
+                'logit_bias': {}
+            },
+            'llm_type': 'openai',
+            "process_media": False,
+            'llm_prompts': [
+                {'name': 'System Prompt',
+                 'data': 'You are a personal assistant.',
+                 'type': 'system',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Similarity Prompt',
+                 'data': 'test_collection',
+                 'instructions': 'Answer question based on the context above, if answer is not in the context go check previous logs.',
+                 'type': 'user',
+                 'source': 'bot_content',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'A programming language is a system of notation for writing computer programs.[1] Most programming languages are text-based formal languages, but they may also be graphical. They are a kind of computer language.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 },
+                {'name': 'Query Prompt',
+                 'data': 'If there is no specific query, assume that user is aking about java programming.',
+                 'instructions': 'Answer according to the context',
+                 'type': 'query',
+                 'source': 'static',
+                 'is_enabled': True
+                 }
+            ],
+            'instructions': [],
+            'set_slots': [],
+            'dispatch_response': True,
+            'status': True
+        }], ignore_order=True)
+
+        LLMSecret.objects.delete()
+
     def test_delete_prompt_action(self):
         processor = MongoProcessor()
         bot = 'test_bot'
@@ -1089,6 +2335,910 @@ class TestMongoProcessor:
         user = 'test_user'
         with pytest.raises(AppException, match=f'Action with name "non_existent_kairon_faq_action" not found'):
             processor.delete_action('non_existent_kairon_faq_action', bot, user)
+
+    def test_preprocess_push_menu_data_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+
+        push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+        with push_menu_payload_path.open("r", encoding="utf-8") as f:
+            push_menu_payload = json.load(f)
+
+        CatalogProviderMapping(
+            provider=provider,
+            meta_mappings={
+                "name": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "availability": {"source": "in_stock", "default": "out of stock"},
+                "image_url": {"source": "item_image_url", "default": "https://www.kairon.com/default-image.jpg"},
+                "url": {"source": None, "default": "https://www.kairon.com/"},
+                "brand": {"source": None, "default": "Sattva"},
+                "condition": {"source": None, "default": "new"}
+            },
+            kv_mappings={
+                "title": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "facebook_product_category": {"source": "item_categoryid", "default": "Food and drink > General"},
+                "availability": {"source": "in_stock", "default": "out of stock"}
+            }
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider = provider,
+            config = {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config= {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type = "push_menu",
+            smart_catalog_enabled= False,
+            meta_enabled = False,
+            sync_options = PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "https://picsum.photos/id/237/200/300",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.preprocess_push_menu_data(bot, push_menu_payload, provider)
+
+        expected_result = {
+            "meta": [
+                {
+                    "id": "10539634",
+                    "name": "Potter 4",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 8700,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                },
+                {
+                    "id": "10539699",
+                    "name": "Potter 99",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 3426,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                },
+                {
+                    "id": "10539580",
+                    "name": "Potter 5",
+                    "description": "chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust",
+                    "price": 3159,
+                    "availability": "in stock",
+                    "image_url": "https://picsum.photos/id/237/200/300",
+                    "url": "https://www.kairon.com/",
+                    "brand": "Sattva",
+                    "condition": "new"
+                }
+            ],
+            "kv": [
+                {
+                    "id": "10539634",
+                    "title": "Potter 4",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 8700,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                },
+                {
+                    "id": "10539699",
+                    "title": "Potter 99",
+                    "description": "Chicken fillet in a bun  with coleslaw,lettuce, pickles and our  spicy cocktail sauce. This sandwich is made with care to make sure that each and every bite is packed with Mmmm",
+                    "price": 3426,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                },
+                {
+                    "id": "10539580",
+                    "title": "Potter 5",
+                    "description": "chicken fillet  nuggets come with a sauce of your choice (nugget/garlic sauce). Bite-sized pieces of tender all breast chicken fillets, marinated in our unique & signature blend, breaded and seasoned to perfection, then deep-fried until deliciously tender, crispy with a golden crust",
+                    "price": 3159,
+                    "facebook_product_category": "Food and drink > Chicken Meal",
+                    "availability": "in stock"
+                }
+            ]
+        }
+
+        assert result == expected_result
+        CatalogProviderMapping.objects.delete()
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_preprocess_push_menu_data_no_provider_mapping(self):
+        bot = "test_bot"
+        provider = "nonexistent_provider"
+        push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
+        with push_menu_payload_path.open("r", encoding="utf-8") as f:
+            push_menu_payload = json.load(f)
+
+        with pytest.raises(Exception, match="Metadata mappings not found for provider=nonexistent_provider"):
+            CognitionDataProcessor.preprocess_push_menu_data(bot, push_menu_payload, provider)
+
+    def test_preprocess_item_toggle_data_success(self):
+        bot = "test_bot"
+        provider = "petpooja"
+
+        CatalogProviderMapping(
+            provider=provider,
+            meta_mappings={
+                "name": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "availability": {"source": "in_stock", "default": "out of stock"},
+                "image_url": {"source": "item_image_url", "default": "https://www.kairon.com/default-image.jpg"},
+                "url": {"source": None, "default": "https://www.kairon.com/"},
+                "brand": {"source": None, "default": "Sattva"},
+                "condition": {"source": None, "default": "new"}
+            },
+            kv_mappings={
+                "title": {"source": "itemname", "default": "No title"},
+                "description": {"source": "itemdescription", "default": "No description available"},
+                "price": {"source": "price", "default": 0.0},
+                "facebook_product_category": {"source": "item_categoryid", "default": "Food and drink > General"},
+                "availability": {"source": "in_stock", "default": "out of stock"}
+            }
+        ).save()
+
+        json_data_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+        with json_data_path.open("r", encoding="utf-8") as f:
+            json_data = json.load(f)
+
+        result = CognitionDataProcessor.preprocess_item_toggle_data(bot, json_data, provider)
+
+        expected_result = {
+            "meta": [
+                {"id": "10539580", "availability": "out of stock"}
+            ],
+            "kv": [
+                {"id": "10539580", "availability": "out of stock"}
+            ]
+        }
+
+        assert result == expected_result
+        CatalogProviderMapping.objects.delete()
+
+    def test_preprocess_item_toggle_data_no_provider_mapping(self):
+        bot = "test_bot"
+        provider = "nonexistent_provider"
+        json_data_path = Path("tests/testing_data/catalog_sync/catalog_sync_item_toggle_payload.json")
+        with json_data_path.open("r", encoding="utf-8") as f:
+            json_data = json.load(f)
+
+        with pytest.raises(Exception, match="Metadata mappings not found for provider=nonexistent_provider"):
+            CognitionDataProcessor.preprocess_item_toggle_data(bot, json_data, provider)
+
+    def test_resolve_image_link_global(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+        provider = "petpooja"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "http://global_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        expected_result = "http://global_image_url.com"
+        assert result == expected_result
+
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_resolve_image_link_local(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+        provider = "petpooja"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+        fallback_data = {
+            "image_type": "global",
+            "image_url": "http://global_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=fallback_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        local_image_data = {
+            "image_type": "local",
+            "item_id": int(item_id),
+            "image_url": "http://local_image_url.com",
+            "image_base64": ""
+        }
+        CollectionData(
+            collection_name=catalog_images_collection,
+            data=local_image_data,
+            user=user,
+            bot=bot,
+            status=True,
+            timestamp=datetime.utcnow()
+        ).save()
+
+        result = CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        expected_result = "http://local_image_url.com"
+        assert result == expected_result
+
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    def test_resolve_image_link_no_image(self):
+        bot = "test_bot"
+        user = "test_user"
+        item_id = "12345"
+        provider = "petpooja"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "98765"
+            },
+            meta_config={
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+        catalog_images_collection = f"{restaurant_name}_{branch_name}_catalog_images"
+
+        with pytest.raises(Exception,
+                           match=f"Image URL not found for {item_id} in {catalog_images_collection}"):
+            CognitionDataProcessor.resolve_image_link(bot, item_id)
+
+        POSIntegrations.objects(bot=bot, provider="petpooja").delete()
+        CollectionData.objects(collection_name=catalog_images_collection).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_success(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        configuration = {
+          "provider": "petpooja",
+          "config": {
+            "restaurant_name": "restaurant1",
+            "branch_name": "branch1",
+            "restaurant_id": "98765",
+           },
+          "meta_config": {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+           },
+           "smart_catalog_enabled": True,
+           "meta_enabled": True,
+           "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+        processor = CognitionDataProcessor()
+        result = await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        print(result)
+
+        assert "ey" in result
+        assert provider in result
+        assert bot in result
+        assert sync_type in result
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration is not None
+
+        assert integration.config["restaurant_id"] == "98765"
+        assert integration.config["restaurant_name"] == "restaurant1"
+        assert integration.config["branch_name"] == "branch1"
+
+        assert integration.meta_config == {
+            "access_token": "dummy_access_token",
+            "catalog_id": "12345"
+        }
+
+        assert integration.meta_enabled is True
+        assert integration.smart_catalog_enabled is True
+
+        assert integration.sync_options.process_push_menu is True
+        assert integration.sync_options.process_item_toggle is True
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    async def test_save_pos_integration_config_updates_existing_record(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345",
+            },
+            "meta_config": {
+                "access_token": "token1",
+                "catalog_id": "abc"
+            },
+            "smart_catalog_enabled": False,
+            "meta_enabled": False,
+            "sync_options": {
+                "process_push_menu": False,
+                "process_item_toggle": False
+            }
+        }
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        processor = CognitionDataProcessor()
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        updated_config = configuration.copy()
+        updated_config["config"]["restaurant_id"] = "99999"
+        updated_config["smart_catalog_enabled"] = True
+        updated_config["sync_options"] = {
+            "process_push_menu": True,
+            "process_item_toggle": True
+        }
+
+        await processor.save_pos_integration_config(updated_config, bot, user, sync_type)
+
+        integration = POSIntegrations.objects(bot=bot, provider=provider, sync_type=sync_type).first()
+        assert integration.config["restaurant_id"] == "99999"
+        assert integration.smart_catalog_enabled is True
+        assert integration.sync_options.process_push_menu is True
+
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    @mock.patch.object(MetaProcessor, "delete_meta_catalog", autospec=True)
+    async def test_save_pos_integration_config_triggers_meta_cleanup(self, mock_delete_meta_catalog, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        mock_delete_meta_catalog.return_value = None
+
+        processor = CognitionDataProcessor()
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345",
+            },
+            "meta_config": {
+                "access_token": "token1",
+                "catalog_id": "abc"
+            },
+            "ai_enabled": True,
+            "meta_enabled": True,
+            "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        catalog_data_collection = "restaurant1_branch1_catalog_data"
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"meta": {"id": "meta123"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        CollectionData(
+            collection_name=catalog_data_collection,
+            data={"meta": {"id": "meta124"}},
+            user=user,
+            bot=bot,
+            status=True
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+        configuration["meta_enabled"] = False
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        mock_delete_meta_catalog.assert_called_once()
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+
+    @pytest.mark.asyncio
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    @mock.patch.object(LLMProcessor, "_delete_single_collection", autospec=True)
+    async def test_save_pos_integration_config_triggers_kv_cleanup(self, mock_delete_single_collection, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        mock_delete_single_collection.return_value = None
+
+        secrets = [
+            {
+                "llm_type": "openai",
+                "api_key": "common_openai_key",
+                "models": ["common_openai_model1", "common_openai_model2"],
+                "user": "123",
+                "timestamp": datetime.utcnow()
+            },
+        ]
+
+        for secret in secrets:
+            LLMSecret(**secret).save()
+
+        processor = CognitionDataProcessor()
+
+        configuration = {
+            "provider": provider,
+            "config": {
+                "restaurant_name": "restaurant1",
+                "branch_name": "branch1",
+                "restaurant_id": "12345"
+            },
+            "smart_catalog_enabled": True,
+            "meta_enabled": True,
+            "sync_options": {
+                "process_push_menu": True,
+                "process_item_toggle": True
+            }
+        }
+
+        restaurant_name = "restaurant1"
+        branch_name = "branch1"
+        catalog_data_collection = f"{restaurant_name}_{branch_name}_catalog_data"
+        catalog_collection = f"{restaurant_name}_{branch_name}_catalog"
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=catalog_collection,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        CognitionData(
+            data={"id": "kv123"},
+            vector_id=99,
+            content_type="json",
+            collection=catalog_collection,
+            user=user,
+            bot=bot
+        ).save()
+
+        CognitionData(
+            data={"id": "kv124"},
+            vector_id=99,
+            content_type="json",
+            collection=catalog_collection,
+            user=user,
+            bot=bot
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 1
+
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 1
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 1
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 1
+
+        configuration["smart_catalog_enabled"] = False
+        await processor.save_pos_integration_config(configuration, bot, user, sync_type)
+
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv123").count() == 0
+        assert CognitionData.objects(bot=bot, collection=catalog_collection, data__id="kv124").count() == 0
+        assert CognitionSchema.objects(bot=bot, collection_name=catalog_collection).count() == 0
+
+        mock_delete_single_collection.assert_called_once()
+
+        POSIntegrations.objects(bot=bot, provider=provider).delete()
+        CollectionData.objects(bot=bot, collection_name=catalog_data_collection).delete()
+        CognitionData.objects(bot=bot, collection=catalog_collection).delete()
+        CognitionSchema.objects(bot=bot, collection_name=catalog_collection).delete()
+        LLMSecret.objects().delete()
+
+    def test_list_pos_integration_configs_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            meta_config = {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            meta_config = {
+                "access_token": "dummy_access_token",
+                "catalog_id": "12345"
+            },
+            sync_type="item_toggle",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        result = CognitionDataProcessor.list_pos_integration_configs(bot)
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+
+        config = result[0]
+        assert config["bot"] == bot
+        assert config["provider"] == provider
+        assert config["config"] == {"restaurant_id": "123", "branch_name": "Bangalore"}
+        assert set(config["sync_type"]) == {"push_menu", "item_toggle"}
+        assert config["user"] == user
+        assert "timestamp" in config
+        assert config["meta_config"] == {"access_token": "dummy_access_token", "catalog_id": "12345"}
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+    def test_list_pos_integration_configs_empty(self):
+        bot = "test_bot_no_data"
+
+        POSIntegrations.objects(bot=bot).delete()
+
+        result = CognitionDataProcessor.list_pos_integration_configs(bot)
+
+        assert isinstance(result, list)
+        assert result == []
+
+    def test_delete_pos_integration_config_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="item_toggle",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
+
+        result = CognitionDataProcessor.delete_pos_integration_config(bot, provider, sync_type)
+
+        assert result == {"provider": provider, "deleted_count": 1, "sync_type": sync_type}
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 1
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+    def test_delete_pos_integration_config_no_sync_type_provided_success(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type="item_toggle",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 2
+
+        result = CognitionDataProcessor.delete_pos_integration_config(bot, provider)
+
+        assert result == {"provider": provider, "deleted_count": 2}
+        assert POSIntegrations.objects(bot=bot, provider=provider).count() == 0
+        POSIntegrations.objects(provider= "petpooja").delete()
+
+    def test_delete_pos_integration_config_failure(self):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+        with pytest.raises(AppException, match="Integration config not found"):
+            CognitionDataProcessor.delete_pos_integration_config(provider, bot, sync_type)
+
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    def test_get_pos_integration_endpoint_push_menu_success(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "push_menu"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type=sync_type,
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        result = CognitionDataProcessor.get_pos_integration_endpoint(bot, provider, sync_type)
+
+        assert f"/{provider}/{sync_type}/{bot}/" in result
+        POSIntegrations.objects(provider="petpooja").delete()
+
+    @patch("kairon.shared.auth.AccountProcessor.get_bot")
+    def test_get_pos_integration_endpoint_item_toggle(self, mock_get_bot):
+        bot = "test_bot"
+        user = "test_user"
+        provider = "petpooja"
+        sync_type = "item_toggle"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider=provider,
+            config={
+                "branch_name": "Bangalore",
+                "restaurant_id": "123"
+            },
+            sync_type=sync_type,
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        mock_get_bot.return_value = {"account": "test_account_id"}
+
+        result = CognitionDataProcessor.get_pos_integration_endpoint(bot, provider, sync_type)
+
+        assert f"/{provider}/{sync_type}/{bot}/" in result
+        POSIntegrations.objects(provider="petpooja").delete()
+        CollectionData.objects().delete()
+
+    def test_get_restaurant_and_branch_name_success(self):
+        bot = "test_bot"
+        user = "test_user"
+
+        POSIntegrations(
+            bot=bot,
+            user=user,
+            provider="petpooja",
+            config={
+                "restaurant_name": "my_test_restaurant",
+                "branch_name": "main_branch",
+                "restaurant_id": "123"
+            },
+            sync_type="push_menu",
+            smart_catalog_enabled=False,
+            meta_enabled=False,
+            sync_options=PetpoojaSyncConfig(
+                process_push_menu=True,
+                process_item_toggle=False
+            )
+        ).save()
+
+        restaurant_name, branch_name = CognitionDataProcessor.get_restaurant_and_branch_name(bot)
+
+        assert restaurant_name == "my_test_restaurant"
+        assert branch_name == "main_branch"
+
+        POSIntegrations.objects(bot=bot).delete()
+
+    def test_get_restaurant_and_branch_name_no_config(self):
+        bot = "bot_without_config"
+        POSIntegrations.objects(bot=bot).delete()
+
+        with pytest.raises(Exception, match=f"No POS integration config found for bot: {bot}"):
+            CognitionDataProcessor.get_restaurant_and_branch_name(bot)
 
     def test_get_live_agent(self):
         processor = MongoProcessor()
@@ -1350,11 +3500,11 @@ class TestMongoProcessor:
         )
         assert result is None
         assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=False))) == 5
-        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 27
+        assert len(list(Intents.objects(bot="test_load_yml", user="testUser", use_entities=True))) == 23
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 16
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=True, status=True))) == 21
         assert len(
-            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 10
+            list(Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, status=True))) == 14
         multiflow_stories = processor.load_multiflow_stories_yaml(bot='test_load_yml')
         print(multiflow_stories['multiflow_story'][0]['events'][0])
         step_data = multiflow_stories['multiflow_story'][0]['events'][0]['step']
@@ -1367,12 +3517,99 @@ class TestMongoProcessor:
         bot_id = Slots.objects(bot="test_load_yml", user="testUser", influence_conversation=False, name='bot').get()
         assert bot_id['initial_value'] == "test_load_yml"
 
+    def test_get_action_server_logs_not_implicit(self):
+        bot = "test_bot"
+        request_params = {"key": "value", "key2": "value2"}
+
+        # This log has implicit trigger_info (default), should be returned
+        log_implicit = ActionServerLogs(
+            intent="intent1",
+            action="http_action",
+            sender="sender_id",
+            timestamp=datetime(2021, 4, 11, 11, 39, 48, 376000),
+            request_params=request_params,
+            api_response="Response",
+            bot_response="Bot Response",
+            bot=bot,
+            trigger_info=TriggerInfo(trigger_id="123456", trigger_name="parallel_action", trigger_type="parallel_action")
+        )
+        log_implicit.save()
+
+        # This log has explicit trigger_info, should be filtered out
+        ActionServerLogs(
+            intent="intent2",
+            action="http_action2",
+            sender="sender_id",
+            url="http://kairon-api.digite.com/api/bot",
+            request_params=request_params,
+            api_response="Response",
+            bot_response="Bot Response",
+            bot=bot,
+            status=STATUSES.FAIL.value,
+            trigger_info=TriggerInfo(trigger_id="",trigger_name="explicit_action", trigger_type="parallel_action")
+        ).save()
+
+        processor = MongoProcessor()
+        logs = list(processor.get_action_server_logs(bot))
+
+        # Only the first one should be returned
+        assert len(logs) == 1
+        assert logs[0]['action'] == "http_action2"
+        ActionServerLogs.objects(action="http_action").delete()
+        ActionServerLogs.objects(action="http_action2").delete()
+
+    def test_fetch_action_logs_for_parallel_action_by_id(self):
+        bot = "test_bot_parallel"
+        a1, a2, a3 = "action1", "action2", "action3"
+
+        # 1) Create the ParallelActionConfig and grab its ObjectId string
+        cfg = ParallelActionConfig(
+            name="parallel_action",
+            bot=bot,
+            user="test_user",
+            actions=[a1, a2],
+            response_text="resp"
+        ).save()
+        trigger_id = str(cfg.id)
+
+        # Patch _id field manually via __raw__ to simulate actual behavior
+        parallel = ParallelActionConfig.objects(__raw__={"_id": ObjectId(trigger_id)}).first()
+        assert parallel is not None  # safety check
+
+        # 2) One log for the parallel action itself (ignored)
+        ActionServerLogs(intent="i0", action=cfg.name, sender="s0", bot=bot,
+                         trigger_info={"trigger_id": ""}).save()
+        # 3) Two logs for the child actions (should be returned)
+        ActionServerLogs(intent="i1", action=a1, sender="s1", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
+        ActionServerLogs(intent="i2", action=a2, sender="s2", bot=bot, trigger_info={"trigger_id": trigger_id}).save()
+        # 4) One unrelated log (ignored)
+        ActionServerLogs(intent="i3", action=a3, sender="s3", bot=bot,
+                         trigger_info={"trigger_id": "some_other_id"}).save()
+
+        # 5) Now call the function
+        logs = MongoProcessor().fetch_action_logs_for_parallel_action(trigger_id, bot)
+
+        # 6) Assert only the two child-action logs come back
+        assert {log["action"] for log in logs} == {a1, a2}
+
+        # Cleanup
+        ParallelActionConfig.objects(id=cfg.id).delete()
+        ActionServerLogs.objects(action__in=[cfg.name, a1, a2, a3]).delete()
+
+    def test_fetch_action_logs_for_parallel_action_parallel_action_not_found(self):
+        bot = "test_bot_parallel_2"
+        trigger_id = str(ObjectId())  # valid ObjectId, but not in the DB
+
+        processor = MongoProcessor()
+        with pytest.raises(AppException, match="Logs for Actions in Parallel Action not found"):
+            processor.fetch_action_logs_for_parallel_action(trigger_id, bot)
+
     def test_validate_data_push_menu_success(self):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {
@@ -1421,7 +3658,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1429,12 +3666,12 @@ class TestMongoProcessor:
         assert validation_summary == {}
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
 
-    def test_validate_data_field_update_success(self):
+    def test_validate_data_item_toggle_success(self):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = "field_update"
+        sync_type = "item_toggle"
 
         metadata = [
             {
@@ -1515,7 +3752,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1524,20 +3761,91 @@ class TestMongoProcessor:
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
 
-    def test_validate_data_event_type_does_not_exist(self):
+    def test_validate_data_pydantic_validation_error(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        collection_name = 'groceries'
+        primary_key_col = "id"
+        sync_type = 'push_menu'
+
+        metadata = [
+            {
+                "column_name": "id",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "item",
+                "data_type": "str",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "price",
+                "data_type": "float",
+                "enable_search": True,
+                "create_embeddings": True
+            },
+            {
+                "column_name": "quantity",
+                "data_type": "int",
+                "enable_search": True,
+                "create_embeddings": True
+            }
+        ]
+
+        cognition_schema = CognitionSchema(
+            metadata=[ColumnMetadata(**item) for item in metadata],
+            collection_name=collection_name,
+            user=user,
+            bot=bot,
+            timestamp=datetime.utcnow()
+        )
+        cognition_schema.validate(clean=True)
+        cognition_schema.save()
+
+        data = [
+            {"id": 1, "item": "", "quantity": 10},
+        ]
+
+        processor = CognitionDataProcessor()
+        validation_summary = processor.validate_data(
+            primary_key_col=primary_key_col,
+            collection_name=collection_name,
+            sync_type=sync_type,
+            data=data,
+            bot=bot
+        )
+
+        assert isinstance(validation_summary, dict)
+        assert 1 in validation_summary
+        errors = validation_summary[1]
+        assert isinstance(errors, list)
+        assert len(errors) == 1
+
+        error = errors[0]
+        assert error["status"] == "Column length mismatch"
+        assert error["expected_columns"] == ["id", "item", "price", "quantity"]
+        assert error["actual_columns"] == ["id", "item", "quantity"]
+
+        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
+        CognitionData.objects(bot=bot, collection="groceries").delete()
+
+    def test_validate_data_sync_type_does_not_exist(self):
         bot = 'test_bot'
         collection_name = 'groceries'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'non_existent_event_type'
+        sync_type = 'non_existent_sync_type'
 
         processor = CognitionDataProcessor()
 
-        with pytest.raises(AppException, match=f"Event type does not exist"):
+        with pytest.raises(AppException, match=f"Sync type does not exist"):
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1547,7 +3855,7 @@ class TestMongoProcessor:
         collection_name = 'nonexistent_collection'
         primary_key_col = "id"
         data = [{"id": 1, "item": "Juice", "price": 2.50, "quantity": 10}]
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         processor = CognitionDataProcessor()
 
@@ -1555,7 +3863,7 @@ class TestMongoProcessor:
             processor.validate_data(
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
-                event_type=event_type,
+                sync_type=sync_type,
                 data=data,
                 bot=bot
             )
@@ -1565,7 +3873,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1595,7 +3903,7 @@ class TestMongoProcessor:
                 primary_key_col=primary_key_col,
                 collection_name=collection_name,
                 data=data,
-                event_type=event_type,
+                sync_type=sync_type,
                 bot=bot
             )
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
@@ -1605,7 +3913,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1632,7 +3940,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1647,7 +3955,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1674,7 +3982,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1689,7 +3997,7 @@ class TestMongoProcessor:
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = "id"
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1732,7 +4040,7 @@ class TestMongoProcessor:
         validation_summary = processor.validate_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=data,
             bot=bot
         )
@@ -1747,14 +4055,27 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     async def test_upsert_data_push_menu_success(self, mock_embedding, mock_collection_upsert, mock_create_collection,
                                                  mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+
+        llm_secret.save()
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1794,29 +4115,24 @@ class TestMongoProcessor:
             {"id": 2, "item": "Milk", "price": 3.00, "quantity": 5}  # Existing entry to be updated
         ]
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
         embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -1839,6 +4155,22 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 3.00  # Updated price
         assert updated_record.data["quantity"] == 5
 
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":2.5,"quantity":10}',
+            '{"id":2,"item":"Milk","price":3.0,"quantity":5}'
+        ]
+
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
         LLMSecret.objects.delete()
@@ -1847,15 +4179,27 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_field_update_success(self, mock_embedding, mock_collection_upsert,
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
+    async def test_upsert_data_item_toggle_success(self, mock_embedding, mock_collection_upsert,
                                                     mock_create_collection,
                                                     mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'field_update'
+        sync_type = 'item_toggle'
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -1911,29 +4255,23 @@ class TestMongoProcessor:
             {"id": 2, "price": 27.00}
         ]
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
 
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -1956,6 +4294,23 @@ class TestMongoProcessor:
         assert updated_record.data["price"] == 27.00  # Updated price
         assert updated_record.data["quantity"] == 12
 
+
+        call_kwargs = mock_embedding.call_args.kwargs
+
+        assert call_kwargs["request_method"] == "POST"
+        assert call_kwargs["http_url"].endswith("/test_bot/aembedding/openai")
+
+        body = call_kwargs["request_body"]
+
+        assert body["user"] == "test_user"
+        assert body["kwargs"]["api_key"] == "value"
+        assert body["kwargs"]["invocation"] == "knowledge_vault_sync"
+
+        assert body["kwargs"]["truncated_texts"] == [
+            '{"id":1,"item":"Juice","price":80.5,"quantity":56}',
+            '{"id":2,"item":"Milk","price":27.0,"quantity":12}'
+        ]
+
         CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
         CognitionData.objects(bot=bot, collection="groceries").delete()
         LLMSecret.objects.delete()
@@ -1964,14 +4319,19 @@ class TestMongoProcessor:
     @patch.object(LLMProcessor, "__collection_exists__", autospec=True)
     @patch.object(LLMProcessor, "__create_collection__", autospec=True)
     @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    @patch.object(litellm, "aembedding", autospec=True)
-    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_collection_upsert, mock_create_collection,
+    @patch.object(LLMProcessor, "__delete_collection_points__", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
+    async def test_upsert_data_empty_data_list(self, mock_embedding, mock_delete_collection_points,
+                                               mock_collection_upsert, mock_create_collection,
                                                mock_collection_exists):
         bot = 'test_bot'
         user = 'test_user'
         collection_name = 'groceries'
         primary_key_col = 'id'
-        event_type = 'push_menu'
+        sync_type = 'push_menu'
 
         metadata = [
             {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
@@ -2021,15 +4381,20 @@ class TestMongoProcessor:
         mock_collection_exists.return_value = False
         mock_create_collection.return_value = None
         mock_collection_upsert.return_value = None
+        mock_delete_collection_points.return_value = None
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
+        embedding = [[0.1] * 1532,[0.1] * 1532]
+        mock_embedding.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         processor = CognitionDataProcessor()
         result = await processor.upsert_data(
             primary_key_col=primary_key_col,
             collection_name=collection_name,
-            event_type=event_type,
+            sync_type=sync_type,
             data=upsert_data,
             bot=bot,
             user=user
@@ -2038,208 +4403,39 @@ class TestMongoProcessor:
         data = list(CognitionData.objects(bot=bot, collection=collection_name))
 
         assert result["message"] == "Upsert complete!"
-        assert len(data) == 1
+        assert len(data) == 0
 
-        existing_record = data[0]
-        assert existing_record.data["id"] == 2
-        assert existing_record.data["item"] == "Milk"
-        assert existing_record.data["price"] == 2.80
-        assert existing_record.data["quantity"] == 5
 
         CognitionSchema.objects(bot=bot, collection_name=collection_name).delete()
         CognitionData.objects(bot=bot, collection=collection_name).delete()
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
-    @patch.object(litellm, "aembedding", autospec=True)
-    @patch.object(LLMProcessor, "__collection_upsert__", autospec=True)
-    async def test_sync_with_qdrant_success(self, mock_collection_upsert, mock_embedding):
+
+    def test_get_llm_metadata_coverage(self):
         bot = "test_bot"
-        user = "test_user"
-        collection_name = "groceries"
-        primary_key_col = "id"
+        llm_type = "openai"
 
-        metadata = [
-            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
-            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
-            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
-        ]
+        LLMSecret.objects(bot=bot, llm_type=llm_type).delete()
+        LLMSecret.objects(bot__exists=False, llm_type=llm_type).delete()
 
-        cognition_schema = CognitionSchema(
-            metadata=[ColumnMetadata(**item) for item in metadata],
-            collection_name=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        cognition_schema.validate(clean=True)
-        cognition_schema.save()
+        secret1 = LLMSecret(bot=bot, llm_type=llm_type, api_key="value", models=["model1", "model2"], user="user")
+        secret1.save()
 
-        document_data = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 5
-        }
-        document = CognitionData(
-            data=document_data,
-            content_type="json",
-            collection=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        document.save()
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["model1", "model2"]
 
-        saved_document = None
-        for doc in CognitionData.objects(bot=bot, collection=collection_name):
-            doc_dict = doc.to_mongo().to_dict()
-            if doc_dict.get("data", {}).get("id") == 2:  # Match based on `data.id`
-                saved_document = doc_dict
-                break
-        assert saved_document, "Saved CognitionData document not found"
-        vector_id = saved_document["vector_id"]
+        secret1.delete()
 
-        if not isinstance(document, dict):
-            document = document.to_mongo().to_dict()
+        secret2 = LLMSecret(bot=None, llm_type=llm_type, api_key="value", models=["fallback_model"], user="user")
+        secret2.save()
 
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == ["fallback_model"]
 
-        mock_collection_upsert.return_value = None
+        secret2.delete()
 
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = CognitionDataProcessor()
-        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-        await processor.sync_with_qdrant(
-            llm_processor=llm_processor,
-            collection_name=collection_name,
-            bot=bot,
-            document=document,
-            user=user,
-            primary_key_col=primary_key_col
-        )
-
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="openai_key",
-            num_retries=3
-        )
-        mock_collection_upsert.assert_called_once_with(
-            llm_processor,
-            collection_name,
-            {
-                "points": [
-                    {
-                        "id": vector_id,
-                        "vector": embedding,
-                        "payload": {'id': 2, 'item': 'Milk', 'price': 2.8, 'quantity': 5}
-                    }
-                ]
-            },
-            err_msg="Unable to train FAQ! Contact support"
-        )
-
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
-        LLMSecret.objects.delete()
-
-    @pytest.mark.asyncio
-    @patch.object(litellm, "aembedding", autospec=True)
-    @patch.object(AioRestClient, "request", autospec=True)
-    async def test_sync_with_qdrant_upsert_failure(self, mock_request, mock_embedding):
-        bot = "test_bot"
-        user = "test_user"
-        collection_name = "groceries"
-        primary_key_col = "id"
-
-        metadata = [
-            {"column_name": "id", "data_type": "int", "enable_search": True, "create_embeddings": True},
-            {"column_name": "item", "data_type": "str", "enable_search": True, "create_embeddings": True},
-            {"column_name": "price", "data_type": "float", "enable_search": True, "create_embeddings": True},
-            {"column_name": "quantity", "data_type": "int", "enable_search": True, "create_embeddings": True},
-        ]
-
-        cognition_schema = CognitionSchema(
-            metadata=[ColumnMetadata(**item) for item in metadata],
-            collection_name=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        cognition_schema.validate(clean=True)
-        cognition_schema.save()
-
-        document_data = {
-            "id": 2,
-            "item": "Milk",
-            "price": 2.80,
-            "quantity": 5
-        }
-        document = CognitionData(
-            data=document_data,
-            content_type="json",
-            collection=collection_name,
-            user=user,
-            bot=bot,
-            timestamp=datetime.utcnow()
-        )
-        document.save()
-        if not isinstance(document, dict):
-            document = document.to_mongo().to_dict()
-
-        embedding = list(np.random.random(1532))
-        mock_embedding.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
-
-        mock_request.side_effect = ConnectionError("Failed to connect to Qdrant")
-
-        llm_secret = LLMSecret(
-            llm_type="openai",
-            api_key="openai_key",
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        processor = CognitionDataProcessor()
-        llm_processor = LLMProcessor(bot, DEFAULT_LLM)
-
-        with pytest.raises(AppException, match="Failed to sync document with Qdrant: Failed to connect to Qdrant"):
-            await processor.sync_with_qdrant(
-                llm_processor=llm_processor,
-                collection_name=collection_name,
-                bot=bot,
-                document=document,
-                user=user,
-                primary_key_col=primary_key_col
-            )
-
-        mock_embedding.assert_called_once_with(
-            model="text-embedding-3-large",
-            input=['{"id":2,"item":"Milk","price":2.8,"quantity":5}'],
-            metadata={'user': user, 'bot': bot, 'invocation': 'knowledge_vault_sync'},
-            api_key="openai_key",
-            num_retries=3
-        )
-
-        CognitionSchema.objects(bot=bot, collection_name="groceries").delete()
-        CognitionData.objects(bot=bot, collection="groceries").delete()
-        LLMSecret.objects.delete()
-
+        models = LLMProcessor.get_llm_metadata(bot, llm_type)
+        assert models == []
     def test_get_pydantic_type_int(self):
         result = CognitionDataProcessor().get_pydantic_type('int')
         expected = (int, ...)
@@ -2254,16 +4450,16 @@ class TestMongoProcessor:
         with pytest.raises(ValueError, match="Unsupported data type: unknown"):
             CognitionDataProcessor.get_pydantic_type('unknown')
 
-    def test_validate_event_type_valid(self):
+    def test_validate_sync_type_valid(self):
         processor = CognitionDataProcessor()
-        valid_event_type = list(VaultSyncEventType.__members__.keys())[0]
-        processor._validate_event_type(valid_event_type)
+        valid_sync_type = list(VaultSyncType.__members__.keys())[0]
+        processor._validate_sync_type(valid_sync_type)
 
-    def test_validate_event_type_invalid(self):
+    def test_validate_sync_type_invalid(self):
         processor = CognitionDataProcessor()
-        invalid_event_type = "invalid_event"
-        with pytest.raises(AppException, match="Event type does not exist"):
-            processor._validate_event_type(invalid_event_type)
+        invalid_sync_type = "invalid_event"
+        with pytest.raises(AppException, match="Sync type does not exist"):
+            processor._validate_sync_type(invalid_sync_type)
 
     def test_validate_collection_exists_valid(self):
         bot = 'test_bot'
@@ -2442,7 +4638,7 @@ class TestMongoProcessor:
         assert log.file_received == doc_content.filename
         assert log.validation_errors is not None
         assert log.end_timestamp is not None
-        assert log.status == "Failure"
+        assert log.status == STATUSES.FAIL.value
         assert log.event_status == EVENT_STATUS.COMPLETED.value
 
     def test_validate_doc_content_success(self):
@@ -2593,6 +4789,22 @@ class TestMongoProcessor:
         from unittest import mock
         import textwrap
         from kairon.shared.actions.data_objects import SetSlots, CustomActionParameters
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user='test-user',
+        )
+        llm_secret.save()
+
+        llm_secret = LLMSecret(
+            llm_type="anthropic",
+            api_key='value',
+            models=[ "claude-3-7-sonnet-20250219"],
+            user='test-user'
+        )
+        llm_secret.save()
 
         HttpActionConfig(
             action_name="http_action_1",
@@ -3074,10 +5286,22 @@ class TestMongoProcessor:
             user="user"
         ).save()
 
+        LLMSecret.objects.delete()
+
     def test_get_slot_actions(self, save_actions):
         processor = MongoProcessor()
+        bot = 'testing_bot'
+        user = 'test_user'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user=user,
+            bot=bot
+        )
+
+        llm_secret.save()
         actions = processor.get_slot_mapped_actions('testing_bot', 'name')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
             'email_action': ['email_action_1', 'email_action_3', 'email_action_4', 'email_action_5', 'email_action_6'],
@@ -3096,7 +5320,6 @@ class TestMongoProcessor:
         }
 
         actions = processor.get_slot_mapped_actions('testing_bot', 'bot')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_1', 'http_action_2'],
             'email_action': ['email_action_6'],
@@ -3115,7 +5338,6 @@ class TestMongoProcessor:
         }
 
         actions = processor.get_slot_mapped_actions('testing_bot', 'location')
-        print(actions)
         assert actions == {
             'http_action': ['http_action_2'],
             'email_action': [],
@@ -3132,12 +5354,13 @@ class TestMongoProcessor:
             'callback_action': ['callback_action1'],
             'schedule_action': ['schedule_action_2']
         }
+        LLMSecret.objects.delete()
 
     def test_get_collection_data_with_no_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         assert response == []
 
@@ -3156,7 +5379,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
 
     def test_save_collection_data_with_collection_name_empty(self):
@@ -3174,7 +5397,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='collection name is empty'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data_with_invalid_is_secure(self):
         bot = 'test_bot'
@@ -3191,7 +5414,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='is_secure should be list of keys'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data_with_invalid_data(self):
         bot = 'test_bot'
@@ -3203,7 +5426,7 @@ class TestMongoProcessor:
         }
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Invalid value for data'):
-            processor.save_collection_data(request_body, user, bot)
+            DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_save_collection_data(self):
         bot = 'test_bot'
@@ -3219,7 +5442,7 @@ class TestMongoProcessor:
             }
         }
         processor = CognitionDataProcessor()
-        collection_id = processor.save_collection_data(request_body, user, bot)
+        collection_id = DataProcessor.save_collection_data(request_body, user, bot)
         pytest.collection_id = collection_id
 
     def test_save_collection_data_with_collection_name_already_exist(self):
@@ -3237,13 +5460,13 @@ class TestMongoProcessor:
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        processor.save_collection_data(request_body, user, bot)
+        DataProcessor.save_collection_data(request_body, user, bot)
 
     def test_get_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3251,6 +5474,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['name', 'mobile_number'],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3261,6 +5486,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3287,7 +5514,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(ValidationError, match='is_secure contains keys that are not present in data'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_collection_name_empty(self):
         request_body = {
@@ -3306,7 +5533,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='collection name is empty'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_invalid_is_secure(self):
         request_body = {
@@ -3324,7 +5551,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='is_secure should be list of keys'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_with_invalid_data(self):
         request_body = {
@@ -3338,7 +5565,7 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Invalid value for data'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data(self):
         request_body = {
@@ -3355,7 +5582,7 @@ class TestMongoProcessor:
         user = 'test_user'
 
         processor = CognitionDataProcessor()
-        pytest.collection_id = processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+        pytest.collection_id = DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_update_collection_data_doesnot_exist(self):
         request_body = {
@@ -3374,13 +5601,13 @@ class TestMongoProcessor:
 
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection Data with given id and collection_name not found!'):
-            processor.update_collection_data(pytest.collection_id, request_body, user, bot)
+            DataProcessor.update_collection_data(pytest.collection_id, request_body, user, bot)
 
     def test_get_collection_data_after_update(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3388,6 +5615,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['mobile_number', 'location'],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3398,6 +5627,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3412,14 +5643,14 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Keys and values lists must be of the same length.'):
-            list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+            list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                value=["Mahesh"]))
 
     def test_get_collection_data_with_filters(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name"],
                                                       value=["Mahesh"]))
         for coll in response:
             coll.pop("_id")
@@ -3427,6 +5658,7 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': ['mobile_number', 'location'],
+                'is_non_editable': [],
                 'data': {
                     'name': 'Mahesh',
                     'age': 24,
@@ -3435,12 +5667,12 @@ class TestMongoProcessor:
                 }
             }
         ]
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Mahesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
         assert response == []
-        response = list(processor.get_collection_data(bot, collection_name="user", key=["name", "location"],
+        response = list(DataProcessor.get_collection_data(bot, collection_name="user", key=["name", "location"],
                                                       value=["Hitesh", "Mumbai"]))
         for coll in response:
             coll.pop("_id")
@@ -3448,6 +5680,7 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3457,16 +5690,99 @@ class TestMongoProcessor:
             }
         ]
 
+    def test_get_collection_data_pagination_full_verification(self):
+        bot = "test_bot"
+        from unittest.mock import patch, MagicMock
+
+        mock_docs = []
+        for i in range(5):
+            mock_obj = MagicMock()
+            mock_obj.to_mongo().to_dict.return_value = {
+                "_id": ObjectId(),
+                "collection_name": "user",
+                "is_secure": [],
+                "is_non_editable": [],
+                "data": {"index": i},
+            }
+            mock_docs.append(mock_obj)
+
+        full_queryset = MagicMock()
+        full_queryset.__iter__.return_value = iter(mock_docs)
+
+        paginated_queryset = MagicMock()
+        paginated_queryset.__iter__.return_value = iter(mock_docs[2:4])
+
+        with patch("kairon.shared.data.collection_processor.CollectionData.objects") as objects_mock:
+            objects_mock.return_value.order_by.return_value = objects_mock.return_value
+            objects_mock.return_value.skip.return_value = objects_mock.return_value
+            objects_mock.return_value.limit.return_value = paginated_queryset
+
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    page_size=2,
+                    start_idx=2,
+                )
+            )
+
+            assert len(results) == 2
+            assert results[0]["data"]["index"] == 2
+            assert results[1]["data"]["index"] == 3
+
+            objects_mock.return_value.order_by.assert_called_once()
+            objects_mock.return_value.skip.assert_called_once_with(2)
+            objects_mock.return_value.limit.assert_called_once_with(2)
+
+    def test_get_collection_data_pagination_negative_when_start_or_size_none(self):
+        from unittest.mock import patch, MagicMock
+        bot = "test_bot"
+        mock_obj = MagicMock()
+        mock_obj.to_mongo().to_dict.return_value = {
+            "_id": ObjectId(),
+            "collection_name": "user",
+            "is_secure": [],
+            "is_non_editable": [],
+            "data": {"name": "A"},
+        }
+
+        mock_queryset = MagicMock()
+        mock_queryset.__iter__.return_value = iter([mock_obj])
+        with patch(
+                "kairon.shared.data.collection_processor.CollectionData.objects",
+                return_value=mock_queryset
+        ) as objects_mock:
+            results = list(
+                DataProcessor.get_collection_data(
+                    bot,
+                    collection_name="user",
+                    key=[],
+                    value=[],
+                    start_idx=None,
+                    page_size=5,
+                )
+            )
+
+            assert len(results) == 1
+            assert results[0]["data"]["name"] == "A"
+            objects_mock.return_value.order_by.assert_not_called()
+            objects_mock.return_value.skip.assert_not_called()
+            objects_mock.return_value.limit.assert_not_called()
+
+
     def test_get_collection_data_with_collection_id(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
+        response = DataProcessor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
         print(response)
         assert response == {
             '_id': pytest.collection_id,
             'collection_name': 'user',
             'is_secure': ['mobile_number', 'location'],
+            'is_non_editable': [],
             'data': {
                 'name': 'Mahesh',
                 'age': 24,
@@ -3480,26 +5796,26 @@ class TestMongoProcessor:
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection Data does not exists!'):
-            processor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
+            DataProcessor.delete_collection_data("66b1d6218d29ff530381eed5", bot, user)
 
     def test_delete_collection_data(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        processor.delete_collection_data(pytest.collection_id, bot, user)
+        DataProcessor.delete_collection_data(pytest.collection_id, bot, user)
 
     def test_get_collection_data_with_collection_id_doesnot_exists(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
         with pytest.raises(AppException, match='Collection data does not exists!'):
-            processor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
+            DataProcessor.get_collection_data_with_id(bot, collection_id=pytest.collection_id)
 
     def test_get_collection_data_after_delete(self):
         bot = 'test_bot'
         user = 'test_user'
         processor = CognitionDataProcessor()
-        response = list(processor.list_collection_data(bot))
+        response = list(DataProcessor.list_collection_data(bot))
 
         for coll in response:
             coll.pop("_id")
@@ -3507,6 +5823,8 @@ class TestMongoProcessor:
             {
                 'collection_name': 'user',
                 'is_secure': [],
+                'is_non_editable': [],
+
                 'data': {
                     'name': 'Hitesh',
                     'age': 25,
@@ -3529,6 +5847,8 @@ class TestMongoProcessor:
                 "aadhar",
                 "pan"
             ],
+            'is_non_editable': [],
+
             "data": {
                 "name": "User1",
                 "age": 24,
@@ -3555,10 +5875,10 @@ class TestMongoProcessor:
             },
         }
 
-        processor.save_collection_data(request_body_1, user, bot)
-        processor.save_collection_data(request_body_2, user, bot)
+        DataProcessor.save_collection_data(request_body_1, user, bot)
+        DataProcessor.save_collection_data(request_body_2, user, bot)
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=timestamp,
@@ -3573,6 +5893,8 @@ class TestMongoProcessor:
                 'is_secure': ["aadhar",
                               "pan"
                               ],
+                'is_non_editable': [],
+
                 'data': {
                     "name": "User1",
                     "age": 24,
@@ -3584,7 +5906,7 @@ class TestMongoProcessor:
             }
         ]
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=datetime.utcnow(),
@@ -3595,7 +5917,7 @@ class TestMongoProcessor:
             coll.pop("_id")
         assert response == []
 
-        response = list(processor.get_collection_data_with_timestamp(
+        response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
             start_time=timestamp,
@@ -3975,13 +6297,17 @@ class TestMongoProcessor:
         assert all(slot.name in ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                                  'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document',
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
-                                 'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids'] for slot in domain.slots)
+                                 'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
+                                 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                                 'user_identifier', 'temp_token', 'store_page_name','redirect_url','callback_identifier'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
                             ['user', 'location', 'email_id', 'application_name', 'bot', 'kairon_action_response',
                              'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
-                             'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body', 'media_ids'], ignore_order=True)
+                             'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body',
+                             'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
+                             'user_identifier', 'temp_token', 'store_page_name','redirect_url','callback_identifier'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
@@ -4080,16 +6406,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("test_load_from_path_yml_training_files")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.forms.__len__() == 2
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {
@@ -4151,11 +6477,11 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 27
+        assert domain.slots.__len__() == 36
         assert all(slot.mappings[0]['type'] == 'from_entity' and slot.mappings[0]['entity'] == slot.name for slot in
                    domain.slots if slot.name not in ['requested_slot', 'session_started_metadata'])
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 27
+        assert domain.entities.__len__() == 36
         assert domain.forms.__len__() == 2
         assert domain.forms['ticket_attributes_form'] == {'required_slots': {}}
         assert isinstance(domain.forms, dict)
@@ -4194,9 +6520,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = processor.load_domain("all")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 27
+        assert domain.slots.__len__() == 36
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 27
+        assert domain.entities.__len__() == 36
         assert domain.forms.__len__() == 2
         assert isinstance(domain.forms, dict)
         assert domain.user_actions.__len__() == 27
@@ -4221,10 +6547,10 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         domain = processor.load_domain("tests")
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 19
+        assert domain.slots.__len__() == 28
         assert [s.name for s in domain.slots if s.name == 'kairon_action_response' and s.value is None]
         assert domain.responses.keys().__len__() == 11
-        assert domain.entities.__len__() == 18
+        assert domain.entities.__len__() == 27
         assert domain.form_names.__len__() == 0
         assert domain.user_actions.__len__() == 11
         assert domain.intents.__len__() == 14
@@ -4245,7 +6571,7 @@ class TestMongoProcessor:
     def test_get_intents(self):
         processor = MongoProcessor()
         actual = processor.get_intents("tests")
-        assert actual.__len__() == 15
+        assert actual.__len__() == 11
 
     def test_add_intent_with_underscore(self):
         processor = MongoProcessor()
@@ -4471,7 +6797,7 @@ class TestMongoProcessor:
         )
         slots = Slots.objects(bot="tests")
         new_slot = slots.get(name="priority")
-        assert slots.__len__() == 19
+        assert slots.__len__() == 28
         assert new_slot.name == "priority"
         assert new_slot.type == "text"
         assert new_training_example.text == "Log a critical issue"
@@ -4504,7 +6830,7 @@ class TestMongoProcessor:
                 for value in actual
             ]
         )
-        assert slots.__len__() == 20
+        assert slots.__len__() == 29
         assert new_slot.name == "ticketid"
         assert new_slot.type == "text"
         expected = ["hey", "hello", "hi", "good morning", "good evening", "hey there"]
@@ -4548,7 +6874,8 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
-                    'http_status_code', 'mail_id', 'subject', 'body', 'media_ids']
+                    'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
+                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -4845,6 +7172,159 @@ class TestMongoProcessor:
         assert any(response['value']['custom'] == jsondata and response['type'] == "json"
                    for response in responses if "custom" in response['value'])
 
+    def test_add_catalog_custom_response_convention(self):
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id"
+            }
+        }
+        # R1: payload has marker field, data section, valid identifierType
+        assert catalog_payload["type"] == "catalog"
+        assert all(k in catalog_payload["data"] for k in ("page_name", "identifierType", "identifierValue"))
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        # R2: saved via existing create operation, no endpoint change
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_test", "tests", "testUser")
+
+    def test_get_catalog_custom_response_round_trip(self):
+        # R3: fetch returns correct marker, page_name, identifierType, identifierValue
+        processor = MongoProcessor()
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        assert len(responses) > 0
+        resp = responses[0]
+        payload = resp["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_home"
+        assert payload["data"]["identifierType"] == "slot"
+        assert payload["data"]["identifierValue"] == "customer_id"
+
+    def test_edit_catalog_custom_response_round_trip(self):
+        # R3: after edit, fetch returns updated values; R2: uses existing edit operation
+        processor = MongoProcessor()
+        updated_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_detail",
+                "identifierType": "value",
+                "identifierValue": "acme-corp"
+            }
+        }
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        processor.edit_custom_response(
+            responses[0]["_id"], updated_payload, name="utter_catalog_test", bot="tests", user="testUser"
+        )
+        responses = list(processor.get_response("utter_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["page_name"] == "store_detail"
+        assert payload["data"]["identifierType"] == "value"
+        assert payload["data"]["identifierValue"] == "acme-corp"
+
+    def test_catalog_identifiertype_value_convention(self):
+        # R1: identifierType "value" is accepted
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "literal-id-123"
+            }
+        }
+        assert catalog_payload["data"]["identifierType"] in ("slot", "value")
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_value_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_value_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["identifierType"] == "value"
+
+    def test_non_catalog_custom_response_unaffected(self):
+        # R4: non-catalog custom saves and fetches unchanged, never reinterpreted as catalog
+        processor = MongoProcessor()
+        plain_payload = {"type": "image", "url": "https://example.com/img.png"}
+        assert processor.add_custom_response(plain_payload, "utter_non_catalog_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_non_catalog_test", "tests"))
+        payload = responses[0]["value"]["custom"]
+        assert payload == plain_payload
+        assert payload.get("type") != "catalog"
+
+    def test_catalog_label_field_round_trip(self):
+        # R1 c4: data section MAY contain optional label field with any string value
+        # R3 c4: label value equals saved value on fetch
+        processor = MongoProcessor()
+        catalog_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "store_home",
+                "identifierType": "slot",
+                "identifierValue": "customer_id",
+                "label": "View Catalog"
+            }
+        }
+        assert processor.add_custom_response(catalog_payload, "utter_catalog_label_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_test", "tests"))
+        assert len(responses) > 0
+        payload = responses[0]["value"]["custom"]
+        assert payload["type"] == "catalog"
+        assert payload["data"]["label"] == "View Catalog"
+
+    def test_catalog_label_empty_and_whitespace_no_validation_error(self):
+        # R1 c5: saving with empty string or whitespace-only label succeeds with no validation error
+        processor = MongoProcessor()
+        for label_value in ["", "   "]:
+            catalog_payload = {
+                "type": "catalog",
+                "data": {
+                    "page_name": "store_home",
+                    "identifierType": "value",
+                    "identifierValue": "acme",
+                    "label": label_value
+                }
+            }
+            utterance_name = f"utter_catalog_empty_label_{label_value.strip() or 'empty'}_test"
+            assert processor.add_custom_response(
+                catalog_payload, utterance_name, "tests", "testUser"
+            ), f"Save should succeed for label={repr(label_value)}"
+            responses = list(processor.get_response(utterance_name, "tests"))
+            assert responses[0]["value"]["custom"]["data"]["label"] == label_value
+
+    def test_catalog_label_edit_add_change_remove(self):
+        # R3 c5: editing label (add, change, remove) round-trips correctly
+        processor = MongoProcessor()
+        base_payload = {
+            "type": "catalog",
+            "data": {
+                "page_name": "offers",
+                "identifierType": "value",
+                "identifierValue": "promo-id"
+            }
+        }
+        assert processor.add_custom_response(base_payload, "utter_catalog_label_edit_test", "tests", "testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        resp_id = responses[0]["_id"]
+
+        # add label
+        with_label = dict(base_payload)
+        with_label["data"] = dict(base_payload["data"], label="Shop Now")
+        processor.edit_custom_response(resp_id, with_label, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Shop Now"
+
+        # change label
+        changed = dict(base_payload)
+        changed["data"] = dict(base_payload["data"], label="Browse")
+        processor.edit_custom_response(resp_id, changed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert responses[0]["value"]["custom"]["data"]["label"] == "Browse"
+
+        # remove label
+        removed = dict(base_payload)
+        removed["data"] = dict(base_payload["data"])  # no label key
+        processor.edit_custom_response(resp_id, removed, name="utter_catalog_label_edit_test", bot="tests", user="testUser")
+        responses = list(processor.get_response("utter_catalog_label_edit_test", "tests"))
+        assert "label" not in responses[0]["value"]["custom"]["data"]
+
     def test_get_session_config(self):
         processor = MongoProcessor()
         session_config = processor.get_session_config("tests")
@@ -5001,7 +7481,10 @@ class TestMongoProcessor:
         assert model_training.__len__() == 1
         assert model_training.first().exception in str("Training data does not exists!")
 
-    @patch.object(litellm, "aembedding", autospec=True)
+    @mock.patch(
+        "kairon.shared.actions.utils.ActionUtility.execute_request_async",
+        new_callable=AsyncMock
+    )
     @patch("kairon.shared.rest_client.AioRestClient.request", autospec=True)
     @patch("kairon.shared.account.processor.AccountProcessor.get_bot", autospec=True)
     @patch("kairon.train.train_model_for_bot", autospec=True)
@@ -5031,7 +7514,13 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
         embedding = list(np.random.random(1532))
-        mock_openai.return_value = {'data': [{'embedding': embedding}, {'embedding': embedding}]}
+        embedding = [[0.1] * 1532, [0.1] * 1532]
+        mock_openai.return_value = (
+            embedding,
+            200,
+            0.05,
+            {}
+        )
         mock_bot.return_value = {"account": 1}
         mock_train.return_value = f"/models/{bot}"
         start_training(bot, user)
@@ -5047,6 +7536,8 @@ class TestMongoProcessor:
             StoryEvents(name="nlu_fallback", type=UserUttered.type_name),
             StoryEvents(name='utter_please_rephrase', type=ActionExecuted.type_name)
         ]
+
+        LLMSecret.objects.delete()
 
     def test_add_endpoints(self):
         processor = MongoProcessor()
@@ -5291,6 +7782,35 @@ class TestMongoProcessor:
         file = processor.download_files("tests", "user@integration.com")
         assert file.endswith(".zip")
 
+    def test_download_files_excludes_non_trainable_schema(self, monkeypatch):
+        def _mock_bot_info(*args, **kwargs):
+            return {
+                "_id": "9876543210", 'name': 'test_bot', 'account': 2, 'user': 'user@integration.com', 'status': True,
+                "metadata": {"source_bot_id": None}
+            }
+
+        monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
+        CognitionSchema(
+            bot="tests",
+            user="user@integration.com",
+            collection_name="normal_table",
+            schema_metadata=SchemaMetadata(training_needed=True)
+        ).save()
+
+        CognitionSchema(
+            bot="tests",
+            user="user@integration.com",
+            collection_name="analytics_pipeline",
+            schema_metadata=SchemaMetadata(training_needed=False)
+        ).save()
+
+        processor = MongoProcessor()
+        exported_data = processor._MongoProcessor__prepare_cognition_data_for_bot("tests")
+        collections = [item["collection"] for item in exported_data]
+
+        assert "normal_table" in collections
+        assert "analytics_pipeline" not in collections
+
     def test_download_data_files_multiflow_stories(self, monkeypatch):
         from zipfile import ZipFile
         def _mock_bot_info(*args, **kwargs):
@@ -5389,6 +7909,8 @@ class TestMongoProcessor:
         assert file_multiflow_story == b"multiflow_story:\n- block_name: multiflow_story_story_download_data_files\n  end_checkpoints: []\n  events:\n  - connections:\n    - component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n    step:\n      component_id: 637d0j9GD059jEwt2jPnlZ7I\n      name: asking\n      node_id: '1'\n      type: INTENT\n  - connections:\n    - component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n    - component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n    step:\n      component_id: 63uNJw1QvpQZvIpP07dxnmFU\n      name: utter_asking\n      node_id: '2'\n      type: BOT\n  - connections:\n    - component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n    step:\n      component_id: 63WKbWs5K0ilkujWJQpXEXGD\n      name: foodyy\n      node_id: '4'\n      type: HTTP_ACTION\n  - connections: []\n    step:\n      component_id: 63gm5BzYuhC1bc6yzysEnN4E\n      name: utter_foodyy\n      node_id: '5'\n      type: BOT\n  - connections: []\n    step:\n      component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n  - connections:\n    - component_id: 634a9bwPPj2y3zF5HOVgLiXx\n      name: utter_moodyy\n      node_id: '6'\n      type: BOT\n    step:\n      component_id: 633w6kSXuz3qqnPU571jZyCv\n      name: moodyy\n      node_id: '3'\n      type: INTENT\n  flow_tags:\n  - chatbot_flow\n  metadata:\n  - flow_type: STORY\n    node_id: '6'\n  - flow_type: RULE\n    node_id: '5'\n  start_checkpoints:\n  - STORY_START\n  template_type: CUSTOM\n"
         zip_file.close()
 
+    import yaml
+
     def test_download_data_files_prompt_action(self, monkeypatch):
         from zipfile import ZipFile
         def _mock_bot_info(*args, **kwargs):
@@ -5399,6 +7921,14 @@ class TestMongoProcessor:
 
         monkeypatch.setattr(AccountProcessor, 'get_bot', _mock_bot_info)
         processor = MongoProcessor()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot='tests_download_prompt',
+            user='user@integration.com'
+        )
+        llm_secret.save()
         BotSettings(bot="tests_download_prompt", user="user@integration.com",
                     llm_settings=LLMSettings(enable_faq=True)).save()
         request = {'name': 'prompt_action_with_default_values',
@@ -5421,9 +7951,18 @@ class TestMongoProcessor:
         assert zip_file.getinfo('actions.yml')
         file_info_actions = zip_file.getinfo('actions.yml')
         file_content_actions = zip_file.read(file_info_actions)
-        expected_content = b"name: System Prompt\n    source: static\n    type: system\n  - is_enabled: true"
-        assert file_content_actions.__contains__(expected_content)
-        zip_file.close()
+        yaml_content = yaml.safe_load(file_content_actions)
+
+        # Check that the system prompt exists in the yaml
+        prompts = yaml_content['prompt_action'][0]['llm_prompts']
+        system_prompt = next((prompt for prompt in prompts if prompt['name'] == 'System Prompt'), None)
+        assert system_prompt is not None
+        assert system_prompt['data'] == 'You are a personal assistant.'
+        assert system_prompt['source'] == 'static'
+        assert system_prompt['type'] == 'system'
+        assert system_prompt['is_enabled'] is True
+
+        LLMSecret.objects.delete()
 
     def test_download_data_files_empty_data(self, monkeypatch):
         from zipfile import ZipFile
@@ -5597,7 +8136,8 @@ class TestMongoProcessor:
         ], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
-                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': []}
+                                 'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': [],
+                                 'store_page_action': []}
 
     def test_get_utterance_from_intent(self):
         processor = MongoProcessor()
@@ -6878,7 +9418,7 @@ class TestMongoProcessor:
         domain = UploadFile(filename="domain.yml", file=BytesIO(domain_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, None, None, None, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 6
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator"))) == 2
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator"))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator"))) == 3
         assert len(
@@ -6899,7 +9439,7 @@ class TestMongoProcessor:
         rules = UploadFile(filename="rules.yml", file=BytesIO(rules_content))
         await processor.upload_and_save(nlu, domain, stories, config, rules, None, None, None, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -6922,7 +9462,7 @@ class TestMongoProcessor:
         http_action = UploadFile(filename="actions.yml", file=BytesIO(http_action_content))
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, None, None, "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -6948,7 +9488,7 @@ class TestMongoProcessor:
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -6974,7 +9514,7 @@ class TestMongoProcessor:
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 2
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 3
         assert len(
@@ -7000,7 +9540,7 @@ class TestMongoProcessor:
         await processor.upload_and_save(nlu, domain, stories, config, None, http_action, multiflow_story, None,
                                         "test_upload_and_save",
                                         "rules_creator")
-        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 9
+        assert len(list(Intents.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 5
         assert len(list(Stories.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 1
         assert len(list(Responses.objects(bot="test_upload_and_save", user="rules_creator", status=True))) == 6
         assert len(
@@ -7072,19 +9612,19 @@ class TestMongoProcessor:
         ActionServerLogs(intent="intent2", action="http_action", sender="sender_id",
                          url="http://kairon-api.digite.com/api/bot",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent1", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot_2).save()
         ActionServerLogs(intent="intent3", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent4", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
         ActionServerLogs(intent="intent5", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent6", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response",
                          bot=bot).save()
@@ -7105,10 +9645,10 @@ class TestMongoProcessor:
                          bot=bot).save()
         ActionServerLogs(intent="intent12", action="http_action", sender="sender_id",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot_2,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         ActionServerLogs(intent="intent13", action="http_action", sender="sender_id_13",
                          request_params=request_params, api_response="Response", bot_response="Bot Response", bot=bot,
-                         status="FAILURE").save()
+                         status=STATUSES.FAIL.value).save()
         processor = MongoProcessor()
         logs = list(processor.get_action_server_logs(bot))
         assert len(logs) == 10
@@ -7118,8 +9658,8 @@ class TestMongoProcessor:
         assert any([log['sender'] == "sender_id_13" for log in logs])
         assert any([log['api_response'] == "Response" for log in logs])
         assert any([log['bot_response'] == "Bot Response" for log in logs])
-        assert any([log['status'] == "FAILURE" for log in logs])
-        assert any([log['status'] == "SUCCESS" for log in logs])
+        assert any([log['status'] == STATUSES.FAIL.value for log in logs])
+        assert any([log['status'] == STATUSES.SUCCESS.value for log in logs])
 
         logs = list(processor.get_action_server_logs(bot_2))
         assert len(logs) == 3
@@ -7227,16 +9767,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -7292,9 +9832,9 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 27
+        assert domain.slots.__len__() == 36
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 27
+        assert domain.entities.__len__() == 36
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 27
         assert domain.intents.__len__() == 29
@@ -7372,16 +9912,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 32
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 5
         assert domain.responses.keys().__len__() == 29
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 48
         assert domain.intents.__len__() == 32
@@ -7437,16 +9977,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -7487,16 +10027,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps[15].events[2].entities[0]['entity'] == 'fdresponse'
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -7545,16 +10085,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -7590,16 +10130,16 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 0
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
-        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 16
-        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 12
+        assert domain.slots.__len__() == 37
+        assert len([slot for slot in domain.slots if slot.influence_conversation is True]) == 21
+        assert len([slot for slot in domain.slots if slot.influence_conversation is False]) == 16
         assert domain.intent_properties.__len__() == 33
         assert len([intent for intent in domain.intent_properties.keys() if
                     domain.intent_properties.get(intent)['used_entities']]) == 27
         assert len([intent for intent in domain.intent_properties.keys() if
                     not domain.intent_properties.get(intent)['used_entities']]) == 6
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 50
         assert domain.intents.__len__() == 33
@@ -7645,10 +10185,10 @@ class TestMongoProcessor:
         assert story_graph.story_steps.__len__() == 16
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
+        assert domain.slots.__len__() == 37
         assert domain.intent_properties.__len__() == 33
         assert domain.responses.keys().__len__() == 31
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 31
         assert domain.intents.__len__() == 33
@@ -7723,10 +10263,10 @@ class TestMongoProcessor:
         assert len(rules) == 3
         domain = mongo_processor.load_domain(bot)
         assert isinstance(domain, Domain)
-        assert domain.slots.__len__() == 28
+        assert domain.slots.__len__() == 37
         assert domain.intent_properties.__len__() == 32
         assert domain.responses.keys().__len__() == 27
-        assert domain.entities.__len__() == 28
+        assert domain.entities.__len__() == 37
         assert domain.form_names.__len__() == 2
         assert domain.user_actions.__len__() == 46
         assert domain.intents.__len__() == 32
@@ -8085,6 +10625,31 @@ class TestMongoProcessor:
         assert not os.path.exists(os.path.join(bot_data_home_dir, 'data', 'rules.yml'))
         assert not non_event_validation_summary
 
+
+    def test_get_latest_file_folder_not_exists(self,tmp_path):
+        folder = tmp_path / "non_existent"
+
+        with pytest.raises(AppException, match="Folder does not exists"):
+            Utility.get_latest_file(str(folder))
+
+
+    def test_get_latest_file_returns_latest(self,tmp_path):
+        folder = tmp_path / "files"
+        import time
+        import os
+        folder.mkdir()
+
+        file1 = folder / "a.txt"
+        file2 = folder / "b.txt"
+
+        file1.write_text("first")
+        time.sleep(1)
+        file2.write_text("second")
+
+        latest = Utility.get_latest_file(str(folder))
+
+        assert latest == str(file2)
+
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_save_actions_and_config_overwrite(self,
                                                                                resource_save_and_validate_training_files):
@@ -8198,26 +10763,35 @@ class TestMongoProcessor:
 
     @pytest.mark.asyncio
     async def test_validate_and_prepare_data_all_actions(self):
+        bot = 'test_validate_and_prepare_data_all_actions'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user='test'
+        )
+        llm_secret.save()
         with patch('kairon.shared.utils.SMTP'):
             with patch('kairon.shared.actions.data_objects.ZendeskAction.validate'):
                 with patch('kairon.shared.actions.data_objects.JiraAction.validate'):
                     with patch('pipedrive.client.Client'):
                         processor = MongoProcessor()
-                        BotSettings(bot='test_validate_and_prepare_data_all_actions', user='test',
+                        BotSettings(bot=bot, user='test',
                                     llm_settings=LLMSettings(enable_faq=True)).save()
                         actions = UploadFile(filename="actions.yml",
                                              file=BytesIO(open('tests/testing_data/actions/actions.yml', 'rb').read()))
                         files_received, is_event_data, non_event_validation_summary = await processor.validate_and_prepare_data(
-                            'test_validate_and_prepare_data_all_actions', 'test', [actions], True)
-                        assert non_event_validation_summary['summary'] == {
+                            bot, 'test', [actions], True)
+                        assert not DeepDiff(non_event_validation_summary['summary'], {
                             'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                             'email_action': [],
                             'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
-                            'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': []
-                        }
-                        print(non_event_validation_summary)
+                            'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
+                            'parallel_action': [], 'voice_call_action': [], 'store_page_action': []
+                        }, ignore_order=True)
                         assert non_event_validation_summary['component_count']['http_action'] == 4
                         assert non_event_validation_summary['component_count']['jira_action'] == 2
                         assert non_event_validation_summary['component_count']['google_search_action'] == 2
@@ -8231,7 +10805,7 @@ class TestMongoProcessor:
                         assert files_received == {'actions'}
                         assert not is_event_data
                         saved_actions = processor.load_action_configurations(
-                            'test_validate_and_prepare_data_all_actions')
+                            bot)
                         assert len(saved_actions['http_action']) == 4
                         assert len(saved_actions['slot_set_action']) == 3
                         assert len(saved_actions['form_validation_action']) == 4
@@ -8250,6 +10824,7 @@ class TestMongoProcessor:
                         assert saved_actions['two_stage_fallback'][0]['fallback_message'] \
                                == "I could not understand you! Did you mean any of the suggestions below? " \
                                   "Or else please rephrase your question."
+        LLMSecret.objects.delete()
 
     @pytest.mark.asyncio
     async def test_load_action_configurations_with_two_stage_fallback(self):
@@ -9444,6 +12019,7 @@ class TestMongoProcessor:
         bot = 'test'
         processor = MongoProcessor()
         slots = list(processor.get_existing_slots(bot))
+        print(slots)
         expected = [
             {'name': 'kairon_action_response', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
             {'name': 'bot', 'type': 'any', 'initial_value': 'test', 'influence_conversation': False,
@@ -9480,10 +12056,23 @@ class TestMongoProcessor:
             {'name': 'body', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
             {'name': 'media_ids', 'type': 'list', 'influence_conversation': True, '_has_been_set': False,
-             'is_default': True}
-
+             'is_default': True},
+            {'name': 'flow_docs', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'flow_images', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'flow_data', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'llm_call_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'user_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'temp_token', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'store_page_name', 'type': 'any', 'influence_conversation': False, '_has_been_set': False, 'is_default': True},
+            {'name': 'redirect_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
+            {'name': 'callback_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False,
+             'is_default': True},
         ]
-        assert len(slots) == 28
+        assert len(slots) == 37
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
@@ -10977,8 +13566,18 @@ class TestMongoProcessor:
         processor = MongoProcessor()
         bot = 'test'
         user = 'test'
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         with pytest.raises(AppException, match=f'Action with name "action_custom" not found'):
             processor.delete_action('action_custom', bot, user)
+
+        LLMSecret.objects.delete()
 
     def test_delete_action_with_attached_http_action(self):
         processor = MongoProcessor()
@@ -10989,6 +13588,13 @@ class TestMongoProcessor:
         response = "json"
         request_method = 'GET'
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            user=user
+        )
+        llm_secret.save()
         http_params_list: List[HttpActionParameters] = [
             HttpActionParameters(key="param1", value="param1", parameter_type="slot"),
             HttpActionParameters(key="param2", value="value2", parameter_type="value")]
@@ -11020,6 +13626,35 @@ class TestMongoProcessor:
         processor.add_prompt_action(prompt_action_config.dict(), bot, user)
         with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
+
+        LLMSecret.objects.delete()
+
+    def test_delete_action_removes_typed_config_name_field(self):
+        processor = MongoProcessor()
+        bot = 'test_delete_typed'
+        user = 'test'
+        SlotSetAction(name='action_slot_to_delete', set_slots=[], bot=bot, user=user).save()
+        Actions(name='action_slot_to_delete', type=ActionType.slot_set_action.value, bot=bot, user=user).save()
+        assert SlotSetAction.objects(name='action_slot_to_delete', bot=bot, status=True).count() == 1
+        processor.delete_action('action_slot_to_delete', bot, user)
+        assert Actions.objects(name='action_slot_to_delete', bot=bot).count() == 0
+        assert SlotSetAction.objects(name='action_slot_to_delete', bot=bot).count() == 0
+
+    def test_delete_action_removes_typed_config_action_name_field(self):
+        processor = MongoProcessor()
+        bot = 'test_delete_typed'
+        user = 'test'
+        http_action_config = HttpActionConfigRequest(
+            action_name='action_http_to_delete',
+            response=ActionResponseEvaluation(value='json'),
+            http_url='http://www.example.com',
+            request_method='GET',
+        )
+        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        assert HttpActionConfig.objects(action_name='action_http_to_delete', bot=bot, status=True).count() == 1
+        processor.delete_action('action_http_to_delete', bot, user)
+        assert Actions.objects(name='action_http_to_delete', bot=bot).count() == 0
+        assert HttpActionConfig.objects(action_name='action_http_to_delete', bot=bot).count() == 0
 
     @responses.activate
     def test_push_notifications_enabled_create_type_event(self):
@@ -12406,7 +15041,7 @@ class TestMongoProcessor:
     def test_get_intents_and_training_examples(self):
         processor = MongoProcessor()
         actual = processor.get_intents_and_training_examples("tests")
-        assert len(actual) == 19
+        assert len(actual) == 15
 
     def test_delete_intent_no_training_examples(self):
         processor = MongoProcessor()
@@ -13676,7 +16311,8 @@ class TestMongoProcessor:
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [],
+            'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
+            'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -13699,7 +16335,8 @@ class TestMongoProcessor:
             'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
-            'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
+            'pyscript_action': [], 'voice_call_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
+            'parallel_action': [], 'kairon_voice_disconnect': [], 'store_page_action': []
         }
 
     def test_add_complex_story(self):
@@ -13725,7 +16362,8 @@ class TestMongoProcessor:
                                       'kairon_bot_response': [],
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-                                      'callback_action': [], 'schedule_action': [],
+                                      'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
+                                      'kairon_voice_disconnect': [], 'store_page_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -13737,7 +16375,11 @@ class TestMongoProcessor:
                                                      'utter_bad_feedback',
                                                      'utter_default',
                                                      'utter_please_rephrase', 'utter_custom', 'utter_query',
-                                                     'utter_more_queries']}, ignore_order=True)
+                                                     'utter_more_queries',
+                                                     'utter_catalog_test', 'utter_catalog_value_test',
+                                                     'utter_non_catalog_test', 'utter_catalog_label_test',
+                                                     'utter_catalog_empty_label_empty_test',
+                                                     'utter_catalog_label_edit_test']}, ignore_order=True)
 
     def test_add_complex_story_with_stop_flow_action(self):
         processor = MongoProcessor()
@@ -15106,8 +17748,6 @@ class TestMongoProcessor:
         processor.update_multiflow_story(pytest.multiflow_story_id, story_dict, "test")
         story = MultiflowStories.objects(block_name="updated_story", bot="test").get()
         assert story.events[0]['connections'][0]['name'] == "utter_time"
-        # print(story.events[1].name)
-        # assert story.events[1].name == "utter_nonsense"
 
     def test_update_multiflow_story_with_same_events(self):
         processor = MongoProcessor()
@@ -15615,8 +18255,9 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
+            'voice_call_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
-                           'utter_please_rephrase'], 'web_search_action': []}, ignore_order=True)
+                           'utter_please_rephrase'], 'parallel_action': []}, ignore_order=True)
 
     def test_delete_non_existing_complex_story(self):
         processor = MongoProcessor()
@@ -15724,7 +18365,8 @@ class TestMongoProcessor:
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
-            'callback_action': [], 'schedule_action': [],
+            'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
+            'kairon_voice_disconnect': [], 'store_page_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',
@@ -15735,7 +18377,11 @@ class TestMongoProcessor:
                            'utter_good_feedback',
                            'utter_bad_feedback',
                            'utter_default',
-                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries']},
+                           'utter_please_rephrase', 'utter_custom', 'utter_query', 'utter_more_queries',
+                           'utter_catalog_test', 'utter_catalog_value_test',
+                           'utter_non_catalog_test', 'utter_catalog_label_test',
+                           'utter_catalog_empty_label_empty_test',
+                           'utter_catalog_label_edit_test']},
                             ignore_order=True)
 
     def test_add_duplicate_rule(self):
@@ -16050,10 +18696,29 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.add_email_action(email_config, "TEST", "tests") is not None
+
+    def test_add_email_action_dispatch_false(self):
+        processor = MongoProcessor()
+        email_config = {"action_name": "email_config_disp_false",
+                        "smtp_url": "test.test.com",
+                        "smtp_port": 25,
+                        "smtp_userid": None,
+                        "smtp_password": {'value': "test"},
+                        "from_email": {"value": "from_email", "parameter_type": "slot"},
+                        "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
+                        "subject": "Test Subject",
+                        "response": "Test Response",
+                        "dispatch_bot_response": False,
+                        "tls": False
+                        }
+        with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
+            assert processor.add_email_action(email_config, "TEST", "tests") is not None
+            EmailActionConfig.objects(action_name="email_config_disp_false").delete()
 
     def test_add_email_action_with_custom_text(self):
         processor = MongoProcessor()
@@ -16066,6 +18731,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False,
                         "custom_text": {"value": "Hello from kairon!"}
                         }
@@ -16104,6 +18771,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16164,6 +18833,8 @@ class TestMongoProcessor:
                         "to_email": {"value": ["test@test.com", "test1@test.com"], "parameter_type": "value"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16181,6 +18852,8 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
+
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -16198,12 +18871,14 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": False,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.edit_email_action(email_config, "TEST", "tests") is None
 
         email_config["custom_text"] = {"value": "custom_text_slot", "parameter_type": "slot"}
+        email_config["dispatch_bot_response"] = True
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
             assert processor.edit_email_action(email_config, "TEST", "tests") is None
 
@@ -16218,6 +18893,7 @@ class TestMongoProcessor:
                         "to_email": {"value": "to_email", "parameter_type": "slot"},
                         "subject": "Test Subject",
                         "response": "Test Response",
+                        "dispatch_bot_response": True,
                         "tls": False
                         }
         with patch("kairon.shared.utils.SMTP", autospec=True) as mock_smtp:
@@ -17000,6 +19676,14 @@ class TestMongoProcessor:
                                     'source': 'static', 'is_enabled': True},
                                    {'name': 'History Prompt', 'type': 'user', 'source': 'history', 'is_enabled': True}]}
         BotSettings(bot=bot, user=user, llm_settings=LLMSettings(enable_faq=True)).save()
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
         processor.add_prompt_action(request, bot, user)
 
         story_dict = {'name': "activate kairon faq action", 'steps': steps, 'type': 'RULE', 'template_type': 'CUSTOM'}
@@ -17015,6 +19699,8 @@ class TestMongoProcessor:
             {"name": "greet", "type": "INTENT"},
             {"name": "kairon_faq_action", "type": "PROMPT_ACTION"}
         ]
+
+        LLMSecret.objects.delete()
 
     def test_add_secret(self):
         processor = MongoProcessor()
@@ -17390,26 +20076,26 @@ class TestMongoProcessor:
                          bot=bot).save()
         log_three = processor.get_logs(bot, "action_logs", start_time, end_time)
         assert len(log_three) == 2
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
-        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status="Completed")
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
+        DataImporterLogProcessor.add_log(bot, user, is_data_uploaded=False, event_status=EVENT_STATUS.COMPLETED.value)
         log_four = processor.get_logs(bot, "data_importer", start_time, end_time)
         assert len(log_four) == 2
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
-        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status='Completed')
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
+        HistoryDeletionLogProcessor.add_log(bot, user, till_date, status=EVENT_STATUS.COMPLETED.value)
         log_five = processor.get_logs(bot, "history_deletion", start_time, end_time)
         assert len(log_five) == 2
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
-        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status="Completed")
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
+        MultilingualLogProcessor.add_log(source_bot=bot, user=user, event_status=EVENT_STATUS.COMPLETED.value)
         log_six = processor.get_logs(bot, "multilingual", start_time, end_time)
         assert len(log_six) == 2
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         ModelTestingLogProcessor.log_test_result(bot, user,
                                                  stories_result={},
                                                  nlu_result={},
-                                                 event_status='Completed')
+                                                 event_status=EVENT_STATUS.COMPLETED.value)
         log_seven = processor.get_logs(bot, "model_testing", start_time, end_time)
         assert len(log_seven) == 2
         log_eight = processor.get_logs(bot, "audit_logs", start_time, end_time)
@@ -17683,6 +20369,40 @@ class TestMongoProcessor:
         settings.llm_settings = LLMSettings(enable_faq=False)
         settings.save()
 
+    def test_list_cognition_schema_with_embedding_metadata(self):
+        bot = "test_bot"
+
+        mock_doc = MagicMock()
+        schema_data = {
+            "_id": "123",
+            "metadata": [{"key": "value"}],
+            "collection_name": "test_collection",
+            "schema_metadata": {
+                "training_needed": False,
+                "model_id": "custom-model",
+                "size": 512,
+                "provider": "openai"
+            }
+        }
+
+        mock_doc.to_mongo.return_value.to_dict.return_value = schema_data
+
+        with patch("kairon.shared.cognition.data_objects.CognitionSchema.objects") as mock_cognition_objects:
+            mock_cognition_objects.return_value = [mock_doc]
+
+            obj = CognitionDataProcessor()
+            result = list(obj.list_cognition_schema(bot))
+
+            assert len(result) == 1
+            data = result[0]
+
+            assert data["_id"] == "123"
+            assert data["metadata"] == [{"key": "value"}]
+            assert data["collection_name"] == "test_collection"
+
+            assert data["schema_metadata"]["model_id"] == "custom-model"
+            assert data["schema_metadata"]["size"] == 512
+
     def test_save_payload_metadata_column_limit_exceeded(self):
         processor = CognitionDataProcessor()
         bot = 'test'
@@ -17820,6 +20540,16 @@ class TestMongoProcessor:
         settings = BotSettings.objects(bot=bot).get()
         settings.llm_settings = LLMSettings(enable_faq=True)
         settings.save()
+
+        llm_secret = LLMSecret(
+            llm_type="openai",
+            api_key='value',
+            models=["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
+            bot=bot,
+            user=user
+        )
+        llm_secret.save()
+
         schema = {
             "metadata": None,
             "collection_name": "Python",
@@ -17853,6 +20583,7 @@ class TestMongoProcessor:
             processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
         processor_two.delete_action('test_delete_schema_attached_to_prompt_action', bot, user)
         processor.delete_cognition_schema(pytest.delete_schema_id, bot, user=user)
+        LLMSecret.objects.delete()
 
     def test_save_content_with_gpt_feature_disabled(self):
         processor = CognitionDataProcessor()
@@ -18630,6 +21361,7 @@ class TestModelProcessor:
         u1.type = 'nlu'
         u1.bot = bot1["_id"].__str__()
         u1.user = "divya"
+        BotSettings(bot=u1.bot, user="test", pos_enabled=False).save()
         u1.save()
 
         u2 = ModelTestingLogs()
@@ -18637,8 +21369,9 @@ class TestModelProcessor:
         u2.type = 'nlu'
         u2.bot = bot2["_id"].__str__()
         u2.user = "divya"
+        BotSettings(bot=u2.bot, user="test", pos_enabled=False).save()
         u2.save()
-        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelli@digite.com")
+        result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelly@digite.com")
         assert result[bot1["_id"].__str__()] == 0.6424565337899992
         assert result[bot2["_id"].__str__()] == 0.9875645647434565
 
@@ -18988,3 +21721,455 @@ class TestModelProcessor:
         processor = MongoProcessor()
         action = processor.get_schedule_action(bot, name)
         assert action is None
+
+    def test_add_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_add_parallel_action_invalid_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "valid_action"
+        processor.add_action(action_1, bot, user)
+
+        request_data = {
+            "name": "invalid name!",
+            "dispatch_response_text": True,
+            "response_text": "Invalid name case",
+            "actions": [action_1]
+        }
+
+        with pytest.raises(AppException, match="Invalid name! Only letters, numbers, and underscores"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name=action_1, bot=bot).delete()
+
+    def test_add_parallel_action_duplicate_name_in_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action1 = "action1"
+        duplicate_name = "duplicate_action"
+        processor.add_action(duplicate_name, bot, user)
+        processor.add_action(action1, bot, user)
+
+        request_data = {
+            "name": duplicate_name,
+            "dispatch_response_text": True,
+            "response_text": "should fail",
+            "actions": [action1]
+        }
+
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name__in=[duplicate_name, action1], bot=bot).delete()
+
+    def test_add_parallel_action_duplicate_name_in_parallel_config(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action1 = "action1"
+        existing_parallel = "existing_parallel_action"
+        processor.add_action(action1, bot, user)
+
+        request_data_1 = {
+            "name": existing_parallel,
+            "dispatch_response_text": True,
+            "response_text": "first one",
+            "actions": [action1]
+        }
+
+        processor.add_parallel_action(request_data_1, bot, user)
+
+        request_data_2 = {
+            "name": existing_parallel,
+            "dispatch_response_text": False,
+            "response_text": "duplicate entry",
+            "actions": [action1]
+        }
+
+        with pytest.raises(AppException, match="Action exists!"):
+            processor.add_parallel_action(request_data_2, bot, user)
+
+        Actions.objects(name__in=[existing_parallel, action1], bot=bot).delete()
+        ParallelActionConfig.objects(name=existing_parallel, bot=bot).delete()
+
+    def test_add_parallel_action_missing_subaction(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        valid_action = "valid_action"
+        missing_action = "missing_action"
+        processor.add_action(valid_action, bot, user)
+
+        request_data = {
+            "name": "parallel_missing_action",
+            "dispatch_response_text": False,
+            "response_text": "error case",
+            "actions": [valid_action, missing_action]
+        }
+
+        with pytest.raises(AppException, match=f"Action with name {missing_action} does not exist!"):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name=valid_action, bot=bot).delete()
+
+    def test_add_parallel_action_success_exceeds_max_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2, action_1, action_2, action_1, action_2]
+        }
+
+        with pytest.raises(AppException, match="Maximum 5 actions are allowed in a parallel action."):
+            processor.add_parallel_action(request_data, bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_update_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+        parallel_name = "update_test_parallel"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [action_1]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Updated response",
+            "actions": [action_1, action_2]
+        }
+
+        updated_id = processor.update_parallel_action(update_data, bot, user)
+        updated = ParallelActionConfig.objects(id=updated_id).first()
+
+        assert updated is not None
+        assert updated.response_text == "Updated response"
+        assert set(updated.actions) == {action_1, action_2}
+        assert updated.user == user
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_update_parallel_action_invalid_name(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        request_data = {
+            "name": "invalid name!",
+            "response_text": "invalid case",
+            "actions": ["action_1"]
+        }
+
+        with pytest.raises(AppException, match="Invalid name! Only letters, numbers, and underscores"):
+            processor.update_parallel_action(request_data, bot, user)
+
+    def test_update_parallel_action_not_found(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        request_data = {
+            "name": "non_existing_parallel",
+            "response_text": "trying to update",
+            "actions": ["action_1"]
+        }
+
+        with pytest.raises(AppException, match="Parallel Action with name 'non_existing_parallel' not found!"):
+            processor.update_parallel_action(request_data, bot, user)
+
+    def test_update_parallel_action_missing_sub_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        existing_action = "existing_action"
+        missing_action = "missing_action"
+        parallel_name = "update_missing_sub"
+
+        processor.add_action(existing_action, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [existing_action]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Trying to add missing action",
+            "actions": [existing_action, missing_action]
+        }
+
+        with pytest.raises(AppException, match=f"Action with name {missing_action} does not exist!"):
+            processor.update_parallel_action(update_data, bot, user)
+
+        Actions.objects(name__in=[existing_action, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_update_parallel_action_exceeds_max_actions(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+        parallel_name = "update_test_parallel"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        create_data = {
+            "name": parallel_name,
+            "dispatch_response_text": False,
+            "response_text": "Initial",
+            "actions": [action_1]
+        }
+
+        processor.add_parallel_action(create_data, bot, user)
+
+        update_data = {
+            "name": parallel_name,
+            "response_text": "Updated response",
+            "actions": [action_1, action_2, action_1, action_2, action_1, action_2]
+        }
+
+        with pytest.raises(AppException, match="Maximum 5 actions are allowed in a parallel action."):
+            processor.update_parallel_action(update_data, bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_list_parallel_action_returns_created_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "list_action_1"
+        action_2 = "list_action_2"
+        parallel_name = "parallel_list_test"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": parallel_name,
+            "dispatch_response_text": True,
+            "response_text": "List test response",
+            "actions": [action_1, action_2]
+        }
+
+        processor.add_parallel_action(request_data, bot, user)
+
+        result = list(processor.list_parallel_action(bot))
+        found = next((action for action in result if action["name"] == parallel_name), None)
+
+        assert found is not None
+        assert found["name"] == parallel_name
+        assert found["actions"] == [action_1, action_2]
+        assert "user" not in found
+        assert "bot" not in found
+        assert "status" not in found
+
+        Actions.objects(name__in=[action_1, action_2, parallel_name], bot=bot).delete()
+        ParallelActionConfig.objects(name=parallel_name, bot=bot).delete()
+
+    def test_list_parallel_action_empty_when_none_exist(self):
+        bot = "test_bot_empty_list"
+        processor = MongoProcessor()
+
+        result = list(processor.list_parallel_action(bot))
+        assert result == []
+
+    def test_list_existing_actions_for_parallel_action_success(self):
+
+        bot = "test_bot"
+        user = "test_user"
+        processor = MongoProcessor()
+        Actions.objects(bot=bot).delete()
+        action_1 = "http_action_1"
+        action_2 = "email_action_1"
+        action_3 = "jira_action_1"
+        action_4 = "live_agent_action_1"
+        action_5 = "parallel_action_1"
+
+        processor.add_action(action_1, bot, user, action_type=ActionType.http_action)
+        processor.add_action(action_2, bot, user, action_type=ActionType.email_action)
+        processor.add_action(action_3, bot, user, action_type=ActionType.jira_action)
+        processor.add_action(action_4, bot, user, action_type=ActionType.live_agent_action)
+        processor.add_action(action_5, bot, user, action_type=ActionType.parallel_action)
+
+        result = list(processor.list_existing_actions_for_parallel_action(bot))
+
+        assert len(result) == 3
+
+        action_names = [action["name"] for action in result]
+        assert action_1 in action_names
+        assert action_2 in action_names
+        assert action_3 in action_names
+        assert action_4 not in action_names
+        assert action_5 not in action_names
+
+        Actions.objects(name__in=[action_1, action_2, action_3, action_4, action_5], bot=bot).delete()
+
+    def test_delete_parallel_action_success(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        processor.delete_action("parallel_test_action", bot, user)
+
+        result = ParallelActionConfig.objects(name="parallel_test_action", bot=bot).first()
+        assert result is None
+
+        result = Actions.objects(name="parallel_test_action", bot=bot).first()
+        assert result is None
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_delete_subaction_used_in_parallel_action(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        with pytest.raises(AppException, match=re.escape(
+            "Action 'action_1' cannot be deleted because it is used in parallel actions: ['parallel_test_action']"
+        )):
+            processor.delete_action("action_1", bot, user)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+
+    def test_check_action_usage_in_parallel_actions_raises_exception(self):
+        bot = 'test_bot'
+        user = 'test_user'
+        processor = MongoProcessor()
+
+        action_1 = "action_1"
+        action_2 = "action_2"
+
+        processor.add_action(action_1, bot, user)
+        processor.add_action(action_2, bot, user)
+
+        request_data = {
+            "name": "parallel_test_action",
+            "dispatch_response_text": True,
+            "response_text": "Executed parallel",
+            "actions": [action_1, action_2]
+        }
+
+        action_id = processor.add_parallel_action(request_data, bot, user)
+
+        result = ParallelActionConfig.objects(id=action_id, bot=bot).first()
+        assert result is not None
+        assert result.name == "parallel_test_action"
+        assert result.actions == [action_1, action_2]
+
+        with pytest.raises(AppException, match=re.escape(
+            "Action 'action_1' cannot be deleted because it is used in parallel actions: ['parallel_test_action']"
+        )):
+            processor.check_action_usage_in_parallel_actions(bot, action_1)
+
+        Actions.objects(name__in=[action_1, action_2, "parallel_test_action"]).delete()
+        ParallelActionConfig.objects(name__iexact="parallel_test_action", bot=bot).delete()
+

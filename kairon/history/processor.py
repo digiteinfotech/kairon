@@ -5,6 +5,7 @@ from loguru import logger
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
+from kairon.shared.constants import FLATTENED_CONVERSATIONS
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from dateutil.relativedelta import relativedelta
@@ -93,11 +94,14 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 values = list(conversations
                               .aggregate([{"$match": {"sender_id": sender_id, "type": {"$in": ["flattened", "broadcast"]},
+                                                      "bot": collection,
                                                       "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
-                                                                    "$lte": Utility.get_timestamp_from_date(to_date)}}},
+                                                                    "$lte": Utility.get_timestamp_from_date(to_date)},
+                                                      "tag": {"$ne": "callback_message"}
+                                                      }},
                                           {"$sort": {"timestamp": 1}},
                                           {"$project": {"_id": 0, "sender_id": 1, "conversation_id": 1, "data": 1,
                                                         "timestamp": 1, "status": 1}}])
@@ -136,9 +140,9 @@ class HistoryProcessor:
             client = HistoryProcessor.get_mongo_connection()
             with client as clt:
                 db = clt.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "data.intent": fallback_intent,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
@@ -151,7 +155,7 @@ class HistoryProcessor:
 
                 total_counts = list(conversations.aggregate(
                     [
-                        {"$match": {"type": "flattened",
+                        {"$match": {"type": "flattened", "bot": collection,
                                     "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                                   "$lte": Utility.get_timestamp_from_date(to_date)}
                                     }
@@ -241,20 +245,39 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 users = list(
-                    conversations.aggregate([{"$match": {"timestamp": time_filter}},
-                                             {"$sort": {"timestamp": 1}},
-                                             {"$group": {"_id": "$sender_id", "latest_event_time": {"$last": "$timestamp"},
-                                                         "steps": {"$sum": 1}}},
-                                             {"$sort": {"latest_event_time": -1}},
-                                             {"$project": {
-                                                 "sender_id": "$_id",
-                                                 "_id": 0,
-                                                 "steps": 1,
-                                                 "latest_event_time": 1,
-                                             }},
-                                             ], allowDiskUse=True))
+                    conversations.aggregate([
+                        {
+                            "$match": {
+                                "bot": collection,
+                                "$and": [
+                                    {"timestamp": time_filter},
+                                    {
+                                        "$or": [
+                                            {"tag": {"$ne": "callback_message"}},
+                                            {"tag": {"$exists": False}}
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {"$sort": {"timestamp": 1}},
+                        {"$group": {
+                            "_id": "$sender_id",
+                            "latest_event_time": {"$last": "$timestamp"},
+                            "steps": {"$sum": 1}
+                        }},
+                        {"$sort": {"latest_event_time": -1}},
+                        {"$project": {
+                            "sender_id": "$_id",
+                            "_id": 0,
+                            "steps": 1,
+                            "latest_event_time": 1
+                        }},
+                    ], allowDiskUse=True)
+                )
+
         except Exception as e:
             logger.error(e)
             message = str(e)
@@ -387,12 +410,13 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 total = list(conversations.aggregate([
                     {"$match": {
                         "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                       "$lte": Utility.get_timestamp_from_date(to_date)},
-                        "type": "flattened"}
+                        "type": "flattened", "bot": collection,
+                    }
                     },
                     {"$group": {"_id": None, "count": {"$sum": 1}}},
                     {"$project": {"_id": 0, "count": 1}}
@@ -401,7 +425,7 @@ class HistoryProcessor:
                 fallback_count = list(
                     conversations.aggregate([
                         {"$match": {
-                            "type": "flattened",
+                            "type": "flattened", "bot": collection,
                             "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                           "$lte": Utility.get_timestamp_from_date(to_date)},
                             "data.intent": fallback_intent
@@ -618,14 +642,14 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 total = list(
                     conversations.aggregate([
                         {"$match":
                             {
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
-                                "type": "flattened"
+                                "type": "flattened", "bot": collection,
                             }
                         },
                         {"$addFields": {"month": {"$month": {"$toDate": {"$multiply": ["$timestamp", 1000]}}}}},
@@ -636,7 +660,7 @@ class HistoryProcessor:
                     conversations.aggregate([
                         {"$match":
                             {
-                                "type": "flattened",
+                                "type": "flattened", "bot": collection,
                                 "timestamp": {"$gte": Utility.get_timestamp_from_date(from_date),
                                               "$lte": Utility.get_timestamp_from_date(to_date)},
                                 "data.intent": fallback_intent
@@ -736,9 +760,9 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 fallback_counts = list(conversations.aggregate([
-                    {"$match": {"type": "flattened",
+                    {"$match": {"type": "flattened", "bot": collection,
                                 "timestamp": {
                                     "$gte": Utility.get_timestamp_from_date(from_date),
                                     "$lte": Utility.get_timestamp_from_date(to_date)
@@ -749,7 +773,10 @@ class HistoryProcessor:
                     {"$project": {"_id": 1, "count": 1}}
                 ]))
                 total_counts = list(conversations.aggregate([{"$match": {"$and": [
-                    {"type": "flattened"},
+                    {
+                        "type": "flattened",
+                        "bot": collection,
+                    },
                     {"timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)
@@ -788,9 +815,10 @@ class HistoryProcessor:
             message = None
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
                 search_query = {
                     "type": {"$in": ["flattened", "broadcast"]},
+                    "bot": collection,
                     "timestamp": {
                         "$gte": Utility.get_timestamp_from_date(from_date),
                         "$lte": Utility.get_timestamp_from_date(to_date)
@@ -1426,6 +1454,7 @@ class HistoryProcessor:
         :return: string message
         """
         till_date_timestamp = Utility.get_timestamp_from_date(till_date)
+        till_date_timestamp = Utility.get_end_of_till_date(till_date_timestamp)
         HistoryProcessor.archive_user_history(collection=collection, sender_id=sender_id,
                                               till_date_timestamp=till_date_timestamp)
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
@@ -1449,8 +1478,8 @@ class HistoryProcessor:
 
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
-                conversations.aggregate([{"$match": {"sender_id": sender_id,
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
+                conversations.aggregate([{"$match": {"sender_id": sender_id, "bot": collection,
                                                      "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                              {"timestamp": {"$lte": till_date_timestamp}}]
                                                      }
@@ -1481,10 +1510,10 @@ class HistoryProcessor:
 
             with client as client:
                 db = client.get_database()
-                conversations = db.get_collection(collection)
+                conversations = db.get_collection(FLATTENED_CONVERSATIONS)
 
                 # Remove Archived Events
-                conversations.delete_many(filter={'sender_id': sender_id,
+                conversations.delete_many(filter={'sender_id': sender_id, "bot": collection,
                                                   "$or": [{"event.timestamp": {"$lte": till_date_timestamp}},
                                                           {"timestamp": {"$lte": till_date_timestamp}}]})
         except Exception as e:

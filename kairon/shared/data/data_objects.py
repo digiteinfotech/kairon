@@ -15,7 +15,7 @@ from mongoengine import (
     DictField,
     DynamicField,
     IntField,
-    FloatField,
+    FloatField, GenericEmbeddedDocumentField,
 )
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.shared.core.slots import (
@@ -909,16 +909,22 @@ class BotSettings(Auditlog):
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())
     chat_token_expiry = IntField(default=30)
+    store_page_token_expiry = IntField(default=15)
     refresh_token_expiry = IntField(default=60)
+    media_size_limit = IntField(default=10)
     whatsapp = StringField(
-        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value]
+        default="meta", choices=["meta", WhatsappBSPTypes.bsp_360dialog.value, WhatsappBSPTypes.bsp_gupshup.value]
     )
     notification_scheduling_limit = IntField(default=4)
     retry_broadcasting_limit = IntField(default=3)
+    max_template_per_broadcast = IntField(default=5)
     bot = StringField(required=True)
     user = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     status = BooleanField(default=True)
+    system_limits = DictField(default=lambda:{
+        "file_upload_limit" : 5
+    })
     training_limit_per_day = IntField(default=5)
     test_limit_per_day = IntField(default=5)
     data_importer_limit_per_day = IntField(default=5)
@@ -930,6 +936,11 @@ class BotSettings(Auditlog):
     cognition_columns_per_collection_limit = IntField(default=5)
     integrations_per_user_limit = IntField(default=3)
     live_agent_enabled = BooleanField(default=False)
+    pos_enabled = BooleanField(default=False)
+    enable_voice = BooleanField(default=False)
+    max_actions_per_parallel_action = IntField(default=5)
+    catalog_sync_limit_per_day = IntField(default=5)
+    max_instagram_user_posts = IntField(default=5)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
 
@@ -1074,15 +1085,145 @@ class UserMediaData(Auditlog):
     filename = StringField(required=True)
     extension = StringField(required=True)
     output_filename = StringField()
+    summary = StringField()
     upload_status = StringField(default=UserMediaUploadStatus.processing.value,
                                 choices=[e.value for e in UserMediaUploadStatus])
     upload_type = StringField(default=UserMediaUploadType.user_uploaded.value,
                               choices=[e.value for e in UserMediaUploadType])
     filesize = IntField(default=0)
-    additional_log = StringField()
+    additional_info = DictField()
     sender_id = StringField(required=True)
+    user_id = StringField(default=None)
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
+    external_upload_info = DictField()
 
 
-    meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id"), "media_id"]}]}
+    meta = {"indexes": [
+        {
+            "fields": [
+                "bot",
+                ("bot", "media_id"),
+                ("bot", "sender_id"),
+                ("bot", "user_id"),
+                "media_id"
+            ]
+        }
+    ]}
+
+
+class PetpoojaSyncConfig(EmbeddedDocument):
+    process_push_menu = BooleanField(default=False)
+    process_item_toggle = BooleanField(default=False)
+
+@auditlogger.log
+@push_notification.apply
+class POSIntegrations(Auditlog):
+    bot = StringField(required=True)
+    provider = StringField(required=True)
+    config = DictField(required=True)
+    meta_config = DictField()
+    sync_type = StringField(required=True, default=None)
+    smart_catalog_enabled = BooleanField(default=False)
+    meta_enabled = BooleanField(default=False)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    sync_options = GenericEmbeddedDocumentField(required=True)
+
+    meta = {"indexes": [{"fields": ["bot", "provider"]}]}
+
+
+class StorePageMetadata(Document):
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    config = DictField()
+
+    meta = {"indexes": [{"fields": ["bot"]}]}
+
+
+ORDER_STATUS_TRANSITIONS = {
+    "placed": ["confirmed", "cancelled"],
+    "confirmed": ["in_progress", "cancelled"],
+    "in_progress": ["completed", "cancelled"],
+    "completed": [],
+    "cancelled": [],
+}
+
+
+def build_filterable_attrs(order_details: dict) -> list:
+    attrs = []
+    for k, v in (order_details or {}).items():
+        if isinstance(v, (str, int, float, bool)):
+            attrs.append({"k": k, "v": v})
+    return attrs
+
+
+class Address(EmbeddedDocument):
+    label = StringField()
+    address = DictField()
+    is_default = BooleanField(default=False)
+
+
+class CustomerDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    sender_id = StringField(required=True)
+    name = StringField()
+    mobile = StringField()
+    alternate_mobile = StringField()
+    email = StringField()
+    alternate_email = StringField()
+    address_list = ListField(EmbeddedDocumentField(Address), default=[])
+    persona_details = DictField()
+    additional_info = DictField()
+    status = BooleanField(default=True)
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id"], "unique": True},
+            {"fields": ["bot", "persona_type"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.updated_at = datetime.utcnow()
+
+
+class OrderDetails(Document):
+    bot = StringField(required=True)
+    persona_type = StringField()
+    customer_id = StringField(required=True)
+    sender_id = StringField(required=True)
+    status = StringField(
+        required=True,
+        choices=["placed", "confirmed", "in_progress", "completed", "cancelled"],
+        default="placed",
+    )
+    order_details = DictField()
+    filterable_attrs = ListField(DictField(), default=[])
+    additional_info = DictField()
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "indexes": [
+            {"fields": ["bot", "sender_id", "-created_at"]},
+            {"fields": ["bot", "persona_type", "status", "-created_at"]},
+            {"fields": ["bot", "persona_type", "filterable_attrs.k", "filterable_attrs.v"]},
+        ]
+    }
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.filterable_attrs = build_filterable_attrs(self.order_details)
+        self.updated_at = datetime.utcnow()

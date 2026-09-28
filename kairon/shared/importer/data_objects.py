@@ -2,6 +2,8 @@ from datetime import datetime
 
 from mongoengine import StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
     EmbeddedDocumentField, DynamicField, DynamicDocument
+
+from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.signals import push_notification
 
 
@@ -41,6 +43,6 @@ class ValidationLogs(DynamicDocument):
     start_timestamp = DateTimeField(default=datetime.utcnow)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
-    event_status = StringField(default="COMPLETED")
+    event_status = StringField(default=EVENT_STATUS.COMPLETED.value)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "event_status", "-start_timestamp")]}]}
