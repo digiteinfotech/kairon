@@ -152,6 +152,7 @@ class MailProcessor:
         try:
             if body and len(body) > 0:
                 email_account = self.config['email_account']
+                cc = [addr for addr in (cc or []) if addr.lower() != email_account.lower()]
                 msg = MIMEMultipart()
                 msg['From'] = email_account
                 msg['To'] = to
@@ -162,7 +163,7 @@ class MailProcessor:
                     msg['In-Reply-To'] = message_id
                     msg['References'] = message_id
                 msg.attach(MIMEText(body, 'html', 'utf-8'))
-                recipients = [to] + (cc or [])
+                recipients = [to] + cc
                 self.smtp.sendmail(email_account, recipients, msg.as_string())
         except Exception as e:
             logger.error(f"Error sending mail to {to}: {str(e)}")
@@ -389,12 +390,16 @@ class MailProcessor:
                 if int(msg.uid) <= last_processed_uid:
                     continue
                 last_processed_uid = int(msg.uid)
-                subject = msg.subject
                 sender_id = msg.from_
+                if sender_id.lower() == mp.config['email_account'].lower():
+                    continue
+                subject = msg.subject
                 date = msg.date
                 body = msg.text or msg.html or ""
                 cc = list(msg.cc) if msg.cc else []
                 message_id = (msg.headers.get('message-id') or [''])[0]
+                in_reply_to = (msg.headers.get('in-reply-to') or [''])[0].strip()
+                parent_log = MailResponseLog.objects(bot=bot, message_id=in_reply_to).first() if in_reply_to else None
                 mail_log = MailResponseLog(sender_id=sender_id,
                                            uid=last_processed_uid,
                                            bot=bot,
@@ -405,7 +410,12 @@ class MailProcessor:
                                            cc=cc)
                 mail_log.save()
 
+                mail_allowed = Utility.environment["storage"].get("mail_channel_media", {}).get(
+                    "allowed_extensions",
+                    [".png", ".jpeg", ".jpg", ".pdf", ".docx", ".xlsx", ".csv", ".txt", ".zip"]
+                )
                 media_ids = []
+                failed_attachments = []
                 for att in msg.attachments:
                     try:
                         from kairon.shared.chat.user_media import UserMedia
@@ -425,14 +435,17 @@ class MailProcessor:
                             media_id=att_media_id,
                             binary_data=att.payload,
                             filename=filename,
-                            is_validation_required=False
+                            is_validation_required=True,
+                            allowed_extensions=mail_allowed
                         )
                         media_ids.append(att_media_id)
                     except Exception as att_err:
                         logger.warning(f"Failed to process attachment {att.filename} for mail {message_id}: {att_err}")
+                        failed_attachments.append(att.filename or f"attachment_{att_media_id}")
 
-                if media_ids:
+                if media_ids or failed_attachments:
                     mail_log.media_ids = media_ids
+                    mail_log.failed_attachments = failed_attachments
                     mail_log.save()
 
                 message_entry = {
@@ -443,7 +456,9 @@ class MailProcessor:
                     'log_id': str(mail_log.id),
                     'cc': cc,
                     'message_id': message_id,
-                    'media_ids': media_ids
+                    'media_ids': media_ids,
+                    'is_followup': parent_log is not None,
+                    'parent_log_id': str(parent_log.id) if parent_log else None,
                 }
                 messages.append(message_entry)
             mp.logout_imap()

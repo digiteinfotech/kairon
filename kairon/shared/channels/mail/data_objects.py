@@ -37,6 +37,7 @@ class MailResponseLog(Auditlog):
     status = StringField(required=True, default=MailStatus.Processing.value)
     message_id = StringField()
     media_ids = ListField()
+    failed_attachments = ListField()
     cc = ListField()
 
     meta = {"indexes": ["bot"]}
