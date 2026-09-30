@@ -23,3 +23,5 @@ coverage_html
 /training_data/
 /.rasa/
 /enable_gpt_uat.py
+# Added by code-review-graph
+.code-review-graph/
