@@ -1,10 +1,5 @@
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
-from kairon.exceptions import AppException
-from kairon.shared.actions.models import ActionParameterType
-from kairon.async_callback.channel_message_dispacher import ChannelMessageDispatcher
-from kairon.exceptions import AppException
-from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -93,16 +88,16 @@ class CallbackUtility:
         predefined_objects['mark_as_processed'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
         predefined_objects['delete_data_analytics'] = partial(CallbackScriptUtility.delete_data_analytics, bot=bot)
         predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
-        predefined_objects["invoke_agentic_flow"] = partial(CallbackUtility.invoke_agentic_flow,
+        predefined_objects["invoke_agentic_flow"] = partial(CallbackScriptUtility.invoke_agentic_flow,
                                                             bot=bot,
-                                                            sender_id=sender_id,
-                                                            channel=channel
+                                                            sender_id=sender_id
                                                             )
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
             predefined_objects=predefined_objects
         )
         return script_variables
+
 
     @staticmethod
     def pyscript_handler(event, context):
