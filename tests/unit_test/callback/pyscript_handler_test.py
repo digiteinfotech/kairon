@@ -17,7 +17,6 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref
 from bson import ObjectId
 from dateutil.parser import isoparse
-from kairon.shared.data.constant import TOKEN_TYPE
 from mongoengine import connect, DoesNotExist
 from pymongo import MongoClient
 
@@ -4712,20 +4711,29 @@ MOCK_SUCCESS_RESPONSE = {
 }
 
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
+@patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
 @patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_success(mock_get_owner, mock_gen_token, mock_http_request):
+def test_invoke_agentic_flow_success(
+        mock_get_owner,
+        mock_get_secret,
+        mock_http_request
+):
     mock_get_owner.return_value = {"accessor_email": "owner@test.com"}
-    mock_gen_token.return_value = ("fake_token", "")
+    mock_get_secret.return_value = MOCK_TOKEN
+
     mock_http_request.return_value = json.dumps({
         "success": True,
         "message": "Rule executed successfully!",
-        "data": {"responses": [{"text": "action executed "}], "errors": []},
+        "data": {
+            "responses": [{"text": "action executed "}],
+            "errors": []
+        },
         "error_code": 0
     })
 
     result = CallbackScriptUtility.invoke_agentic_flow(
         flow_name="test_flow",
+        key_name="invocation_token",
         slot_vals={"order_id": "123"},
         bot="test_bot",
         sender_id="user_abc"
@@ -4734,83 +4742,109 @@ def test_invoke_agentic_flow_success(mock_get_owner, mock_gen_token, mock_http_r
     assert result["success"] is True
     assert result["data"]["responses"] == [{"text": "action executed "}]
     assert result["data"]["errors"] == []
-    mock_get_owner.assert_called_once_with("test_bot")
-    mock_gen_token.assert_called_once_with(
-        "test_bot", "owner@test.com", expiry=5, token_type=TOKEN_TYPE.CHANNEL.value
+
+    mock_get_secret.assert_called_once_with(
+        "invocation_token",
+        "test_bot",
+        raise_err=bool
     )
+
     call_args, call_kwargs = mock_http_request.call_args
+
     assert call_args[0] == "post"
     assert "test_bot/exec/flow" in call_args[1]
+
+    assert call_args[2] == MOCK_TOKEN
+    assert call_args[3] == "user_abc"
+
     assert call_kwargs["json_dict"] == {
         "name": "test_flow",
         "slot_vals": {"order_id": "123"},
         "sender_id": "user_abc"
     }
 
-
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_raises_on_empty_flow_name(mock_get_owner, mock_gen_token, mock_http_request):
+@patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
+def test_invoke_agentic_flow_raises_on_empty_flow_name(
+        mock_get_secret,
+        mock_http_request
+):
     with pytest.raises(AppException, match="Agentic flow name is required"):
-        CallbackScriptUtility.invoke_agentic_flow(flow_name="", bot="test_bot")
-    mock_get_owner.assert_not_called()
-    mock_gen_token.assert_not_called()
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name="",
+            key_name="invocation_token",
+            bot="test_bot"
+        )
+
+    mock_get_secret.assert_not_called()
     mock_http_request.assert_not_called()
 
-
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_raises_on_none_flow_name(mock_get_owner, mock_gen_token, mock_http_request):
+@patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
+def test_invoke_agentic_flow_raises_on_none_flow_name(
+        mock_get_secret,
+        mock_http_request
+):
     with pytest.raises(AppException, match="Agentic flow name is required"):
-        CallbackScriptUtility.invoke_agentic_flow(flow_name=None, bot="test_bot")
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name=None,
+            key_name="invocation_token",
+            bot="test_bot"
+        )
+
+    mock_get_secret.assert_not_called()
     mock_http_request.assert_not_called()
 
-
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_slot_vals_none_sends_empty_dict(mock_get_owner, mock_gen_token, mock_http_request):
-    mock_get_owner.return_value = {"accessor_email": "owner@test.com"}
-    mock_gen_token.return_value = ("fake_token", "")
-    mock_http_request.return_value = json.dumps({"success": True, "data": {"responses": [], "errors": []}, "error_code": 0})
+@patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
+def test_invoke_agentic_flow_slot_vals_none_sends_empty_dict(
+        mock_get_secret,
+        mock_http_request
+):
+    mock_get_secret.return_value = MOCK_TOKEN
+
+    mock_http_request.return_value = json.dumps({
+        "success": True,
+        "data": {
+            "responses": [],
+            "errors": []
+        },
+        "error_code": 0
+    })
 
     CallbackScriptUtility.invoke_agentic_flow(
-        flow_name="test_flow", slot_vals=None, bot="test_bot", sender_id="user_abc"
+        flow_name="test_flow",
+        key_name="invocation_token",
+        slot_vals=None,
+        bot="test_bot",
+        sender_id="user_abc"
     )
 
     _, call_kwargs = mock_http_request.call_args
+
     assert call_kwargs["json_dict"]["slot_vals"] == {}
 
-
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_propagates_get_bot_owner_exception(mock_get_owner, mock_gen_token, mock_http_request):
-    mock_get_owner.side_effect = AppException("Bot not found")
+@patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
+def test_invoke_agentic_flow_propagates_get_secret_exception(
+        mock_get_secret,
+        mock_http_request
+):
+    mock_get_secret.side_effect = AppException("Key not found")
 
-    with pytest.raises(AppException, match="Bot not found"):
-        CallbackScriptUtility.invoke_agentic_flow(flow_name="test_flow", bot="bad_bot")
+    with pytest.raises(AppException, match="Key not found"):
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name="test_flow",
+            key_name="bad_key",
+            bot="test_bot"
+        )
 
-    mock_gen_token.assert_not_called()
-    mock_http_request.assert_not_called()
-
-
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Authentication.generate_integration_token")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
-def test_invoke_agentic_flow_returns_parsed_dict(mock_get_owner, mock_gen_token, mock_http_request):
-    mock_get_owner.return_value = {"accessor_email": "owner@test.com"}
-    mock_gen_token.return_value = ("fake_token", "")
-    mock_http_request.return_value = json.dumps({"success": True, "error_code": 0, "data": {"responses": [], "errors": []}})
-
-    result = CallbackScriptUtility.invoke_agentic_flow(
-        flow_name="test_flow", bot="test_bot"
+    mock_get_secret.assert_called_once_with(
+        "bad_key",
+        "test_bot",
+        raise_err=bool
     )
-
-    assert isinstance(result, dict)
-    assert result["success"] is True
+    mock_http_request.assert_not_called()
 
 class TestGetOrderDetails:
 
