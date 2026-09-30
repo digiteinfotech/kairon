@@ -2184,7 +2184,7 @@ class Utility:
 
     @staticmethod
     def validate_llm_hyperparameters(hyperparameters: dict, llm_type: str, bot: str, exception_class):
-        from jsonschema_rs import JSONSchema, ValidationError as JValidationError
+        from jsonschema_rs import validator_for, ValidationError as JValidationError
         from kairon.shared.llm.processor import LLMProcessor
         from kairon.shared.admin.data_objects import LLMMetadata
         import json
@@ -2204,7 +2204,7 @@ class Utility:
         schema["properties"]["model"]["enum"] = models_list
 
         try:
-            validator = JSONSchema(schema)
+            validator = validator.validate(schema)
             validator.validate(hyperparameters)
         except JValidationError as e:
             message = f"{e.instance_path}: {e.message}"
