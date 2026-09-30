@@ -905,6 +905,7 @@ class BotSettings(Auditlog):
     ignore_utterances = BooleanField(default=False)
     force_import = BooleanField(default=False)
     rephrase_response = BooleanField(default=False)
+    enable_crm = BooleanField(default=False)
     website_data_generator_depth_search_limit = IntField(default=2)
     llm_settings = EmbeddedDocumentField(LLMSettings, default=LLMSettings())
     analytics = EmbeddedDocumentField(Analytics, default=Analytics())

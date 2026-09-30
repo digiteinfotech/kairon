@@ -653,6 +653,7 @@ class AnalyticsModel(BaseModel):
 
 class BotSettingsRequest(BaseModel):
     analytics: AnalyticsModel = AnalyticsModel()
+    enable_crm: Optional[bool] = None
 
 
 class FeedbackRequest(BaseModel):

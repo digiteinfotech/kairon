@@ -1,0 +1,123 @@
+/* Import modern Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+/* Apply Outfit font to all elements */
+html, body, [class*="css"], .stApp {
+    font-family: 'Outfit', sans-serif !important;
+    background-color: #0b0f19;
+    color: #e2e8f0;
+}
+
+/* Custom Glassmorphism Card style */
+.glass-card {
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 12px 20px -8px rgba(99, 102, 241, 0.3);
+}
+
+/* Gradient Header */
+.gradient-text {
+    background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+/* Status Badges */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+
+.badge-completed {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-pending {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-running {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge-failed {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Custom metric styles */
+.metric-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.metric-title {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.metric-subtitle {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* Sidebar overrides */
+[data-testid="stSidebar"] {
+    background-color: #0f172a !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Button glow effects */
+.stButton>button {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2) !important;
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4) !important;
+}
+
+.stButton>button:active {
+    transform: translateY(0) !important;
+}
