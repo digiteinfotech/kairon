@@ -107,11 +107,10 @@ class KRemoteAction(Action):
         return schema
 
     def _validate_action_result(self, result: Dict[Text, Any]) -> bool:
-        from jsonschema import validate
-        from jsonschema import ValidationError
+        from jsonschema_rs import validate, ValidationError
 
         try:
-            validate(result, self.action_response_format_spec())
+            validate(self.action_response_format_spec(), result)
             return True
         except ValidationError as e:
             e.message += (
