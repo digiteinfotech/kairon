@@ -562,6 +562,36 @@ class StorePageAction(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class AgentActionConfig(Auditlog):
+    name = StringField(required=True)
+    agent_name = StringField(required=True)
+    agent_id = StringField(required=True)
+    dispatch_bot_response = BooleanField(default=True)
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        from kairon.shared.actions.utils import ActionUtility
+
+        if clean:
+            self.clean()
+        if ActionUtility.is_empty(self.name):
+            raise ValidationError("Action name cannot be empty")
+        if ActionUtility.is_empty(self.agent_id):
+            raise ValidationError("agent_id cannot be empty")
+        if ActionUtility.is_empty(self.agent_name):
+            raise ValidationError("agent_name cannot be empty")
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+
+
+@auditlogger.log
+@push_notification.apply
 class GoogleSearchAction(Auditlog):
     name = StringField(required=True)
     api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
