@@ -81,7 +81,8 @@ class UserMedia:
                 root_dir: str = None,
                 output_filename: str = None,
                 bucket: str = None,
-                is_validation_required: bool = True
+                is_validation_required: bool = True,
+                allowed_extensions: list = None
                 ):
         """
         Save media content to cloud storage.
@@ -94,6 +95,7 @@ class UserMedia:
         :param output_filename: File path/key in S3.
         :param bucket: s3 bucket
         :param is_validation_required: validation for media extention
+        :param allowed_extensions: override allowed extensions list; falls back to config default when not provided
         """
 
         if not filename:
@@ -107,12 +109,11 @@ class UserMedia:
         base_filename = fpath.stem
         filesize = len(binary_data)
 
-        if is_validation_required and extension not in Utility.environment["storage"]["user_media"].get(
-                "allowed_extensions"
-        ):
-            raise AppException(
-                f'Only {Utility.environment["storage"]["user_media"].get("allowed_extensions")} type files allowed'
-            )
+        if is_validation_required:
+            effective_allowed = allowed_extensions if allowed_extensions is not None \
+                else Utility.environment["storage"]["user_media"].get("allowed_extensions", [])
+            if extension not in effective_allowed:
+                raise AppException(f'Only {effective_allowed} type files allowed')
 
         if extension == ".jpg":
             binary_data = Utility.convert_image_format(binary_data, "jpg", "jpeg")
