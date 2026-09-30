@@ -480,14 +480,14 @@ class ActionUtility:
         key_vault_params = re.findall(pattern_keyvault, http_url)
         for param in key_vault_params:
             name = param.replace("$$", "")
-            value = tracker_data.get(ActionParameterType.key_vault.value, {}).get(name, "")
+            value = tracker_data.get(ActionParameterType.key_vault.value, {}).get(name) or ""
             http_url = http_url.replace(param, value)
 
         pattern_slot = r'\$\w+'
         slot_params = re.findall(pattern_slot, http_url)
         for param in slot_params:
             name = param.replace("$", "")
-            value = tracker_data.get(ActionParameterType.slot.value, {}).get(name, "")
+            value = tracker_data.get(ActionParameterType.slot.value, {}).get(name) or ""
             http_url = http_url.replace(param, value)
         return http_url
 
