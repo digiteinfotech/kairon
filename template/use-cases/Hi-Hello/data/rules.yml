@@ -1,0 +1,27 @@
+version: "3.1"
+rules:
+- rule: happy path
+  steps:
+  - intent: greet
+  - action: utter_greet
+- rule: mood path
+  steps:
+  - intent: mood_great
+  - action: utter_happy
+- rule: mood unhappy
+  steps:
+  - intent: mood_unhappy
+  - action: utter_cheer_up
+  - action: utter_did_that_help
+- rule: deny
+  steps:
+  - intent: deny
+  - action: utter_goodbye
+- rule: say goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+- rule: bot challenge
+  steps:
+  - intent: bot_challenge
+  - action: utter_iamabot

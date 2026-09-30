@@ -1,0 +1,11 @@
+language: en
+pipeline:
+- name: kairon.nlu.LLMClassifier
+- name: FallbackClassifier
+  threshold: 0.3
+policies:
+- name: MemoizationPolicy
+- name: RulePolicy
+  core_fallback_action_name: action_default_fallback
+  core_fallback_threshold: 0.3
+assistant_id: 20260929-171141-tall-asset
