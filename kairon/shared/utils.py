@@ -2204,7 +2204,7 @@ class Utility:
         schema["properties"]["model"]["enum"] = models_list
 
         try:
-            validator = validator.validate(schema)
+            validator = validator_for(schema)
             validator.validate(hyperparameters)
         except JValidationError as e:
             message = f"{e.instance_path}: {e.message}"
