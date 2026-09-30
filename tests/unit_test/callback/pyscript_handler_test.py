@@ -4712,13 +4712,10 @@ MOCK_SUCCESS_RESPONSE = {
 
 @patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
 @patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
-@patch("kairon.shared.pyscript.callback_pyscript_utils.AccountProcessor.get_bot_owner")
 def test_invoke_agentic_flow_success(
-        mock_get_owner,
         mock_get_secret,
         mock_http_request
 ):
-    mock_get_owner.return_value = {"accessor_email": "owner@test.com"}
     mock_get_secret.return_value = MOCK_TOKEN
 
     mock_http_request.return_value = json.dumps({
@@ -4763,8 +4760,8 @@ def test_invoke_agentic_flow_success(
         "sender_id": "user_abc"
     }
 
-@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
 @patch("kairon.shared.pyscript.callback_pyscript_utils.ActionUtility.get_secret_from_key_vault")
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
 def test_invoke_agentic_flow_raises_on_empty_flow_name(
         mock_get_secret,
         mock_http_request
