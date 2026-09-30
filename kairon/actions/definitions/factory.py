@@ -26,6 +26,7 @@ from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.actions.definitions.voice_call import ActionVoiceCall
 from kairon.actions.definitions.voice_disconnect import ActionVoiceDisconnect
 from kairon.actions.definitions.store_page import ActionStorePage
+from kairon.actions.definitions.agent_action import ActionAgent
 
 
 class ActionFactory:
@@ -54,6 +55,7 @@ class ActionFactory:
         ActionType.voice_call_action.value: ActionVoiceCall,
         ActionType.kairon_voice_disconnect.value: ActionVoiceDisconnect,
         ActionType.store_page_action.value: ActionStorePage,
+        ActionType.agent_action.value: ActionAgent,
     }
 
     @staticmethod

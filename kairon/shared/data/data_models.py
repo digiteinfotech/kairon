@@ -1031,6 +1031,13 @@ class StorePageActionRequest(BaseModel):
     callback_identifier: Optional[str] = None
 
 
+class AgentActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    agent_name: str
+    agent_id: str
+    dispatch_bot_response: Optional[bool] = True
+
+
 class JiraActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     url: str
