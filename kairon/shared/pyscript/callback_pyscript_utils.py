@@ -637,23 +637,21 @@ class CallbackScriptUtility:
     @staticmethod
     def invoke_agentic_flow(
             flow_name: str,
-            key_name: str,
-            slot_vals: Dict = None,
+            token: str,
             bot: str = None,
             sender_id: str = None,
+            slot_vals: Dict = None,
+            channel=None
     ):
         if not flow_name:
             raise AppException("Agentic flow name is required")
 
         agent_url = Utility.environment["model"]["agent"].get("url")
 
-        secrets = ActionUtility.get_secret_from_key_vault(key_name, bot, raise_err=bool)
-        invocation_token = secrets
-
         response = Utility.http_request(
             "post",
             urljoin(agent_url, f"/api/bot/{bot}/exec/flow"),
-            invocation_token,
+            token,
             sender_id,
             json_dict={
                 "name": flow_name,

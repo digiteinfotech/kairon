@@ -92,7 +92,8 @@ class CallbackUtility:
         predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
         predefined_objects["invoke_agentic_flow"] = partial(CallbackScriptUtility.invoke_agentic_flow,
                                                             bot=bot,
-                                                            sender_id=sender_id
+                                                            sender_id=sender_id,
+                                                            channel=channel
                                                             )
         script_variables = ActorOrchestrator.run(
             ActorType.pyscript_runner.value, source_code=source_code, timeout=60,
