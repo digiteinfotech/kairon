@@ -3234,8 +3234,8 @@ class TestUtility:
             Utility.verify_email(email)
 
     def test_get_llm_hyperparameters(self):
-        hyperparameters = Utility.get_llm_hyperparameters("openai")
-        LLMMetadata(
+        LLMMetadata.objects(provider="openai").delete()
+        metadata = LLMMetadata(
             provider="openai",
             schema="https://json-schema.org/draft/2020-12/schema",
             type="object",
@@ -3323,20 +3323,21 @@ class TestUtility:
             user="user"
         ).save()
 
-        yield
-
-        assert hyperparameters == {
-            "temperature": 0.0,
-            "max_tokens": 300,
-            "model": "gpt-4.1-mini",
-            "top_p": 0.0,
-            "n": 1,
-            "stop": None,
-            "presence_penalty": 0.0,
-            "frequency_penalty": 0.0,
-            "logit_bias": {},
-        }
-        LLMMetadata.objects.delete()
+        try:
+            hyperparameters = Utility.get_llm_hyperparameters("openai")
+            assert hyperparameters == {
+                "temperature": 0.0,
+                "max_tokens": 300,
+                "model": "gpt-4.1-mini",
+                "top_p": 0.0,
+                "n": 1,
+                "stop": None,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "logit_bias": {},
+            }
+        finally:
+            metadata.delete()
 
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
