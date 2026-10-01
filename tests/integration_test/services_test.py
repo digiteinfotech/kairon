@@ -24257,6 +24257,7 @@ def test_get_config_templates():
         "gpt-faq",
         "openai-classifier",
         "openai-featurizer",
+        "jev-classifier",
     }
     assert actual["error_code"] == 0
     assert actual["message"] is None
