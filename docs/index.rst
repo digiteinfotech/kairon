@@ -10,7 +10,6 @@ Welcome to Kairon's documentation!
    :maxdepth: 4
    :caption: Contents:
 
-   augmentation/index
    kairon/index
 
 

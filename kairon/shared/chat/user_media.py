@@ -10,7 +10,7 @@ from loguru import logger
 from fastapi import File
 import requests
 from mongoengine import DoesNotExist, NotUniqueError
-from pathy import ClientError
+from botocore.exceptions import ClientError
 from uuid6 import uuid7
 
 from kairon import Utility

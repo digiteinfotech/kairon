@@ -1,8 +1,9 @@
-python -m pip install -r requirements/dev.txt
-python -m spacy download en_core_web_md
-python -m spacy link en_core_web_md en
-python -m nltk.downloader averaged_perceptron_tagger
-python -m nltk.downloader punkt
-python -m nltk.downloader stopwords
-python -m nltk.downloader omw-1.4
-python -m nltk.downloader wordnet
+@echo off
+setlocal
+where uv >nul 2>&1
+if errorlevel 1 (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+)
+set "PATH=%USERPROFILE%\.local\bin;%PATH%"
+uv sync --frozen
+if errorlevel 1 exit /b 1
