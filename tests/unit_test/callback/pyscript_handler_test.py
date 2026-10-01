@@ -3,6 +3,7 @@ import os
 import re
 import textwrap
 import uuid
+import json
 from calendar import timegm
 from datetime import datetime, timezone, date
 from email.mime.multipart import MIMEMultipart
@@ -4692,6 +4693,148 @@ def test_create_vector_collection_embedding_size_from_process_instruction():
         assert schema_meta_call.kwargs.get("size") == 2048
         assert schema_meta_call.kwargs.get("model_id") == "qwen/qwen3-embedding-4b"
 
+MOCK_BOT = "test_bot_id"
+MOCK_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_token"
+MOCK_FLOW_NAME = "test_flow"
+MOCK_SENDER_ID = "user_123"
+
+MOCK_SUCCESS_RESPONSE = {
+    "success": True,
+    "message": "Rule executed successfully!",
+    "data": {
+        "responses": [{"text": "action executed "}],
+        "errors": []
+    },
+    "error_code": 0
+}
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_success(mock_http_request):
+
+    mock_http_request.return_value = json.dumps({
+        "success": True,
+        "message": "Rule executed successfully!",
+        "data": {
+            "responses": [{"text": "action executed "}],
+            "errors": []
+        },
+        "error_code": 0
+    })
+
+    result = CallbackScriptUtility.invoke_agentic_flow(
+        flow_name=MOCK_FLOW_NAME,
+        token=MOCK_TOKEN,
+        slot_vals={"order_id": "123"},
+        bot=MOCK_BOT,
+        sender_id=MOCK_SENDER_ID
+    )
+
+    assert result["success"] is True
+    assert result["data"]["responses"] == [{"text": "action executed "}]
+    assert result["data"]["errors"] == []
+
+    call_args, call_kwargs = mock_http_request.call_args
+
+    assert call_args[0] == "post"
+    assert f"/api/bot/{MOCK_BOT}/exec/flow" in call_args[1]
+
+    assert call_args[2] == MOCK_TOKEN
+
+    assert call_args[3] == MOCK_SENDER_ID
+
+    assert call_kwargs["json_dict"] == {
+        "name": MOCK_FLOW_NAME,
+        "slot_vals": {"order_id": "123"},
+        "sender_id": MOCK_SENDER_ID
+    }
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_raises_on_empty_flow_name(mock_http_request):
+
+    with pytest.raises(
+        AppException,
+        match="Agentic flow name is required"
+    ):
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name="",
+            token=MOCK_TOKEN,
+            bot=MOCK_BOT
+        )
+
+    mock_http_request.assert_not_called()
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_raises_on_none_flow_name(mock_http_request):
+
+    with pytest.raises(
+        AppException,
+        match="Agentic flow name is required"
+    ):
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name=None,
+            token=MOCK_TOKEN,
+            bot=MOCK_BOT
+        )
+
+    mock_http_request.assert_not_called()
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_slot_vals_none_sends_empty_dict(mock_http_request):
+
+    mock_http_request.return_value = json.dumps({
+        "success": True,
+        "data": {
+            "responses": [],
+            "errors": []
+        },
+        "error_code": 0
+    })
+
+    CallbackScriptUtility.invoke_agentic_flow(
+        flow_name=MOCK_FLOW_NAME,
+        token=MOCK_TOKEN,
+        slot_vals=None,
+        bot=MOCK_BOT,
+        sender_id=MOCK_SENDER_ID
+    )
+
+    _, call_kwargs = mock_http_request.call_args
+
+    assert call_kwargs["json_dict"]["slot_vals"] == {}
+
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_returns_parsed_dict(mock_http_request):
+
+    mock_http_request.return_value = json.dumps({
+        "success": True,
+        "error_code": 0,
+        "data": {
+            "responses": [],
+            "errors": []
+        }
+    })
+
+    result = CallbackScriptUtility.invoke_agentic_flow(
+        flow_name=MOCK_FLOW_NAME,
+        token=MOCK_TOKEN,
+        bot=MOCK_BOT
+    )
+
+    assert isinstance(result, dict)
+    assert result["success"] is True
+
+@patch("kairon.shared.pyscript.callback_pyscript_utils.Utility.http_request")
+def test_invoke_agentic_flow_http_error(mock_http_request):
+
+    mock_http_request.side_effect = Exception("Connection failed")
+
+    with pytest.raises(Exception, match="Connection failed"):
+        CallbackScriptUtility.invoke_agentic_flow(
+            flow_name=MOCK_FLOW_NAME,
+            token=MOCK_TOKEN,
+            bot=MOCK_BOT
+        )
 
 class TestGetOrderDetails:
 
