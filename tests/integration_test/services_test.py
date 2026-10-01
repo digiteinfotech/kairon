@@ -24257,6 +24257,7 @@ def test_get_config_templates():
         "gpt-faq",
         "openai-classifier",
         "openai-featurizer",
+        "jev-classifier",
     }
     assert actual["error_code"] == 0
     assert actual["message"] is None
@@ -41830,7 +41831,7 @@ def test_redoc_headers():
     response = client.get("/redoc")
     assert response.status_code == 200
     assert response.headers == {
-        "content-length": "498",
+        "content-length": "497",
         "content-type": "text/html; charset=utf-8",
         "content-encoding": "gzip",
         "vary": "Accept-Encoding",

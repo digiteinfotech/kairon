@@ -8353,7 +8353,6 @@ class MongoProcessor:
 
     def save_faq(self, bot: Text, user: Text, df: DataFrame):
         import re
-        from kairon.shared.augmentation.utils import AugmentationUtils
 
         error_summary = {"intents": [], "utterances": [], "training_examples": []}
         component_count = {
@@ -8369,11 +8368,7 @@ class MongoProcessor:
             is_response_added = False
             training_example_errors = None
             component_count["utterances"] = component_count["utterances"] + 1
-            key_tokens = AugmentationUtils.get_keywords(row["questions"])
-            if key_tokens:
-                key_tokens = key_tokens[0][0]
-            else:
-                key_tokens = row["questions"].split("\n")[0]
+            key_tokens = row["questions"].split("\n")[0]
             intent = key_tokens.replace(" ", "_") + "_" + str(index)
             intent = re.sub(r"[^a-zA-Z0-9_]", "_", intent) if Utility.special_match(intent) else intent
             examples = row["questions"].split("\n")
