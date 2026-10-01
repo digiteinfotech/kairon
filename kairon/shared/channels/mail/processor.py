@@ -243,7 +243,9 @@ class MailProcessor:
                         'date': mail['date'],
                         'body': mail['body'],
                         'media_ids': mail.get('media_ids', []),
-                        'cc': mail.get('cc', [])
+                        'cc': mail.get('cc', []),
+                        'is_followup': mail.get('is_followup', False),
+                        'parent_log_id': mail.get('parent_log_id'),
                     }
                     user_msg = mp.intent
                     user_messages.append(user_msg)
