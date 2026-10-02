@@ -277,6 +277,9 @@ core:
     - SpacyEntityExtractor
     - SpacyFeaturizer
 
+simple_agent:
+  url: ${SIMPLE_AGENT_URL}
+
 live_agent:
   enable: true
   url: ${LIVE_AGENT_SERVER_URL:"http://localhost:8000/api/v1"}

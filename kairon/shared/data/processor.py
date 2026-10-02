@@ -88,7 +88,7 @@ from kairon.shared.actions.data_objects import (
     WebSearchAction,
     UserQuestion, CustomActionParameters,
     LiveAgentActionConfig, CallbackActionConfig, ScheduleAction, CustomActionDynamicParameters, ScheduleActionType,
-    ParallelActionConfig, VoiceCallAction, StorePageAction,
+    ParallelActionConfig, VoiceCallAction, StorePageAction, AgentActionConfig,
 )
 from kairon.shared.actions.models import (
     ActionType,
@@ -316,7 +316,8 @@ class MongoProcessor:
                               ActionType.live_agent_action.value,
                               ActionType.hubspot_forms_action.value,
                               ActionType.two_stage_fallback.value,
-                              ActionType.parallel_action.value]
+                              ActionType.parallel_action.value,
+                              ActionType.agent_action.value]
         for key, value in actions.items():
             if key in actions_to_exclude:
                 continue
@@ -2002,6 +2003,11 @@ class MongoProcessor:
             ),
             StoryStepType.store_page_action.value: dict(
                 StorePageAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.agent_action.value: dict(
+                AgentActionConfig.objects(bot=bot, status=True).values_list(
                     "name", "id"
                 )
             ),
@@ -3749,6 +3755,7 @@ class MongoProcessor:
         parallel_actions = set(ParallelActionConfig.objects(bot=bot, status=True).values_list('name'))
         voice_call_actions = set(VoiceCallAction.objects(bot=bot, status=True).values_list('name'))
         store_page_actions = set(StorePageAction.objects(bot=bot, status=True).values_list('name'))
+        agent_actions = set(AgentActionConfig.objects(bot=bot, status=True).values_list('name'))
         forms = set(Forms.objects(bot=bot, status=True).values_list('name'))
         data_list = list(Stories.objects(bot=bot, status=True))
         data_list.extend(list(Rules.objects(bot=bot, status=True)))
@@ -3826,6 +3833,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.voice_call_action.value
                     elif event['name'] in store_page_actions:
                         step["type"] = StoryStepType.store_page_action.value
+                    elif event['name'] in agent_actions:
+                        step["type"] = StoryStepType.agent_action.value
                     elif event['name'] == ActionType.kairon_voice_disconnect.value:
                         step["type"] = StoryStepType.kairon_voice_disconnect.value
                     elif event['name'] == 'action_listen':
@@ -5309,6 +5318,7 @@ class MongoProcessor:
         action_config.update(self.load_database_action(bot))
         action_config.update(self.load_live_agent_action(bot))
         action_config.update(self.load_store_page_action(bot))
+        action_config.update(self.load_agent_action(bot))
         return action_config
 
     def load_http_action(self, bot: Text):
@@ -7322,6 +7332,59 @@ class MongoProcessor:
                                 name=action_name, bot=bot, status=True):
             raise AppException(f'Action with name "{action_name}" not found')
         StorePageAction.objects(name=action_name, bot=bot, status=True).get().delete()
+        self.delete_action(action_name, bot, user)
+
+    def add_agent_action(self, action: Dict, bot: str, user: str) -> str:
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        Utility.is_valid_action_name(action.get("name"), bot, AgentActionConfig)
+        doc = AgentActionConfig(
+            name=action["name"],
+            agent_name=action["agent_name"],
+            agent_id=action["agent_id"],
+            dispatch_bot_response=action.get("dispatch_bot_response", True),
+            bot=bot,
+            user=user,
+        ).save()
+        self.add_action(action["name"], bot, user,
+                        action_type=ActionType.agent_action.value, raise_exception=False)
+        return doc.id.__str__()
+
+    def edit_agent_action(self, action: Dict, bot: str, user: str):
+        if action.get("name") and Utility.special_match(action.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+        if not Utility.is_exist(AgentActionConfig, raise_error=False,
+                                name=action.get("name"), bot=bot, status=True):
+            raise AppException(f'Action with name "{action.get("name")}" not found')
+        agent_action = AgentActionConfig.objects(name=action["name"], bot=bot, status=True).get()
+        agent_action.agent_name = action["agent_name"]
+        agent_action.agent_id = action["agent_id"]
+        agent_action.dispatch_bot_response = action.get("dispatch_bot_response", True)
+        agent_action.user = user
+        agent_action.timestamp = datetime.utcnow()
+        agent_action.save()
+
+    def list_agent_action(self, bot: Text, with_doc_id: bool = True):
+        for action in AgentActionConfig.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
+    def load_agent_action(self, bot: Text):
+        return {ActionType.agent_action.value: list(self.list_agent_action(bot, with_doc_id=False))}
+
+    def delete_agent_action(self, action_name: Text, bot: Text, user: Text):
+        if not Utility.is_exist(AgentActionConfig, raise_error=False,
+                                name=action_name, bot=bot, status=True):
+            raise AppException(f'Action with name "{action_name}" not found')
+        AgentActionConfig.objects(name=action_name, bot=bot, status=True).get().delete()
         self.delete_action(action_name, bot, user)
 
     def add_kairon_voice_disconnect(self, bot: Text, user: Text):

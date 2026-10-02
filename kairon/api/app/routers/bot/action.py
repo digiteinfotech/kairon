@@ -10,7 +10,7 @@ from kairon.api.models import (
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
     WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
-    ScheduleActionRequest, VoiceCallActionRequest, StorePageActionRequest
+    ScheduleActionRequest, VoiceCallActionRequest, StorePageActionRequest, AgentActionRequest
 )
 from kairon.shared.constants import TESTER_ACCESS, DESIGNER_ACCESS
 from kairon.shared.models import User
@@ -928,4 +928,51 @@ async def delete_store_page_action(
     Deletes the store page action config.
     """
     mongo_processor.delete_store_page_action(action_name, current_user.get_bot(), current_user.get_user())
+    return Response(message='Action deleted')
+
+
+@router.post("/agent", response_model=Response)
+async def add_agent_action(
+        request_data: AgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the agent action config.
+    """
+    mongo_processor.add_agent_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action added')
+
+
+@router.get("/agent", response_model=Response)
+async def list_agent_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of agent actions for bot.
+    """
+    actions = list(mongo_processor.list_agent_action(current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/agent", response_model=Response)
+async def edit_agent_action(
+        request_data: AgentActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Edits the agent action config.
+    """
+    mongo_processor.edit_agent_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    return Response(message='Action updated')
+
+
+@router.delete("/agent/{action_name}", response_model=Response)
+async def delete_agent_action(
+        action_name: str,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Deletes the agent action config.
+    """
+    mongo_processor.delete_agent_action(action_name, current_user.get_bot(), current_user.get_user())
     return Response(message='Action deleted')
