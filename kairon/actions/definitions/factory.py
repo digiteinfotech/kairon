@@ -4,6 +4,7 @@ from kairon.actions.definitions.callback_action import ActionCallback
 from kairon.actions.definitions.bot_response import ActionKaironBotResponse
 from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.actions.definitions.email import ActionEmail
+from kairon.actions.definitions.erpnext_crm_lead import ActionERPNextCRMLeadQualified
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
 from kairon.actions.definitions.http import ActionHTTP
@@ -52,6 +53,7 @@ class ActionFactory:
         ActionType.schedule_action.value: ActionSchedule,
         ActionType.parallel_action.value: ActionParallel,
         ActionType.voice_call_action.value: ActionVoiceCall,
+        ActionType.erpnext_crm_lead_qualified_action.value: ActionERPNextCRMLeadQualified,
         ActionType.kairon_voice_disconnect.value: ActionVoiceDisconnect,
         ActionType.store_page_action.value: ActionStorePage,
     }
