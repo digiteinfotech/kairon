@@ -63,7 +63,7 @@ class ActionAgent(ActionsBase):
 
             bearer_token = Authentication.create_access_token(
                 data={"sub": sender_id, "bot": self.bot},
-                token_type=TOKEN_TYPE.LOGIN.value,
+                token_type=TOKEN_TYPE.INTEGRATION.value,
             )
             headers = {
                 "Accept": "application/json",
@@ -86,6 +86,7 @@ class ActionAgent(ActionsBase):
                 headers=headers,
             )
             logger.info(f"agent_action response: {api_response}")
+            ActionUtility.validate_http_response_status(api_response, status_code, raise_err=True)
 
             if isinstance(api_response, dict):
                 bot_response = api_response.get("output") or ""

@@ -169,6 +169,26 @@ class TestActionAgent:
         assert result["kairon_action_response"] == "I have failed to process your request."
 
     @pytest.mark.asyncio
+    async def test_execute_non_200_logs_failure(self, tracker, dispatcher):
+        self._make_config(name="exec_non200", bot="bot_non200_agent")
+
+        with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   return_value=({"error": "internal server error"}, 500, None, None)), \
+             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+                   return_value="mock_token"), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs") as mock_log_cls:
+            mock_log_cls.return_value.save = MagicMock()
+            result = await ActionAgent("bot_non200_agent", "exec_non200").execute(
+                dispatcher, tracker, {}, action_call={}
+            )
+
+        call_kwargs = mock_log_cls.call_args[1]
+        assert call_kwargs["status"] == STATUSES.FAIL.value
+        assert "non-200 status code:500" in call_kwargs["exception"]
+        assert result["kairon_action_response"] == "I have failed to process your request."
+
+    @pytest.mark.asyncio
     async def test_execute_dispatch_bot_response_false(self, tracker, dispatcher):
         self._make_config(name="exec_no_dispatch_agent", bot="bot_no_dispatch_agent",
                           dispatch_bot_response=False)
