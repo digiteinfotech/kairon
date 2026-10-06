@@ -30,6 +30,7 @@ import json as jsond
 
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
+from urllib.parse import urljoin
 
 
 class CallbackScriptUtility:
@@ -632,3 +633,32 @@ class CallbackScriptUtility:
         return {
             "message": "collection created successfully"
         }
+
+    @staticmethod
+    def invoke_agentic_flow(
+            flow_name: str,
+            token: str,
+            bot: str = None,
+            sender_id: str = None,
+            slot_vals: Dict = None,
+            channel=None
+    ):
+        if not flow_name:
+            raise AppException("Agentic flow name is required")
+
+        agent_url = Utility.environment["model"]["agent"].get("url")
+
+        response = Utility.http_request(
+            "post",
+            urljoin(agent_url, f"/api/bot/{bot}/exec/flow"),
+            token,
+            sender_id,
+            json_dict={
+                "name": flow_name,
+                "slot_vals": slot_vals or {},
+                "sender_id": sender_id
+            }
+        )
+
+        result = jsond.loads(response)
+        return result
