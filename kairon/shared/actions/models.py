@@ -53,6 +53,7 @@ class ActionType(str, Enum):
     voice_call_action = "voice_call_action"
     kairon_voice_disconnect = "kairon_voice_disconnect"
     store_page_action = "store_page_action"
+    agent_action = "agent_action"
 
 
 class HttpRequestContentType(str, Enum):

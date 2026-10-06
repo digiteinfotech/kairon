@@ -8,7 +8,7 @@ from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, KaironTwoStageFallbackAction, EmailActionConfig, \
     ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, PipedriveLeadsAction, \
     PromptAction, WebSearchAction, RazorpayAction, PyscriptActionConfig, DatabaseAction, LiveAgentActionConfig, \
-    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction, StorePageAction
+    CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction, StorePageAction, AgentActionConfig
 from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
@@ -16,7 +16,7 @@ from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFall
     RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
     CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest, VoiceCallActionRequest, \
-    StorePageActionRequest
+    StorePageActionRequest, AgentActionRequest
 from kairon.shared.data.data_objects import Forms
 from kairon.shared.data.data_validation import DataValidation
 from pydantic import ValidationError as PValidationError
@@ -130,6 +130,10 @@ class ActionSerializer:
         ActionType.store_page_action.value: {
             "db_model": StorePageAction,
             "validation_model": StorePageActionRequest,
+        },
+        ActionType.agent_action.value: {
+            "db_model": AgentActionConfig,
+            "validation_model": AgentActionRequest,
         },
         str(CallbackConfig.__name__).lower(): {
             "db_model": CallbackConfig,
