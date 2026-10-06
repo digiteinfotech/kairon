@@ -64,6 +64,7 @@ class ActionAgent(ActionsBase):
             bearer_token = Authentication.create_access_token(
                 data={"sub": sender_id, "bot": self.bot},
                 token_type=TOKEN_TYPE.INTEGRATION.value,
+                token_expire=15,
             )
             headers = {
                 "Accept": "application/json",

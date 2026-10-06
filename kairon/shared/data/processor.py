@@ -205,6 +205,7 @@ ACTION_TYPE_MODEL_MAP = {
     ActionType.voice_call_action.value:      (VoiceCallAction,              "name"),
     ActionType.callback_action.value:        (CallbackActionConfig,         "name"),
     ActionType.store_page_action.value:      (StorePageAction,              "name"),
+    ActionType.agent_action.value:           (AgentActionConfig,            "name"),
 }
 
 
