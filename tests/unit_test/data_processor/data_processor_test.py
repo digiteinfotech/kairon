@@ -6299,7 +6299,8 @@ class TestMongoProcessor:
                                  'doc_url', 'longitude', 'latitude', 'flow_reply', 'quick_reply',
                                  'session_started_metadata', 'requested_slot', 'mail_id', 'subject', 'body', 'media_ids',
                                  'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                                 'user_identifier', 'temp_token', 'store_page_name','redirect_url','callback_identifier'] for slot in domain.slots)
+                                 'user_identifier', 'temp_token', 'store_page_name', 'redirect_url', 'callback_identifier',
+                                 'is_followup', 'parent_log_id', 'date', 'cc'] for slot in domain.slots)
         assert not DeepDiff(list(domain.responses.keys()), ['utter_please_rephrase', 'utter_greet', 'utter_goodbye',
                                                             'utter_default'], ignore_order=True)
         assert not DeepDiff(domain.entities,
@@ -6307,7 +6308,8 @@ class TestMongoProcessor:
                              'order', 'payment', 'http_status_code', 'image', 'audio', 'video', 'document', 'doc_url',
                              'longitude', 'latitude', 'flow_reply', 'quick_reply',  'mail_id', 'subject', 'body',
                              'media_ids', 'flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                             'user_identifier', 'temp_token', 'store_page_name','redirect_url','callback_identifier'], ignore_order=True)
+                             'user_identifier', 'temp_token', 'store_page_name', 'redirect_url', 'callback_identifier',
+                             'is_followup', 'parent_log_id', 'date', 'cc'], ignore_order=True)
         assert domain.forms == {'ask_user': {'required_slots': ['user', 'email_id']},
                                 'ask_location': {'required_slots': ['location', 'application_name']}}
         assert domain.user_actions == ['ACTION_GET_GOOGLE_APPLICATION', 'ACTION_GET_MICROSOFT_APPLICATION',
@@ -6875,7 +6877,8 @@ class TestMongoProcessor:
         expected = ["bot", "priority", "file_text", "ticketid", 'kairon_action_response', 'image', 'video', 'audio',
                     'doc_url', 'document', 'order', 'payment', 'quick_reply', 'longitude', 'latitude', 'flow_reply',
                     'http_status_code', 'mail_id', 'subject', 'body', 'media_ids', 'flow_docs', 'flow_images',
-                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier']
+                    'flow_data', 'llm_call_id', 'user_identifier', 'temp_token', 'store_page_name', 'redirect_url',
+                    'callback_identifier', 'is_followup', 'parent_log_id', 'date', 'cc']
         actual = processor.get_entities("tests")
         print([item["name"]  for item in actual])
         assert actual.__len__() == expected.__len__()
@@ -9726,6 +9729,33 @@ class TestMongoProcessor:
     def test_get_existing_slots_bot_not_exists(self):
         slots = list(MongoProcessor.get_existing_slots("test_get_existing_slots_bot_not_exists"))
         assert len(slots) == 0
+
+    def test_add_system_required_slots_includes_mail_channel_slots(self):
+        """add_system_required_slots must provision is_followup (boolean), parent_log_id (text),
+        date (text), and cc (list) as system slots."""
+        from kairon.shared.data.data_objects import Slots as SlotsDoc
+        bot = "test_sys_slots_mail_channel"
+        user = "test_user"
+        processor = MongoProcessor()
+        processor.add_system_required_slots(bot, user)
+
+        slot_map = {s.name: s for s in SlotsDoc.objects(bot=bot, status=True)}
+
+        assert "is_followup" in slot_map, "is_followup slot must be provisioned"
+        assert slot_map["is_followup"].type == "boolean"
+        assert slot_map["is_followup"].is_default is True
+
+        assert "parent_log_id" in slot_map, "parent_log_id slot must be provisioned"
+        assert slot_map["parent_log_id"].type == "text"
+        assert slot_map["parent_log_id"].is_default is True
+
+        assert "date" in slot_map, "date slot must be provisioned"
+        assert slot_map["date"].type == "text"
+        assert slot_map["date"].is_default is True
+
+        assert "cc" in slot_map, "cc slot must be provisioned"
+        assert slot_map["cc"].type == "list"
+        assert slot_map["cc"].is_default is True
 
     @pytest.mark.asyncio
     async def test_save_training_data_all(self, get_training_data, monkeypatch):

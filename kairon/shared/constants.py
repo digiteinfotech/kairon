@@ -217,6 +217,10 @@ class KaironSystemSlots(str, Enum):
     callback_identifier = 'callback_identifier'
     llm_call_id = "llm_call_id"
     redirect_url = "redirect_url"
+    is_followup = "is_followup"
+    parent_log_id = "parent_log_id"
+    date = "date"
+    cc = "cc"
 
 
 
