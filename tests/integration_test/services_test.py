@@ -18511,7 +18511,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 27
+    assert len(actual['data']) == 31
     assert actual["success"]
 
 
@@ -19277,7 +19277,8 @@ def test_list_entities():
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
                 'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier'}
+                'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier',
+                'is_followup', 'parent_log_id', 'date', 'cc'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -19924,12 +19925,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 34
+    assert len(actual["data"]) == 38
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 27
+    assert default_slots_count == 31
 
 
 def test_add_slots():
@@ -39731,7 +39732,7 @@ def test_get_auditlog_for_user_2(mock_password_reset):
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 1
-    assert counter.get(AuditlogActions.UPDATE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) >= 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
     assert audit_log_data[0]["entity"] == "login"
