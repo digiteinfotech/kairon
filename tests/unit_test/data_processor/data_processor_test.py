@@ -9742,7 +9742,7 @@ class TestMongoProcessor:
         slot_map = {s.name: s for s in SlotsDoc.objects(bot=bot, status=True)}
 
         assert "is_followup" in slot_map, "is_followup slot must be provisioned"
-        assert slot_map["is_followup"].type == "boolean"
+        assert slot_map["is_followup"].type == "bool"
         assert slot_map["is_followup"].is_default is True
 
         assert "parent_log_id" in slot_map, "parent_log_id slot must be provisioned"

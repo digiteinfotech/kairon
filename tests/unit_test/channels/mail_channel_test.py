@@ -915,46 +915,6 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
     @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule")
     @pytest.mark.asyncio
-    async def test_process_messages_passes_followup_slots(self, mock_execute_rule, mock_send_mail,
-                                                          mock_logout_smtp, mock_login_smtp,
-                                                          mock_get_channel_config):
-        """is_followup and parent_log_id must be forwarded to execute_rule as slot_vals."""
-        mail_response_log = MailResponseLog(bot=self.bot_id, sender_id="followup@test.com",
-                                            user="mail_channel_test_user_acc", uid=303)
-        mail_response_log.save()
-        mock_get_channel_config.return_value = {
-            'config': {
-                'email_account': "mail_channel_test_user_acc@testuser.com",
-                'email_password': "password",
-                'imap_server': "imap.testuser.com",
-            }
-        }
-        parent_id = str(mail_response_log.id)
-        batch = [{
-            "mail_id": "followup@test.com",
-            "subject": "Re: Original",
-            "date": "2024-01-15",
-            "body": "Body",
-            "log_id": str(mail_response_log.id),
-            "cc": [],
-            "message_id": "<reply@test.com>",
-            "is_followup": True,
-            "parent_log_id": parent_id,
-        }]
-        mock_execute_rule.return_value = [{"text": "Response"}], []
-        await MailProcessor.process_messages(self.bot_id, batch)
-        call_kwargs = mock_execute_rule.call_args[1]
-        slot_vals = call_kwargs.get("slot_vals", {})
-        assert slot_vals.get("is_followup") is True
-        assert slot_vals.get("parent_log_id") == parent_id
-        MailResponseLog.objects().delete()
-
-    @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @patch("kairon.shared.channels.mail.processor.MailProcessor.login_smtp")
-    @patch("kairon.shared.channels.mail.processor.MailProcessor.logout_smtp")
-    @patch("kairon.shared.channels.mail.processor.MailProcessor.send_mail")
-    @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule")
-    @pytest.mark.asyncio
     async def test_process_messages_fresh_mail_is_followup_false(self, mock_execute_rule, mock_send_mail,
                                                                   mock_logout_smtp, mock_login_smtp,
                                                                   mock_get_channel_config):

@@ -426,7 +426,7 @@ class TestAgenticFlow:
 
     def test_load_slots_populates_falsy_slot_values(self):
         """Falsy slot_vals (False, None, []) must land in slots — not silently dropped."""
-        Slots(name="is_followup", type="boolean", bot=pytest.af_test_bot,
+        Slots(name="is_followup", type="bool", bot=pytest.af_test_bot,
               user=pytest.af_test_user, status=True, influence_conversation=True,
               _has_been_set=False, is_default=True).save()
         Slots(name="parent_log_id", type="text", bot=pytest.af_test_bot,
