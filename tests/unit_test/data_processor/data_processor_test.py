@@ -12101,8 +12101,16 @@ class TestMongoProcessor:
             {'name': 'redirect_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
             {'name': 'callback_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False,
              'is_default': True},
+            {'name': 'is_followup', 'type': 'boolean', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'parent_log_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'date', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
+            {'name': 'cc', 'type': 'list', 'influence_conversation': True, '_has_been_set': False,
+             'is_default': True},
         ]
-        assert len(slots) == 37
+        assert len(slots) == 41
         assert not DeepDiff(slots, expected, ignore_order=True)
 
     def test_update_slot_add_value_intent_and_not_intent(self):
