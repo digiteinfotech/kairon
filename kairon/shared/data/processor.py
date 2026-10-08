@@ -1740,7 +1740,12 @@ class MongoProcessor:
             )
 
         for slot in [s for s in KaironSystemSlots if s.value not in non_conversational_slots]:
-            slot_type = SLOT_TYPE.LIST.value if slot == KaironSystemSlots.media_ids.value else "text"
+            if slot in {KaironSystemSlots.media_ids, KaironSystemSlots.cc}:
+                slot_type = SLOT_TYPE.LIST.value
+            elif slot == KaironSystemSlots.is_followup:
+                slot_type = SLOT_TYPE.BOOLEAN.value
+            else:
+                slot_type = SLOT_TYPE.TEXT.value
             self.add_slot(
                 {
                     "name": slot,
