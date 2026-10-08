@@ -12101,7 +12101,7 @@ class TestMongoProcessor:
             {'name': 'redirect_url', 'type': 'text', 'influence_conversation': True, '_has_been_set': False, 'is_default': True},
             {'name': 'callback_identifier', 'type': 'any', 'influence_conversation': False, '_has_been_set': False,
              'is_default': True},
-            {'name': 'is_followup', 'type': 'boolean', 'influence_conversation': True, '_has_been_set': False,
+            {'name': 'is_followup', 'type': 'bool', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
             {'name': 'parent_log_id', 'type': 'text', 'influence_conversation': True, '_has_been_set': False,
              'is_default': True},
