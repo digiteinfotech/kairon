@@ -101,8 +101,8 @@ class AgenticFlow:
                 slot_defination = AgenticFlow.SLOT_TYPE_MAP.get(slot.type)
                 if not slot_defination:
                     raise ValueError(f"Unknown slot type: {slot.type}")
-                if val := slot_vals.get(slot.name):
-                    slot.initial_value = val
+                if slot.name in slot_vals:
+                    slot.initial_value = slot_vals[slot.name]
                 slot_args = {arg: getattr(slot, arg, None) for arg in slot_defination['args']}
                 slot_constructor = slot_defination['constructor']
                 slots.append(slot_constructor(**slot_args))
