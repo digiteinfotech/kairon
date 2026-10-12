@@ -413,6 +413,13 @@ class DataUtility:
         )
 
         base = Utility.environment['model']['agent']['url']
+        from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+        provider_cls = VoiceProviderFactory.get_provider(provider)
+        if provider_cls.supports_dynamic_resolver():
+            return {
+                "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/resolver/{token}"),
+                "initializer_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/initializer/{token}"),
+            }
         return {
             "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}"),
             "status_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}"),

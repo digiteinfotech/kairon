@@ -7,8 +7,7 @@ from starlette.requests import Request
 class VoiceProviderBase(ABC):
 
     def __init__(self, bot: str, config: dict):
-        """
-        Base initialiser for voice provider implementations.
+        """Base initialiser for voice provider implementations.
 
         :param bot: bot ID this provider is serving
         :param config: decrypted channel config dict for the bot
@@ -35,3 +34,13 @@ class VoiceProviderBase(ABC):
     @abstractmethod
     def build_hangup_response(self, messages: List[str]) -> str:
         raise NotImplementedError
+
+    def build_resolver_response(self, params: dict, bot: str, user: str) -> dict:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support dynamic resolver")
+
+    def build_greeting_response(self, params: dict, bot: str, user: str) -> str:
+        raise NotImplementedError(f"{self.__class__.__name__} does not support greeting applet")
+
+    @classmethod
+    def supports_dynamic_resolver(cls) -> bool:
+        return False

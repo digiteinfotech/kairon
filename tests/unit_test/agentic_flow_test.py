@@ -424,6 +424,43 @@ class TestAgenticFlow:
         assert "order" in slot_names
         assert "agentic_flow_bot_user" in slot_names
 
+    def test_load_slots_populates_falsy_slot_values(self):
+        """Falsy slot_vals (False, None, []) must land in slots — not silently dropped."""
+        Slots(name="is_followup", type="bool", bot=pytest.af_test_bot,
+              user=pytest.af_test_user, status=True, influence_conversation=True,
+              _has_been_set=False, is_default=True).save()
+        Slots(name="parent_log_id", type="text", bot=pytest.af_test_bot,
+              user=pytest.af_test_user, status=True, influence_conversation=True,
+              _has_been_set=False, is_default=True).save()
+        Slots(name="cc", type="list", bot=pytest.af_test_bot,
+              user=pytest.af_test_user, status=True, influence_conversation=True,
+              _has_been_set=False, is_default=True).save()
+        Slots(name="date", type="text", bot=pytest.af_test_bot,
+              user=pytest.af_test_user, status=True, influence_conversation=True,
+              _has_been_set=False, is_default=True).save()
+
+        flow = AgenticFlow(pytest.af_test_bot)
+        slot_vals = {
+            "is_followup": False,
+            "parent_log_id": None,
+            "cc": [],
+            "date": "2024-01-01",
+        }
+        slots = flow.load_slots(slot_vals=slot_vals)
+        slot_map = {s.name: s for s in slots}
+
+        assert "is_followup" in slot_map
+        assert slot_map["is_followup"].initial_value is False
+
+        assert "parent_log_id" in slot_map
+        assert slot_map["parent_log_id"].initial_value is None
+
+        assert "cc" in slot_map
+        assert slot_map["cc"].initial_value == []
+
+        assert "date" in slot_map
+        assert slot_map["date"].initial_value == "2024-01-01"
+
     def test_evaluate_criteria_slot_set(self):
         criteria = "SLOT"
         agentic_flow = AgenticFlow(pytest.af_test_bot)

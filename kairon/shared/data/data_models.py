@@ -1032,6 +1032,13 @@ class StorePageActionRequest(BaseModel):
     callback_identifier: Optional[str] = None
 
 
+class AgentActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    agent_name: str
+    agent_id: str
+    dispatch_bot_response: Optional[bool] = True
+
+
 class JiraActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     url: str
@@ -1427,7 +1434,8 @@ class CallbackConfigRequest(BaseModel):
     standalone_id_path: Optional[str] = None
     expire_in: int = 0
     response_type: str = CallbackResponseType.KAIRON_JSON.value
-
+    redirect_enabled: bool = False
+    redirect: Optional[Dict[str, Any]] = None
 
 class CallbackActionConfigRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
@@ -1584,7 +1592,7 @@ class AnalyticsPipelineEventRequest(BaseModel):
 
 class AddressRequest(BaseModel):
     label: str
-    address: str
+    address: Dict[str, Any]
     is_default: bool = False
 
 

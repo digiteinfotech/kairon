@@ -1572,13 +1572,19 @@ class Utility:
         if provider not in voice_providers:
             raise error(f"Invalid telephony provider {provider}")
         provider_params = voice_providers[provider]
-        _secret_fields = {"account_sid", "auth_token"}
+        _secret_fields = set(provider_params.get("secret_fields", ["account_sid", "auth_token"]))
         for required_field in provider_params["required_fields"]:
             if required_field not in config:
                 raise error(f"Missing {provider_params['required_fields']} all or any in config")
             if encrypt and required_field in _secret_fields:
                 config[required_field] = Utility.encrypt_message(config[required_field])
         config["telephony_provider"] = provider
+        if provider == "exotel" and not config.get("subdomain"):
+            config["subdomain"] = (
+                Utility.environment.get("voice", {})
+                .get("exotel", {})
+                .get("subdomain", "api.exotel.com")
+            )
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):

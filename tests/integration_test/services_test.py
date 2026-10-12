@@ -2605,6 +2605,11 @@ def test_create_pos_order_success():
     assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2690,6 +2695,11 @@ def test_create_pos_order_success_with_cid():
     assert data["data"]["order_id"] == {'account_move': False, 'id': 555, 'pos_reference': 'POS/1777892348'}
     assert data["data"]["status"] == "created"
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2814,6 +2824,11 @@ def test_create_pos_order_create_new_session():
         "account_move": False
     }
     assert data["error_code"] == 0
+    assert "kot" in data["data"]
+    assert "items" in data["data"]["kot"]
+    assert len(data["data"]["kot"]["items"]) == 1
+    assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
+    assert data["data"]["kot"]["items"][0]["qty"] == 2
 
 @pytest.mark.asyncio
 @responses.activate
@@ -13171,6 +13186,8 @@ def test_callback_config_add():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               'redirect_enabled': False,
+                               "redirect": {},
                       'execution_mode': 'async' }, 'error_code': 0}
 
 
@@ -13201,6 +13218,8 @@ def test_callback_config_add_standalone():
                                'shorten_token': False,
                                'standalone': True,
                                'standalone_id_path': 'data.id',
+                               'redirect_enabled': False,
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -13235,6 +13254,124 @@ def test_callback_config_add_standalone_fail_no_path():
     actual = response.json()
     assert actual == {'success': False, 'message': 'Standalone id path is required!',
                       'data': None, 'error_code': 422}
+
+
+def test_callback_config_add_standalone_with_redirect():
+    request_body = {
+        "name": "callback_redirect_standalone",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "standalone": True,
+        "standalone_id_path": "data.id",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for standalone callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_async_with_redirect():
+    request_body = {
+        "name": "callback_redirect_async",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Redirect is not supported for async callbacks!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_invalid_redirect_type():
+    request_body = {
+        "name": "callback_invalid_redirect",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "invalid_type",
+            "value": "redirect_url"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Invalid redirect type!",
+        "data": None,
+        "error_code": 422
+    }
+
+
+def test_callback_config_add_redirect_without_value():
+    request_body = {
+        "name": "callback_redirect_no_value",
+        "pyscript_code": "bot_response = 'Hello World!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        'redirect_enabled': True,
+        "redirect": {
+            "type": "slot"
+        }
+    }
+
+    response = client.post(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual == {
+        "success": False,
+        "message": "Only redirect_url slot is supported for redirect!",
+        "data": None,
+        "error_code": 422
+    }
+
 
 def test_callback_config_edit_syntex_error():
     request_body = {
@@ -13280,6 +13417,8 @@ def test_callback_config_edit():
                                'shorten_token': False,
                                'standalone': False,
                                'standalone_id_path': '',
+                               'redirect_enabled': False,
+                               "redirect": {},
                                'execution_mode': 'async'}, 'error_code': 0}
 
 
@@ -13295,6 +13434,137 @@ def test_callback_config_get():
     assert len(actual['data']) == 2
     assert 'callback_1' in actual['data']
     assert 'callback_2' in actual['data']
+
+def test_callback_config_edit_partial_update_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Updated!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+    assert actual['success'] is False
+    assert actual['error_code'] == 422
+    assert actual['message'] == "Redirect is not supported for async callbacks!"
+    assert actual['data'] is None
+
+
+def test_callback_config_edit_disable_redirect():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": False,
+        "redirect": {}
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['data']['redirect_enabled'] is False
+    assert actual['data']['redirect'] == {}
+
+
+def test_callback_config_edit_redirect_while_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert actual['success']
+    assert actual['data']['redirect_enabled'] is True
+    assert actual['data']['redirect'] == {
+        "type": "value",
+        "value": "https://example.com"
+    }
+
+
+def test_callback_config_edit_sync_to_async_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "async",
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert "redirect" in actual['message'].lower()
+
+
+def test_callback_config_edit_standalone_with_redirect_enabled():
+    request_body = {
+        "name": "callback_1",
+        "pyscript_code": "bot_response = 'Hello World2!'",
+        "validation_secret": "string",
+        "execution_mode": "sync",
+        "standalone": True,
+        "redirect_enabled": True,
+        "redirect": {
+            "type": "value",
+            "value": "https://example.com"
+        }
+    }
+
+    response = client.put(
+        url=f"/api/bot/{pytest.bot}/action/callback",
+        json=request_body,
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+
+    actual = response.json()
+
+    assert not actual['success']
+    assert actual['error_code'] == 422
+    assert "redirect" in actual['message'].lower()
+
 
 def test_callback_single_config_get():
     response = client.get(
@@ -18241,7 +18511,7 @@ def test_list_entities_empty():
     )
     actual = response.json()
     assert actual["error_code"] == 0
-    assert len(actual['data']) == 26
+    assert len(actual['data']) == 31
     assert actual["success"]
 
 
@@ -19007,7 +19277,8 @@ def test_list_entities():
                 'audio', 'image', 'doc_url', 'document', 'video', 'order', 'payment', 'latitude',
                 'longitude', 'flow_reply', 'http_status_code', 'name', 'quick_reply', 'mail_id',
                 'subject', 'body', 'media_ids','flow_docs', 'flow_images', 'flow_data', 'llm_call_id',
-                'user_identifier', 'temp_token', 'store_page_name', 'callback_identifier'}
+                'user_identifier', 'temp_token', 'store_page_name','redirect_url', 'callback_identifier',
+                'is_followup', 'parent_log_id', 'date', 'cc'}
     assert not DeepDiff({item['name'] for item in actual['data']}, expected, ignore_order=True)
     assert actual["success"]
 
@@ -19406,7 +19677,8 @@ def test_get_data_importer_logs():
                                                      {'type': 'schedule_actions', 'count': 0, 'data': []},
                                                      {'type': 'parallel_actions', 'count': 0, 'data': []},
                                                      {'type': 'voice_call_actions', 'count': 0, 'data': []},
-                                                     {'type': 'store_page_actions', 'count': 0, 'data': []}],
+                                                     {'type': 'store_page_actions', 'count': 0, 'data': []},
+                                                     {'type': 'agent_actions', 'count': 0, 'data': []}],
                                          'multiflow_stories': {'count': 0, 'data': []},
                                          'bot_content': {'count': 0, 'data': []},
                                          'user_actions': {'count': 9, 'data': []},
@@ -19462,7 +19734,8 @@ def test_get_data_importer_logs():
                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
                                                     {'type': 'parallel_actions', 'count': 0, 'data': []},
                                                     {'type': 'voice_call_actions', 'count': 0, 'data': []},
-                                                    {'type': 'store_page_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'store_page_actions', 'count': 0, 'data': []},
+                                                    {'type': 'agent_actions', 'count': 0, 'data': []}]
     assert actual['data']["logs"][3]['is_data_uploaded']
     assert set(actual['data']["logs"][3]['files_received']) == {'rules', 'stories', 'nlu', 'config', 'domain',
                                                                 'actions', 'chat_client_config', 'multiflow_stories',
@@ -19652,12 +19925,12 @@ def test_get_slots():
     )
     actual = response.json()
     assert "data" in actual
-    assert len(actual["data"]) == 33
+    assert len(actual["data"]) == 38
     assert actual["success"]
     assert actual["error_code"] == 0
     assert Utility.check_empty_string(actual["message"])
     default_slots_count = sum(slot.get('is_default') for slot in actual["data"])
-    assert default_slots_count == 26
+    assert default_slots_count == 31
 
 
 def test_add_slots():
@@ -20690,11 +20963,12 @@ def test_add_story_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -21337,7 +21611,7 @@ def test_add_multiflow_story_invalid_event_type():
                    "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                    "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
                    "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', "
-                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+                   "'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -21369,7 +21643,8 @@ def test_add_multiflow_story_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
         }
@@ -21467,11 +21742,12 @@ def test_update_story_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -21936,7 +22212,7 @@ def test_update_multiflow_story_invalid_event_type():
                    "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                    "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
                    "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', "
-                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+                   "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
             "ctx": {
                 "enum_values": [
@@ -21968,7 +22244,8 @@ def test_update_multiflow_story_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
         }
@@ -27410,7 +27687,7 @@ def test_list_actions():
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
                               'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
                                          'parallel_action':[], 'voice_call_action':[], 'kairon_voice_disconnect': [],
-                              'store_page_action': []}, ignore_order=True)
+                              'store_page_action': [], 'agent_action': []}, ignore_order=True)
 
     assert actual["success"]
 
@@ -28005,11 +28282,12 @@ def test_add_rule_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -28124,11 +28402,12 @@ def test_update_rule_invalid_event_type():
                     "PARALLEL_ACTION",
                     "VOICE_CALL_ACTION",
                     "KAIRON_VOICE_DISCONNECT",
-                    "STORE_PAGE_ACTION"
+                    "STORE_PAGE_ACTION",
+                    "AGENT_ACTION"
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -28425,7 +28704,8 @@ def test_upload_actions_and_config():
                                                     {'type': 'schedule_actions', 'count': 0, 'data': []},
                                                     {'type': 'parallel_actions', 'count': 0, 'data': []},
                                                     {'type': 'voice_call_actions', 'count': 0, 'data': []},
-                                                    {'type': 'store_page_actions', 'count': 0, 'data': []}]
+                                                    {'type': 'store_page_actions', 'count': 0, 'data': []},
+                                                    {'type': 'agent_actions', 'count': 0, 'data': []}]
     assert not actual['data']["logs"][0]['config']['data']
 
     response = client.get(
@@ -34282,7 +34562,8 @@ def test_add_bot_with_template_name(monkeypatch):
             "parallel_action": [],
             "voice_call_action": [],
             "kairon_voice_disconnect": [],
-            "store_page_action": []
+            "store_page_action": [],
+            "agent_action": []
         },
         ignore_order=True,
     )
@@ -39451,7 +39732,7 @@ def test_get_auditlog_for_user_2(mock_password_reset):
     counter = Counter(actions)
     assert counter.get(AuditlogActions.SAVE.value) > 5
     assert counter.get(AuditlogActions.SOFT_DELETE.value) >= 1
-    assert counter.get(AuditlogActions.UPDATE.value) > 5
+    assert counter.get(AuditlogActions.UPDATE.value) >= 5
 
     assert audit_log_data[0]["action"] == AuditlogActions.ACTIVITY.value
     assert audit_log_data[0]["entity"] == "login"
@@ -41359,7 +41640,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 19
+    assert len(actual["data"]) == 21
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(

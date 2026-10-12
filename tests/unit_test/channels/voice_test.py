@@ -25,6 +25,13 @@ class TestVoiceProviderFactory:
         cls = VoiceProviderFactory.get_provider("twilio")
         assert cls is TwilioVoiceProvider
 
+    def test_get_provider_exotel(self):
+        from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+        from kairon.chat.handlers.channels.clients.voice.exotel import ExotelVoiceProvider
+
+        cls = VoiceProviderFactory.get_provider("exotel")
+        assert cls is ExotelVoiceProvider
+
     def test_get_provider_unknown_raises(self):
         from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
 

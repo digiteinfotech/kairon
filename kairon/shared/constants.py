@@ -157,6 +157,26 @@ class WhatsappBSPTypes(str, Enum):
 
 class VoiceProviderTypes(str, Enum):
     twilio = "twilio"
+    exotel = "exotel"
+
+
+class VoiceServiceType(str, Enum):
+    stt = "stt"
+    tts = "tts"
+
+
+class STTProviderTypes(str, Enum):
+    sarvam = "sarvam"
+    aws_transcribe = "aws_transcribe"
+    google = "google"
+    deepgram = "deepgram"
+
+
+class TTSProviderTypes(str, Enum):
+    polly = "polly"
+    sarvam = "sarvam"
+    google = "google"
+    elevenlabs = "elevenlabs"
 
 
 class GPT3ResourceTypes(str, Enum):
@@ -196,6 +216,11 @@ class KaironSystemSlots(str, Enum):
     store_page_name = 'store_page_name'
     callback_identifier = 'callback_identifier'
     llm_call_id = "llm_call_id"
+    redirect_url = "redirect_url"
+    is_followup = "is_followup"
+    parent_log_id = "parent_log_id"
+    date = "date"
+    cc = "cc"
 
 
 

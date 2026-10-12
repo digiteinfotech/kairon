@@ -63,7 +63,7 @@ class ChatDataProcessor:
                 raise AppException("Voice is not enabled for this bot")
             endpoints = DataUtility.get_voice_channel_endpoints(channel)
             Channels.objects(id=channel.id).update_one(set__config={**channel.config, **endpoints})
-            return {k: v for k, v in endpoints.items() if k in ("call_url", "status_url")}
+            return endpoints
         channel_endpoint = DataUtility.get_channel_endpoint(channel)
         return channel_endpoint
 

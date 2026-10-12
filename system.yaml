@@ -25,6 +25,8 @@ storage:
     root_dir: ${USER_MEDIA_ROOT_DIRECTORY:"user_media"}
     bucket: ${USER_MEDIA_BUCKET:}
     allowed_extensions: ${USER_MEDIA_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf"]}
+  mail_channel_media:
+    allowed_extensions: ${MAIL_CHANNEL_ALLOWED_EXTENSIONS:[".png",".jpeg",".jpg",".pdf",".docx",".xlsx",".csv",".txt",".zip"]}
   temp_media_url_expiry_time: ${S3_TEMP_URL_EXPIRY_TIME:900}
   whatsapp_media:
     root_dir: ${WHATSAPP_MEDIA_ROOT_DIRECTORY:"template_media"}
@@ -126,6 +128,10 @@ history_server:
 notifications:
   enable: ${ENABLE_NOTIFICATIONS:false}
   server_endpoint: ${PUSH_SERVER_ENDPOINT:"http://localhost:8800/events/"}
+
+voice:
+  exotel:
+    subdomain: ${EXOTEL_DEFAULT_SUBDOMAIN:"api.exotel.com"}
 
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5056"}
@@ -270,6 +276,9 @@ core:
     - SpacyTokenizer
     - SpacyEntityExtractor
     - SpacyFeaturizer
+
+simple_agent:
+  url: ${SIMPLE_AGENT_URL}
 
 live_agent:
   enable: true

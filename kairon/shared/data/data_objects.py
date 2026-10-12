@@ -1098,6 +1098,7 @@ class UserMediaData(Auditlog):
     bot = StringField(required=True)
     timestamp = DateTimeField(default=datetime.utcnow)
     external_upload_info = DictField()
+    channel = StringField()
 
 
     meta = {"indexes": [
@@ -1162,7 +1163,7 @@ def build_filterable_attrs(order_details: dict) -> list:
 
 class Address(EmbeddedDocument):
     label = StringField()
-    address = StringField()
+    address = DictField()
     is_default = BooleanField(default=False)
 
 

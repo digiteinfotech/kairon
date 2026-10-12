@@ -1247,3 +1247,17 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
     UserMediaData.objects().delete()
     BotSettings.objects().delete()
     Channels.objects().delete()
+
+
+@pytest.mark.asyncio
+async def test_user_media_data_channel_field():
+    bot = "test-bot-channel-field"
+    media_id = "channel-field-test-id"
+    filename = "report.pdf"
+    sender_id = "user-789"
+
+    UserMedia.create_user_media_data(bot, media_id, filename, sender_id, channel="mail")
+
+    doc = UserMediaData.objects(media_id=media_id).get()
+    assert doc.channel == "mail"
+    UserMediaData.objects(media_id=media_id).delete()

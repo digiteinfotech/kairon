@@ -54,6 +54,7 @@ class ActionType(str, Enum):
     erpnext_crm_lead_qualified_action = "erpnext_crm_lead_qualified_action"
     kairon_voice_disconnect = "kairon_voice_disconnect"
     store_page_action = "store_page_action"
+    agent_action = "agent_action"
 
 
 class HttpRequestContentType(str, Enum):

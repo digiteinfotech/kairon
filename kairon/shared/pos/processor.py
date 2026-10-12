@@ -608,7 +608,9 @@ class POSProcessor:
             logger.exception(f"Notification failed for bot {bot}: {e}")
             return None
 
-    def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1):
+    def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1,
+                         order_type: str = None, table_name: str = None, kitchen_station: str = None,
+                         note: str = None):
         """
         Create POS order using JSON-RPC (create_from_ui)
         with check for available_in_pos for every product.
@@ -707,6 +709,7 @@ class POSProcessor:
                 "price_subtotal": subtotal_excl,
                 "price_subtotal_incl": subtotal_incl,
                 "discount": discount,
+                "kitchen_note": p.get("kitchen_note", ""),
             }])
 
         pos_configs = self.jsonrpc_call(
@@ -831,7 +834,26 @@ class POSProcessor:
 
         order_id = order_ids[0] if isinstance(order_ids, list) else order_ids
 
-        return {"order_id": order_id, "status": "created"}
+        kot_items = [
+            {
+                "name": line[2]["product_name"],
+                "qty": line[2]["qty"],
+                "notes": line[2].get("kitchen_note", ""),
+            }
+            for line in order_lines
+        ]
+
+        return {
+            "order_id": order_id,
+            "status": "created",
+            "kot": {
+                "order_type": order_type,
+                "table": table_name,
+                "kitchen": kitchen_station,
+                "notes": note,
+                "items": kot_items,
+            }
+        }
 
     def create_branch(self, session_id: str, branch_name: str, street: str, city: str, state: str, bot: str, user: str):
         INDIA_STATE_MAP = {
