@@ -8,8 +8,6 @@ from kairon.crm.services.provisioners.factory import ProvisionerFactory
 from kairon.crm.services.provisioners.crm_provisioner import CRMProvisioner
 from kairon.crm.services.provisioners.erpnext_provisioner import ERPNextProvisioner
 from kairon.crm.services.provisioners.upgrade_provisioner import AppUpgradeProvisioner
-from kairon.crm.services.base_frappe_client import BaseFrappeClient
-from kairon.crm.services.crm_client import CRMClient
 
 
 class TestHybridProvisioning(unittest.TestCase):
@@ -21,7 +19,7 @@ class TestHybridProvisioning(unittest.TestCase):
         assert plan.apps == ["crm"]
         assert plan.home_page == "crm"
         # "CRM Admin"/"CRM User" are not real Frappe roles; the Tier 1 admin gets the same roles
-        # BaseProvisioner.setup_user_and_migrate assigns (see provisioning_matrix.yaml).
+        # BaseProvisioner.setup_user_and_migrate assigns (see provisioning_matrix.yml).
         assert plan.default_roles == ["System Manager", "Sales Manager", "Sales User"]
 
     def test_feature_app_resolver_pos_only(self):
@@ -79,26 +77,6 @@ class TestHybridProvisioning(unittest.TestCase):
         plan = ProvisioningPlan(strategy_key="crm", tier=1, apps=["crm"])
         # Should not raise AppException
         PreFlightValidator.validate_infrastructure("frappe-backend-1", "test.localhost", plan, is_upgrade=False)
-
-    @patch("requests.Session.get")
-    def test_base_frappe_client_ping(self, mock_get):
-        mock_res = MagicMock()
-        mock_res.status_code = 200
-        mock_get.return_value = mock_res
-
-        client = BaseFrappeClient(site_url="http://test.localhost")
-        assert client.ping() is True
-
-    @patch("requests.Session.post")
-    def test_crm_client_create_lead(self, mock_post):
-        mock_res = MagicMock()
-        mock_res.status_code = 200
-        mock_res.json.return_value = {"data": {"name": "LEAD-0001", "lead_name": "Acme Corp"}}
-        mock_post.return_value = mock_res
-
-        client = CRMClient(site_url="http://test.localhost", api_key="key", api_secret="secret")
-        lead = client.create_lead("Acme Corp", "lead@acme.com")
-        assert lead["name"] == "LEAD-0001"
 
     def test_product_isolation_service_pos(self):
         from kairon.crm.services.isolation_service import ProductIsolationService

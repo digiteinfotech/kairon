@@ -23,15 +23,3 @@ coverage_html
 /training_data/
 /.rasa/
 /enable_gpt_uat.py
-
-# Local environments, secrets and generated test output
-.venv/
-venv/
-.env
-.env.*
-*.pyc
-.coverage
-htmlcov/
-coverage/
-playwright-report/
-test-results/

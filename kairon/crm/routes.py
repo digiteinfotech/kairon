@@ -345,46 +345,6 @@ def get_erpnext_users(
     return Response(data=users)
 
 
-@router.get("/tables", response_model=Response)
-def get_db_tables(
-    current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
-    ),
-):
-    """
-    Inspector tool: Lists database tables in the tenant's dedicated PostgreSQL database.
-
-    - **Request Schema**: None
-    - **Response Schema**: `Response` wrapping list of table names (e.g., `tabCompany`, `tabUser`).
-    - **Security Note**: Restricted to bot administrators (`ADMIN_ACCESS`).
-    """
-    tables = CRMProcessor.get_db_tables(current_user.get_bot())
-    return Response(data=tables)
-
-
-@router.get("/tables/{table_name}", response_model=Response)
-def get_table_content(
-    table_name: str,
-    limit: int = Query(50, ge=1, le=500),
-    current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
-    ),
-):
-    """
-    Inspector tool: Fetches raw content of a specific PostgreSQL database table.
-
-    - **Request Schema**: Path parameter `table_name: str`, Query parameter `limit: int` (default 50).
-    - **Response Schema**: `Response` wrapping rows list.
-    - **Security Note**: Restricted to bot administrators (`ADMIN_ACCESS`). Sanitizes table_name to prevent SQL injection.
-    """
-    content = CRMProcessor.get_table_content(
-        bot=current_user.get_bot(),
-        table_name=table_name,
-        limit=limit
-    )
-    return Response(data=content)
-
-
 @router.delete("/project", response_model=Response)
 def delete_project(
     company_name: str = Query(..., description="Company name"),

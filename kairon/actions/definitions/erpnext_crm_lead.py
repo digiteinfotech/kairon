@@ -1,5 +1,4 @@
 from typing import Text, Dict, Any
-from urllib.parse import urlparse, urlunparse
 
 from loguru import logger
 from rasa_sdk import Tracker
@@ -12,9 +11,8 @@ from kairon.shared.constants import KaironSystemSlots
 from kairon.shared.data.constant import STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.request_context import get_request_id
-from kairon.shared.utils import Utility
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
-from kairon.crm.processor import CRMProcessor
+from kairon.crm.lead_dispatch import resolve_lead_target
 from kairon.events.publisher import KaironEvent, KaironEventPublisher
 
 
@@ -71,15 +69,6 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
             "company": tracker.get_slot("company") or tracker.get_slot("organization") or "",
         }
 
-    @staticmethod
-    def _build_target_url(base_url: Text, site_name: Text) -> Text:
-        """Routes to the correct ERPNext tenant the same way ERPNextClient does
-        (Host-derived from the URL itself), by substituting the site's hostname
-        into the shared bench base_url."""
-        parsed = urlparse(base_url)
-        netloc = f"{site_name}:{parsed.port}" if parsed.port else site_name
-        return urlunparse((parsed.scheme, netloc, "/api/method/kairon_connector.api.v1.webhook.receive_event", "", "", ""))
-
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         action_call = kwargs.get('action_call', {})
         status = STATUSES.SUCCESS.value
@@ -121,10 +110,7 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
                             }
                         )
 
-                        crm_config = Utility.environment.get("crm", {})
-                        base_url = crm_config.get("bench", {}).get("base_url", "http://localhost:8080")
-                        target_url = self._build_target_url(base_url, doc.site_name)
-                        secret = CRMProcessor.get_lead_webhook_secret(self.bot)
+                        target_url, secret = resolve_lead_target(self.bot, doc.site_name)
 
                         publish_result = KaironEventPublisher.publish_webhook(target_url, secret, event)
                         result_payload = {

@@ -17,6 +17,7 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
+from kairon.crm.lead_dispatch import get_lead_webhook_secret
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus, CRMInvitation, CRMInvitationStatus
 from kairon.crm.services.bench_executor import BenchExecutor
 from kairon.crm.metering_sync import (
@@ -484,10 +485,7 @@ class CRMProcessor:
         (lead.qualified, conversation.message.received, ...) so a KaironEventPublisher
         call can authenticate against this tenant's kairon_connector webhook gateway.
         """
-        doc = CRMClientDetails.objects(bot=bot).first()
-        if not doc or not doc.lead_webhook_secret:
-            raise AppException("Lead webhook secret not configured for this bot. Is provisioning COMPLETED?")
-        return Utility.decrypt_message(doc.lead_webhook_secret)
+        return get_lead_webhook_secret(bot)
 
     @classmethod
     def get_erpnext_users(cls, bot: str) -> list:
@@ -740,20 +738,6 @@ class CRMProcessor:
 
         logger.info(f"[reconcile] Reconciliation complete: {summary}")
         return summary
-
-    @staticmethod
-    def get_db_tables(bot: str) -> list:
-        record = CRMClientDetails.objects(bot=bot).first()
-        if not record or not record.site_name:
-            raise AppException("No site found for this bot to fetch database tables.")
-        return BenchExecutor().get_db_tables(record.site_name)
-
-    @staticmethod
-    def get_table_content(bot: str, table_name: str, limit: int = 50) -> list:
-        record = CRMClientDetails.objects(bot=bot).first()
-        if not record or not record.site_name:
-            raise AppException("No site found for this bot to fetch table content.")
-        return BenchExecutor().get_table_content(record.site_name, table_name, limit)
 
     @staticmethod
     def get_available_modules(bot: str = None) -> dict:
