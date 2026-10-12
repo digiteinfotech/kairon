@@ -8,8 +8,6 @@ __pycache__
 
 # Tests
 assets
-# ...but the Streamlit CRM app loads its stylesheet from here at runtime
-!/kairon/streamlit_app/assets/
 cov_html
 sample
 /*.coverage

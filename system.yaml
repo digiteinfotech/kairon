@@ -297,6 +297,10 @@ pos:
     odoo_domain: ${ODOO_DOMAIN:"uatpos.kairon.com"}
 
 crm:
+  metering:
+    # Kairon Metering CRM metadata API. Both unset => handoff is skipped (best-effort, never blocks CRM).
+    url: ${CRM_METERING_URL}
+    event_secret: ${CRM_METERING_EVENT_SECRET}
   bench:
     docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
@@ -306,6 +310,10 @@ crm:
     db_password: ${BENCH_DB_PASSWORD}
     smtp_enabled: ${BENCH_SMTP_ENABLED:false}
     base_url: ${BENCH_BASE_URL:"http://localhost:8080"}
+    tenant_url_port: ${BENCH_TENANT_URL_PORT}   # optional: port added to tenant links (unset => http://<site>)
+    tenant_url_scheme: ${BENCH_TENANT_URL_SCHEME:"http"}   # `https` in production; one-click login needs https
+    sso_allow_insecure_http: ${BENCH_SSO_ALLOW_INSECURE_HTTP:false}   # local development only
+    onboard_return_temporary_password: ${BENCH_ONBOARD_RETURN_TEMP_PASSWORD:false}   # true => /crm/onboard returns the one-time ERPNext password (legacy clients)
     app_name: ${BENCH_APP_NAME:"frappe"}
     invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
     reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}

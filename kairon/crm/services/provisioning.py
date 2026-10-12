@@ -397,10 +397,11 @@ class ProvisioningService:
             self.update_onboarding_status(CRMOnboardingStatus.FAILED_VERIFICATION, str(e))
             return ProvisioningResult(status=CRMOnboardingStatus.FAILED_VERIFICATION.value, error=str(e))
 
+        from kairon.crm.processor import CRMProcessor  # local import: processor imports this module
         return ProvisioningResult(
             status=CRMOnboardingStatus.COMPLETED.value,
             site_name=doc.site_name,
-            site_url=f"http://{doc.site_name}",
+            site_url=CRMProcessor.get_tenant_url(doc.site_name),
             company=doc.company_name,
             erpnext_user=current_user_email,
             authentication_method=auth_method,

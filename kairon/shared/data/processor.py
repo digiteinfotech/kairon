@@ -6173,6 +6173,7 @@ class MongoProcessor:
             raise AppException(f"Bot Settings for the bot not found")
 
         settings = BotSettings.objects(bot=bot, status=True).get()
+        previous_enable_crm = bool(settings.enable_crm)
         analytics = Analytics(**bot_settings.get("analytics"))
         update_kwargs = {
             "set__analytics": analytics,
@@ -6183,6 +6184,12 @@ class MongoProcessor:
             update_kwargs["set__enable_crm"] = bot_settings["enable_crm"]
 
         settings.update(**update_kwargs)
+
+        new_enable_crm = bot_settings.get("enable_crm")
+        if new_enable_crm is not None and bool(new_enable_crm) != previous_enable_crm:
+            # Best-effort notification of the new state to Metering; never raises.
+            from kairon.crm.metering_sync import CRMMeteringSync
+            CRMMeteringSync.publish_bot_state(bot, user, bool(new_enable_crm))
 
         if bot_settings.get("enable_crm"):
             # Scoped to CRM-enabled bots only. Not a KaironSystemSlots enum member --

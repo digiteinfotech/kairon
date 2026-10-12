@@ -2,7 +2,11 @@ import hmac
 import hashlib
 import base64
 import datetime
+import json
+import secrets
+import time
 import uuid
+from urllib.parse import urlencode
 from datetime import datetime as dt
 from mongoengine.queryset.visitor import Q
 
@@ -15,6 +19,9 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus, CRMInvitation, CRMInvitationStatus
 from kairon.crm.services.bench_executor import BenchExecutor
+from kairon.crm.metering_sync import (
+    CRMMeteringSync, CRM_TENANT_PROVISIONED, CRM_TENANT_PROVISION_FAILED,
+)
 from kairon.crm.services.erpnext_client import ERPNextClient
 from kairon.crm.services.provisioning import ProvisioningService
 from kairon.shared.models import User
@@ -99,6 +106,213 @@ class CRMProcessor:
                 logger.debug(f"[CRMProcessor] Failed to decrypt stored erpnext_password: {e}")
 
         return data
+
+    # Fields the Admin-facing API may return. This is an allowlist on purpose: the stored record also
+    # holds the decrypted Administrator password, DB credentials, Frappe API key/secret, webhook
+    # secrets, DB host/user, lock state and raw provisioning errors (bench tracebacks), and a new
+    # model field must not become public by default.
+    PUBLIC_DETAIL_FIELDS = (
+        "_id",
+        "company_name",
+        "abbr",
+        "default_currency",
+        "country",
+        "bot",
+        "user",
+        "onboarding_status",
+        "site_name",
+        "tier",
+        "installed_apps",
+        "selected_modules",
+        "erpnext_company",
+        "timestamp",
+        "workflow_started_at",
+        "workflow_completed_at",
+        "attempt_number",
+    )
+
+    @staticmethod
+    def _bench_config() -> dict:
+        return (Utility.environment.get("crm") or {}).get("bench") or {}
+
+    @staticmethod
+    def returns_temporary_password() -> bool:
+        # Default OFF: the one-time ERPNext password is not sent to clients unless a deployment opts in
+        # (BENCH_ONBOARD_RETURN_TEMP_PASSWORD=true). Creators sign in with the one-click login link instead.
+        value = CRMProcessor._bench_config().get("onboard_return_temporary_password")
+        return str(value or "").lower() in ("1", "true", "yes")
+
+    @staticmethod
+    def get_tenant_url(site_name: str) -> str:
+        """
+        Public URL of a provisioned tenant site (same form as ProvisioningResult.site_url).
+        Default is `http://<site>`. Deployments set `crm.bench.tenant_url_scheme` (env BENCH_TENANT_URL_SCHEME,
+        `https` in production) and, when the bench frontend is not on the default port (e.g. a local stack on
+        :8080), `crm.bench.tenant_url_port` (env BENCH_TENANT_URL_PORT) so the link actually opens.
+        """
+        if not site_name:
+            return None
+        bench = CRMProcessor._bench_config()
+        scheme = str(bench.get("tenant_url_scheme") or "http").lower()
+        if scheme not in ("http", "https"):
+            raise AppException("crm.bench.tenant_url_scheme must be 'http' or 'https'.")
+        port = bench.get("tenant_url_port")
+        return f"{scheme}://{site_name}:{int(port)}" if port else f"{scheme}://{site_name}"
+
+    @staticmethod
+    def get_crm_public_details(bot: str) -> dict:
+        """
+        Tenant configuration + provisioning state for API consumers (Kairon Admin): only the
+        PUBLIC_DETAIL_FIELDS of the stored record, plus the derived tenant `site_url`.
+        """
+        data = {
+            k: v
+            for k, v in CRMProcessor.get_crm_details(bot).items()
+            if k in CRMProcessor.PUBLIC_DETAIL_FIELDS
+        }
+        data["site_url"] = CRMProcessor.get_tenant_url(data.get("site_name"))
+        return data
+
+    @staticmethod
+    def sync_metering_metadata(bot: str, company_name: str = None) -> dict:
+        """
+        Sends the tenant's final state (COMPLETED or FAILED_*) to Metering and records the outcome on
+        the CRMClientDetails record. Built from the authoritative Kairon record each time, so it is
+        safe to call again after a failed delivery (the event id is derived from the provisioning run,
+        and Metering ignores duplicates). Never sends credentials or raw error text.
+        """
+        query = {"bot": bot}
+        if company_name:
+            query["company_name__iexact"] = company_name.strip()
+        record = CRMClientDetails.objects(**query).first()
+        if not record:
+            raise AppException("No CRM configuration found for this bot.")
+        status = record.onboarding_status
+        if status == CRMOnboardingStatus.COMPLETED.value:
+            event_type = CRM_TENANT_PROVISIONED
+        elif status and status.startswith("FAILED"):
+            event_type = CRM_TENANT_PROVISION_FAILED
+        else:
+            raise AppException("Provisioning has not finished; there is nothing to send to Metering yet.")
+
+        payload = {
+            "bot": record.bot,
+            "user": record.user,
+            "company_name": record.company_name,
+            "company_abbr": record.abbr,
+            "country": record.country,
+            "currency": record.default_currency,
+            "provisioning_status": status,
+        }
+        if event_type == CRM_TENANT_PROVISIONED:
+            payload.update(
+                tenant_name=record.site_name,
+                tenant_url=CRMProcessor.get_tenant_url(record.site_name),
+                tier=record.tier,
+            )
+        run_id = record.provisioning_id or "no_run"
+        event_id = f"evt_{run_id}_{event_type}"
+        if record.metering_synced:
+            # Already delivered once. An explicit re-sync gets an id that also covers the payload: identical
+            # content -> identical id (Metering ignores it), changed content (e.g. a corrected tenant URL)
+            # -> a new id, so Metering applies the update instead of treating it as a duplicate.
+            digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:10]
+            event_id = f"{event_id}_{digest}"
+        result = CRMMeteringSync.publish(event_type, payload, event_id=event_id, correlation_id=run_id)
+        if result["sent"]:
+            record.update(
+                set__metering_synced=True,
+                set__metering_synced_at=datetime.datetime.utcnow(),
+                set__metering_event_id=result["event_id"],
+            )
+        elif result["reason"] != "not_configured":
+            record.update(set__metering_synced=False)
+        return {"synced": result["sent"], "event_id": result["event_id"], "reason": result["reason"]}
+
+    @staticmethod
+    def _notify_metering(bot: str, company_name: str):
+        """Best-effort handoff after an onboarding run; must never affect the onboarding result."""
+        try:
+            CRMProcessor.sync_metering_metadata(bot, company_name)
+        except Exception as e:
+            logger.warning(f"[CRMProcessor] Metering handoff skipped for bot {bot}: {e}")
+
+    @staticmethod
+    def onboarding_outcome(result: dict) -> dict:
+        """
+        Makes the real provisioning outcome explicit without removing any existing field (the Streamlit app, the
+        E2E suite and Admin read `status`). `accepted` only says the request was valid and a run was attempted;
+        `provisioned` is True only for a COMPLETED tenant; `failed` is True for any FAILED_* terminal state.
+        """
+        result = dict(result or {})
+        status = result.get("status")
+        result["accepted"] = True
+        result["provisioned"] = status == CRMOnboardingStatus.COMPLETED.value
+        result["failed"] = isinstance(status, str) and status.startswith("FAILED")
+        return result
+
+    LOGIN_LINK_TTL_SECONDS = 60
+
+    @staticmethod
+    def build_login_link(bot: str, requester_email: str) -> dict:
+        """
+        One-time login link for the user who created the tenant ("Open ERPNext"). Signed with the tenant webhook
+        secret Kairon already holds, using the same HMAC scheme as its events; kairon_connector verifies it, enforces
+        the 60 second window and single use, and logs that one user in. Only the creator may request it, only for a
+        COMPLETED tenant, and the secret itself never leaves Kairon.
+        """
+        record = CRMClientDetails.objects(bot=bot).first()
+        if not record or record.onboarding_status != CRMOnboardingStatus.COMPLETED.value:
+            raise AppException("The CRM tenant is not ready yet.")
+        owner = (record.erpnext_user or "").strip().lower()
+        if not owner or (requester_email or "").strip().lower() != owner:
+            raise AppException("Only the user who created this CRM tenant can open it with one-click login.")
+
+        tenant_url = CRMProcessor.get_tenant_url(record.site_name)
+        allow_http = str(CRMProcessor._bench_config().get("sso_allow_insecure_http") or "").lower() in ("1", "true", "yes")
+        if not tenant_url.startswith("https://") and not allow_http:
+            # The link is a short-lived credential; never send it over plain HTTP unless a developer opted in.
+            raise AppException(
+                "One-click login is disabled because the tenant URL is not HTTPS. Set BENCH_TENANT_URL_SCHEME=https "
+                "(production) or BENCH_SSO_ALLOW_INSECURE_HTTP=true (local development only)."
+            )
+        secret = CRMProcessor.get_lead_webhook_secret(bot)
+        nonce = secrets.token_urlsafe(18)
+        ts = str(int(time.time()))  # epoch seconds; utcnow().timestamp() would be skewed by the local UTC offset
+        payload = f"sso.v1|{record.site_name}|{record.erpnext_user}|{nonce}".encode("utf-8")
+        sig = hmac.new(secret.encode("utf-8"), f"{ts}.".encode("utf-8") + payload, hashlib.sha256).hexdigest()
+        query = urlencode({"user": record.erpnext_user, "ts": ts, "nonce": nonce, "sig": "sha256=" + sig})
+        url = f"{tenant_url}/api/method/kairon_connector.api.v1.sso.login?{query}"
+        return {"login_url": url, "expires_in": CRMProcessor.LOGIN_LINK_TTL_SECONDS}
+
+    @staticmethod
+    def validate_tenant_config(
+        bot: str, company_name: str, abbr: str, default_currency: str, country: str
+    ) -> dict:
+        """
+        Side-effect free pre-check for an onboarding request: CRM must be enabled for the bot
+        and the company name must be valid and not already registered for it.
+        """
+        if not MongoProcessor.is_crm_enabled(bot):
+            raise AppException("CRM integration is not enabled")
+        for label, value in (
+            ("Company Name", company_name), ("Abbr", abbr),
+            ("Default Currency", default_currency), ("Country", country),
+        ):
+            if Utility.check_empty_string(value):
+                raise AppException(f"{label} cannot be empty.")
+        if not Utility.special_match(company_name, search=RE_ALPHA_NUM):
+            raise AppException(
+                "Company name can only contain letters, numbers, spaces and underscores."
+            )
+        existing = CRMClientDetails.objects(
+            bot=bot, company_name__iexact=company_name.strip()
+        ).first()
+        return {
+            "valid": True,
+            "company_exists": existing is not None,
+            "onboarding_status": existing.onboarding_status if existing else None,
+        }
 
     @staticmethod
     def update_onboarding_status(
@@ -219,6 +433,7 @@ class CRMProcessor:
             )
             
             # The lock is released inside execute_onboarding_workflow (via update_onboarding_status)
+            CRMProcessor._notify_metering(bot, company_name)
             return result.dict()
             
         except Exception as e:
@@ -233,6 +448,7 @@ class CRMProcessor:
                 set__lock=False,
                 set__last_error=str(e)
             )
+            CRMProcessor._notify_metering(bot, company_name)
             raise e
 
     @staticmethod

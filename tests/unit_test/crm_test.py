@@ -1,3 +1,4 @@
+import json
 import os
 
 # Must be set before importing kairon.api.app.main -- app import triggers
@@ -366,6 +367,67 @@ def test_api_get_details():
     assert res_data["success"] is True
     assert res_data["data"]["company_name"] == "API Company"
     assert res_data["data"]["abbr"] == "AC"
+
+
+def test_api_get_details_excludes_infrastructure_secrets_and_returns_site_url():
+    record = CRMClientDetails.objects(bot="test_crm_bot").first()
+    record.db_password = "db-root-secret"
+    record.kairon_api_key = Utility.encrypt_message("k")
+    record.kairon_api_secret = Utility.encrypt_message("s")
+    record.webhook_secret = Utility.encrypt_message("w")
+    record.lead_webhook_secret = Utility.encrypt_message("l")
+    record.erpnext_password = Utility.encrypt_message("admin-pass-123")
+    record.last_error = "Traceback (most recent call last): secret-host"
+    record.postgres_host = "internal-db-host"
+    record.site_name = "api_company.localhost"
+    record.save()
+
+    response = client.get("/api/bot/test_crm_bot/crm/details")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert set(data) <= set(CRMProcessor.PUBLIC_DETAIL_FIELDS) | {"site_url"}
+    for field in ("erpnext_password", "db_password", "kairon_api_key", "kairon_api_secret",
+                  "webhook_secret", "lead_webhook_secret", "last_error", "postgres_host", "lock"):
+        assert field not in data
+    for leaked in ("db-root-secret", "admin-pass-123", "Traceback", "internal-db-host"):
+        assert leaked not in response.text
+    assert data["site_url"] == "http://api_company.localhost"
+    assert data["company_name"] == "API Company"
+
+
+def test_api_validate_tenant_config():
+    payload = {"company_name": "Brand New Co", "abbr": "BN", "default_currency": "USD", "country": "United States"}
+    response = client.post("/api/bot/test_crm_bot/crm/validate", json=payload)
+    assert response.status_code == 200
+    assert response.json()["data"] == {"valid": True, "company_exists": False, "onboarding_status": None}
+    assert CRMClientDetails.objects(bot="test_crm_bot", company_name="Brand New Co").first() is None
+
+    payload["company_name"] = "API Company"
+    response = client.post("/api/bot/test_crm_bot/crm/validate", json=payload)
+    assert response.status_code == 200
+    assert response.json()["data"]["company_exists"] is True
+    assert response.json()["data"]["onboarding_status"] == "COMPLETED"
+
+
+def test_api_validate_tenant_config_rejects_invalid_and_crm_disabled():
+    bad = {"company_name": "Bad!Name", "abbr": "BN", "default_currency": "USD", "country": "US"}
+    response = client.post("/api/bot/test_crm_bot/crm/validate", json=bad)
+    assert response.json()["success"] is False
+
+    empty = {"company_name": "  ", "abbr": "BN", "default_currency": "USD", "country": "US"}
+    assert client.post("/api/bot/test_crm_bot/crm/validate", json=empty).json()["success"] is False
+
+    settings = BotSettings.objects(bot="test_crm_bot").first()
+    settings.enable_crm = False
+    settings.save()
+    try:
+        ok = {"company_name": "Some Co", "abbr": "SC", "default_currency": "USD", "country": "US"}
+        response = client.post("/api/bot/test_crm_bot/crm/validate", json=ok)
+        assert response.json()["success"] is False
+        assert "not enabled" in response.json()["message"]
+    finally:
+        settings.enable_crm = True
+        settings.save()
 
 
 @patch("subprocess.run")
@@ -910,6 +972,14 @@ def test_schema_selected_modules_validation():
     )
     assert req.selected_modules == ["CRM", "POS"]
 
+    # abbr must be 1-10 letters/numbers (ERPNext limit); enforced server-side, not only in the UI
+    for bad_abbr in ("TOOLONGABBR1", "AB CD", "A-B", "<b>"):
+        with pytest.raises(ValueError, match="abbr must be 1-10 letters or numbers"):
+            CRMOnboardRequest(company_name="Test Co", abbr=bad_abbr, default_currency="USD",
+                              country="United States")
+    assert CRMOnboardRequest(company_name="Test Co", abbr="ABCDE12345", default_currency="USD",
+                             country="United States").abbr == "ABCDE12345"
+
     # CRMConfigureModulesRequest validation
     conf_req = CRMConfigureModulesRequest(selected_modules=["HR"])
     assert conf_req.selected_modules == ["HR"]
@@ -1070,3 +1140,367 @@ def test_erpnext_provisioner_installs_crm_before_erpnext(mock_preflight):
         except Exception:
             pass  # only the app install order is under test; later phases need a live bench
     assert calls[:2] == [("new-site", "crm"), ("install", "erpnext")]
+
+
+# ---------------------------------------------------------------------------
+# Metering handoff (kairon/crm/metering_sync.py): metadata only, best-effort, retryable
+# ---------------------------------------------------------------------------
+METERING = {"url": "http://metering.test:8000", "event_secret": "unit-metering-secret"}
+SECRETS = ("db-root-secret", "admin-pass-123", "Traceback", "unit-metering-secret")
+
+
+@pytest.fixture
+def metering_configured():
+    crm = Utility.environment.setdefault("crm", {})
+    original = crm.get("metering")
+    crm["metering"] = dict(METERING)
+    yield
+    crm["metering"] = original
+
+
+def _seed_record(status, **extra):
+    CRMClientDetails.drop_collection()
+    record = CRMClientDetails(
+        company_name="Meter Co", abbr="MCO", default_currency="INR", country="India", bot="test_crm_bot",
+        user="owner@test.com", onboarding_status=status, site_name="meter_co.localhost", tier=1,
+        provisioning_id="run-1", db_password="db-root-secret",
+        erpnext_password=Utility.encrypt_message("admin-pass-123"),
+        last_error="Traceback (most recent call last): boom", **extra,
+    ).save()
+    return record
+
+
+def _ok(body=None):
+    return {"status_code": 200, "success": True, "response_text": json.dumps(body or {"success": True, "data": {}})}
+
+
+def test_metering_not_configured_skips_without_calling():
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    crm = Utility.environment.setdefault("crm", {})
+    original, crm["metering"] = crm.get("metering"), {"url": None, "event_secret": None}
+    try:
+        with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook") as publish:
+            result = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    finally:
+        crm["metering"] = original
+    publish.assert_not_called()
+    assert result["synced"] is False and result["reason"] == "not_configured"
+    assert CRMClientDetails.objects(bot="test_crm_bot").first().metering_synced is False
+
+
+def test_metering_provisioned_event_is_metadata_only_and_deterministic(metering_configured):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish:
+        result = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    target, secret, event = publish.call_args.args
+    assert target == "http://metering.test:8000/api/crm/events" and secret == METERING["event_secret"]
+    assert event.event_type == "crm.tenant.provisioned"
+    assert event.event_id == "evt_run-1_crm.tenant.provisioned" and event.correlation_id == "run-1"
+    assert event.payload == {
+        "bot": "test_crm_bot", "user": "owner@test.com", "company_name": "Meter Co", "company_abbr": "MCO",
+        "country": "India", "currency": "INR", "provisioning_status": "COMPLETED",
+        "tenant_name": "meter_co.localhost", "tenant_url": "http://meter_co.localhost", "tier": 1,
+    }
+    serialized = json.dumps(event.to_dict())
+    assert not any(s in serialized for s in SECRETS)
+    assert result == {"synced": True, "event_id": event.event_id, "reason": None}
+    record = CRMClientDetails.objects(bot="test_crm_bot").first()
+    assert record.metering_synced is True and record.metering_event_id == event.event_id
+
+
+def test_metering_resync_after_delivery_is_idempotent_unless_the_payload_changed(metering_configured):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    ids = []
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish:
+        CRMProcessor.sync_metering_metadata("test_crm_bot")                      # first delivery: plain run id
+        bench = Utility.environment["crm"]["bench"]
+        original = bench.get("tenant_url_port")
+        try:
+            CRMProcessor.sync_metering_metadata("test_crm_bot")                  # re-sync, same payload
+            bench["tenant_url_port"] = "8080"
+            CRMProcessor.sync_metering_metadata("test_crm_bot")                  # re-sync, corrected tenant URL
+        finally:
+            bench["tenant_url_port"] = original
+        ids = [c.args[2].event_id for c in publish.call_args_list]
+        urls = [c.args[2].payload["tenant_url"] for c in publish.call_args_list]
+    assert ids[0] == "evt_run-1_crm.tenant.provisioned"                          # first-delivery contract unchanged
+    assert ids[1].startswith(ids[0] + "_") and ids[1] != ids[0]                  # digest suffix once delivered
+    assert ids[2] != ids[1]                                                      # changed payload -> new event id
+    assert urls[2] == "http://meter_co.localhost:8080"
+
+
+def test_metering_retry_after_failed_delivery_keeps_the_same_event_id(metering_configured):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    down = {"success": False, "status_code": 503, "response_text": ""}
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=down) as publish:
+        first = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish2:
+        second = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    assert first["synced"] is False and second["synced"] is True
+    assert first["event_id"] == second["event_id"] == "evt_run-1_crm.tenant.provisioned"
+
+
+def test_metering_failed_event_carries_status_but_no_error_text(metering_configured):
+    _seed_record(CRMOnboardingStatus.FAILED_BENCH.value)
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish:
+        CRMProcessor.sync_metering_metadata("test_crm_bot")
+    event = publish.call_args.args[2]
+    assert event.event_type == "crm.tenant.provision_failed"
+    assert event.payload["provisioning_status"] == "FAILED_BENCH" and "tenant_url" not in event.payload
+    assert not any(s in json.dumps(event.to_dict()) for s in SECRETS)
+
+
+def test_metering_rejection_and_outage_never_raise_and_stay_retryable(metering_configured):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    rejected = {"status_code": 200, "success": True, "response_text": json.dumps({"success": False, "error_code": 401})}
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=rejected):
+        result = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    assert result["synced"] is False and "401" in result["reason"]
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", side_effect=AppException("down")):
+        result = CRMProcessor.sync_metering_metadata("test_crm_bot")
+    assert result["synced"] is False and "unreachable" in result["reason"]
+    assert CRMClientDetails.objects(bot="test_crm_bot").first().metering_synced is False
+    # retry later succeeds with the same event id
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()):
+        assert CRMProcessor.sync_metering_metadata("test_crm_bot")["synced"] is True
+
+
+def test_metering_sync_requires_finished_provisioning(metering_configured):
+    _seed_record(CRMOnboardingStatus.BENCH_RUNNING.value)
+    with pytest.raises(AppException, match="not finished"):
+        CRMProcessor.sync_metering_metadata("test_crm_bot")
+    CRMClientDetails.drop_collection()
+    with pytest.raises(AppException, match="No CRM configuration"):
+        CRMProcessor.sync_metering_metadata("test_crm_bot")
+
+
+def test_notify_metering_swallows_every_error():
+    with patch.object(CRMProcessor, "sync_metering_metadata", side_effect=RuntimeError("boom")):
+        CRMProcessor._notify_metering("test_crm_bot", "Meter Co")  # must not raise
+
+
+def test_api_metering_sync_route(metering_configured):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value)
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()):
+        response = client.post("/api/bot/test_crm_bot/crm/metering-sync")
+    assert response.status_code == 200 and response.json()["data"]["synced"] is True
+    assert not any(s in response.text for s in SECRETS)
+
+
+def test_enable_crm_change_publishes_state_once_per_change(metering_configured):
+    from kairon.shared.data.processor import MongoProcessor
+    BotSettings.objects(bot="test_crm_bot").delete()
+    BotSettings(bot="test_crm_bot", user="test_user", enable_crm=False).save()
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish, \
+            patch.object(MongoProcessor, "add_slot"):
+        MongoProcessor.edit_bot_settings({"analytics": {"fallback_intent": "nlu_fallback"}, "enable_crm": True},
+                                         "test_crm_bot", "owner@test.com")
+        MongoProcessor.edit_bot_settings({"analytics": {"fallback_intent": "nlu_fallback"}, "enable_crm": True},
+                                         "test_crm_bot", "owner@test.com")  # unchanged: no event
+        MongoProcessor.edit_bot_settings({"analytics": {"fallback_intent": "nlu_fallback"}}, "test_crm_bot",
+                                         "owner@test.com")  # field omitted: no event
+        MongoProcessor.edit_bot_settings({"analytics": {"fallback_intent": "nlu_fallback"}, "enable_crm": False},
+                                         "test_crm_bot", "owner@test.com")
+    events = [c.args[2] for c in publish.call_args_list]
+    assert [e.event_type for e in events] == ["crm.enabled", "crm.disabled"]
+    assert events[0].payload == {"bot": "test_crm_bot", "user": "owner@test.com"}
+    BotSettings.objects(bot="test_crm_bot").update(set__enable_crm=True)
+
+
+def test_enable_crm_still_succeeds_when_metering_is_down(metering_configured):
+    from kairon.shared.data.processor import MongoProcessor
+    BotSettings.objects(bot="test_crm_bot").update(set__enable_crm=False)
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", side_effect=AppException("down")), \
+            patch.object(MongoProcessor, "add_slot"):
+        MongoProcessor.edit_bot_settings({"analytics": {"fallback_intent": "nlu_fallback"}, "enable_crm": True},
+                                         "test_crm_bot", "owner@test.com")
+    assert BotSettings.objects(bot="test_crm_bot").first().enable_crm is True
+
+
+# ---------------------------------------------------------------------------
+# Onboarding response semantics: acceptance is not provisioning success
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("status,provisioned,failed", [
+    ("COMPLETED", True, False),
+    ("FAILED_BENCH", False, True),
+    ("FAILED_VERIFICATION", False, True),
+    ("BENCH_RUNNING", False, False),
+    (None, False, False),
+])
+def test_onboarding_outcome_flags(status, provisioned, failed):
+    out = CRMProcessor.onboarding_outcome({"status": status, "site_name": "s.localhost"})
+    assert out["accepted"] is True
+    assert out["provisioned"] is provisioned and out["failed"] is failed
+    assert out["status"] == status and out["site_name"] == "s.localhost"  # existing fields untouched
+
+
+def _onboard_via_api(result):
+    # Auth is faked by the module's autouse `mock_auth_dependency` fixture (bot: test_crm_bot).
+    with patch.object(CRMProcessor, "onboard_company", return_value=result):
+        return client.post("/api/bot/test_crm_bot/crm/onboard", json={
+            "company_name": "Acme Co", "abbr": "ACM", "default_currency": "USD", "country": "United States",
+            "selected_modules": ["CRM"]}).json()
+
+
+def test_onboard_api_failed_provisioning_is_not_reported_as_success():
+    body = _onboard_via_api({"status": "FAILED_BENCH", "site_name": None, "company": None})
+    assert body["data"]["failed"] is True and body["data"]["provisioned"] is False
+    assert body["data"]["status"] == "FAILED_BENCH"          # existing consumers still read this
+    assert "failed" in body["message"].lower() and "FAILED_BENCH" in body["message"]
+    assert "successfully" not in body["message"].lower()
+
+
+def test_onboard_api_completed_provisioning():
+    body = _onboard_via_api({"status": "COMPLETED", "site_name": "acme_co.localhost", "company": "Acme Co"})
+    assert body["data"]["provisioned"] is True and body["data"]["failed"] is False
+    assert "provisioned successfully" in body["message"]
+
+
+def test_preflight_fails_closed_without_bench_db_password():
+    from kairon.crm.services.preflight_validator import PreFlightValidator
+    bench = Utility.environment["crm"]["bench"]
+    original = bench.get("db_password")
+    bench["db_password"] = None
+    try:
+        with pytest.raises(AppException, match="BENCH_DB_PASSWORD is not set"):
+            PreFlightValidator.validate_configuration(["CRM"])
+    finally:
+        bench["db_password"] = original
+
+
+def test_tenant_url_default_and_opt_in_port():
+    bench = Utility.environment["crm"]["bench"]
+    original = bench.get("tenant_url_port")
+    try:
+        bench["tenant_url_port"] = None
+        assert CRMProcessor.get_tenant_url("acme.localhost") == "http://acme.localhost"      # unchanged default
+        bench["tenant_url_port"] = "8080"
+        assert CRMProcessor.get_tenant_url("acme.localhost") == "http://acme.localhost:8080"
+        assert CRMProcessor.get_tenant_url(None) is None
+    finally:
+        bench["tenant_url_port"] = original
+
+
+# ---------------------------------------------------------------------------
+# One-time "Open ERPNext" login link
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sso_http_allowed():
+    bench = Utility.environment["crm"]["bench"]
+    saved = {k: bench.get(k) for k in ("sso_allow_insecure_http", "tenant_url_scheme", "tenant_url_port")}
+    bench["sso_allow_insecure_http"] = True
+    yield bench
+    bench.update(saved)
+
+
+def _seed_sso_record(status=CRMOnboardingStatus.COMPLETED.value, creator="owner@test.com", secret="tenant-webhook-secret"):
+    return _seed_record(status, erpnext_user=creator, lead_webhook_secret=Utility.encrypt_message(secret))
+
+
+def _expected_sig(secret, ts, site, user, nonce):
+    payload = f"sso.v1|{site}|{user}|{nonce}".encode()
+    return "sha256=" + hmac.new(secret.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
+
+
+def test_login_link_is_signed_for_the_creator_and_never_contains_the_secret(sso_http_allowed):
+    from urllib.parse import urlparse, parse_qs
+    _seed_sso_record()
+    out = CRMProcessor.build_login_link("test_crm_bot", "OWNER@test.com")        # email comparison is case-insensitive
+    assert out["expires_in"] == 60
+    url = urlparse(out["login_url"])
+    assert url.path == "/api/method/kairon_connector.api.v1.sso.login" and url.netloc == "meter_co.localhost"
+    q = {k: v[0] for k, v in parse_qs(url.query).items()}
+    assert set(q) == {"user", "ts", "nonce", "sig"} and q["user"] == "owner@test.com"
+    import time
+    assert abs(time.time() - int(q["ts"])) < 5       # real epoch time, whatever the machine timezone
+    assert q["sig"] == _expected_sig("tenant-webhook-secret", q["ts"], "meter_co.localhost", "owner@test.com", q["nonce"])
+    assert "tenant-webhook-secret" not in out["login_url"] and "admin-pass-123" not in json.dumps(out)
+
+
+def test_login_link_nonce_is_fresh_every_time(sso_http_allowed):
+    _seed_sso_record()
+    a = CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")["login_url"]
+    b = CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")["login_url"]
+    assert a != b
+
+
+def test_login_link_only_for_the_tenant_creator(sso_http_allowed):
+    _seed_sso_record()
+    for requester in ("someone.else@test.com", "", None):
+        with pytest.raises(AppException, match="Only the user who created"):
+            CRMProcessor.build_login_link("test_crm_bot", requester)
+
+
+def test_login_link_requires_a_completed_tenant(sso_http_allowed):
+    for status in (CRMOnboardingStatus.FAILED_BENCH.value, CRMOnboardingStatus.BENCH_RUNNING.value, CRMOnboardingStatus.PENDING.value):
+        _seed_sso_record(status=status)
+        with pytest.raises(AppException, match="not ready"):
+            CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")
+    CRMClientDetails.drop_collection()
+    with pytest.raises(AppException, match="not ready"):
+        CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")
+
+
+def test_login_link_requires_the_tenant_secret(sso_http_allowed):
+    _seed_record(CRMOnboardingStatus.COMPLETED.value, erpnext_user="owner@test.com")   # no lead_webhook_secret
+    with pytest.raises(AppException, match="Lead webhook secret"):
+        CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")
+
+
+def test_login_link_api_uses_the_authenticated_user_and_returns_no_secret(sso_http_allowed):
+    _seed_sso_record(creator="test@user.com")                                   # mock_user.email
+    body = client.post("/api/bot/test_crm_bot/crm/login-link").json()
+    assert body["success"] is True and body["data"]["login_url"].startswith("http://meter_co.localhost")
+    _seed_sso_record(creator="not.the.caller@test.com")
+    denied = client.post("/api/bot/test_crm_bot/crm/login-link").json()
+    assert denied["success"] is False and "Only the user who created" in str(denied["message"])
+
+
+def test_login_link_refused_for_plain_http_tenants_by_default():
+    bench = Utility.environment["crm"]["bench"]
+    saved = {k: bench.get(k) for k in ("sso_allow_insecure_http", "tenant_url_scheme")}
+    bench["sso_allow_insecure_http"], bench["tenant_url_scheme"] = False, "http"
+    try:
+        _seed_sso_record()
+        with pytest.raises(AppException, match="not HTTPS"):
+            CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")
+    finally:
+        bench.update(saved)
+
+
+def test_login_link_allowed_over_https_without_the_insecure_override():
+    bench = Utility.environment["crm"]["bench"]
+    saved = {k: bench.get(k) for k in ("sso_allow_insecure_http", "tenant_url_scheme", "tenant_url_port")}
+    bench["sso_allow_insecure_http"], bench["tenant_url_scheme"], bench["tenant_url_port"] = False, "https", None
+    try:
+        _seed_sso_record()
+        url = CRMProcessor.build_login_link("test_crm_bot", "owner@test.com")["login_url"]
+        assert url.startswith("https://meter_co.localhost/api/method/kairon_connector.api.v1.sso.login?")
+    finally:
+        bench.update(saved)
+
+
+def test_tenant_url_scheme_is_validated():
+    bench = Utility.environment["crm"]["bench"]
+    saved = bench.get("tenant_url_scheme")
+    bench["tenant_url_scheme"] = "javascript"
+    try:
+        with pytest.raises(AppException, match="must be 'http' or 'https'"):
+            CRMProcessor.get_tenant_url("a.localhost")
+    finally:
+        bench["tenant_url_scheme"] = saved
+
+
+@pytest.mark.parametrize("setting,expect_present", [(None, False), ("", False), (False, False), ("false", False), (True, True), ("true", True), ("1", True)])
+def test_onboard_response_temporary_password_switch(setting, expect_present):
+    bench = Utility.environment["crm"]["bench"]
+    saved = bench.get("onboard_return_temporary_password")
+    bench["onboard_return_temporary_password"] = setting
+    try:
+        body = _onboard_via_api({"status": "COMPLETED", "site_name": "a.localhost", "company": "Acme",
+                                 "erpnext_user": "o@x.com", "temporary_password": "one-time-secret-value"})
+    finally:
+        bench["onboard_return_temporary_password"] = saved
+    assert ("temporary_password" in body["data"]) is expect_present
+    assert body["data"]["provisioned"] is True and body["data"]["erpnext_user"] == "o@x.com"   # nothing else changes
+    assert "one-time-secret-value" not in json.dumps(body["message"])

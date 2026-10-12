@@ -27,7 +27,7 @@ def onboard_company(
     Initiates automated ERPNext site provisioning for a tenant bot.
 
     - **Request Schema**: `CRMOnboardRequest` (company_name, abbr, default_currency, country, selected_modules)
-    - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, temporary_password }`
+    - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, accepted, provisioned, failed }` (`temporary_password` only when the deployment opts in). `success` only means the request was accepted; read `provisioned`/`failed`/`status` for the real outcome.
     - **Possible Error Responses**:
       - 400 Bad Request: Missing or invalid company parameters.
       - 422 Unprocessable Entity: Empty module selection or forbidden system module request.
@@ -44,7 +44,65 @@ def onboard_company(
         current_user=current_user,
         selected_modules=req.selected_modules,
     )
-    return Response(data=result, message="CRM onboarding initiated successfully")
+    outcome = CRMProcessor.onboarding_outcome(result)
+    # The one-time ERPNext password is NOT returned by default. A deployment that still needs it (clients that
+    # display it) can opt in with crm.bench.onboard_return_temporary_password=true (BENCH_ONBOARD_RETURN_TEMP_PASSWORD).
+    if not CRMProcessor.returns_temporary_password():
+        outcome.pop("temporary_password", None)
+    # `success` means the request was accepted and a run was attempted. The provisioning result is
+    # `data.provisioned` / `data.failed` / `data.status`; the message states it so no caller reads a failed
+    # run as a created tenant.
+    if outcome["provisioned"]:
+        message = "CRM tenant provisioned successfully"
+    elif outcome["failed"]:
+        message = f"CRM onboarding request accepted but provisioning failed ({outcome['status']})"
+    else:
+        message = f"CRM onboarding request accepted; provisioning is {outcome.get('status') or 'in progress'}"
+    return Response(data=outcome, message=message)
+
+
+@router.post("/validate", response_model=Response)
+def validate_tenant_config(
+    req: CRMOnboardRequest,
+    current_user: User = Security(
+        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Validates a tenant configuration without provisioning anything.
+
+    - **Request Schema**: `CRMOnboardRequest` (same body as `/onboard`)
+    - **Response Schema**: `Response` wrapping `{ valid, company_exists, onboarding_status }`
+    - **Possible Error Responses**: CRM not enabled for the bot, empty/invalid company fields (422/400).
+    - **Security Note**: Requires `ADMIN_ACCESS`. Read-only; no site, DB or Mongo record is created.
+    """
+    result = CRMProcessor.validate_tenant_config(
+        bot=current_user.get_bot(),
+        company_name=req.company_name,
+        abbr=req.abbr,
+        default_currency=req.default_currency,
+        country=req.country,
+    )
+    return Response(data=result)
+
+
+@router.post("/metering-sync", response_model=Response)
+def sync_metering_metadata(
+    current_user: User = Security(
+        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Re-sends the tenant's final provisioning state to Kairon Metering (retry for a failed handoff).
+
+    - **Response Schema**: `Response` wrapping `{ synced, event_id, reason }`; `reason` is null when synced,
+      `not_configured` when no Metering URL/secret is set, otherwise a short delivery failure description.
+    - **Possible Error Responses**: no CRM configuration, or provisioning has not finished.
+    - **Security Note**: Requires `ADMIN_ACCESS`. Sends metadata only (no credentials); safe to repeat
+      because Metering ignores duplicate event ids.
+    """
+    result = CRMProcessor.sync_metering_metadata(current_user.get_bot())
+    return Response(data=result)
 
 
 @router.get("/available-modules", response_model=Response)
@@ -218,6 +276,22 @@ async def handle_invitation_webhook(
     return Response(data=result, message="Webhook processed successfully")
 
 
+@router.post("/login-link", response_model=Response)
+def create_login_link(
+    current_user: User = Security(
+        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Returns a signed, single-use link (valid 60 seconds) that logs the tenant's creator into the ERPNext/CRM tenant.
+
+    - **Response Schema**: `Response` wrapping `{ login_url, expires_in }`. The link is a credential: do not log or store it.
+    - **Possible Error Responses**: tenant not COMPLETED, or the caller is not the user who created the tenant.
+    - **Security Note**: Requires `ADMIN_ACCESS`. The signature uses the tenant's webhook secret, which is never returned.
+    """
+    return Response(data=CRMProcessor.build_login_link(current_user.get_bot(), current_user.email))
+
+
 @router.get("/status", response_model=Response)
 def get_onboarding_status(
     current_user: User = Security(
@@ -247,10 +321,10 @@ def get_crm_details(
     Returns full provisioning metadata, database connection info, and web access URLs for the tenant CRM.
 
     - **Request Schema**: None
-    - **Response Schema**: `Response` wrapping `CRMClientDetails` dict (status, site_url, site_name, db_name, last_error, selected_modules).
+    - **Response Schema**: `Response` wrapping `CRMClientDetails` dict (allowlisted fields only: company fields, onboarding_status, site_name, site_url, tier, installed_apps, selected_modules, timestamps). Credentials (Administrator password, DB password, Frappe API key/secret, webhook secrets) and raw provisioning errors are never included.
     - **Security Note**: Admin authorization required (`ADMIN_ACCESS`).
     """
-    details = CRMProcessor.get_crm_details(current_user.get_bot())
+    details = CRMProcessor.get_crm_public_details(current_user.get_bot())
     return Response(data=details)
 
 

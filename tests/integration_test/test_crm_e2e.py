@@ -5,7 +5,7 @@ Business journey, in file order:
 
     TestCRMAuthentication      Kairon login / JWT / invalid + missing credentials
     TestCRMTenantProvisioning  is_crm tenant onboarding, ERPNext site creation, Tier 1 -> Tier 2 upgrade,
-                               pre-flight/negative provisioning errors, admin-dashboard services
+                               pre-flight/negative provisioning errors, tenant record persistence
     TestCRMInvitation          invite user -> email -> password setup -> fresh login -> invitation webhook
                                (HMAC + idempotency) -> RBAC company permission -> re-invite idempotency
     TestCRMLeadWebhook         Kairon lead.qualified action -> signed webhook -> ERPNext receiver -> Lead
@@ -30,6 +30,7 @@ from typing import Any, Callable, Dict, Optional, Set
 import pytest
 import requests
 from loguru import logger
+import mongoengine
 from mongoengine import connect, disconnect
 
 from kairon.crm.models import CRMClientDetails, CRMInvitation, CRMOnboardingStatus
@@ -40,10 +41,15 @@ from kairon.crm.services.provisioning_models import ProvisioningPlan
 from kairon.events.publisher import KaironEvent, KaironEventPublisher
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
-from kairon.streamlit_app.services.health_service import HealthService
-from kairon.streamlit_app.services.logs_service import LogsService
-from kairon.streamlit_app.services.provisioning_service import StreamlitProvisioningService
-from kairon.streamlit_app.services.tenant_service import TenantService, ensure_mongo_connection
+
+def ensure_mongo_connection():
+    """Connect mongoengine to the configured database (these tests use Kairon's own models)."""
+    Utility.load_environment()
+    try:
+        mongoengine.get_db()
+    except Exception:  # noqa: BLE001 - no default connection yet
+        connect(host=Utility.environment["database"]["url"], alias="default")
+
 
 pytestmark = pytest.mark.skipif(
     os.getenv("KAIRON_RUN_LIVE_E2E_TESTS") != "1"
@@ -401,21 +407,23 @@ class TestCRMTenantProvisioning:
                          onboarding_status=CRMOnboardingStatus.PENDING.value, tier=1,
                          installed_apps=["crm"]).save()
 
-    def test_crm_tenant_onboarding_preflight_and_provisioning(self):
-        plan = StreamlitProvisioningService.resolve_plan(["crm"])
+    def test_crm_tenant_onboarding_preflight_and_provisioning(self, bench_config):
+        plan = FeatureAppResolver.resolve(["crm"])
         assert (plan.tier, plan.strategy_key) == (1, "crm") and "crm" in plan.apps
 
-        logs = StreamlitProvisioningService.validate_preflight(self.site, plan, is_upgrade=False)
-        assert any("Check passed" in line or "valid" in line for line in logs)
+        # Pre-flight raises AppException on any failure, so reaching the next line means it passed.
+        PreFlightValidator.validate_configuration(["crm"])
+        PreFlightValidator.validate_infrastructure(BENCH_CONTAINER, self.site, plan, is_upgrade=False)
 
-        res = StreamlitProvisioningService.provision_tenant(
-            company_name=self.company, abbr=self.abbr, selected_features=["crm"], currency="USD",
-            country="United States", admin_password=E2E_PASSWORD, bot=self.bot)
-        assert res["status"] == "success" and res["tier"] == 1 and res["provisioning_time"] > 0
+        started = time.time()
+        res = ProvisionerFactory.create(plan, bench_config).provision(
+            company_name=self.company, abbr=self.abbr, default_currency="USD", country="United States",
+            admin_password=E2E_PASSWORD, bot=self.bot)
+        assert res["status"] == "success" and res["tier"] == 1 and time.time() - started > 0
 
-        tenant = TenantService.get_tenant_by_company(self.company)
-        assert tenant["tier"] == 1 and "crm" in tenant.get("installed_apps", [])
-        assert tenant["onboarding_status"] == CRMOnboardingStatus.SITE_CREATED.value
+        tenant = CRMClientDetails.objects(company_name=self.company).first()
+        assert tenant.tier == 1 and "crm" in tenant.installed_apps
+        assert tenant.onboarding_status == CRMOnboardingStatus.SITE_CREATED.value
         assert site_exists(self.site)
 
     def test_crm_tenant_provisioning_is_reachable_in_erpnext(self):
@@ -439,16 +447,17 @@ class TestCRMTenantProvisioning:
         doc = CRMClientDetails.objects(company_name=company).first()
         assert doc.tier == 2 and "erpnext" in doc.installed_apps
 
-    def test_in_place_upgrade_tier1_to_tier2(self):
-        assert TenantService.get_tenant_by_company(self.company)["tier"] == 1
-        res = StreamlitProvisioningService.upgrade_tenant(
-            company_name=self.company, abbr=self.abbr, selected_features=["selling", "crm"],
+    def test_in_place_upgrade_tier1_to_tier2(self, bench_config):
+        assert CRMClientDetails.objects(company_name=self.company).first().tier == 1
+        upgrade = ProvisioningPlan(strategy_key="in_place_upgrade", tier=2, apps=["crm", "erpnext"])
+        res = ProvisionerFactory.create(upgrade, bench_config).provision(
+            company_name=self.company, abbr=self.abbr, default_currency="USD", country="United States",
             admin_password=E2E_PASSWORD, bot=self.bot)
         assert res["status"] == "success" and res["tier"] == 2
 
-        tenant = TenantService.get_tenant_by_company(self.company)
-        assert tenant["tier"] == 2 and "erpnext" in tenant["installed_apps"]
-        assert "Backup Summary" in tenant["latest_backup_path"]  # upgrade takes a DB backup first
+        tenant = CRMClientDetails.objects(company_name=self.company).first()
+        assert tenant.tier == 2 and "erpnext" in tenant.installed_apps
+        assert "Backup Summary" in tenant.latest_backup_path  # upgrade takes a DB backup first
 
     def test_upgrade_provisioner_direct(self, bench_config):
         company, site, bot = "E2E Upgrade Co", "e2e_upgrade_co.localhost", "test_upgrade_bot"
@@ -483,16 +492,11 @@ class TestCRMTenantProvisioning:
             PreFlightValidator.validate_infrastructure("nonexistent-container-99", "random.localhost", plan,
                                                        is_upgrade=False)
 
-    def test_admin_dashboard_services(self):
-        tenants = TenantService.get_all_tenants()
-        assert len(tenants) >= 1 and sum(1 for t in tenants if t.get("tier") == 2) >= 1
-        tenant = TenantService.get_tenant_by_company(self.company)  # persisted across calls
-        assert tenant["company_name"] == self.company and tenant["site_name"] and tenant["tier"] == 2
-
-        health = HealthService.get_system_health()
-        assert len(health) >= 5 and all(h["status"] in ("Healthy", "Warning", "Failed") for h in health)
-        assert sum(1 for h in health if h["status"] == "Healthy") >= 4
-        assert len(LogsService.get_recent_logs(limit=10)) >= 1
+    def test_tenant_records_persist_across_provisioning(self):
+        tenants = list(CRMClientDetails.objects())
+        assert len(tenants) >= 1 and sum(1 for t in tenants if t.tier == 2) >= 1
+        tenant = CRMClientDetails.objects(company_name=self.company).first()  # persisted across calls
+        assert tenant.company_name == self.company and tenant.site_name and tenant.tier == 2
 
 
 # --------------------------------------------------------------------------------------
