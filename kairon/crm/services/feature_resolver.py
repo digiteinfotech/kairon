@@ -1,37 +1,33 @@
-import os
-import yaml
 from typing import List, Dict, Any
 from loguru import logger
 from kairon.exceptions import AppException
+from kairon.shared.utils import Utility
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 
 
 class FeatureAppResolver:
     """
     Resolver that maps user-selected features (e.g. 'crm', 'hr', 'selling')
-    to a concrete ProvisioningPlan based on provisioning_matrix.yaml.
+    to a concrete ProvisioningPlan based on metadata/provisioning_matrix.yml.
     """
 
     _matrix_cache: Dict[str, Any] = None
 
     @classmethod
     def load_matrix(cls) -> Dict[str, Any]:
+        """The matrix lives in metadata/provisioning_matrix.yml and is merged into `Utility.system_metadata` by
+        `Utility.load_system_metadata()` with the other metadata files (roles, integrations, ...)."""
         if cls._matrix_cache is not None:
             return cls._matrix_cache
 
-        matrix_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "provisioning_matrix.yaml"
-        )
-        if not os.path.exists(matrix_path):
-            raise AppException(f"Provisioning matrix configuration not found at {matrix_path}")
-
-        try:
-            with open(matrix_path, "r") as f:
-                data = yaml.safe_load(f)
-                cls._matrix_cache = data.get("provisioning_matrix", {})
-                return cls._matrix_cache
-        except Exception as e:
-            raise AppException(f"Failed to parse provisioning matrix YAML: {e}")
+        matrix = Utility.system_metadata.get("provisioning_matrix")
+        if not matrix:
+            Utility.load_system_metadata()
+            matrix = Utility.system_metadata.get("provisioning_matrix")
+        if not matrix:
+            raise AppException("Provisioning matrix configuration not found in metadata/provisioning_matrix.yml")
+        cls._matrix_cache = matrix
+        return cls._matrix_cache
 
     @classmethod
     def resolve(cls, selected_features: List[str]) -> ProvisioningPlan:
@@ -61,7 +57,7 @@ class FeatureAppResolver:
             if key not in matrix:
                 # BUSINESS_MODULE_CATALOG (kairon/crm/constants.py) advertises more
                 # modules (Buying, Manufacturing, Projects, Assets, Support, Quality,
-                # Payroll, Maintenance) than provisioning_matrix.yaml currently maps.
+                # Payroll, Maintenance) than provisioning_matrix.yml currently maps.
                 # Silently ignoring an unmapped selection used to fall through to the
                 # "if not resolved_apps: resolved_apps = ['crm']" default below --
                 # a tenant selecting only unmapped modules got a Tier 1 CRM-only site
@@ -70,7 +66,7 @@ class FeatureAppResolver:
                 # loudly instead so the gap is visible at request time, not discovered
                 # by an admin days later.
                 raise AppException(
-                    f"Selected feature '{feature}' has no provisioning_matrix.yaml entry. "
+                    f"Selected feature '{feature}' has no provisioning_matrix.yml entry. "
                     f"Available: {', '.join(sorted(matrix.keys()))}."
                 )
 

@@ -1,4 +1,3 @@
-import ast
 import json
 import re
 import secrets
@@ -183,67 +182,6 @@ frappe.db.commit()
             "role": role,
             "temporary_password": temp_password,
         }
-
-    def get_db_tables(self, site_name: str) -> list:
-        """
-        Retrieves all table names from the PostgreSQL database of a given bench site.
-        """
-        crm_config = Utility.environment.get("crm", {})
-        bench_config = crm_config.get("bench", {})
-        container_name = self._resolve_container_name(bench_config)
-
-        cmd = [
-            "docker", "exec", container_name,
-            "bench", "--site", site_name, "execute", "frappe.db.get_tables"
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode == 0:
-            try:
-                tables = ast.literal_eval(res.stdout.strip())
-                if isinstance(tables, (list, tuple)):
-                    return sorted([str(t) for t in tables])
-            except Exception as e:
-                logger.error(f"Failed to parse database tables: {e}")
-        return []
-
-    def get_table_content(self, site_name: str, table_name: str, limit: int = 50) -> list:
-        """
-        Retrieves rows from a given PostgreSQL database table of a bench site.
-        """
-        if not re.match(r'^[A-Za-z0-9_]+$', table_name):
-            raise AppException("Invalid table name format.")
-        limit = int(limit)
-
-        crm_config = Utility.environment.get("crm", {})
-        bench_config = crm_config.get("bench", {})
-        container_name = self._resolve_container_name(bench_config)
-
-        script = f"""
-import frappe
-import json
-frappe.init(site={json.dumps(site_name)})
-frappe.connect()
-try:
-    rows = frappe.db.sql('SELECT * FROM "{table_name}" LIMIT {limit}', as_dict=True)
-    print(json.dumps(rows, default=str))
-except Exception:
-    print(json.dumps([]))
-"""
-        cmd = [
-            "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
-            "/home/frappe/frappe-bench/env/bin/python", "-c", script
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        if res.returncode == 0:
-            try:
-                output_str = res.stdout.strip()
-                if "[" in output_str and "]" in output_str:
-                    json_part = output_str[output_str.find("["):output_str.rfind("]")+1]
-                    return json.loads(json_part)
-                return json.loads(output_str)
-            except Exception as e:
-                logger.error(f"Failed to parse table content: {e}")
-        return []
 
     def reload_gunicorn_workers(self, container_name: str):
         """

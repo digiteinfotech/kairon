@@ -26,15 +26,3 @@ coverage_html
 /enable_gpt_uat.py
 # Added by code-review-graph
 .code-review-graph/
-
-# Local environments, secrets and generated test output
-.venv/
-venv/
-.env
-.env.*
-*.pyc
-.coverage
-htmlcov/
-coverage/
-playwright-report/
-test-results/
