@@ -85,6 +85,11 @@ class CRMClientDetails(Auditlog):
     selected_modules = ListField(StringField(), default=list)  # business module keys chosen at onboarding
     module_profile_name = StringField()                        # ERPNext Module Profile doc name for this site
 
+    # Metering handoff state (metadata only; see kairon/crm/metering_sync.py)
+    metering_synced = BooleanField(default=False)
+    metering_synced_at = DateTimeField()
+    metering_event_id = StringField()
+
     meta = {
         "strict": False,
         "indexes": [

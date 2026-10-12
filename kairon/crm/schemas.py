@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 from pydantic import BaseModel, root_validator
 from kairon.shared.utils import Utility
@@ -46,6 +47,8 @@ class CRMOnboardRequest(BaseModel):
             raise ValueError("company_name cannot be empty")
         if Utility.check_empty_string(abbr):
             raise ValueError("abbr cannot be empty")
+        if not re.fullmatch(r"[A-Za-z0-9]{1,10}", abbr.strip()):
+            raise ValueError("abbr must be 1-10 letters or numbers")
         if Utility.check_empty_string(default_currency):
             raise ValueError("default_currency cannot be empty")
         if Utility.check_empty_string(country):
