@@ -1,9 +1,9 @@
 #!/bin/bash
-python -m pip install --no-cache-dir -r requirements/dev.txt
-python -c "import spacy; spacy.cli.download('en_core_web_md')"
-python -c "import nltk;nltk.download('averaged_perceptron_tagger_eng')"
-python -c "import nltk;nltk.download('averaged_perceptron_tagger')"
-python -c "import nltk;nltk.download('punkt')"
-python -c "import nltk;nltk.download('stopwords')"
-python -c "import nltk;nltk.download('omw-1.4')"
-python -c "import nltk;nltk.download('wordnet')"
+set -euo pipefail
+
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="${HOME}/.local/bin:${PATH}"
+
+uv sync --frozen

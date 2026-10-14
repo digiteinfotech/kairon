@@ -44,6 +44,14 @@ At this juncture it layers on top of [Rasa Open Source](https://rasa.com/)
 # Deployment
 Kairon only requires a recent version of [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/).
 
+Build the application image from the repository root:
+
+```shell
+docker build -f docker/Dockerfile -t kairon .
+```
+
+The image installs Python 3.10 and the locked dependencies with [uv](https://docs.astral.sh/uv/). PyTorch and TensorFlow are the CPU builds. `docker/docker-compose.yml` runs the API, chat, action, history, events, worker, and script services from this `kairon` image.
+
 Please do the below changes in **docker/docker-compose.yml**
 
 1. set env variable **server** to public IP of the machine where trainer api docker container is running for example: http://localhost:81
@@ -73,7 +81,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Kairon requires [python 3.10](https://www.python.org/downloads/) and [mongo 4.0+](https://www.mongodb.com/download-center/community)
+1. Kairon requires Python 3.10 and [mongo 4.0+](https://www.mongodb.com/download-center/community). On Linux, [uv](https://docs.astral.sh/uv/) installs that Python.
 
 2. Then clone this repo
 
@@ -82,32 +90,27 @@ and set google analytics tracking id
    cd kairon/
    ```
 
-3. For creating Virtual environment, please follow the [link](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/) 
-
-4. For installing dependencies 
-
-   **Windows**
-   ```
-   setup.bat   
-   ```
-
-   **No Matching distribution found tensorflow-text** - remove the dependency from requirements.txt file, as **window version is not available** [#44](https://github.com/tensorflow/text/issues/44)
+3. For installing dependencies
 
    **Linux**
    ```
-   chmod 777 ./setup.sh
-   sh ./setup.sh
+   chmod +x ./setup.sh
+   ./setup.sh
    ```
 
-5. For starting augmentation services run
+   `setup.sh` installs uv if it is missing and syncs `.venv` from `uv.lock`. Rasa is the standard package, without the spaCy extra or NLTK. Run the app with `uv run`, for example `uv run python -m uvicorn kairon.api.app.main:app --host 0.0.0.0 --port 8080`.
+
+   **Windows**
    ```
-   python -m uvicorn augmentation.paraphrase.server:app --host 0.0.0.0
+   setup.bat
    ```
 
-6. For starting trainer-api services run
+   `setup.bat` installs uv if it is missing and syncs `.venv` from `uv.lock`. The lock is solved for Linux. Rasa pins `numpy==1.22.3` on Windows, which conflicts with `pandas==2.2.2`, so `uv sync` does not install on Windows. tensorflow-text also has no Windows build.
+
+4. For starting trainer-api services run
 
    ```
-   python -m uvicorn kairon.api.app.main:app --host 0.0.0.0 --port 8080
+   uv run python -m uvicorn kairon.api.app.main:app --host 0.0.0.0 --port 8080
    ```
    
 ## System Configuration
@@ -244,7 +247,6 @@ python -m black bot_trainer
 * [MongoEngine](http://mongoengine.org/) - ORM
 * [FastApi](https://github.com/tiangolo/fastapi) - Rest Api
 * [Uvicorn](https://www.uvicorn.org/) - ASGI Server
-* [Spacy](https://spacy.io/) - NLP
 * [Pytest](https://docs.pytest.org/en/latest/) - Testing
 * [MongoMock](https://github.com/mongomock/mongomock) - Mocking DB
 * [Response](https://github.com/getsentry/responses) - Mocking HTTP requests
