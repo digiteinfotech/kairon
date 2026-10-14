@@ -122,9 +122,10 @@ async def execute_flow(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
-    Retrieves chat client config of a bot.
+    Executes Agentic flow.
     """
-    flow = AgenticFlow(bot, request.slot_vals, request.sender_id)
+    sender_id = Utility.decrypt_if_encrypted(request.sender_id)
+    flow = AgenticFlow(bot, request.slot_vals, sender_id)
     responses, errors = await flow.execute_rule(request.name)
     return {
         "data": {

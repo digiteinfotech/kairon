@@ -4291,6 +4291,36 @@ async def test_agentic_flow_api_call(mock_exec_rule, mock_init):
     assert actual["data"]["responses"] == [{'text': 'Hi'}]
 
 
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_agentic_flow_api_call_encrypted_sender_id_decrypted(mock_exec_rule, mock_init):
+    mock_exec_rule.return_value = [{'text': 'Hi'}], []
+    encrypted_sender_id = Utility.encrypt_message("user@example.com")
+    response = client.post(
+        f"/api/bot/{bot}/exec/flow",
+        headers={"Authorization": token_type + " " + token},
+        json={"name": "test_flow", "sender_id": encrypted_sender_id},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert mock_init.call_args[0][2] == "user@example.com"
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_agentic_flow_api_call_plain_sender_id_passed_as_is(mock_exec_rule, mock_init):
+    mock_exec_rule.return_value = [{'text': 'Hi'}], []
+    response = client.post(
+        f"/api/bot/{bot}/exec/flow",
+        headers={"Authorization": token_type + " " + token},
+        json={"name": "test_flow", "sender_id": "user@example.com"},
+    )
+    actual = response.json()
+    assert actual["success"]
+    assert mock_init.call_args[0][2] == "user@example.com"
+
 
 @pytest.mark.asyncio
 async def test_media_download_success():
