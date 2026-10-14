@@ -48,6 +48,7 @@ class ActionAgent(ActionsBase):
         status = STATUSES.SUCCESS.value
         exception = None
         bot_response = None
+        api_response = None
         filled_slots = {}
         http_url = None
 
@@ -69,6 +70,7 @@ class ActionAgent(ActionsBase):
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
+                "X-user" : sender_id,
                 "Authorization": f"Bearer {bearer_token}",
             }
 
@@ -120,6 +122,7 @@ class ActionAgent(ActionsBase):
                 bot=self.bot,
                 url=http_url,
                 bot_response=str(bot_response) if bot_response else None,
+                api_response=str(api_response) if api_response else None,
                 exception=exception,
                 status=status,
                 user_msg=tracker.latest_message.get('text'),
