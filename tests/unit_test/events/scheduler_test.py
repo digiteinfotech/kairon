@@ -1,11 +1,14 @@
 import os
 import re
+import threading
+import time
 from datetime import datetime, timedelta
-
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import pytz
+from apscheduler.events import JobExecutionEvent, EVENT_JOB_ERROR, EVENT_JOB_MISSED, EVENT_JOB_EXECUTED
+from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from bson import ObjectId
 from pymongo.results import UpdateResult, DeleteResult
@@ -351,3 +354,254 @@ class TestMessageBroadcastProcessor:
 
             mock_modify_job.assert_not_called()
             mock_reschedule_job.assert_not_called()
+
+
+class TestResilientBackgroundScheduler:
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_survives_job_lookup_error_during_process_jobs(self, mock_super_remove):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        mock_super_remove.side_effect = JobLookupError("test_job_123")
+
+        scheduler = ResilientBackgroundScheduler()
+        # Simulate being on the APScheduler thread inside _process_jobs
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            scheduler.remove_job("test_job_123")  # should NOT raise
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+        mock_super_remove.assert_called_once()
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_reraises_job_lookup_error_outside_process_jobs(self, mock_super_remove):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        mock_super_remove.side_effect = JobLookupError("missing_job_456")
+
+        scheduler = ResilientBackgroundScheduler()
+        # Default: flag absent (not in _process_jobs) — must re-raise
+        resilient_scheduler._local.in_process_jobs = False
+        with pytest.raises(JobLookupError):
+            scheduler.remove_job("missing_job_456")
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler._process_jobs")
+    def test_process_jobs_flag_set_and_reset(self, mock_super_process):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        scheduler = ResilientBackgroundScheduler()
+        flag_during_call = {"value": None}
+
+        def capture_flag(*args, **kwargs):
+            flag_during_call["value"] = getattr(resilient_scheduler._local, 'in_process_jobs', False)
+            return 0
+
+        mock_super_process.side_effect = capture_flag
+        scheduler._process_jobs()
+
+        assert flag_during_call["value"] is True
+        assert getattr(resilient_scheduler._local, 'in_process_jobs', False) is False
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler._process_jobs")
+    def test_process_jobs_resets_flag_on_exception(self, mock_super_process):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        scheduler = ResilientBackgroundScheduler()
+        mock_super_process.side_effect = RuntimeError("unexpected")
+
+        with pytest.raises(RuntimeError):
+            scheduler._process_jobs()
+
+        assert getattr(resilient_scheduler._local, 'in_process_jobs', False) is False
+
+
+class TestSchedulerJobEventListener:
+
+    @staticmethod
+    def _capture_loguru(func):
+        """Run func and return all loguru log messages as a single string."""
+        import io
+        from loguru import logger
+        buf = io.StringIO()
+        handler_id = logger.add(buf, format="{level} {message}", colorize=False)
+        try:
+            func()
+        finally:
+            logger.remove(handler_id)
+        buf.seek(0)
+        return buf.read()
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    def test_listener_logs_error_on_exception(self, mock_start):
+        from kairon.events.scheduler.kscheduler import _on_job_event
+
+        event = MagicMock()
+        event.job_id = "job_abc"
+        event.exception = ValueError("task failed")
+        event.code = EVENT_JOB_ERROR
+
+        output = self._capture_loguru(lambda: _on_job_event(event))
+        assert "SCHEDULER_JOB_FAILED" in output
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    def test_listener_logs_warning_on_missed(self, mock_start):
+        from kairon.events.scheduler.kscheduler import _on_job_event
+
+        event = MagicMock()
+        event.job_id = "job_def"
+        event.exception = None
+        event.code = EVENT_JOB_MISSED
+        event.scheduled_run_time = "2026-10-07T14:30:00Z"
+
+        output = self._capture_loguru(lambda: _on_job_event(event))
+        assert "SCHEDULER_JOB_MISSED" in output
+
+    @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
+    def test_listener_logs_info_on_executed(self, mock_start):
+        from kairon.events.scheduler.kscheduler import _on_job_event
+
+        event = MagicMock()
+        event.job_id = "job_ghi"
+        event.exception = None
+        event.code = EVENT_JOB_EXECUTED
+
+        output = self._capture_loguru(lambda: _on_job_event(event))
+        assert "SCHEDULER_JOB_EXECUTED" in output
+
+class TestResilientSchedulerIsolation:
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_swallowed_error_logs_warning(self, mock_super_remove):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        mock_super_remove.side_effect = JobLookupError("gone_job")
+        scheduler = ResilientBackgroundScheduler()
+        scheduler._logger = MagicMock()
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            scheduler.remove_job("gone_job")
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+        scheduler._logger.warning.assert_called_once()
+        assert "gone_job" in scheduler._logger.warning.call_args[0]
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_flag_is_thread_local(self, mock_super_remove):
+        """Flag set on scheduler thread must not leak to API thread."""
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        mock_super_remove.side_effect = JobLookupError("job_x")
+        scheduler = ResilientBackgroundScheduler()
+        in_process = threading.Event()
+        release = threading.Event()
+
+        def scheduler_thread():
+            resilient_scheduler._local.in_process_jobs = True
+            in_process.set()
+            release.wait(5)
+            resilient_scheduler._local.in_process_jobs = False
+
+        t = threading.Thread(target=scheduler_thread)
+        t.start()
+        try:
+            assert in_process.wait(5)
+            with pytest.raises(JobLookupError):
+                scheduler.remove_job("job_x")
+        finally:
+            release.set()
+            t.join()
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_other_exceptions_not_swallowed(self, mock_super_remove):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        mock_super_remove.side_effect = RuntimeError("boom")
+        scheduler = ResilientBackgroundScheduler()
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            with pytest.raises(RuntimeError):
+                scheduler.remove_job("job_y")
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+    @patch("apscheduler.schedulers.base.BaseScheduler.remove_job")
+    def test_remove_job_success_passes_jobstore(self, mock_super_remove):
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        ResilientBackgroundScheduler().remove_job("ok_job", jobstore="store1")
+        mock_super_remove.assert_called_once_with("ok_job", jobstore="store1")
+
+
+class TestSchedulerWatchdog:
+
+    class _StopLoop(Exception):
+        pass
+
+    def _run_watchdog(self, scheduler, sleeps=2, env_interval=None, monkeypatch=None):
+        """Build watchdog without starting a real thread; run its loop for `sleeps` iterations."""
+        from kairon.events.scheduler import kscheduler
+
+        if env_interval is not None:
+            monkeypatch.setenv("SCHEDULER_WATCHDOG_INTERVAL", str(env_interval))
+        with patch.object(kscheduler.threading, "Thread") as mock_thread:
+            kscheduler._build_watchdog(scheduler)
+        target = mock_thread.call_args.kwargs["target"]
+        side_effect = [None] * (sleeps - 1) + [self._StopLoop()]
+        with patch.object(kscheduler.time, "sleep", side_effect=side_effect) as mock_sleep:
+            with pytest.raises(self._StopLoop):
+                target()
+        return mock_thread, mock_sleep
+
+    def test_thread_is_daemon_and_started(self):
+        from kairon.events.scheduler import kscheduler
+
+        with patch.object(kscheduler.threading, "Thread") as mock_thread:
+            result = kscheduler._build_watchdog(MagicMock())
+        kwargs = mock_thread.call_args.kwargs
+        assert kwargs["daemon"] is True
+        assert kwargs["name"] == "SchedulerWatchdog"
+        mock_thread.return_value.start.assert_called_once()
+        assert result is mock_thread.return_value
+
+    def test_restarts_dead_scheduler(self):
+        scheduler = MagicMock()
+        scheduler.running = False
+        self._run_watchdog(scheduler, sleeps=2)
+        assert scheduler.start.call_count == 1  # 2nd sleep aborts loop before 2nd check
+
+    def test_no_restart_when_running(self):
+        scheduler = MagicMock()
+        scheduler.running = True
+        self._run_watchdog(scheduler, sleeps=3)
+        scheduler.start.assert_not_called()
+
+    def test_restart_failure_does_not_kill_watchdog(self):
+        scheduler = MagicMock()
+        scheduler.running = False
+        scheduler.start.side_effect = RuntimeError("start failed")
+        # 3 sleeps -> 2 restart attempts, loop survives first failure
+        self._run_watchdog(scheduler, sleeps=3)
+        assert scheduler.start.call_count == 2
+
+    def test_interval_from_env(self, monkeypatch):
+        scheduler = MagicMock()
+        scheduler.running = True
+        _, mock_sleep = self._run_watchdog(scheduler, sleeps=1, env_interval=7, monkeypatch=monkeypatch)
+        mock_sleep.assert_called_with(7)
+
+    def test_interval_from_config_default(self, monkeypatch):
+        monkeypatch.delenv("SCHEDULER_WATCHDOG_INTERVAL", raising=False)
+        scheduler = MagicMock()
+        scheduler.running = True
+        with patch.dict(Utility.environment["events"]["scheduler"], {"watchdog_interval_seconds": 13}):
+            _, mock_sleep = self._run_watchdog(scheduler, sleeps=1)
+        mock_sleep.assert_called_with(13)
