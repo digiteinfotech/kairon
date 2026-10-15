@@ -124,7 +124,7 @@ async def execute_flow(
     """
     Executes Agentic flow.
     """
-    sender_id = Utility.decrypt_if_encrypted(request.sender_id)
+    sender_id = Utility.process_sender_id(request.sender_id)
     flow = AgenticFlow(bot, request.slot_vals, sender_id)
     responses, errors = await flow.execute_rule(request.name)
     return {

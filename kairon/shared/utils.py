@@ -1408,7 +1408,7 @@ class Utility:
         return decrypted_msg.decode("utf-8")
 
     @staticmethod
-    def decrypt_if_encrypted(msg: Text):
+    def process_sender_id(msg: Text):
         """
         Decrypts msg if it is a valid encrypted token, otherwise returns it unchanged.
         """
