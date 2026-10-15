@@ -1,16 +1,17 @@
 import asyncio
 import base64
-import mimetypes
 import os
-from datetime import datetime , timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import BinaryIO
-from markdown_pdf import MarkdownPdf, Section
-from loguru import logger
-from fastapi import File
+
+import fitz
 import requests
-from mongoengine import DoesNotExist, NotUniqueError
-from pathy import ClientError
+from botocore.exceptions import ClientError
+from fastapi import File
+from loguru import logger
+from markdown_pdf import MarkdownPdf, Section
+from mongoengine import DoesNotExist
 from uuid6 import uuid7
 
 from kairon import Utility
@@ -20,10 +21,8 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.cloud.utils import CloudUtility
 from kairon.shared.constants import WhatsappBSPTypes
-from kairon.shared.data.data_objects import UserMediaData, Rules, Intents
-from kairon.shared.data.processor import MongoProcessor
+from kairon.shared.data.data_objects import UserMediaData, Rules
 from kairon.shared.models import UserMediaUploadType, UserMediaUploadStatus, FlowTagType
-import fitz
 
 
 class UserMedia:

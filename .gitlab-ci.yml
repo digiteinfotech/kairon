@@ -1,27 +1,30 @@
 stages:
   - test
 
+variables:
+  UV_PYTHON: "3.10"
+
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME
-  - export PATH=$PATH:/usr/local/bin
+  - export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 
 test:
   tags:
     - kairon-test
   stage: test
+  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
   script:
-    - python3.10 -V
-    - python3.10 -m pip install virtualenv
-    - python3.10 -m virtualenv env
-    - source env/bin/activate
-    - python3.10 -m pip install --upgrade pip
-    - export PIP_DEFAULT_TIMEOUT=100
-    - python3.10 -m pip --default-timeout=100 install -U -r requirements/dev.txt
-    - python3.10 -m nltk.downloader averaged_perceptron_tagger
-    - python3.10 -m nltk.downloader punkt
-    - python3.10 -m nltk.downloader stopwords
-    - python3.10 -m nltk.downloader omw-1.4
-    - python3.10 -m nltk.downloader wordnet
-    - python3.10 -m pytest tests --html=report.html --cov=kairon --cov-report html:coverage_html --disable-warnings
-    - deactivate
-    - rm -r env/
+    - chmod +x ./setup.sh
+    - ./setup.sh
+    - uv run pytest tests --html=report.html --cov=kairon --cov-report term --cov-report xml:coverage.xml --cov-report html:coverage_html --disable-warnings
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - report.html
+      - coverage.xml
+      - coverage_html/
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
