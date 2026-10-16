@@ -66,6 +66,8 @@ class Authentication:
             if user is None:
                 raise credentials_exception
             user_model = User(**user)
+            if payload.get("type") == TOKEN_TYPE.STORE_PAGE.value:
+                Authentication.validate_bot_request(request.path_params.get("bot"), payload.get("bot"))
             if payload.get("type") not in [TOKEN_TYPE.LOGIN.value, TOKEN_TYPE.STORE_PAGE.value]:
                 Authentication.validate_bot_request(request.path_params.get('bot'), payload.get('bot'))
                 if payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
