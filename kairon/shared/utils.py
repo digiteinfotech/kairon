@@ -1408,6 +1408,20 @@ class Utility:
         return decrypted_msg.decode("utf-8")
 
     @staticmethod
+    def process_sender_id(msg: Text):
+        """
+        Decrypts msg if it is a valid encrypted token, otherwise returns it unchanged.
+        """
+        from cryptography.fernet import InvalidToken
+
+        if not msg or not isinstance(msg, str):
+            return msg
+        try:
+            return Utility.decrypt_message(msg)
+        except InvalidToken:
+            return msg
+
+    @staticmethod
     def get_latest_model(bot: Text):
         """
         fetches the latest model from the path

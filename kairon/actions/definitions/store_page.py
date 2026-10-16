@@ -56,6 +56,7 @@ class ActionStorePage(ActionsBase):
                     "/api/bot/.+/customer_data/.*",
                     "/api/bot/.+/store_page/metadata",
                     "/api/bot/.+/data/collection/.*",
+                    "/api/bot/.+/exec/flow"
                 ],
             )
 

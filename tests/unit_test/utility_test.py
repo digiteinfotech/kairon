@@ -3891,3 +3891,15 @@ class TestUtility:
             with pytest.raises(Exception) as excinfo:
                 messenger_response_converter.paragraph_transformer(message)
             assert "Error in MessengerResponseConverter::paragraph_transformer" in str(excinfo.value)
+
+    def test_decrypt_if_encrypted_decrypts_encrypted_value(self):
+        encrypted = Utility.encrypt_message("user@example.com")
+        assert encrypted != "user@example.com"
+        assert Utility.process_sender_id(encrypted) == "user@example.com"
+
+    @pytest.mark.parametrize("value", ["user@example.com", "919876543210", "gAAAAAnot-a-valid-token", ""])
+    def test_decrypt_if_encrypted_returns_plain_value_unchanged(self, value):
+        assert Utility.process_sender_id(value) == value
+
+    def test_decrypt_if_encrypted_none(self):
+        assert Utility.process_sender_id(None) is None
