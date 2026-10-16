@@ -59,7 +59,8 @@ from pymongo.uri_parser import (
     SRV_SCHEME,
     parse_userinfo,
 )
-from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from pymongo.uri_parser import split_options
+from pymongo.uri_parser_shared import _BAD_DB_CHARS
 from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
 from starlette import status

@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytz
 from croniter import croniter
-from pydantic import BaseModel, root_validator, validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from kairon.shared.chat.broadcast.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
@@ -11,12 +11,32 @@ from typing import List, Text, Dict, Any
 from kairon.exceptions import AppException
 
 
+
+def _apply_root_values(model, values):
+    """Apply a v1 root-validator dict onto a model without revalidating.
+
+    Validators may replace a field with another type or drop a key.
+    """
+    fields = type(model).model_fields
+    for name, value in values.items():
+        if name in fields and getattr(model, name) is not value:
+            setattr(model, name, value)
+    for name in fields:
+        if name not in values and getattr(model, name) is not None:
+            setattr(model, name, None)
+    return model
+
+
 class ChannelRequest(BaseModel):
     connector_type: str
     config: dict
 
-    @root_validator
-    def validate_channel(cls, values):
+    @model_validator(mode="after")
+    def validate_channel(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if values.get("connector_type") not in Utility.get_channels():
             raise ValueError(f"Invalid channel type {values.get('connector_type')}")
         Utility.validate_channel_config(
@@ -29,15 +49,19 @@ class ChannelRequest(BaseModel):
                 raise AppException(
                     "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
                 )
-        return values
+        return _apply_root_values(self, values)
 
 class SchedulerConfiguration(BaseModel):
     expression_type: str
     schedule: str
     timezone: str = None
 
-    @root_validator
-    def validate_schedule(cls, values):
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         expression_type = values.get("expression_type")
         schedule = values.get("schedule")
         tz = values.get("timezone")
@@ -82,7 +106,7 @@ class SchedulerConfiguration(BaseModel):
 
             values["schedule"] = epoch_time
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class RecipientsConfiguration(BaseModel):
@@ -121,8 +145,12 @@ class MessageBroadcastRequest(BaseModel):
     pyscript: str = None
     flowname: str = None
 
-    @root_validator
-    def validate_request(cls, values):
+    @model_validator(mode="after")
+    def validate_request(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if values.get("broadcast_type") == MessageBroadcastType.static:
             if not values.get("recipients_config") or not values.get("template_config"):
                 raise ValueError(
@@ -141,15 +169,16 @@ class MessageBroadcastRequest(BaseModel):
         ) == MessageBroadcastType.dynamic and Utility.check_empty_string(pyscript):
             raise ValueError("pyscript is required for dynamic broadcasts!")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class ChatRequest(BaseModel):
     data: Text
     metadata: Dict = None
 
-    @validator("data")
-    def validate_data(cls, v, values, **kwargs):
+    @field_validator("data")
+    @classmethod
+    def validate_data(cls, v):
         if Utility.check_empty_string(v):
             raise ValueError("data cannot be empty!")
         return v
@@ -159,8 +188,9 @@ class AgenticFlowRequest(BaseModel):
     slot_vals: Dict[str, Any] = None
     sender_id: str = None
 
-    @validator("name")
-    def validate_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
         if Utility.check_empty_string(v):
             raise ValueError("name cannot be empty!")
         return v

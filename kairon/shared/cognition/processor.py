@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Text, Dict, Any, List, Optional
+from typing import Annotated, Text, Dict, Any, List, Optional
 import json
 from loguru import logger
 from mongoengine import DoesNotExist, Q
-from pydantic import constr, create_model, ValidationError
+from pydantic import StringConstraints, create_model, ValidationError
 from pymongo import UpdateOne
 
 from kairon import Utility
@@ -327,7 +327,7 @@ class CognitionDataProcessor:
     @staticmethod
     def get_pydantic_type(data_type: str):
         if data_type == 'str':
-            return (constr(strict=True, min_length=1), ...)
+            return (Annotated[str, StringConstraints(strict=True, min_length=1)], ...)
         elif data_type == 'int':
             return (int, ...)
         elif data_type == 'float':

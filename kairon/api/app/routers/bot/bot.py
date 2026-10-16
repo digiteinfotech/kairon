@@ -1,11 +1,11 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional, Dict, Text, Union
+from typing import Annotated, List, Optional, Dict, Text, Union
 
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
-from pydantic import constr
+from pydantic import StringConstraints
 
 from kairon.api.models import (
     TextData,
@@ -49,6 +49,8 @@ from kairon.shared.llm.processor import LLMProcessor
 from kairon.shared.models import User, TemplateType
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
+
+LowerStr = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True)]
 
 router = APIRouter()
 v2 = APIRouter()
@@ -159,7 +161,7 @@ async def training_example_exists(
 
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
-        intent: constr(to_lower=True, strip_whitespace=True),
+        intent: LowerStr,
         request_data: ListData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -177,7 +179,7 @@ async def add_training_examples(
 
 @router.post("/training_examples/move/{intent}", response_model=Response)
 async def move_training_examples(
-        intent: constr(to_lower=True, strip_whitespace=True),
+        intent: LowerStr,
         request_data: ListData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -252,7 +254,7 @@ async def get_responses(
 @router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
         request_data: TextData,
-        utterance: constr(to_lower=True, strip_whitespace=True),
+        utterance: LowerStr,
         form_attached: Optional[str] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -268,7 +270,7 @@ async def add_responses(
 @router.post("/response/json/{utterance}", response_model=Response)
 async def add_custom_responses(
         request_data: DictData,
-        utterance: constr(to_lower=True, strip_whitespace=True),
+        utterance: LowerStr,
         form_attached: Optional[str] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -1036,7 +1038,7 @@ async def get_all_synonyms(
 
 @router.get("/entity/synonym/{name:path}/values", response_model=Response)
 async def get_synonym_values(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -1108,7 +1110,7 @@ async def add_synonym_values(
 
 @router.put("/entity/synonym/{name:path}/value/{id}", response_model=Response)
 async def edit_synonym_value(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -1146,7 +1148,7 @@ async def delete_synonym_value(
 
 @router.delete("/entity/synonym/{name:path}/value/{id}", response_model=Response)
 async def delete_synonym_value(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):

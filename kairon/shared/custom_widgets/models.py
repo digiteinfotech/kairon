@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
 
@@ -23,5 +23,4 @@ class CustomWidgetsRequest(BaseModel):
 class GlobalFilterConfigRequest(BaseModel):
     global_config: List[Dict[str, Any]]
 
-    class Config:
-        extra = 'allow'
+    model_config = ConfigDict(extra='allow')

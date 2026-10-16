@@ -54,18 +54,31 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer().autoplay().camera().document_domain().encrypted_media().fullscreen().vibrate()
-    .geolocation().gyroscope().magnetometer().microphone().midi().payment().picture_in_picture().sync_xhr().usb()
+    PermissionsPolicy()
+    .accelerometer()
+    .autoplay()
+    .fullscreen()
+    .geolocation()
+    .gyroscope()
+    .magnetometer()
+    .microphone()
+    .usb()
 )
-secure_headers = Secure(
-    server=server,
-    csp=csp,
-    hsts=hsts,
-    referrer=referrer,
-    permissions=permissions_value,
-    cache=cache_value,
-    content=content
-)
+
+
+def build_secure_headers(policy):
+    return Secure(
+        server=server,
+        csp=policy,
+        hsts=hsts,
+        referrer=referrer,
+        permissions=permissions_value,
+        cache=cache_value,
+        xcto=content,
+    )
+
+
+secure_headers = build_secure_headers(csp)
 
 
 @asynccontextmanager
@@ -103,7 +116,7 @@ async def add_secure_headers(request: Request, call_next):
     response = await call_next(request)
     process_time = (time() - start_time) * 1000
 
-    secure_headers.framework.fastapi(response)
+    secure_headers.set_headers(response)
     response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
@@ -121,9 +134,7 @@ async def add_secure_headers(request: Request, call_next):
     if request.url.path == "/redoc":
         custom_csp = copy.deepcopy(csp)
         custom_csp.worker_src("blob:")
-        secure_headers.csp = custom_csp
-        secure_headers.framework.fastapi(response)
-        secure_headers.csp = csp
+        build_secure_headers(custom_csp).set_headers(response)
     return response
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 import json
-from typing import List, Any, Dict, Optional, Text, Union, Literal
+from typing import Annotated, List, Any, Dict, Optional, Text, Union, Literal
 
 import pytz
 from croniter import croniter
@@ -33,7 +33,16 @@ from kairon.shared.actions.models import (
 from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackResponseType
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
-from pydantic import BaseModel, validator, SecretStr, root_validator, constr, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    StringConstraints,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from kairon.shared.models import (
     StoryStepType,
     StoryType,
@@ -46,12 +55,35 @@ from kairon.shared.models import (
 )
 
 
+
+def _apply_root_values(model, values):
+    """Apply a v1 root-validator dict onto a model without revalidating.
+
+    Validators may replace a field with another type or drop a key.
+    """
+    fields = type(model).model_fields
+    for name, value in values.items():
+        if name in fields and getattr(model, name) is not value:
+            setattr(model, name, value)
+    for name in fields:
+        if name not in values and getattr(model, name) is not None:
+            setattr(model, name, None)
+    return model
+
+
+LowerStr = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True)]
+
+
 class RecaptchaVerifiedRequest(BaseModel):
     recaptcha_response: str = None
     remote_ip: str = None
 
-    @root_validator
-    def validate_recaptcha(cls, values):
+    @model_validator(mode="after")
+    def validate_recaptcha(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         secret = Utility.environment["security"].get("recaptcha_secret", None)
@@ -61,7 +93,7 @@ class RecaptchaVerifiedRequest(BaseModel):
             Utility.validate_recaptcha(
                 values.get("recaptcha_response"), values.get("remote_ip")
             )
-        return values
+        return _apply_root_values(self, values)
 
 
 class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
@@ -157,7 +189,7 @@ class RecaptchaVerifiedTextData(RecaptchaVerifiedRequest):
 
 
 class TextDataLowerCase(BaseModel):
-    data: constr(to_lower=True, strip_whitespace=True)
+    data: LowerStr
 
 
 class ListData(BaseModel):
@@ -171,7 +203,7 @@ class ConsentRequest(BaseModel):
 
 
 class RegisterAccount(RecaptchaVerifiedRequest):
-    email: constr(to_lower=True, strip_whitespace=True)
+    email: LowerStr
     first_name: str
     last_name: str
     password: SecretStr
@@ -182,8 +214,9 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     accepted_terms: bool
     accepted_ai_guidelines: bool
 
-    @validator("email")
-    def validate_email(cls, v, values, **kwargs):
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
         from kairon.shared.utils import Utility
 
         try:
@@ -192,8 +225,9 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError(str(e))
         return v
 
-    @validator("password")
-    def validate_password(cls, v, values, **kwargs):
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
         from kairon.shared.utils import Utility
 
         try:
@@ -202,8 +236,10 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError(str(e))
         return v
 
-    @validator("confirm_password")
-    def validate_confirm_password(cls, v, values, **kwargs):
+    @field_validator("confirm_password")
+    @classmethod
+    def validate_confirm_password(cls, v, info: ValidationInfo):
+        values = info.data
         if (
             "password" in values
             and v.get_secret_value() != values["password"].get_secret_value()
@@ -211,8 +247,12 @@ class RegisterAccount(RecaptchaVerifiedRequest):
             raise ValueError("Password and Confirm Password does not match")
         return v
 
-    @root_validator
-    def validate_names(cls, values):
+    @model_validator(mode="after")
+    def validate_names(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         first_name = values.get("first_name", "").strip()
@@ -227,24 +267,29 @@ class RegisterAccount(RecaptchaVerifiedRequest):
         if not first_valid or not last_valid:
             raise ValueError("First name and last name can only contain letters, numbers, spaces and underscores.")
 
-        return values
+        return _apply_root_values(self, values)
 
-    @root_validator
-    def validate_fingerprint(cls, values):
+    @model_validator(mode="after")
+    def validate_fingerprint(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if Utility.environment["user"]["validate_trusted_device"] and Utility.check_empty_string(values.get("fingerprint")):
             raise ValueError("fingerprint is required")
-        return values
+        return _apply_root_values(self, values)
 
 
 class BotAccessRequest(RecaptchaVerifiedRequest):
-    email: constr(to_lower=True, strip_whitespace=True)
+    email: LowerStr
     role: ACCESS_ROLES = ACCESS_ROLES.TESTER.value
     activity_status: ACTIVITY_STATUS = ACTIVITY_STATUS.INACTIVE.value
 
-    @validator("email")
-    def validate_email(cls, v, values, **kwargs):
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
         from kairon.shared.utils import Utility
 
         try:
@@ -253,8 +298,9 @@ class BotAccessRequest(RecaptchaVerifiedRequest):
             raise ValueError(str(e))
         return v
 
-    @validator("role")
-    def validate_role(cls, v, values, **kwargs):
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v):
         if v == ACCESS_ROLES.OWNER.value:
             raise ValueError("There can be only 1 owner per bot")
         return v
@@ -295,7 +341,8 @@ class ComponentConfig(BaseModel):
     action_fallback: str = None
     action_fallback_threshold: float = None
 
-    @validator("nlu_epochs", "response_epochs", "ted_epochs")
+    @field_validator("nlu_epochs", "response_epochs", "ted_epochs")
+    @classmethod
     def validate_epochs(cls, v):
         from kairon.shared.utils import Utility
 
@@ -308,7 +355,8 @@ class ComponentConfig(BaseModel):
             raise ValueError(f"Please choose a epoch between 1 and {epoch_max_limit}")
         return v
 
-    @validator("nlu_confidence_threshold", "action_fallback_threshold")
+    @field_validator("nlu_confidence_threshold", "action_fallback_threshold")
+    @classmethod
     def validate_confidence_threshold(cls, v):
         if v is not None and (v < 0.3 or v > 0.9):
             raise ValueError("Please choose a threshold between 0.3 and 0.9")
@@ -320,8 +368,9 @@ class Password(RecaptchaVerifiedRequest):
     password: SecretStr
     confirm_password: SecretStr
 
-    @validator("password")
-    def validate_password(cls, v, values, **kwargs):
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
         from kairon.shared.utils import Utility
 
         try:
@@ -330,8 +379,10 @@ class Password(RecaptchaVerifiedRequest):
             raise ValueError(str(e))
         return v
 
-    @validator("confirm_password")
-    def validate_confirm_password(cls, v, values, **kwargs):
+    @field_validator("confirm_password")
+    @classmethod
+    def validate_confirm_password(cls, v, info: ValidationInfo):
+        values = info.data
         if (
             "password" in values
             and v.get_secret_value() != values["password"].get_secret_value()
@@ -346,8 +397,12 @@ class HttpActionParameters(BaseModel):
     parameter_type: ActionParameterType
     encrypt: bool = False
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(values.get("key")):
@@ -370,24 +425,27 @@ class HttpActionParameters(BaseModel):
         if values.get("parameter_type") == ActionParameterType.key_vault:
             values["encrypt"] = True
 
-        return values
+        return _apply_root_values(self, values)
 
 
-class SetSlotsUsingActionResponse(BaseModel, use_enum_values=True):
+class SetSlotsUsingActionResponse(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     name: str
     value: str
     evaluation_type: EvaluationType = EvaluationType.expression
 
-    @validator("name")
-    def validate_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("slot name is required")
         return v
 
-    @validator("value")
-    def validate_expression(cls, v, values, **kwargs):
+    @field_validator("value")
+    @classmethod
+    def validate_expression(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
@@ -401,8 +459,12 @@ class ActionResponseEvaluation(BaseModel):
     evaluation_type: EvaluationType = EvaluationType.expression
     dispatch_type: DispatchType = DispatchType.text.value
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if values.get("dispatch") is True and Utility.check_empty_string(
@@ -410,11 +472,11 @@ class ActionResponseEvaluation(BaseModel):
         ):
             raise ValueError("response is required for dispatch")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class HttpActionConfigRequest(BaseModel):
-    action_name: constr(to_lower=True, strip_whitespace=True)
+    action_name: LowerStr
     content_type: Union[HttpContentType, HttpRequestContentType] = HttpContentType.application_json
     response: ActionResponseEvaluation = None
     http_url: str
@@ -424,22 +486,25 @@ class HttpActionConfigRequest(BaseModel):
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
 
-    @validator("action_name")
-    def validate_action_name(cls, v, values, **kwargs):
+    @field_validator("action_name")
+    @classmethod
+    def validate_action_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("action_name is required")
         return v
 
-    @validator("http_url")
-    def validate_http_url(cls, v, values, **kwargs):
+    @field_validator("http_url")
+    @classmethod
+    def validate_http_url(cls, v):
         if isinstance(url(v), ValidationFailure):
             raise ValueError("URL is malformed")
         return v
 
-    @validator("request_method")
-    def validate_request_method(cls, v, values, **kwargs):
+    @field_validator("request_method")
+    @classmethod
+    def validate_request_method(cls, v):
         if v.upper() not in ("GET", "POST", "PUT", "DELETE"):
             raise ValueError("Invalid HTTP method")
         return v.upper()
@@ -450,31 +515,37 @@ class PayloadConfig(BaseModel):
     value: Any
     query_type: DbActionOperationType
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(values.get("type")):
             raise ValueError("type is required")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class PyscriptActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     source_code: str
     dispatch_response: bool = True
 
-    @validator("name")
-    def validate_action_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_action_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("name is required")
         return v
 
-    @validator("source_code")
-    def validate_source_code(cls, v, values, **kwargs):
+    @field_validator("source_code")
+    @classmethod
+    def validate_source_code(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
@@ -483,30 +554,33 @@ class PyscriptActionRequest(BaseModel):
 
 
 class DatabaseActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     collection: str
     payload: List[PayloadConfig]
     response: ActionResponseEvaluation = None
     set_slots: List[SetSlotsUsingActionResponse] = []
 
-    @validator("name")
-    def validate_action_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_action_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("name is required")
         return v
 
-    @validator("collection")
-    def validate_collection_name(cls, v, values, **kwargs):
+    @field_validator("collection")
+    @classmethod
+    def validate_collection_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("collection is required")
         return v
 
-    @validator("payload")
-    def validate_payload(cls, v, values, **kwargs):
+    @field_validator("payload")
+    @classmethod
+    def validate_payload(cls, v):
         count_payload_search = 0
         if v:
             for item in v:
@@ -531,7 +605,7 @@ class LiveAgentActionRequest(BaseModel):
 
 
 class TrainingData(BaseModel):
-    intent: constr(to_lower=True, strip_whitespace=True)
+    intent: LowerStr
     training_examples: List[str]
     response: str
 
@@ -554,7 +628,7 @@ class TrainingDataGeneratorStatusModel(BaseModel):
 
 
 class StoryStepRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True) = None
+    name: LowerStr = None
     type: StoryStepType
     value: Any = None
 
@@ -575,34 +649,36 @@ class StoryMetadata(BaseModel):
 
 
 class MultiFlowStoryRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     steps: List[StoryStepData]
     metadata: List[StoryMetadata] = None
     flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
 
 
-    @validator("steps")
-    def validate_request_method(cls, v, values, **kwargs):
+    @field_validator("steps")
+    @classmethod
+    def validate_request_method(cls, v):
         if not v:
             raise ValueError("Steps are required to form Flow")
         return v
 
 
 class StoryRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     type: StoryType
     steps: List[StoryStepRequest]
     template_type: TemplateType = None
     flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
     def get_steps(self):
-        return [step.dict() for step in self.steps]
+        return [step.model_dump() for step in self.steps]
 
-    @validator("steps")
-    def validate_request_method(cls, v, values, **kwargs):
+    @field_validator("steps")
+    @classmethod
+    def validate_request_method(cls, v, info: ValidationInfo):
+        values = info.data
         from kairon.shared.utils import Utility
 
         if not v:
@@ -643,8 +719,9 @@ class StoryRequest(BaseModel):
 class AnalyticsModel(BaseModel):
     fallback_intent: str = DEFAULT_NLU_FALLBACK_INTENT_NAME
 
-    @validator('fallback_intent')
-    def validate_fallback_intent(cls, v, values, **kwargs):
+    @field_validator('fallback_intent')
+    @classmethod
+    def validate_fallback_intent(cls, v):
         from kairon.shared.utils import Utility
         if Utility.check_empty_string(v):
             raise ValueError("fallback_intent field cannot be empty")
@@ -669,8 +746,9 @@ class GPTRequest(BaseModel):
     max_tokens: int = 100
     num_responses: int = 10
 
-    @validator("data")
-    def validate_gpt_questions(cls, v, values, **kwargs):
+    @field_validator("data")
+    @classmethod
+    def validate_gpt_questions(cls, v):
         if len(v) <= 0:
             raise ValueError("Question Please!")
         elif len(v) > 5:
@@ -681,8 +759,9 @@ class GPTRequest(BaseModel):
 class ParaphrasesRequest(BaseModel):
     data: List[str]
 
-    @validator("data")
-    def validate_paraphrases_questions(cls, v, values, **kwargs):
+    @field_validator("data")
+    @classmethod
+    def validate_paraphrases_questions(cls, v):
         if len(v) <= 0:
             raise ValueError("Question Please!")
         elif len(v) > 5:
@@ -691,7 +770,7 @@ class ParaphrasesRequest(BaseModel):
 
 
 class SlotRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     type: SLOT_TYPE
     initial_value: Any = None
     values: List[str] = None
@@ -699,15 +778,15 @@ class SlotRequest(BaseModel):
     min_value: float = None
     influence_conversation: bool = False
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class SynonymRequest(BaseModel):
     value: List[str]
 
-    @validator("value")
-    def validate_value(cls, v, values, **kwargs):
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v):
         from kairon.shared.utils import Utility
 
         if len(v) <= 0:
@@ -732,19 +811,21 @@ class RecaptchaVerifiedDictData(DictData):
 
 
 class RegexRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     pattern: str
 
-    @validator("name")
-    def validate_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("Regex name cannot be empty or a blank space")
         return v
 
-    @validator("pattern")
-    def validate_pattern(cls, f, values, **kwargs):
+    @field_validator("pattern")
+    @classmethod
+    def validate_pattern(cls, f):
         from kairon.shared.utils import Utility
         import re
 
@@ -760,8 +841,9 @@ class RegexRequest(BaseModel):
 class LookupTablesRequest(BaseModel):
     value: List[str]
 
-    @validator("value")
-    def validate_value(cls, v, values, **kwargs):
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v):
         from kairon.shared.utils import Utility
 
         if len(v) <= 0:
@@ -776,37 +858,40 @@ class MappingCondition(BaseModel):
     active_loop: str = None
     requested_slot: str = None
 
-    @root_validator
-    def validate(cls, values):
+    @model_validator(mode="after")
+    def validate(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(values.get("active_loop")) and not Utility.check_empty_string(values.get("requested_slot")):
             raise ValueError("active_loop is required to add requested_slot as condition!")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class SlotMapping(BaseModel):
-    entity: constr(to_lower=True, strip_whitespace=True) = None
+    entity: LowerStr = None
     type: SLOT_MAPPING_TYPE
     value: Any = None
-    intent: List[constr(to_lower=True, strip_whitespace=True)] = None
-    not_intent: List[constr(to_lower=True, strip_whitespace=True)] = None
+    intent: List[LowerStr] = None
+    not_intent: List[LowerStr] = None
     conditions: List[MappingCondition] = None
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class SlotMappingRequest(BaseModel):
-    slot: constr(to_lower=True, strip_whitespace=True)
+    slot: LowerStr
     mapping: SlotMapping
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
-    @validator("mapping")
-    def validate_mapping(cls, v, values, **kwargs):
+    @field_validator("mapping")
+    @classmethod
+    def validate_mapping(cls, v):
         if not v or v == [{}]:
             raise ValueError("At least one mapping is required")
         return v
@@ -815,8 +900,7 @@ class SlotMappingRequest(BaseModel):
 class FormSlotSetModel(BaseModel):
     type: FORM_SLOT_SET_TYPE = FORM_SLOT_SET_TYPE.current.value
     value: Any = None
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 
@@ -829,8 +913,9 @@ class FormSettings(BaseModel):
     invalid_response: str = None
     slot_set: FormSlotSetModel = FormSlotSetModel()
 
-    @validator("ask_questions")
-    def validate_responses(cls, v, values, **kwargs):
+    @field_validator("ask_questions")
+    @classmethod
+    def validate_responses(cls, v):
         from kairon.shared.utils import Utility
 
         err_msg = "Questions cannot be empty or contain spaces"
@@ -842,8 +927,9 @@ class FormSettings(BaseModel):
                 raise ValueError(err_msg)
         return v
 
-    @validator("slot")
-    def validate_slot(cls, v, values, **kwargs):
+    @field_validator("slot")
+    @classmethod
+    def validate_slot(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
@@ -852,32 +938,32 @@ class FormSettings(BaseModel):
 
 
 class Forms(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     settings: List[FormSettings]
 
 
 class SetSlots(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     type: SLOT_SET_TYPE
     value: Any = None
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class SlotSetActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     set_slots: List[SetSlots]
 
 
 class CustomActionParameter(BaseModel):
     value: str = None
     parameter_type: ActionParameterType = ActionParameterType.value
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
-    @validator("parameter_type")
-    def validate_parameter_type(cls, v, values, **kwargs):
+    @field_validator("parameter_type")
+    @classmethod
+    def validate_parameter_type(cls, v, info: ValidationInfo):
+        values = info.data
         allowed_values = {
             ActionParameterType.value,
             ActionParameterType.slot,
@@ -890,8 +976,12 @@ class CustomActionParameter(BaseModel):
             )
         return v
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if values.get(
@@ -908,11 +998,11 @@ class CustomActionParameter(BaseModel):
         ):
             raise ValueError("Provide key from key vault as value")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class GoogleSearchActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     api_key: CustomActionParameter = None
     search_engine_id: str = None
     search_term: CustomActionParameter = None
@@ -922,31 +1012,34 @@ class GoogleSearchActionRequest(BaseModel):
     dispatch_response: bool = True
     set_slot: str = None
 
-    @validator("num_results")
-    def validate_num_results(cls, v, values, **kwargs):
+    @field_validator("num_results")
+    @classmethod
+    def validate_num_results(cls, v):
         if not v or v < 1:
             raise ValueError("num_results must be greater than or equal to 1!")
         return v
 
 
 class WebSearchActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     website: str = None
     failure_response: str = 'I have failed to process your request.'
     topn: int = 1
     dispatch_response: bool = True
     set_slot: str = None
 
-    @validator("name")
-    def validate_action_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_action_name(cls, v):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(v):
             raise ValueError("name is required")
         return v
 
-    @validator("topn")
-    def validate_top_n(cls, v, values, **kwargs):
+    @field_validator("topn")
+    @classmethod
+    def validate_top_n(cls, v):
         if not v or v < 1:
             raise ValueError("topn must be greater than or equal to 1!")
         return v
@@ -956,37 +1049,49 @@ class CustomActionParameterModel(BaseModel):
     value: Any = None
     parameter_type: ActionParameterType = ActionParameterType.value
 
-    @validator("parameter_type")
-    def validate_parameter_type(cls, v, values, **kwargs):
+    @field_validator("parameter_type")
+    @classmethod
+    def validate_parameter_type(cls, v, info: ValidationInfo):
+        values = info.data
         allowed_values = {ActionParameterType.value, ActionParameterType.slot}
         if v not in allowed_values:
             raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
         return v
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
             raise ValueError("Provide name of the slot as value")
 
         if values.get('parameter_type') == ActionParameterType.value and not isinstance(values.get('value'), list):
             raise ValueError("Provide list of emails as value")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class CustomActionDynamicParameterModel(BaseModel):
     value: Any = None
     parameter_type: ActionParameterType = ActionParameterType.value
 
-    @validator("parameter_type")
-    def validate_parameter_type(cls, v, values, **kwargs):
+    @field_validator("parameter_type")
+    @classmethod
+    def validate_parameter_type(cls, v, info: ValidationInfo):
+        values = info.data
         allowed_values = {ActionParameterType.value, ActionParameterType.slot}
         if v not in allowed_values:
             raise ValueError(f"Invalid parameter type. Allowed values: {allowed_values}")
         return v
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
         if values.get('parameter_type') == ActionParameterType.slot and not values.get('value'):
             raise ValueError("Provide name of the slot as value")
@@ -994,11 +1099,11 @@ class CustomActionDynamicParameterModel(BaseModel):
         if values.get('parameter_type') == ActionParameterType.value and Utility.check_empty_string(values.get("value")):
             raise ValueError("Value can not be blank")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class EmailActionRequest(BaseModel):
-    action_name: constr(to_lower=True, strip_whitespace=True)
+    action_name: LowerStr
     smtp_url: str
     smtp_port: int
     smtp_userid: CustomActionParameter = None
@@ -1013,7 +1118,7 @@ class EmailActionRequest(BaseModel):
 
 
 class VoiceCallActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     to_phone_number: CustomActionParameter
     telephony_provider: str = "twilio"
     response: str = None
@@ -1025,21 +1130,21 @@ class StorePageMetadataRequest(BaseModel):
 
 
 class StorePageActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     page_name: str
     identifier_slot: str
     callback_identifier: Optional[str] = None
 
 
 class AgentActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     agent_name: str
     agent_id: str
     dispatch_bot_response: Optional[bool] = True
 
 
 class JiraActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     url: str
     user_name: str
     api_token: CustomActionParameter
@@ -1051,7 +1156,7 @@ class JiraActionRequest(BaseModel):
 
 
 class ZendeskActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     subdomain: str
     user_name: str
     api_token: CustomActionParameter
@@ -1060,15 +1165,16 @@ class ZendeskActionRequest(BaseModel):
 
 
 class PipedriveActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     domain: str
     api_token: CustomActionParameter
     title: str
     response: str
     metadata: dict
 
-    @validator("metadata")
-    def validate_metadata(cls, v, values, **kwargs):
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata(cls, v):
         from kairon.shared.utils import Utility
 
         if not v or Utility.check_empty_string(v.get("name")):
@@ -1077,7 +1183,7 @@ class PipedriveActionRequest(BaseModel):
 
 
 class HubspotFormsActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     portal_id: str
     form_guid: str
     fields: List[HttpActionParameters]
@@ -1101,8 +1207,12 @@ class TwoStageFallbackConfigRequest(BaseModel):
     text_recommendations: TwoStageFallbackTextualRecommendations = None
     trigger_rules: List[QuickReplies] = None
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if not values.get("text_recommendations") and not values["trigger_rules"]:
             raise ValueError(
                 "One of text_recommendations or trigger_rules should be defined"
@@ -1112,20 +1222,24 @@ class TwoStageFallbackConfigRequest(BaseModel):
             and values["text_recommendations"].count < 0
         ):
             raise ValueError("count cannot be negative")
-        return values
+        return _apply_root_values(self, values)
 
 
 class PromptHyperparameters(BaseModel):
     top_results: int = 10
     similarity_threshold: float = 0.70
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if not 0.3 <= values.get('similarity_threshold') <= 1:
             raise ValueError("similarity_threshold should be within 0.3 and 1")
         if values.get('top_results') > 30:
             raise ValueError("top_results should not be greater than 30")
-        return values
+        return _apply_root_values(self, values)
 
 
 class CrudConfigRequest(BaseModel):
@@ -1134,7 +1248,8 @@ class CrudConfigRequest(BaseModel):
     result_limit: int = 10
     query_source: Optional[Literal["value", "slot"]] = None
 
-class LlmPromptRequest(BaseModel, use_enum_values=True):
+class LlmPromptRequest(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     name: str
     hyperparameters: PromptHyperparameters = None
     data: str = None
@@ -1144,8 +1259,12 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
     is_enabled: bool = True
     crud_config: Optional[CrudConfigRequest] = None
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
         if values.get('source') == LlmPromptSource.crud.value:
             crud_config = values.get('crud_config')
@@ -1170,7 +1289,7 @@ class LlmPromptRequest(BaseModel, use_enum_values=True):
         if values.get('source') == LlmPromptSource.bot_content.value and Utility.check_empty_string(values.get('data')):
             values['data'] = "default"
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class UserQuestionModel(BaseModel):
@@ -1179,7 +1298,7 @@ class UserQuestionModel(BaseModel):
 
 
 class PromptActionConfigUploadValidation(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
@@ -1192,7 +1311,7 @@ class PromptActionConfigUploadValidation(BaseModel):
 
 
 class PromptActionConfigRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
     user_question: UserQuestionModel = UserQuestionModel()
@@ -1205,15 +1324,17 @@ class PromptActionConfigRequest(BaseModel):
     process_media: bool = False
     bot: str
 
-    @validator("llm_type", pre=True, always=True)
-    def validate_llm_type(cls, v, values, **kwargs):
+    @field_validator("llm_type", mode="before")
+    @classmethod
+    def validate_llm_type(cls, v):
         from kairon.shared.utils import Utility
         if v not in Utility.get_llms():
             raise ValueError("Invalid llm type")
         return v
 
-    @validator("llm_prompts")
-    def validate_llm_prompts(cls, v, values, **kwargs):
+    @field_validator("llm_prompts")
+    @classmethod
+    def validate_llm_prompts(cls, v):
         from kairon.shared.utils import Utility
 
         Utility.validate_kairon_faq_llm_prompts(
@@ -1221,14 +1342,17 @@ class PromptActionConfigRequest(BaseModel):
         )
         return v
 
-    @validator("num_bot_responses")
-    def validate_num_bot_responses(cls, v, values, **kwargs):
+    @field_validator("num_bot_responses")
+    @classmethod
+    def validate_num_bot_responses(cls, v):
         if v > 5:
             raise ValueError("num_bot_responses should not be greater than 5")
         return v
 
-    @validator("hyperparameters")
-    def validate_hyperparameters(cls, v, values, **kwargs):
+    @field_validator("hyperparameters")
+    @classmethod
+    def validate_hyperparameters(cls, v, info: ValidationInfo):
+        values = info.data
         from kairon.shared.utils import Utility
         bot = values.get('bot')
         llm_type = values.get('llm_type')
@@ -1236,7 +1360,8 @@ class PromptActionConfigRequest(BaseModel):
             Utility.validate_llm_hyperparameters(v, llm_type, bot, ValueError)
         return v
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_required_fields(cls, values):
         bot = values.get('bot')
         if not bot:
@@ -1250,30 +1375,38 @@ class ColumnMetadata(BaseModel):
     enable_search: bool = True
     create_embeddings: bool = True
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if values.get('data_type') not in [CognitionMetadataType.str.value, CognitionMetadataType.int.value, CognitionMetadataType.float.value]:
             raise ValueError("Only str, int and float data types are supported")
         if Utility.check_empty_string(values.get('column_name')):
             raise ValueError("Column name cannot be empty")
-        return values
+        return _apply_root_values(self, values)
 
 
 class CognitionSchemaRequest(BaseModel):
     metadata: List[ColumnMetadata] = None
-    collection_name: constr(to_lower=True, strip_whitespace=True)
+    collection_name: LowerStr
 
 
 class CollectionDataRequest(BaseModel):
     data: dict
     is_secure: list = []
     is_non_editable: list = []
-    collection_name: constr(to_lower=True, strip_whitespace=True)
+    collection_name: LowerStr
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         data = values.get("data")
@@ -1304,25 +1437,33 @@ class CollectionDataRequest(BaseModel):
             if not non_editable_set.issubset(data_keys):
                 raise ValueError("is_non_editable contains keys that are not present in data")
 
-        return values
+        return _apply_root_values(self, values)
 
 class BulkCollectionDataRequest(BaseModel):
     payload: List[CollectionDataRequest]
 
-    @root_validator(skip_on_failure=True)
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         payload = values.get("payload") or []
         if not payload:
             raise ValueError("payload must contain at least one item")
-        return values
+        return _apply_root_values(self, values)
 
 class CognitiveDataRequest(BaseModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
-    collection: constr(to_lower=True, strip_whitespace=True) = None
+    collection: LowerStr = None
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         data = values.get("data")
@@ -1331,21 +1472,25 @@ class CognitiveDataRequest(BaseModel):
             raise ValueError("content type and type of data do not match!")
         if not data or (isinstance(data, str) and Utility.check_empty_string(data)):
             raise ValueError("data cannot be empty")
-        return values
+        return _apply_root_values(self, values)
 
 class BulkDeleteRequest(BaseModel):
     row_ids: List[str]
 
-    @root_validator
-    def check(cls, values):
+    @model_validator(mode="after")
+    def check(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         row_ids = values.get("row_ids")
         if not row_ids or not isinstance(row_ids, list) or any(not row_id.strip() for row_id in row_ids):
             raise ValueError("row_ids must be a non-empty list of valid strings")
 
-        return values
+        return _apply_root_values(self, values)
 
 class RazorpayActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     api_key: CustomActionParameter
     api_secret: CustomActionParameter
     amount: CustomActionParameter
@@ -1357,7 +1502,7 @@ class RazorpayActionRequest(BaseModel):
 
 
 class IntegrationRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     expiry_minutes: int = 0
     access_list: list = None
     role: ACCESS_ROLES = ACCESS_ROLES.CHAT.value
@@ -1368,16 +1513,18 @@ class KeyVaultRequest(BaseModel):
     key: str
     value: str
 
-    @validator("key")
-    def validate_key(cls, v, values, **kwargs):
+    @field_validator("key")
+    @classmethod
+    def validate_key(cls, v):
         from kairon.shared.utils import Utility
 
         if not v or Utility.check_empty_string(v):
             raise ValueError("key is required")
         return v
 
-    @validator("value")
-    def validate_value(cls, v, values, **kwargs):
+    @field_validator("value")
+    @classmethod
+    def validate_value(cls, v):
         from kairon.shared.utils import Utility
 
         if not v or Utility.check_empty_string(v):
@@ -1390,16 +1537,18 @@ class EventConfig(BaseModel):
     headers: dict
     method: str
 
-    @validator("ws_url")
-    def validate_ws_url(cls, v, values, **kwargs):
+    @field_validator("ws_url")
+    @classmethod
+    def validate_ws_url(cls, v):
         from kairon.shared.utils import Utility
 
         if not v or Utility.check_empty_string(v):
             raise ValueError("url can not be empty")
         return v
 
-    @validator("headers")
-    def validate_headers(cls, v, values, **kwargs):
+    @field_validator("headers")
+    @classmethod
+    def validate_headers(cls, v):
         if not v or len(v) < 1:
             v = {}
         return v
@@ -1409,14 +1558,16 @@ class IDPConfig(BaseModel):
     config: dict
     organization: str
 
-    @validator("config")
-    def validate_config(cls, v, values, **kwargs):
+    @field_validator("config")
+    @classmethod
+    def validate_config(cls, v):
         if not v or len(v) == 0:
             v = {}
         return v
 
-    @validator("organization")
-    def validate_organization(cls, v, values, **kwargs):
+    @field_validator("organization")
+    @classmethod
+    def validate_organization(cls, v):
         from kairon.shared.utils import Utility
 
         if not v or Utility.check_empty_string(v):
@@ -1425,7 +1576,7 @@ class IDPConfig(BaseModel):
 
 
 class CallbackConfigRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     pyscript_code: str
     execution_mode: str = CallbackExecutionMode.ASYNC.value
     standalone: bool = False
@@ -1437,7 +1588,7 @@ class CallbackConfigRequest(BaseModel):
     redirect: Optional[Dict[str, Any]] = None
 
 class CallbackActionConfigRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     callback_name: str
     dynamic_url_slot_name: Optional[str]
     metadata_list: list[HttpActionParameters] = []
@@ -1446,7 +1597,7 @@ class CallbackActionConfigRequest(BaseModel):
 
 
 class ScheduleActionRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     schedule_time: CustomActionDynamicParameterModel
     timezone: str = None
     schedule_action: str
@@ -1455,8 +1606,12 @@ class ScheduleActionRequest(BaseModel):
     dispatch_bot_response: bool = True
     schedule_action_type : str = ScheduleActionType.PYSCRIPT.value
 
-    @root_validator
-    def validate_name(cls, values):
+    @model_validator(mode="after")
+    def validate_name(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         from kairon.shared.utils import Utility
 
         if not values.get("name") or Utility.check_empty_string(values.get("name")):
@@ -1465,12 +1620,12 @@ class ScheduleActionRequest(BaseModel):
         if not values.get("schedule_action") or Utility.check_empty_string(values.get("schedule_action")):
             raise ValueError("Schedule action can not be empty, it is needed to execute on schedule time")
 
-        return values
+        return _apply_root_values(self, values)
 
 
 
 class FlowTagChangeRequest(BaseModel):
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     tag: str
     type: str
 
@@ -1490,7 +1645,8 @@ class POSIntegrationRequest(BaseModel):
     meta_enabled: bool
     sync_options: Union[PetpoojaSyncOptions]
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def validate_sync_options_by_provider(cls, values):
         provider = values.get("connector_type")
         sync_options = values.get("sync_options")
@@ -1507,14 +1663,18 @@ class ParallelActionRequest(BaseModel):
     """
     Model to store the configuration for parallel actions.
     """
-    name: constr(to_lower=True, strip_whitespace=True)
+    name: LowerStr
     dispatch_response_text: bool = False
     response_text: Optional[str]
     actions: List[str]
 
     #Add validation for actions should not be empty
-    @root_validator
-    def validate_no_nested_parallel_actions(cls, values):
+    @model_validator(mode="after")
+    def validate_no_nested_parallel_actions(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         action_names = values.get("actions", [])
 
         if not action_names:
@@ -1524,15 +1684,19 @@ class ParallelActionRequest(BaseModel):
         if existing:
             names = [a.name for a in existing]
             raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
-        return values
+        return _apply_root_values(self, values)
 
 class AnalyticsSchedulerConfig(BaseModel):
     expression_type: str
     schedule: Any
     timezone: Optional[str] = "UTC"
 
-    @root_validator
-    def validate_schedule(cls, values):
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         expression_type = values.get("expression_type")
         schedule = values.get("schedule")
         tz = values.get("timezone")
@@ -1577,7 +1741,7 @@ class AnalyticsSchedulerConfig(BaseModel):
 
             values["schedule"] = epoch_time
 
-        return values
+        return _apply_root_values(self, values)
 
 
 class AnalyticsPipelineEventRequest(BaseModel):
