@@ -838,6 +838,18 @@ def test_chat():
     )
 
 
+def _wait_for_metric(account, metric_type, channel_type, timeout=120):
+    deadline = time.monotonic() + timeout
+    count = 0
+    while True:
+        count = MeteringProcessor.get_metric_count(
+            account, metric_type=metric_type, channel_type=channel_type
+        )
+        if count > 0 or time.monotonic() >= deadline:
+            return count
+        time.sleep(0.25)
+
+
 @responses.activate
 def test_instagram_comment_with_both_static_and_post_specific_reply():
     def _mock_validate_hub_signature(*args, **kwargs):
@@ -889,13 +901,10 @@ def test_instagram_comment_with_both_static_and_post_specific_reply():
                     ],
                     "object": "instagram"
                 })
-            time.sleep(5)
-
             actual = response.json()
             print(f"Actual response for instagram is {actual}")
             assert actual == 'success'
-            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
-                                                      channel_type="instagram") > 0
+            assert _wait_for_metric(user['account'], MetricType.prod_chat, "instagram") > 0
 
 
 @responses.activate
@@ -972,13 +981,10 @@ def test_instagram_comment_with_post_specific_reply(mock_get_config):
                     ],
                     "object": "instagram"
                 })
-            time.sleep(5)
-
             actual = response.json()
             print(f"Actual response for instagram is {actual}")
             assert actual == 'success'
-            assert MeteringProcessor.get_metric_count(user['account'], metric_type=MetricType.prod_chat,
-                                                      channel_type="instagram") > 0
+            assert _wait_for_metric(user['account'], MetricType.prod_chat, "instagram") > 0
 
 
 def test_chat_verification():

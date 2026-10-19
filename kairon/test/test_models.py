@@ -350,77 +350,6 @@ class TestDataGenerator:
         return nlu_path, stories_path, saved_phrases, domain_path
 
     @staticmethod
-    def augment_sentences(input_text: list):
-        from kairon.shared.augmentation.utils import AugmentationUtils
-
-        final_augmented_text = []
-        all_input_text = []
-        all_stop_words = []
-        all_entities = []
-        similarity_threshold = Utility.environment["model"]["test"]["augmentation_similarity_threshold"]
-        for text in input_text or []:
-            stopwords = []
-            entity_names = []
-            if text.get('entities'):
-                stopwords = [entity['value'] for entity in text['entities']]
-                entity_names = [entity['entity'] for entity in text['entities']]
-            augmented_text = TestDataGenerator.__augment_sentences_with_mistakes_and_entities(text['text'], stopwords, entity_names)
-            augmented_text = AugmentationUtils.get_similar(augmented_text, text['text'], similarity_threshold)
-            final_augmented_text.extend(augmented_text)
-            all_input_text.append(text['text'])
-            if stopwords:
-                all_stop_words.extend(stopwords)
-            if entity_names:
-                all_entities.extend(entity_names)
-
-        if all_input_text:
-            augmented_text = TestDataGenerator.fetch_augmented_text_in_batches(all_input_text)
-            final_augmented_text.extend(
-                TestDataGenerator.__augment_entities(augmented_text, list(all_stop_words), list(all_entities))
-            )
-            final_augmented_text.extend(augmented_text)
-        return final_augmented_text
-
-    @staticmethod
-    def fetch_augmented_text_in_batches(text: list):
-        from augmentation.paraphrase.paraphrasing import ParaPhrasing
-
-        augmented_text = []
-
-        for i in range(0, len(text), 10):
-            augmented_text.extend(ParaPhrasing.paraphrases(text[i:i + 10]))
-
-        return augmented_text
-
-    @staticmethod
-    def __augment_sentences_with_mistakes_and_entities(input_text: str, stopwords, entity_names):
-        from kairon.shared.augmentation.utils import AugmentationUtils
-
-        augmented_text = list(AugmentationUtils.augment_sentences_with_errors([input_text], stopwords))
-        augmented_text.extend(
-            TestDataGenerator.__augment_entities(augmented_text, stopwords, entity_names)
-        )
-        return augmented_text
-
-    @staticmethod
-    def __augment_entities(input_text: list, stopwords: list, entity_names: list):
-        from kairon.shared.augmentation.utils import AugmentationUtils
-
-        final_augmented_text = []
-
-        if input_text and stopwords:
-            for txt in input_text:
-                for i, word in enumerate(stopwords):
-                    if word in txt:
-                        final_augmented_text.append(txt.replace(word, f'[{word}]({entity_names[i]})'))
-                        final_augmented_text.extend(list(
-                            map(
-                                lambda synonym: txt.replace(word, f'[{synonym}]({entity_names[i]})'),
-                                AugmentationUtils.generate_synonym(word))
-                        ))
-        return final_augmented_text
-
-    @staticmethod
     def __prepare_nlu(intent: str, training_examples: list):
         if training_examples:
             test_data_threshold = Utility.environment['model']['test'].get('dataset_threshold') or 10
@@ -433,12 +362,7 @@ class TestDataGenerator:
             elif len(training_examples) > test_data_threshold:
                 training_examples = random.sample(training_examples, test_data_threshold)
 
-            phrases_to_augment = training_examples.copy()
-            augmented_examples = TestDataGenerator.augment_sentences(phrases_to_augment)
-            augmented_examples = list(TestDataGenerator.__prepare_training_phrases(intent, augmented_examples))
-            aug_original_input_text = list(TestDataGenerator.__prepare_training_phrases(intent, phrases_to_augment))
-            augmented_examples.extend(aug_original_input_text)
-            return augmented_examples, training_examples
+            return list(TestDataGenerator.__prepare_training_phrases(intent, training_examples)), training_examples
         else:
             return [], []
 
