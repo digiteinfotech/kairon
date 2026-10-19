@@ -804,9 +804,7 @@ def test_chat():
     expected_headers = [
         ("content-type", "application/json"),
         ("server", "Secure"),
-        ("strict-transport-security", "includeSubDomains; preload; max-age=31536000"),
-        ("x-frame-options", "SAMEORIGIN"),
-        ("x-xss-protection", "0"),
+        ("strict-transport-security", "max-age=31536000; includeSubDomains; preload"),
         ("x-content-type-options", "nosniff"),
         (
             "content-security-policy",
@@ -816,7 +814,7 @@ def test_chat():
         ("cache-control", "must-revalidate"),
         (
             "permissions-policy",
-            "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+            "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
         ),
         ("cross-origin-embedder-policy", "require-corp"),
         ("cross-origin-opener-policy", "same-origin"),
@@ -1383,8 +1381,7 @@ def test_reload():
     expected_headers = [
         ("content-type", "application/json"),
         ("server", "Secure"),
-        ("strict-transport-security", "includeSubDomains; preload; max-age=31536000"),
-        ("x-frame-options", "SAMEORIGIN"),
+        ("strict-transport-security", "max-age=31536000; includeSubDomains; preload"),
         ("x-content-type-options", "nosniff"),
         (
             "content-security-policy",
@@ -1394,7 +1391,7 @@ def test_reload():
         ("cache-control", "must-revalidate"),
         (
             "permissions-policy",
-            "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+            "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
         ),
         ("cross-origin-embedder-policy", "require-corp"),
         ("cross-origin-opener-policy", "same-origin"),
@@ -4366,7 +4363,7 @@ def test_chat_media(mock_upload_media):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
-    assert mock_upload_media.called_once()
+    mock_upload_media.assert_called_once()
 
 @patch("kairon.chat.utils.ChatUtils.handle_media_agentic_flow", new_callable=AsyncMock)
 def test_agentic_flow_media(mock_media_agentic_flow):

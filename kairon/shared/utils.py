@@ -1085,6 +1085,25 @@ class Utility:
             return file_path, temp_path
 
     @staticmethod
+    def _accept_mongomock_bulk_sort():
+        """pymongo 4.10+ passes sort into bulk updates. mongomock 4.3 ignores it."""
+        from mongomock.collection import BulkOperationBuilder
+
+        def _wrap(name):
+            original = getattr(BulkOperationBuilder, name)
+            if getattr(original, "_kairon_sort_compat", False):
+                return
+
+            def wrapped(self, *args, sort=None, **kwargs):
+                return original(self, *args, **kwargs)
+
+            wrapped._kairon_sort_compat = True
+            setattr(BulkOperationBuilder, name, wrapped)
+
+        _wrap("add_update")
+        _wrap("add_replace")
+
+    @staticmethod
     def mongoengine_connection(url=None):
         if not url:
             url = Utility.environment["database"]["url"]
@@ -1100,6 +1119,7 @@ class Utility:
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
+            Utility._accept_mongomock_bulk_sort()
             config["db"] = "mongoenginetest"
             config["mongo_client_class"] = MongoClient
         return config
@@ -1358,6 +1378,20 @@ class Utility:
                 bot=bot,
                 data={"username": email, "exception": exc, "status": status},
             )
+
+    @staticmethod
+    def reload_model_in_background(bot: Text, email: Text):
+        """Reload after the HTTP response has started.
+
+        ``reload_model`` already logs the failure and writes the activity log.
+        A background ``AppException`` cannot replace a response that Starlette
+        has already sent, so swallow it here and leave the synchronous reload
+        endpoint raising.
+        """
+        try:
+            return Utility.reload_model(bot, email)
+        except AppException:
+            return None
 
     @staticmethod
     def validate_edit_template_request(data: Dict):

@@ -125,7 +125,7 @@ async def accept_bot_collaboration_invite_with_token_validation(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email,
                                   bot_name=bot_name, role=role, accessor_name=f"{accessor_name.get('first_name')} {accessor_name.get('last_name')}")
-    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
+    background_tasks.add_task(POSProcessor().create_pos_user, bot, accessor_email)
     return {"message": "Invitation accepted"}
 
 
@@ -145,7 +145,7 @@ async def accept_bot_collaboration_invite(
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='add_member_confirmation', email=bot_admin,
                                   first_name=first_name, accessor_email=accessor_email, accessor_name=accessor_name,
                                   bot_name=bot_name, role=role)
-    background_tasks.add_task(POSProcessor().create_pos_user(bot, accessor_email))
+    background_tasks.add_task(POSProcessor().create_pos_user, bot, accessor_email)
     return {"message": "Invitation accepted"}
 
 

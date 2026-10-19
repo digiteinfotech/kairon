@@ -761,7 +761,9 @@ async def set_endpoint(
     )
 
     if endpoint.action_endpoint:
-        background_tasks.add_task(Utility.reload_model, current_user.get_bot(), current_user.email)
+        background_tasks.add_task(
+            Utility.reload_model_in_background, current_user.get_bot(), current_user.email
+        )
     return {"message": "Endpoint saved successfully!"}
 
 

@@ -19,9 +19,17 @@ import httpx
 
 class POSProcessor:
 
-    __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
-    __master_password = Utility.environment["pos"]["odoo"]["odoo_master_password"]
-    __live_agent_url = Utility.environment["live_agent"]["url"]
+    @property
+    def __base_url(self):
+        return Utility.environment["pos"]["odoo"]["odoo_url"]
+
+    @property
+    def __master_password(self):
+        return Utility.environment["pos"]["odoo"]["odoo_master_password"]
+
+    @property
+    def __live_agent_url(self):
+        return Utility.environment["live_agent"]["url"]
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""

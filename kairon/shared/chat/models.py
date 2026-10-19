@@ -2,12 +2,13 @@ from datetime import datetime
 
 import pytz
 from croniter import croniter
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import field_validator, model_validator
+from kairon.shared.pydantic_compat import KaironModel
 
 from kairon.shared.chat.broadcast.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
-from typing import List, Text, Dict, Any
+from typing import Optional, List, Text, Dict, Any
 from kairon.exceptions import AppException
 
 
@@ -27,7 +28,7 @@ def _apply_root_values(model, values):
     return model
 
 
-class ChannelRequest(BaseModel):
+class ChannelRequest(KaironModel):
     connector_type: str
     config: dict
 
@@ -51,10 +52,10 @@ class ChannelRequest(BaseModel):
                 )
         return _apply_root_values(self, values)
 
-class SchedulerConfiguration(BaseModel):
+class SchedulerConfiguration(KaironModel):
     expression_type: str
-    schedule: str
-    timezone: str = None
+    schedule: Any
+    timezone: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_schedule(self):
@@ -72,7 +73,7 @@ class SchedulerConfiguration(BaseModel):
         if not tz or not tz.strip():
             raise ValueError("timezone is required for all schedules!")
 
-        if not schedule or not schedule.strip():
+        if schedule is None or (isinstance(schedule, str) and not schedule.strip()):
             raise ValueError("schedule time is required for all schedules!")
 
         if expression_type == "cron":
@@ -109,41 +110,41 @@ class SchedulerConfiguration(BaseModel):
         return _apply_root_values(self, values)
 
 
-class RecipientsConfiguration(BaseModel):
+class RecipientsConfiguration(KaironModel):
     recipients: str
 
 
-class TemplateConfiguration(BaseModel):
+class TemplateConfiguration(KaironModel):
     template_id: str
     language: str = "en"
-    data: str = None
+    data: Optional[str] = None
 
 
-class BroadcastCollectionDataFilter(BaseModel):
+class BroadcastCollectionDataFilter(KaironModel):
     column: str
     condition: str
     value: Any
 
 
-class CollectionConfig(BaseModel):
+class CollectionConfig(KaironModel):
     collection: str
     number_field: str
     filters_list: List[BroadcastCollectionDataFilter] = []
     field_mapping: dict
 
 
-class MessageBroadcastRequest(BaseModel):
+class MessageBroadcastRequest(KaironModel):
     name: str
     connector_type: str
     broadcast_type: MessageBroadcastType
-    scheduler_config: SchedulerConfiguration = None
-    recipients_config: RecipientsConfiguration = None
-    template_config: List[TemplateConfiguration] = None
-    collection_config: CollectionConfig = None
-    template_name: str = None
-    language_code: str = None
-    pyscript: str = None
-    flowname: str = None
+    scheduler_config: Optional[SchedulerConfiguration] = None
+    recipients_config: Optional[RecipientsConfiguration] = None
+    template_config: Optional[List[TemplateConfiguration]] = None
+    collection_config: Optional[CollectionConfig] = None
+    template_name: Optional[str] = None
+    language_code: Optional[str] = None
+    pyscript: Optional[str] = None
+    flowname: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_request(self):
@@ -172,9 +173,9 @@ class MessageBroadcastRequest(BaseModel):
         return _apply_root_values(self, values)
 
 
-class ChatRequest(BaseModel):
+class ChatRequest(KaironModel):
     data: Text
-    metadata: Dict = None
+    metadata: Optional[Dict] = None
 
     @field_validator("data")
     @classmethod
@@ -183,10 +184,10 @@ class ChatRequest(BaseModel):
             raise ValueError("data cannot be empty!")
         return v
 
-class AgenticFlowRequest(BaseModel):
+class AgenticFlowRequest(KaironModel):
     name: str
-    slot_vals: Dict[str, Any] = None
-    sender_id: str = None
+    slot_vals: Optional[Dict[str, Any]] = None
+    sender_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod

@@ -326,19 +326,18 @@ def test_api_wrong_login():
     assert response.headers == {
         "content-length": "79",
         "content-type": "application/json",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
-        "referrer-policy": "no-referrer",
+        "vary": "Origin",
         "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Resource-Policy": "same-origin",
-        "Access-Control-Allow-Origin": "*",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
+        "cross-origin-embedder-policy": "require-corp",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "access-control-allow-origin": "*",
     }
     value = list(AuditLogData.objects(user="test@demo.ai", action='activity', entity='invalid_login'))
     assert value[0]["entity"] == "invalid_login"
@@ -974,19 +973,18 @@ def test_account_registration(monkeypatch):
     assert response.headers == {
         "content-length": "75",
         "content-type": "application/json",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
-        "referrer-policy": "no-referrer",
+        "vary": "Origin",
         "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Resource-Policy": "same-origin",
-        "Access-Control-Allow-Origin": "*",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
+        "cross-origin-embedder-policy": "require-corp",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "access-control-allow-origin": "*",
     }
 
 
@@ -1583,19 +1581,18 @@ def test_add_bot():
     assert response.headers == {
         "content-length": "100",
         "content-type": "application/json",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
-        "referrer-policy": "no-referrer",
+        "vary": "Origin",
         "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Resource-Policy": "same-origin",
-        "Access-Control-Allow-Origin": "*",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
+        "cross-origin-embedder-policy": "require-corp",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "access-control-allow-origin": "*",
     }
     response = response.json()
     assert response["message"] == "Bot created"
@@ -4708,7 +4705,7 @@ def test_default_values():
 
     expected_default_names = [
         "restart", "back", "out_of_scope", "session_start", "nlu_fallback",
-        "action_listen", "action_restart", "action_session_start", "action_default_fallback",
+        "action_listen", "action_restart", "action_session_start", "action_send_text", "action_default_fallback",
         "action_deactivate_loop", "action_revert_fallback_events", "action_default_ask_affirmation",
         "action_default_ask_rephrase", "action_two_stage_fallback", "action_unlikely_intent",
         "action_back", "...", "action_extract_slots",
@@ -29859,7 +29856,7 @@ def test_get_stories_another_bot():
 def test_add_regex_invalid():
     response = client.post(
         f"/api/bot/{pytest.bot}/regex",
-        json={"name": "bot_add", "pattern": "[0-9]++"},
+        json={"name": "bot_add", "pattern": "[0-9"},
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     actual = response.json()
@@ -30410,7 +30407,7 @@ def test_add_empty_slot_mapping():
     actual = response.json()
     assert actual["error_code"] == 422
     assert not actual["success"]
-    assert actual["message"] == [{'loc': ['body', 'mapping', 'conditions', 0],
+    assert actual["message"] == [{'loc': ['body', 'mapping', 'conditions', 0, '__root__'],
                                   'msg': 'active_loop is required to add requested_slot as condition!',
                                   'type': 'value_error'}]
 
@@ -38994,7 +38991,7 @@ def test_get_end_user_metrics(monkeypatch):
     responses.add("POST", url, json=expected)
     for i in range(5):
         client.post(
-            f"/api/bot/{pytest.bot}/metric/user/logs/{MetricType.agent_handoff}",
+            f"/api/bot/{pytest.bot}/metric/user/logs/{MetricType.agent_handoff.value}",
             headers={"Authorization": pytest.token_type + " " + pytest.access_token},
             json={"data": {"source": "Digite.com", "language": "English"}},
         )
@@ -41490,15 +41487,14 @@ def test_allowed_origin_default():
     assert response.headers == {
         "content-length": "79",
         "content-type": "application/json",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
-        "referrer-policy": "no-referrer",
+        "vary": "Origin",
         "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
         "cross-origin-embedder-policy": "require-corp",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
@@ -41521,21 +41517,20 @@ def test_allowed_origin(monkeypatch):
     assert response.headers == {
         "content-length": "79",
         "content-type": "application/json",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
-        "referrer-policy": "no-referrer",
-        "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
-        "cross-origin-embedder-policy": "require-corp",
-        "cross-origin-opener-policy": "same-origin",
-        "cross-origin-resource-policy": "same-origin",
         "access-control-allow-origin": "http://digite.com",
         "access-control-allow-credentials": "true",
         "access-control-expose-headers": "content-disposition",
+        "vary": "Origin",
+        "cache-control": "must-revalidate",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
+        "cross-origin-embedder-policy": "require-corp",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
     }
 
 
@@ -41843,19 +41838,17 @@ def test_redoc_headers():
     assert response.headers == {
         "content-length": "497",
         "content-type": "text/html; charset=utf-8",
+        "vary": "Origin, Accept-Encoding",
         "content-encoding": "gzip",
-        "vary": "Accept-Encoding",
-        "server": "Secure",
-        "strict-transport-security": "includeSubDomains; preload; max-age=31536000",
-        "x-frame-options": "SAMEORIGIN",
-        "x-xss-protection": "0",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'; worker-src blob:",
-        "referrer-policy": "no-referrer",
         "cache-control": "must-revalidate",
-        "permissions-policy": "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+        "content-security-policy": "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'; worker-src blob:",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "permissions-policy": "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
+        "referrer-policy": "no-referrer",
+        "server": "Secure",
+        "x-content-type-options": "nosniff",
         "cross-origin-embedder-policy": "require-corp",
         "cross-origin-opener-policy": "same-origin",
         "cross-origin-resource-policy": "same-origin",
-        "access-control-allow-origin": "*"
+        "access-control-allow-origin": "*",
     }

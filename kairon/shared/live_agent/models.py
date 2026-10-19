@@ -1,16 +1,17 @@
-from typing import List
+from typing import Optional, List
 
-from pydantic import BaseModel, ValidationInfo, field_validator
+from pydantic import ValidationInfo, field_validator
+from kairon.shared.pydantic_compat import KaironModel
 
 from kairon.live_agent.factory import LiveAgentFactory
 from kairon.shared.utils import Utility
 
 
-class LiveAgentRequest(BaseModel):
+class LiveAgentRequest(KaironModel):
     agent_type: str
     config: dict
-    trigger_on_intents: List[str] = None
-    trigger_on_actions: List[str] = None
+    trigger_on_intents: Optional[List[str]] = None
+    trigger_on_actions: Optional[List[str]] = None
     override_bot: bool = False
 
     @field_validator("agent_type")

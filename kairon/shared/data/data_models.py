@@ -34,7 +34,6 @@ from kairon.shared.callback.data_objects import CallbackExecutionMode, CallbackR
 from kairon.shared.constants import SLOT_SET_TYPE, FORM_SLOT_SET_TYPE
 
 from pydantic import (
-    BaseModel,
     ConfigDict,
     Field,
     SecretStr,
@@ -43,6 +42,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from kairon.shared.pydantic_compat import KaironModel
 from kairon.shared.models import (
     StoryStepType,
     StoryType,
@@ -74,9 +74,9 @@ def _apply_root_values(model, values):
 LowerStr = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True)]
 
 
-class RecaptchaVerifiedRequest(BaseModel):
-    recaptcha_response: str = None
-    remote_ip: str = None
+class RecaptchaVerifiedRequest(KaironModel):
+    recaptcha_response: Optional[str] = None
+    remote_ip: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_recaptcha(self):
@@ -152,35 +152,35 @@ class RecaptchaVerifiedOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
         self.fingerprint = fingerprint
 
 
-class Token(BaseModel):
+class Token(KaironModel):
     access_token: str
     token_type: str
 
 
-class TokenData(BaseModel):
+class TokenData(KaironModel):
     username: str
 
 
-class Response(BaseModel):
+class Response(KaironModel):
     success: bool = True
     message: Any = None
     data: Any = None
     error_code: int = 0
 
-class ActionResponse(BaseModel):
+class ActionResponse(KaironModel):
     success: bool = True
-    error: str = None
-    action_name: str = None
-    events: List[Dict[Text, Any]] = None
-    responses: List[Dict[Text, Any]] = None
+    error: Optional[str] = None
+    action_name: Optional[str] = None
+    events: Optional[List[Dict[Text, Any]]] = None
+    responses: Optional[List[Dict[Text, Any]]] = None
     error_code: int = 200
 
 
-class RequestData(BaseModel):
+class RequestData(KaironModel):
     data: Any
 
 
-class TextData(BaseModel):
+class TextData(KaironModel):
     data: str
 
 
@@ -188,15 +188,15 @@ class RecaptchaVerifiedTextData(RecaptchaVerifiedRequest):
     data: str
 
 
-class TextDataLowerCase(BaseModel):
+class TextDataLowerCase(KaironModel):
     data: LowerStr
 
 
-class ListData(BaseModel):
+class ListData(KaironModel):
     data: List[str]
 
 
-class ConsentRequest(BaseModel):
+class ConsentRequest(KaironModel):
     accepted_privacy_policy: bool
     accepted_terms: bool
     accepted_ai_guidelines: bool
@@ -209,7 +209,7 @@ class RegisterAccount(RecaptchaVerifiedRequest):
     password: SecretStr
     confirm_password: SecretStr
     account: str
-    fingerprint: str = None
+    fingerprint: Optional[str] = None
     accepted_privacy_policy: bool
     accepted_terms: bool
     accepted_ai_guidelines: bool
@@ -306,40 +306,40 @@ class BotAccessRequest(RecaptchaVerifiedRequest):
         return v
 
 
-class EndPointBot(BaseModel):
+class EndPointBot(KaironModel):
     url: str
-    token: str = None
-    token_type: str = None
+    token: Optional[str] = None
+    token_type: Optional[str] = None
 
 
-class EndPointAction(BaseModel):
+class EndPointAction(KaironModel):
     url: str
 
 
-class EndPointHistory(BaseModel):
+class EndPointHistory(KaironModel):
     url: str
-    token: str = None
+    token: Optional[str] = None
 
 
-class Endpoint(BaseModel):
-    bot_endpoint: EndPointBot = None
-    action_endpoint: EndPointAction = None
-    history_endpoint: EndPointHistory = None
+class Endpoint(KaironModel):
+    bot_endpoint: Optional[EndPointBot] = None
+    action_endpoint: Optional[EndPointAction] = None
+    history_endpoint: Optional[EndPointHistory] = None
 
 
-class RasaConfig(BaseModel):
+class RasaConfig(KaironModel):
     language: str = "en"
     pipeline: List[Dict]
     policies: List[Dict]
 
 
-class ComponentConfig(BaseModel):
-    nlu_epochs: int = None
-    response_epochs: int = None
-    ted_epochs: int = None
-    nlu_confidence_threshold: float = None
-    action_fallback: str = None
-    action_fallback_threshold: float = None
+class ComponentConfig(KaironModel):
+    nlu_epochs: Optional[int] = None
+    response_epochs: Optional[int] = None
+    ted_epochs: Optional[int] = None
+    nlu_confidence_threshold: Optional[float] = None
+    action_fallback: Optional[str] = None
+    action_fallback_threshold: Optional[float] = None
 
     @field_validator("nlu_epochs", "response_epochs", "ted_epochs")
     @classmethod
@@ -391,9 +391,9 @@ class Password(RecaptchaVerifiedRequest):
         return v
 
 
-class HttpActionParameters(BaseModel):
+class HttpActionParameters(KaironModel):
     key: str
-    value: str = None
+    value: Optional[str] = None
     parameter_type: ActionParameterType
     encrypt: bool = False
 
@@ -428,7 +428,7 @@ class HttpActionParameters(BaseModel):
         return _apply_root_values(self, values)
 
 
-class SetSlotsUsingActionResponse(BaseModel):
+class SetSlotsUsingActionResponse(KaironModel):
     model_config = ConfigDict(use_enum_values=True)
     name: str
     value: str
@@ -453,8 +453,8 @@ class SetSlotsUsingActionResponse(BaseModel):
         return v
 
 
-class ActionResponseEvaluation(BaseModel):
-    value: str = None
+class ActionResponseEvaluation(KaironModel):
+    value: Optional[str] = None
     dispatch: bool = True
     evaluation_type: EvaluationType = EvaluationType.expression
     dispatch_type: DispatchType = DispatchType.text.value
@@ -475,14 +475,14 @@ class ActionResponseEvaluation(BaseModel):
         return _apply_root_values(self, values)
 
 
-class HttpActionConfigRequest(BaseModel):
+class HttpActionConfigRequest(KaironModel):
     action_name: LowerStr
     content_type: Union[HttpContentType, HttpRequestContentType] = HttpContentType.application_json
-    response: ActionResponseEvaluation = None
+    response: Optional[ActionResponseEvaluation] = None
     http_url: str
     request_method: str
     params_list: List[HttpActionParameters] = []
-    dynamic_params: str = None
+    dynamic_params: Optional[str] = None
     headers: List[HttpActionParameters] = []
     set_slots: List[SetSlotsUsingActionResponse] = []
 
@@ -510,7 +510,7 @@ class HttpActionConfigRequest(BaseModel):
         return v.upper()
 
 
-class PayloadConfig(BaseModel):
+class PayloadConfig(KaironModel):
     type: DbQueryValueType
     value: Any
     query_type: DbActionOperationType
@@ -529,7 +529,7 @@ class PayloadConfig(BaseModel):
         return _apply_root_values(self, values)
 
 
-class PyscriptActionRequest(BaseModel):
+class PyscriptActionRequest(KaironModel):
     name: LowerStr
     source_code: str
     dispatch_response: bool = True
@@ -553,11 +553,11 @@ class PyscriptActionRequest(BaseModel):
         return v
 
 
-class DatabaseActionRequest(BaseModel):
+class DatabaseActionRequest(KaironModel):
     name: LowerStr
     collection: str
     payload: List[PayloadConfig]
-    response: ActionResponseEvaluation = None
+    response: Optional[ActionResponseEvaluation] = None
     set_slots: List[SetSlotsUsingActionResponse] = []
 
     @field_validator("name")
@@ -587,13 +587,13 @@ class DatabaseActionRequest(BaseModel):
                 if item.query_type == DbActionOperationType.payload_search:
                     count_payload_search += 1
                 if count_payload_search > 1:
-                    raise ValueError(f"Only One {DbActionOperationType.payload_search} is allowed!")
+                    raise ValueError(f"Only One {DbActionOperationType.payload_search.value} is allowed!")
         else:
             raise ValueError("payload is required")
         return v
 
 
-class LiveAgentActionRequest(BaseModel):
+class LiveAgentActionRequest(KaironModel):
     bot_response: str = 'Connecting to live agent'
     agent_connect_response: str = 'Connected to live agent'
     agent_disconnect_response: str = 'Agent has closed the conversation'
@@ -604,31 +604,31 @@ class LiveAgentActionRequest(BaseModel):
     dispatch_agent_not_available_response: bool = True
 
 
-class TrainingData(BaseModel):
+class TrainingData(KaironModel):
     intent: LowerStr
     training_examples: List[str]
     response: str
 
 
-class BulkTrainingDataAddRequest(BaseModel):
+class BulkTrainingDataAddRequest(KaironModel):
     history_id: str
     training_data: List[TrainingData]
 
 
-class TrainingDataGeneratorResponseModel(BaseModel):
+class TrainingDataGeneratorResponseModel(KaironModel):
     intent: str
     training_examples: List[str]
     response: str
 
 
-class TrainingDataGeneratorStatusModel(BaseModel):
+class TrainingDataGeneratorStatusModel(KaironModel):
     status: EVENT_STATUS
-    response: List[TrainingData] = None
-    exception: str = None
+    response: Optional[List[TrainingData]] = None
+    exception: Optional[str] = None
 
 
-class StoryStepRequest(BaseModel):
-    name: LowerStr = None
+class StoryStepRequest(KaironModel):
+    name: Optional[LowerStr] = None
     type: StoryStepType
     value: Any = None
 
@@ -638,20 +638,20 @@ class MultiStoryStepRequest(StoryStepRequest):
     component_id: str
 
 
-class StoryStepData(BaseModel):
+class StoryStepData(KaironModel):
     step: MultiStoryStepRequest
-    connections: List[MultiStoryStepRequest] = None
+    connections: Optional[List[MultiStoryStepRequest]] = None
 
 
-class StoryMetadata(BaseModel):
+class StoryMetadata(KaironModel):
     node_id: str
     flow_type: StoryType = StoryType.story.value
 
 
-class MultiFlowStoryRequest(BaseModel):
+class MultiFlowStoryRequest(KaironModel):
     name: LowerStr
     steps: List[StoryStepData]
-    metadata: List[StoryMetadata] = None
+    metadata: Optional[List[StoryMetadata]] = None
     flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
 
 
@@ -663,11 +663,11 @@ class MultiFlowStoryRequest(BaseModel):
         return v
 
 
-class StoryRequest(BaseModel):
+class StoryRequest(KaironModel):
     name: LowerStr
     type: StoryType
     steps: List[StoryStepRequest]
-    template_type: TemplateType = None
+    template_type: Optional[TemplateType] = None
     flow_tags: List[str] = [FlowTagType.chatbot_flow.value]
 
     model_config = ConfigDict(use_enum_values=True)
@@ -701,7 +701,7 @@ class StoryRequest(BaseModel):
                 and v[i].type != StoryStepType.form_end
             ):
                 raise ValueError(
-                    f"Only {StoryStepType.form_end} step type can have empty name"
+                    f"Only {StoryStepType.form_end.value} step type can have empty name"
                 )
             if v[i].type == StoryStepType.stop_flow_action and i != len(v) - 1:
                 raise ValueError("Stop Flow Action should only be at the end of the flow")
@@ -716,7 +716,7 @@ class StoryRequest(BaseModel):
         return v
 
 
-class AnalyticsModel(BaseModel):
+class AnalyticsModel(KaironModel):
     fallback_intent: str = DEFAULT_NLU_FALLBACK_INTENT_NAME
 
     @field_validator('fallback_intent')
@@ -728,17 +728,17 @@ class AnalyticsModel(BaseModel):
         return v
 
 
-class BotSettingsRequest(BaseModel):
+class BotSettingsRequest(KaironModel):
     analytics: AnalyticsModel = AnalyticsModel()
 
 
-class FeedbackRequest(BaseModel):
+class FeedbackRequest(KaironModel):
     rating: float
     scale: float = 5
-    feedback: str = None
+    feedback: Optional[str] = None
 
 
-class GPTRequest(BaseModel):
+class GPTRequest(KaironModel):
     api_key: str
     data: List[str]
     engine: str = "davinci"
@@ -756,7 +756,7 @@ class GPTRequest(BaseModel):
         return v
 
 
-class ParaphrasesRequest(BaseModel):
+class ParaphrasesRequest(KaironModel):
     data: List[str]
 
     @field_validator("data")
@@ -769,19 +769,19 @@ class ParaphrasesRequest(BaseModel):
         return v
 
 
-class SlotRequest(BaseModel):
+class SlotRequest(KaironModel):
     name: LowerStr
     type: SLOT_TYPE
     initial_value: Any = None
-    values: List[str] = None
-    max_value: float = None
-    min_value: float = None
+    values: Optional[List[str]] = None
+    max_value: Optional[float] = None
+    min_value: Optional[float] = None
     influence_conversation: bool = False
 
     model_config = ConfigDict(use_enum_values=True)
 
 
-class SynonymRequest(BaseModel):
+class SynonymRequest(KaironModel):
     value: List[str]
 
     @field_validator("value")
@@ -797,20 +797,22 @@ class SynonymRequest(BaseModel):
         return v
 
 
-class AddBotRequest(BaseModel):
+class AddBotRequest(KaironModel):
     name: str
-    from_template: str = None
+    from_template: Optional[str] = None
 
 
-class DictData(BaseModel):
-    data: dict
+class DictData(KaironModel):
+    # Any so a non-dict utterance reaches add_custom_response, which reports
+    # "Utterance must be dict type and must not be empty".
+    data: Any
 
 
 class RecaptchaVerifiedDictData(DictData):
-    recaptcha_response: str = None
+    recaptcha_response: Optional[str] = None
 
 
-class RegexRequest(BaseModel):
+class RegexRequest(KaironModel):
     name: LowerStr
     pattern: str
 
@@ -838,7 +840,7 @@ class RegexRequest(BaseModel):
         return f
 
 
-class LookupTablesRequest(BaseModel):
+class LookupTablesRequest(KaironModel):
     value: List[str]
 
     @field_validator("value")
@@ -854,9 +856,9 @@ class LookupTablesRequest(BaseModel):
         return v
 
 
-class MappingCondition(BaseModel):
-    active_loop: str = None
-    requested_slot: str = None
+class MappingCondition(KaironModel):
+    active_loop: Optional[str] = None
+    requested_slot: Optional[str] = None
 
     @model_validator(mode="after")
     def validate(self):
@@ -872,18 +874,18 @@ class MappingCondition(BaseModel):
         return _apply_root_values(self, values)
 
 
-class SlotMapping(BaseModel):
-    entity: LowerStr = None
+class SlotMapping(KaironModel):
+    entity: Optional[LowerStr] = None
     type: SLOT_MAPPING_TYPE
     value: Any = None
-    intent: List[LowerStr] = None
-    not_intent: List[LowerStr] = None
-    conditions: List[MappingCondition] = None
+    intent: Optional[List[LowerStr]] = None
+    not_intent: Optional[List[LowerStr]] = None
+    conditions: Optional[List[MappingCondition]] = None
 
     model_config = ConfigDict(use_enum_values=True)
 
 
-class SlotMappingRequest(BaseModel):
+class SlotMappingRequest(KaironModel):
     slot: LowerStr
     mapping: SlotMapping
 
@@ -897,20 +899,20 @@ class SlotMappingRequest(BaseModel):
         return v
 
 
-class FormSlotSetModel(BaseModel):
+class FormSlotSetModel(KaironModel):
     type: FORM_SLOT_SET_TYPE = FORM_SLOT_SET_TYPE.current.value
     value: Any = None
     model_config = ConfigDict(use_enum_values=True)
 
 
 
-class FormSettings(BaseModel):
+class FormSettings(KaironModel):
     ask_questions: List[str]
     slot: str
     is_required: bool = True
-    validation_semantic: str = None
-    valid_response: str = None
-    invalid_response: str = None
+    validation_semantic: Optional[str] = None
+    valid_response: Optional[str] = None
+    invalid_response: Optional[str] = None
     slot_set: FormSlotSetModel = FormSlotSetModel()
 
     @field_validator("ask_questions")
@@ -937,12 +939,12 @@ class FormSettings(BaseModel):
         return v
 
 
-class Forms(BaseModel):
+class Forms(KaironModel):
     name: LowerStr
     settings: List[FormSettings]
 
 
-class SetSlots(BaseModel):
+class SetSlots(KaironModel):
     name: LowerStr
     type: SLOT_SET_TYPE
     value: Any = None
@@ -950,13 +952,13 @@ class SetSlots(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
 
-class SlotSetActionRequest(BaseModel):
+class SlotSetActionRequest(KaironModel):
     name: LowerStr
     set_slots: List[SetSlots]
 
 
-class CustomActionParameter(BaseModel):
-    value: str = None
+class CustomActionParameter(KaironModel):
+    value: Optional[str] = None
     parameter_type: ActionParameterType = ActionParameterType.value
     model_config = ConfigDict(use_enum_values=True)
 
@@ -1001,16 +1003,16 @@ class CustomActionParameter(BaseModel):
         return _apply_root_values(self, values)
 
 
-class GoogleSearchActionRequest(BaseModel):
+class GoogleSearchActionRequest(KaironModel):
     name: LowerStr
-    api_key: CustomActionParameter = None
-    search_engine_id: str = None
-    search_term: CustomActionParameter = None
-    website: str = None
+    api_key: Optional[CustomActionParameter] = None
+    search_engine_id: Optional[str] = None
+    search_term: Optional[CustomActionParameter] = None
+    website: Optional[str] = None
     failure_response: str = "I have failed to process your request."
     num_results: int = 1
     dispatch_response: bool = True
-    set_slot: str = None
+    set_slot: Optional[str] = None
 
     @field_validator("num_results")
     @classmethod
@@ -1020,13 +1022,13 @@ class GoogleSearchActionRequest(BaseModel):
         return v
 
 
-class WebSearchActionRequest(BaseModel):
+class WebSearchActionRequest(KaironModel):
     name: LowerStr
-    website: str = None
+    website: Optional[str] = None
     failure_response: str = 'I have failed to process your request.'
     topn: int = 1
     dispatch_response: bool = True
-    set_slot: str = None
+    set_slot: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -1045,7 +1047,7 @@ class WebSearchActionRequest(BaseModel):
         return v
 
 
-class CustomActionParameterModel(BaseModel):
+class CustomActionParameterModel(KaironModel):
     value: Any = None
     parameter_type: ActionParameterType = ActionParameterType.value
 
@@ -1073,7 +1075,7 @@ class CustomActionParameterModel(BaseModel):
         return _apply_root_values(self, values)
 
 
-class CustomActionDynamicParameterModel(BaseModel):
+class CustomActionDynamicParameterModel(KaironModel):
     value: Any = None
     parameter_type: ActionParameterType = ActionParameterType.value
 
@@ -1102,60 +1104,60 @@ class CustomActionDynamicParameterModel(BaseModel):
         return _apply_root_values(self, values)
 
 
-class EmailActionRequest(BaseModel):
+class EmailActionRequest(KaironModel):
     action_name: LowerStr
     smtp_url: str
     smtp_port: int
-    smtp_userid: CustomActionParameter = None
+    smtp_userid: Optional[CustomActionParameter] = None
     smtp_password: CustomActionParameter
     from_email: CustomActionParameter
     subject: str
-    custom_text: CustomActionParameter = None
+    custom_text: Optional[CustomActionParameter] = None
     to_email: CustomActionParameterModel
     response: str
     dispatch_bot_response: bool = True
     tls: bool = False
 
 
-class VoiceCallActionRequest(BaseModel):
+class VoiceCallActionRequest(KaironModel):
     name: LowerStr
     to_phone_number: CustomActionParameter
     telephony_provider: str = "twilio"
-    response: str = None
+    response: Optional[str] = None
     dispatch_bot_response: bool = True
 
 
-class StorePageMetadataRequest(BaseModel):
+class StorePageMetadataRequest(KaironModel):
     config: Dict[str, Any]
 
 
-class StorePageActionRequest(BaseModel):
+class StorePageActionRequest(KaironModel):
     name: LowerStr
     page_name: str
     identifier_slot: str
     callback_identifier: Optional[str] = None
 
 
-class AgentActionRequest(BaseModel):
+class AgentActionRequest(KaironModel):
     name: LowerStr
     agent_name: str
     agent_id: str
     dispatch_bot_response: Optional[bool] = True
 
 
-class JiraActionRequest(BaseModel):
+class JiraActionRequest(KaironModel):
     name: LowerStr
     url: str
     user_name: str
     api_token: CustomActionParameter
     project_key: str
     issue_type: str
-    parent_key: str = None
+    parent_key: Optional[str] = None
     summary: str
     response: str
 
 
-class ZendeskActionRequest(BaseModel):
+class ZendeskActionRequest(KaironModel):
     name: LowerStr
     subdomain: str
     user_name: str
@@ -1164,7 +1166,7 @@ class ZendeskActionRequest(BaseModel):
     response: str
 
 
-class PipedriveActionRequest(BaseModel):
+class PipedriveActionRequest(KaironModel):
     name: LowerStr
     domain: str
     api_token: CustomActionParameter
@@ -1182,7 +1184,7 @@ class PipedriveActionRequest(BaseModel):
         return v
 
 
-class HubspotFormsActionRequest(BaseModel):
+class HubspotFormsActionRequest(KaironModel):
     name: LowerStr
     portal_id: str
     form_guid: str
@@ -1190,22 +1192,22 @@ class HubspotFormsActionRequest(BaseModel):
     response: str
 
 
-class QuickReplies(BaseModel):
+class QuickReplies(KaironModel):
     text: str
     payload: str
-    message: str = None
+    message: Optional[str] = None
     is_dynamic_msg: bool = False
 
 
-class TwoStageFallbackTextualRecommendations(BaseModel):
+class TwoStageFallbackTextualRecommendations(KaironModel):
     count: int = 0
     use_intent_ranking: bool = False
 
 
-class TwoStageFallbackConfigRequest(BaseModel):
+class TwoStageFallbackConfigRequest(KaironModel):
     fallback_message: str = FALLBACK_MESSAGE
-    text_recommendations: TwoStageFallbackTextualRecommendations = None
-    trigger_rules: List[QuickReplies] = None
+    text_recommendations: Optional[TwoStageFallbackTextualRecommendations] = None
+    trigger_rules: Optional[List[QuickReplies]] = None
 
     @model_validator(mode="after")
     def check(self):
@@ -1225,7 +1227,7 @@ class TwoStageFallbackConfigRequest(BaseModel):
         return _apply_root_values(self, values)
 
 
-class PromptHyperparameters(BaseModel):
+class PromptHyperparameters(KaironModel):
     top_results: int = 10
     similarity_threshold: float = 0.70
 
@@ -1242,18 +1244,18 @@ class PromptHyperparameters(BaseModel):
         return _apply_root_values(self, values)
 
 
-class CrudConfigRequest(BaseModel):
+class CrudConfigRequest(KaironModel):
     collections: Optional[List[str]] = None
     query: Optional[Any] = None
     result_limit: int = 10
     query_source: Optional[Literal["value", "slot"]] = None
 
-class LlmPromptRequest(BaseModel):
+class LlmPromptRequest(KaironModel):
     model_config = ConfigDict(use_enum_values=True)
     name: str
-    hyperparameters: PromptHyperparameters = None
-    data: str = None
-    instructions: str = None
+    hyperparameters: Optional[PromptHyperparameters] = None
+    data: Optional[str] = None
+    instructions: Optional[str] = None
     type: LlmPromptType
     source: LlmPromptSource
     is_enabled: bool = True
@@ -1292,12 +1294,12 @@ class LlmPromptRequest(BaseModel):
         return _apply_root_values(self, values)
 
 
-class UserQuestionModel(BaseModel):
+class UserQuestionModel(KaironModel):
     type: UserMessageType = UserMessageType.from_user_message.value
-    value: str = None
+    value: Optional[str] = None
 
 
-class PromptActionConfigUploadValidation(BaseModel):
+class PromptActionConfigUploadValidation(KaironModel):
     name: LowerStr
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
@@ -1310,7 +1312,7 @@ class PromptActionConfigUploadValidation(BaseModel):
     dispatch_response: bool = True
 
 
-class PromptActionConfigRequest(BaseModel):
+class PromptActionConfigRequest(KaironModel):
     name: LowerStr
     num_bot_responses: int = 5
     failure_message: str = DEFAULT_NLU_FALLBACK_RESPONSE
@@ -1369,7 +1371,7 @@ class PromptActionConfigRequest(BaseModel):
         return values
 
 
-class ColumnMetadata(BaseModel):
+class ColumnMetadata(KaironModel):
     column_name: str
     data_type: CognitionMetadataType
     enable_search: bool = True
@@ -1390,12 +1392,12 @@ class ColumnMetadata(BaseModel):
         return _apply_root_values(self, values)
 
 
-class CognitionSchemaRequest(BaseModel):
-    metadata: List[ColumnMetadata] = None
+class CognitionSchemaRequest(KaironModel):
+    metadata: Optional[List[ColumnMetadata]] = None
     collection_name: LowerStr
 
 
-class CollectionDataRequest(BaseModel):
+class CollectionDataRequest(KaironModel):
     data: dict
     is_secure: list = []
     is_non_editable: list = []
@@ -1439,7 +1441,7 @@ class CollectionDataRequest(BaseModel):
 
         return _apply_root_values(self, values)
 
-class BulkCollectionDataRequest(BaseModel):
+class BulkCollectionDataRequest(KaironModel):
     payload: List[CollectionDataRequest]
 
     @model_validator(mode="after")
@@ -1453,10 +1455,10 @@ class BulkCollectionDataRequest(BaseModel):
             raise ValueError("payload must contain at least one item")
         return _apply_root_values(self, values)
 
-class CognitiveDataRequest(BaseModel):
+class CognitiveDataRequest(KaironModel):
     data: Any
     content_type: CognitionDataType = CognitionDataType.text.value
-    collection: LowerStr = None
+    collection: Optional[LowerStr] = None
 
     @model_validator(mode="after")
     def check(self):
@@ -1474,7 +1476,7 @@ class CognitiveDataRequest(BaseModel):
             raise ValueError("data cannot be empty")
         return _apply_root_values(self, values)
 
-class BulkDeleteRequest(BaseModel):
+class BulkDeleteRequest(KaironModel):
     row_ids: List[str]
 
     @model_validator(mode="after")
@@ -1489,27 +1491,27 @@ class BulkDeleteRequest(BaseModel):
 
         return _apply_root_values(self, values)
 
-class RazorpayActionRequest(BaseModel):
+class RazorpayActionRequest(KaironModel):
     name: LowerStr
     api_key: CustomActionParameter
     api_secret: CustomActionParameter
     amount: CustomActionParameter
     currency: CustomActionParameter
-    username: CustomActionParameter = None
-    email: CustomActionParameter = None
-    contact: CustomActionParameter = None
-    notes: Optional[List[HttpActionParameters]]
+    username: Optional[CustomActionParameter] = None
+    email: Optional[CustomActionParameter] = None
+    contact: Optional[CustomActionParameter] = None
+    notes: Optional[List[HttpActionParameters]] = []
 
 
-class IntegrationRequest(BaseModel):
+class IntegrationRequest(KaironModel):
     name: LowerStr
     expiry_minutes: int = 0
-    access_list: list = None
+    access_list: Optional[list] = None
     role: ACCESS_ROLES = ACCESS_ROLES.CHAT.value
     status: INTEGRATION_STATUS = INTEGRATION_STATUS.ACTIVE.value
 
 
-class KeyVaultRequest(BaseModel):
+class KeyVaultRequest(KaironModel):
     key: str
     value: str
 
@@ -1532,7 +1534,7 @@ class KeyVaultRequest(BaseModel):
         return v
 
 
-class EventConfig(BaseModel):
+class EventConfig(KaironModel):
     ws_url: str
     headers: dict
     method: str
@@ -1554,7 +1556,7 @@ class EventConfig(BaseModel):
         return v
 
 
-class IDPConfig(BaseModel):
+class IDPConfig(KaironModel):
     config: dict
     organization: str
 
@@ -1575,7 +1577,7 @@ class IDPConfig(BaseModel):
         return v
 
 
-class CallbackConfigRequest(BaseModel):
+class CallbackConfigRequest(KaironModel):
     name: LowerStr
     pyscript_code: str
     execution_mode: str = CallbackExecutionMode.ASYNC.value
@@ -1587,7 +1589,7 @@ class CallbackConfigRequest(BaseModel):
     redirect_enabled: bool = False
     redirect: Optional[Dict[str, Any]] = None
 
-class CallbackActionConfigRequest(BaseModel):
+class CallbackActionConfigRequest(KaironModel):
     name: LowerStr
     callback_name: str
     dynamic_url_slot_name: Optional[str]
@@ -1596,10 +1598,10 @@ class CallbackActionConfigRequest(BaseModel):
     dispatch_bot_response: bool = True
 
 
-class ScheduleActionRequest(BaseModel):
+class ScheduleActionRequest(KaironModel):
     name: LowerStr
     schedule_time: CustomActionDynamicParameterModel
-    timezone: str = None
+    timezone: Optional[str] = None
     schedule_action: str
     response_text: Optional[str]
     params_list: Optional[List[HttpActionParameters]]
@@ -1624,20 +1626,20 @@ class ScheduleActionRequest(BaseModel):
 
 
 
-class FlowTagChangeRequest(BaseModel):
+class FlowTagChangeRequest(KaironModel):
     name: LowerStr
     tag: str
     type: str
 
-class PetpoojaMetaConfig(BaseModel):
+class PetpoojaMetaConfig(KaironModel):
     access_token: str
     catalog_id: str
 
-class PetpoojaSyncOptions(BaseModel):
+class PetpoojaSyncOptions(KaironModel):
     process_push_menu: bool
     process_item_toggle: bool
 
-class POSIntegrationRequest(BaseModel):
+class POSIntegrationRequest(KaironModel):
     provider: str = Field(..., alias="connector_type")
     config: dict
     meta_config: Optional[PetpoojaMetaConfig]
@@ -1659,7 +1661,7 @@ class POSIntegrationRequest(BaseModel):
 
         return values
 
-class ParallelActionRequest(BaseModel):
+class ParallelActionRequest(KaironModel):
     """
     Model to store the configuration for parallel actions.
     """
@@ -1686,7 +1688,7 @@ class ParallelActionRequest(BaseModel):
             raise ValueError(f"ParallelAction cannot include other parallel actions: {names}")
         return _apply_root_values(self, values)
 
-class AnalyticsSchedulerConfig(BaseModel):
+class AnalyticsSchedulerConfig(KaironModel):
     expression_type: str
     schedule: Any
     timezone: Optional[str] = "UTC"
@@ -1744,22 +1746,22 @@ class AnalyticsSchedulerConfig(BaseModel):
         return _apply_root_values(self, values)
 
 
-class AnalyticsPipelineEventRequest(BaseModel):
+class AnalyticsPipelineEventRequest(KaironModel):
     pipeline_name: str
     callback_name: str
-    scheduler_config: AnalyticsSchedulerConfig = None
+    scheduler_config: Optional[AnalyticsSchedulerConfig] = None
     timestamp: str
     data_deletion_policy: Optional[List[Any]] = []
     triggers: Optional[List[Dict[str, Any]]] = []
 
 
-class AddressRequest(BaseModel):
+class AddressRequest(KaironModel):
     label: str
     address: Dict[str, Any]
     is_default: bool = False
 
 
-class UpsertCustomerRequest(BaseModel):
+class UpsertCustomerRequest(KaironModel):
     sender_id: str
     persona_type: Optional[str] = None
     name: Optional[str] = None
@@ -1772,18 +1774,18 @@ class UpsertCustomerRequest(BaseModel):
     additional_info: Optional[Dict[str, Any]] = None
 
 
-class CreateOrderRequest(BaseModel):
+class CreateOrderRequest(KaironModel):
     callback_identifier: str
     sender_id: str
     persona_type: Optional[str] = None
     order_details: Dict[str, Any]
 
 
-class UpdateOrderStatusRequest(BaseModel):
+class UpdateOrderStatusRequest(KaironModel):
     status: str
 
 
-class FilterOrdersRequest(BaseModel):
+class FilterOrdersRequest(KaironModel):
     persona_type: Optional[str] = None
     filters: Dict[str, Any] = {}
     page: int = 1

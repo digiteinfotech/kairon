@@ -29,6 +29,7 @@ from kairon.api.app.routers.bot import action, bot, agents, secrets, multilingua
 from kairon.api.models import Response
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
+from kairon.shared.pydantic_compat import v1_validation_errors
 from kairon.shared.utils import Utility
 from contextlib import asynccontextmanager
 from kairon.shared.otel import instrument_fastapi
@@ -148,7 +149,9 @@ async def validation_exception_handler(request, exc: RequestValidationError):
         appropriate message and details of the error """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=exc.errors()).model_dump()
+        Response(
+            success=False, error_code=422, message=v1_validation_errors(exc.errors())
+        ).model_dump()
     )
 
 

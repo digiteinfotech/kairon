@@ -26,6 +26,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from kairon.api.models import Response
 from kairon.exceptions import AppException
+from kairon.shared.pydantic_compat import v1_validation_errors
 from kairon.shared.utils import Utility
 from contextlib import asynccontextmanager
 
@@ -167,7 +168,9 @@ async def validation_exception_handler(request, exc: RequestValidationError):
         appropriate message and details of the error """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=exc.errors()).model_dump()
+        Response(
+            success=False, error_code=422, message=v1_validation_errors(exc.errors())
+        ).model_dump()
     )
 
 
