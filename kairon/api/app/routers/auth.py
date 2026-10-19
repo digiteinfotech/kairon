@@ -66,7 +66,7 @@ async def refresh_login_token(
     """
     Generates an access token from refresh token supplied.
     """
-    access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.generate_login_token_from_refresh_token(token, current_user.dict())
+    access_tkn, access_tkn_exp, refresh_tkn, refresh_tkn_exp = Authentication.generate_login_token_from_refresh_token(token, current_user.model_dump())
     return {
         "data": {"access_token": access_tkn, "access_token_expiry": access_tkn_exp,
                  "token_type": "bearer", "refresh_token": refresh_tkn,

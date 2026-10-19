@@ -117,7 +117,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return JSONResponse(
             Response(
                 success=False, error_code=422, message=str(exc)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -138,7 +138,7 @@ def add_event(
         event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
-    response, message = EventUtility.add_job(event_type, request.dict(), is_scheduled)
+    response, message = EventUtility.add_job(event_type, request.model_dump(), is_scheduled)
     return {"data": response, "message": message}
 
 
@@ -149,7 +149,7 @@ def update_scheduled_event(
         event_type: EventClass = Path(description="Event type", examples=[e.value for e in EventClass])
 ):
     request.validate_request(is_scheduled, event_type)
-    response, message = EventUtility.update_job(event_type, request.dict(), is_scheduled)
+    response, message = EventUtility.update_job(event_type, request.model_dump(), is_scheduled)
     return {"data": response, "message": message}
 
 

@@ -70,7 +70,7 @@ loop.run_until_complete(
                 "accepted_terms": True,
                 "accepted_ai_guidelines": True
             }
-        ).dict()
+        ).model_dump()
     )
 )
 loop.run_until_complete(
@@ -87,7 +87,7 @@ loop.run_until_complete(
                 "accepted_terms": True,
                 "accepted_ai_guidelines": True
             }
-        ).dict()
+        ).model_dump()
     )
 )
 loop.run_until_complete(
@@ -104,7 +104,7 @@ loop.run_until_complete(
                 "accepted_terms": True,
                 "accepted_ai_guidelines": True
             }
-        ).dict()
+        ).model_dump()
     )
 )
 AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"],
@@ -790,7 +790,6 @@ def test_chat():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -992,7 +991,6 @@ def test_chat_verification():
     response = client.get(
         f"/api/bot/{bot}/verify/chat",
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -1200,7 +1198,6 @@ def test_chat_with_different_bot_using_token_for_different_bot():
         f"/api/bot/{bot2}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -1220,7 +1217,6 @@ def test_chat_with_bot_using_deleted_token():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -1234,7 +1230,6 @@ def test_chat_different_bot():
         f"/api/bot/{bot2}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -1563,7 +1558,7 @@ def test_slack_install_app_using_oauth(mock_slack_oauth, mock_slack_team_info_):
         {"code": "98765432109765432asdfghjkl", "state": ""}, quote_via=quote_plus
     )
     response = client.get(
-        f"/api/bot/slack/{bot}/{token}?{encoded_url_}", allow_redirects=False
+        f"/api/bot/slack/{bot}/{token}?{encoded_url_}", follow_redirects=False
     )
     assert "https://app.slack.com/client/T03BNQE7HLZ" == response.headers["location"]
     assert response.status_code == 303
@@ -3405,7 +3400,6 @@ def test_chat_with_chatwoot_agent_fallback(
             f"/api/bot/{bot}/chat",
             json={"data": "!@#$%^&*()"},
             headers={"Authorization": token_type + " " + token},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -3533,7 +3527,6 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(
         f"/api/bot/{bot}/chat",
         json={"data": "@#$%^&*()_"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3608,7 +3601,6 @@ def test_chat_with_live_agent():
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "hello, please resolve my ticket"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3629,7 +3621,6 @@ def test_chat_with_live_agent_failed_to_send_message():
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "need help"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -3678,7 +3669,6 @@ def test_chat_with_live_agent_with_integration_token():
             "Authorization": f"{token_type} {access_token}",
             "X-USER": "test@chat.com",
         },
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3713,7 +3703,6 @@ def test_chat_with_chatwoot_agent_fallback_failed_to_initiate(mock_agent):
         f"/api/bot/{bot}/chat",
         json={"data": "!@#$%^&*()"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3814,7 +3803,6 @@ def test_live_agent_after_reset_passwrd(monkeypatch):
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "need help"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     live_actual = live_response.json()
     message = live_actual.get("message")
@@ -3849,7 +3837,6 @@ def test_get_chat_history():
         response = client.get(
             f"/api/bot/{bot}/conversation",
             headers={"Authorization": token_type + " " + token},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -3861,7 +3848,6 @@ def test_get_chat_history():
         response = client.get(
             f"/api/bot/{bot}/conversation",
             headers={"Authorization": f"{token_type} {access_token}"},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -4008,7 +3994,6 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
         f"/api/bot/{bot}/chat",
         json={"data": "!@#$%^&*()"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert (
@@ -4193,7 +4178,6 @@ def test_chat_when_botownerchanged():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token, 'X-USER': "test"},
-        timeout=0,
     )
     actual = response.json()
     owner = AccountProcessor.get_bot_owner(bot)

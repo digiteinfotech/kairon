@@ -5941,7 +5941,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict = pyscript_config.model_dump()
         pyscript_config_dict['name'] = ''
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_pyscript_action(pyscript_config_dict, user, bot)
@@ -5957,7 +5957,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict = pyscript_config.model_dump()
         pyscript_config_dict['source_code'] = ''
         with pytest.raises(ValidationError, match="Source code cannot be empty"):
             processor.add_pyscript_action(pyscript_config_dict, user, bot)
@@ -5973,7 +5973,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        pyscript_config_dict = pyscript_config.dict()
+        pyscript_config_dict = pyscript_config.model_dump()
         pyscript_config_dict['name'] = "utter_add_pyscript_action_empty_name"
         with pytest.raises(AppException, match="Action name cannot start with utter_"):
             processor.add_pyscript_action(pyscript_config_dict, user, bot)
@@ -5989,7 +5989,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        action_id = processor.add_pyscript_action(pyscript_config.model_dump(), user, bot)
         assert Actions.objects(name=action, status=True, bot=bot).get()
         pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
         assert str(pyscript_config_action.id) == action_id
@@ -6009,7 +6009,7 @@ class TestMongoProcessor:
             dispatch_response=False,
         )
         with pytest.raises(AppException, match="Action exists!"):
-            processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+            processor.add_pyscript_action(pyscript_config.model_dump(), user, bot)
 
     def test_add_pyscript_action_case_insensitivity(self):
         bot = 'test_bot'
@@ -6022,7 +6022,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        action_id = processor.add_pyscript_action(pyscript_config.model_dump(), user, bot)
         assert Actions.objects(name="test_add_pyscript_action_case_insensitivity", status=True, bot=bot).get()
         pyscript_config_action = PyscriptActionConfig.objects(name="test_add_pyscript_action_case_insensitivity",
                                                               bot=bot, status=True).get()
@@ -6043,7 +6043,7 @@ class TestMongoProcessor:
             dispatch_response=False,
         )
         with pytest.raises(AppException, match='Action with name "test_update_pyscript_action" not found'):
-            processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+            processor.update_pyscript_action(pyscript_config.model_dump(), user, bot)
 
     def test_update_pyscript_action(self):
         bot = 'test_bot'
@@ -6056,7 +6056,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=True,
         )
-        action_id = processor.update_pyscript_action(pyscript_config.dict(), user, bot)
+        action_id = processor.update_pyscript_action(pyscript_config.model_dump(), user, bot)
         assert Actions.objects(name=action, status=True, bot=bot).get()
         pyscript_config_action = PyscriptActionConfig.objects(name=action, bot=bot, status=True).get()
         assert pyscript_config_action.name == action
@@ -13661,8 +13661,8 @@ class TestMongoProcessor:
             hyperparameters=Utility.get_default_llm_hyperparameters(),
             bot=bot
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
-        processor.add_prompt_action(prompt_action_config.dict(), bot, user)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
+        processor.add_prompt_action(prompt_action_config.model_dump(), bot, user)
         with pytest.raises(AppException, match=f'Action with name tester_action is attached with PromptAction!'):
             processor.delete_action('tester_action', bot, user)
 
@@ -13689,7 +13689,7 @@ class TestMongoProcessor:
             http_url='http://www.example.com',
             request_method='GET',
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         assert HttpActionConfig.objects(action_name='action_http_to_delete', bot=bot, status=True).count() == 1
         processor.delete_action('action_http_to_delete', bot, user)
         assert Actions.objects(name='action_http_to_delete', bot=bot).count() == 0
@@ -13884,7 +13884,7 @@ class TestMongoProcessor:
             params_list=http_params_list,
             headers=header
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
 
         bot = 'test'
         user = 'test_user'
@@ -14433,7 +14433,7 @@ class TestMongoProcessor:
             params_list=http_params_list,
             headers=header
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
 
         bot = 'test'
         user = 'test'
@@ -15168,7 +15168,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        processor_two.add_db_action(vectordb_action_config.dict(), user, bot)
+        processor_two.add_db_action(vectordb_action_config.model_dump(), user, bot)
         actual_vectordb_action = DatabaseAction.objects(name=action, bot=bot, status=True).get()
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
@@ -15235,7 +15235,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        processor.add_db_action(vectordb_action_config.dict(), user, bot)
+        processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
         actual_vectordb_action = DatabaseAction.objects(name=action, bot=bot, status=True).get()
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
@@ -15272,7 +15272,7 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response),
             set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
         )
-        processor.add_db_action(vectordb_action_config.dict(), user, bot)
+        processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
         actual_vectordb_action = DatabaseAction.objects(name=action, bot=bot, status=True).get()
         assert actual_vectordb_action is not None
         assert Actions.objects(name=action, status=True, bot=bot).get()
@@ -15301,7 +15301,7 @@ class TestMongoProcessor:
             set_slots=[SetSlotsUsingActionResponse(name="age", value="${data.age}", evaluation_type="expression")]
         )
         with pytest.raises(AppException, match="Slot with name cuisine not found!"):
-            processor.add_db_action(vectordb_action_config.dict(), user, bot)
+            processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
 
     def test_add_vector_embedding_action_collection_does_not_exists(self):
         processor = MongoProcessor()
@@ -15326,7 +15326,7 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response),
         )
         with pytest.raises(AppException, match="Collection does not exist!"):
-            processor.add_db_action(vectordb_action_config.dict(), user, bot)
+            processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
 
     def test_add_vector_embedding_action_config_existing_name(self):
         processor = MongoProcessor()
@@ -15350,7 +15350,7 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         with pytest.raises(AppException, match="Action exists"):
-            processor.add_db_action(vectordb_action_config.dict(), user, bot)
+            processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
 
     def test_add_vector_embedding_action_config_empty_payload_values(self):
         processor = MongoProcessor()
@@ -15383,7 +15383,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        vectordb_action = vectordb_action_config.dict()
+        vectordb_action = vectordb_action_config.model_dump()
         vectordb_action['name'] = ''
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_db_action(vectordb_action, user, bot)
@@ -15393,7 +15393,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two = vectordb_action_config_two.model_dump()
         vectordb_action_two['payload'][0]['type'] = ''
         with pytest.raises(ValidationError, match="payload type is required"):
             processor.add_db_action(vectordb_action_two, user, bot)
@@ -15429,7 +15429,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        vectordb_action = vectordb_action_config.dict()
+        vectordb_action = vectordb_action_config.model_dump()
         vectordb_action['name'] = ''
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_db_action(vectordb_action, user, bot)
@@ -15439,7 +15439,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        vectordb_action_two = vectordb_action_config_two.dict()
+        vectordb_action_two = vectordb_action_config_two.model_dump()
         vectordb_action_two['payload'][0]['query_type'] = ''
         with pytest.raises(ValidationError, match="query type is required"):
             processor.add_db_action(vectordb_action_two, user, bot)
@@ -15534,7 +15534,7 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response)
         )
         with pytest.raises(AppException, match="Action name cannot start with utter_"):
-            processor.add_db_action(vectordb_action_config.dict(), user, bot)
+            processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
 
     def test_update_vector_embedding_action(self):
         processor = MongoProcessor()
@@ -15569,7 +15569,7 @@ class TestMongoProcessor:
             payload=[payload],
             response=ActionResponseEvaluation(value=response)
         )
-        processor.add_db_action(vectordb_action_config.dict(), user, bot)
+        processor.add_db_action(vectordb_action_config.model_dump(), user, bot)
         actual = DatabaseAction.objects(name=action, bot=bot, status=True).get()
         assert actual is not None
         assert actual['name'] == action
@@ -15588,7 +15588,7 @@ class TestMongoProcessor:
             response=ActionResponseEvaluation(value=response_two),
             set_slots=[SetSlotsUsingActionResponse(name="name", value="${data.name}", evaluation_type="expression")]
         )
-        processor.update_db_action(vectordb_action_config_updated.dict(), user, bot)
+        processor.update_db_action(vectordb_action_config_updated.model_dump(), user, bot)
         actual_two = DatabaseAction.objects(name=action, bot=bot, status=True).get()
         assert actual_two is not None
         assert actual_two['name'] == action
@@ -15618,7 +15618,7 @@ class TestMongoProcessor:
         )
         with pytest.raises(AppException,
                            match='Action with name "test_update_vectordb_action_does_not_exists" not found'):
-            processor.update_db_action(vectordb_action_config.dict(), user, bot)
+            processor.update_db_action(vectordb_action_config.model_dump(), user, bot)
 
     def test_delete_vector_embedding_action_config(self):
         processor = MongoProcessor()
@@ -15702,7 +15702,7 @@ class TestMongoProcessor:
             params_list=params
         )
         with pytest.raises(AppException, match="Action name cannot start with utter_"):
-            processor.add_http_action_config(http_action_config.dict(), user, bot)
+            processor.add_http_action_config(http_action_config.model_dump(), user, bot)
 
     def test_add_http_action_config(self):
         processor = MongoProcessor()
@@ -15727,7 +15727,7 @@ class TestMongoProcessor:
             params_list=http_params_list,
             headers=header
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
             action_name__iexact=action).to_mongo().to_dict()
         assert actual_http_action is not None
@@ -15774,7 +15774,7 @@ class TestMongoProcessor:
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
                        SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
             action_name__iexact=action).to_mongo().to_dict()
         actual_http_action.pop('_id')
@@ -15823,7 +15823,7 @@ class TestMongoProcessor:
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
                        SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         config = processor.get_http_action_config(bot, action)
         config.pop("timestamp")
         config = json.loads(json.dumps(config))
@@ -15863,7 +15863,7 @@ class TestMongoProcessor:
             request_method=request_method,
             params_list=http_params_list
         )
-        http_dict = http_action_config.dict()
+        http_dict = http_action_config.model_dump()
         http_dict['action_name'] = ''
         with pytest.raises(ValidationError, match="Action name cannot be empty"):
             processor.add_http_action_config(http_dict, user, bot)
@@ -15948,7 +15948,7 @@ class TestMongoProcessor:
             params_list=params
         )
         try:
-            processor.add_http_action_config(http_action_config.dict(), user, bot)
+            processor.add_http_action_config(http_action_config.model_dump(), user, bot)
             assert False
         except AppException as ex:
             assert str(ex).__contains__("Action exists")
@@ -15971,7 +15971,7 @@ class TestMongoProcessor:
             params_list=params
         )
         with pytest.raises(AppException, match="Action exists"):
-            processor.add_http_action_config(http_action_config.dict(), user, bot)
+            processor.add_http_action_config(http_action_config.model_dump(), user, bot)
 
     def test_delete_http_action_config(self):
         processor = MongoProcessor()
@@ -16135,7 +16135,7 @@ class TestMongoProcessor:
             dynamic_params=dynamic_params,
             headers=header
         )
-        processor.add_http_action_config(http_action_config.dict(), user, bot)
+        processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
             action_name__iexact=action).to_mongo().to_dict()
         assert actual_http_action is not None
@@ -16172,7 +16172,7 @@ class TestMongoProcessor:
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
                        SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
         )
-        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         assert http_config_id is not None
         http_url = 'http://www.alphabet.com'
         response = "string"
@@ -16193,7 +16193,7 @@ class TestMongoProcessor:
             headers=header,
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
         )
-        processor.update_http_config(http_action_config.dict(), user, bot)
+        processor.update_http_config(http_action_config.model_dump(), user, bot)
 
         actual_http_action = HttpActionConfig.objects(action_name=action, bot=bot, user=user, status=True).get(
             action_name__iexact=action).to_mongo().to_dict()
@@ -16234,7 +16234,7 @@ class TestMongoProcessor:
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script"),
                        SetSlotsUsingActionResponse(name="email", value="${data.email}", evaluation_type="expression")]
         )
-        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         assert http_config_id is not None
         http_url = 'http://www.alphabet.com'
         response = "string"
@@ -16263,7 +16263,7 @@ class TestMongoProcessor:
             headers=header,
             set_slots=[SetSlotsUsingActionResponse(name="bot", value="${data.key}", evaluation_type="script")]
         )
-        processor.update_http_config(http_action_config.dict(), user, bot)
+        processor.update_http_config(http_action_config.model_dump(), user, bot)
 
         config = processor.get_http_action_config(bot, action)
         config.pop("timestamp")
@@ -16307,7 +16307,7 @@ class TestMongoProcessor:
             request_method=request_method,
             params_list=http_params_list
         )
-        http_config_id = processor.add_http_action_config(http_action_config.dict(), user, bot)
+        http_config_id = processor.add_http_action_config(http_action_config.model_dump(), user, bot)
         assert http_config_id is not None
         bot = 'test_bot'
         http_url = 'http://www.alphabet.com'
@@ -16326,7 +16326,7 @@ class TestMongoProcessor:
             params_list=http_params_list
         )
         try:
-            processor.update_http_config(http_action_config.dict(), user, bot)
+            processor.update_http_config(http_action_config.model_dump(), user, bot)
         except AppException as e:
             assert str(e) == 'No HTTP action found for bot test_bot and action test_update_http_config_invalid'
 
@@ -19517,7 +19517,7 @@ class TestMongoProcessor:
             source_code=script,
             dispatch_response=False,
         )
-        action_id = processor.add_pyscript_action(pyscript_config.dict(), user, bot)
+        action_id = processor.add_pyscript_action(pyscript_config.model_dump(), user, bot)
 
         action = {
             'name': 'test_list_all_action_google_action',
@@ -21638,7 +21638,7 @@ class TestModelProcessor:
         processor = MongoProcessor()
         with pytest.raises(Exception, match="Schedule action can not be empty, it is needed to execute on schedule time"):
             scheduled_acition = ScheduleActionRequest(**expected_data)
-            processor.add_schedule_action(scheduled_acition.dict(), bot, user)
+            processor.add_schedule_action(scheduled_acition.model_dump(), bot, user)
 
     def test_update_schedule_action_schedule_time(self):
         bot = "testbot"

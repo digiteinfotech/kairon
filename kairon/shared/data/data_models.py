@@ -164,7 +164,7 @@ class TokenData(BaseModel):
 class Response(BaseModel):
     success: bool = True
     message: Any = None
-    data: Any
+    data: Any = None
     error_code: int = 0
 
 class ActionResponse(BaseModel):

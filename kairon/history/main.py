@@ -96,7 +96,7 @@ async def startlette_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -111,7 +111,7 @@ async def assertion_error_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -128,7 +128,7 @@ async def http_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -143,7 +143,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=exc.errors()).dict()
+        Response(success=False, error_code=422, message=exc.errors()).model_dump()
     )
 
 
@@ -158,7 +158,7 @@ async def app_does_not_exist_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -173,7 +173,7 @@ async def pymongo_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -188,7 +188,7 @@ async def app_validation_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -203,7 +203,7 @@ async def mongoengine_operation_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -218,7 +218,7 @@ async def mongoengine_notregistered_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -233,7 +233,7 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -248,7 +248,7 @@ async def mongoengine_lookup_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -263,7 +263,7 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -278,7 +278,7 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -293,7 +293,7 @@ async def app_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 

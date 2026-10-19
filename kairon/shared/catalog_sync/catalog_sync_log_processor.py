@@ -181,7 +181,7 @@ class CatalogSyncLogProcessor:
         )
 
         metadata_id = cognition_processor.save_cognition_schema(
-            catalog_schema.dict(),
+            catalog_schema.model_dump(),
             user, bot)
 
         return metadata_id

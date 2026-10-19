@@ -46,7 +46,7 @@ async def add_user_consent_details(
     """
     Adds the consent details of the current logged-in user.
     """
-    AccountProcessor.add_user_consent_details(current_user.email, request.dict())
+    AccountProcessor.add_user_consent_details(current_user.email, request.model_dump())
     return {"message": "Consent Details added!"}
 
 
@@ -81,7 +81,7 @@ async def book_a_demo(
     support_mail = Utility.environment["support_mail"]
     Utility.validate_data(form_data)
     background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='book_a_demo', email=support_mail,
-                              first_name=form_data.data['first_name'], request=request, **form_data.dict())
+                              first_name=form_data.data['first_name'], request=request, **form_data.model_dump())
     return {"message": "Thank You for your interest in Kairon. We will reach out to you soon."}
 
 

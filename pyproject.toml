@@ -85,6 +85,8 @@ dependencies = [
 dev = [
     "pytest==9.1.1",
     "pytest_httpx==0.36.2",
+    # Starlette 1.8 TestClient imports httpx2 and warns when it falls back to httpx.
+    "httpx2==2.14.0",
     "pytest-asyncio==1.4.0",
     "responses==0.26.3",
     "mock==5.2.0",

@@ -1,4 +1,4 @@
-from typing import Text, Dict
+from typing import Dict, Optional, Text, Union
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -9,9 +9,9 @@ from kairon.shared.constants import EventClass
 
 class EventRequest(BaseModel):
     data: Dict
-    cron_exp: Text = None
-    timezone: Text = None
-    run_at: Text = None
+    cron_exp: Optional[Text] = None
+    timezone: Optional[Text] = None
+    run_at: Optional[Union[Text, int, float]] = None
 
     model_config = ConfigDict(use_enum_values=True)
 

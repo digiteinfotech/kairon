@@ -91,7 +91,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return JSONResponse(
             Response(
                 success=False, error_code=422, message=str(exc)
-            ).dict()
+            ).model_dump()
         )
 
 
