@@ -4294,32 +4294,102 @@ async def test_agentic_flow_api_call(mock_exec_rule, mock_init):
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
 @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
-async def test_agentic_flow_api_call_encrypted_sender_id_decrypted(mock_exec_rule, mock_init):
+async def test_agentic_flow_api_call_sender_id_passed_as_is(mock_exec_rule, mock_init):
     mock_exec_rule.return_value = [{'text': 'Hi'}], []
     encrypted_sender_id = Utility.encrypt_message("user@example.com")
+    for sender_id in ["user@example.com", encrypted_sender_id]:
+        response = client.post(
+            f"/api/bot/{bot}/exec/flow",
+            headers={"Authorization": token_type + " " + token},
+            json={"name": "test_flow", "sender_id": sender_id},
+        )
+        actual = response.json()
+        assert actual["success"]
+        assert mock_init.call_args[0][2] == sender_id
+
+
+@pytest.fixture
+def store_page_customer():
+    from kairon.shared.data.data_objects import CustomerDetails
+    customer = MagicMock(spec=CustomerDetails)
+    customer.bot = bot
+    customer.sender_id = "27831111111"
+    app.dependency_overrides[Authentication.validate_store_page_token] = lambda: customer
+    yield customer
+    app.dependency_overrides.pop(Authentication.validate_store_page_token, None)
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_store_page_agentic_flow_api_call(mock_exec_rule, mock_init, store_page_customer):
+    mock_exec_rule.return_value = [{'text': 'Hi'}], []
     response = client.post(
-        f"/api/bot/{bot}/exec/flow",
-        headers={"Authorization": token_type + " " + token},
-        json={"name": "test_flow", "sender_id": encrypted_sender_id},
+        f"/api/bot/{bot}/store_page/exec/flow",
+        json={"name": "test_flow", "slot_vals": {"a": "b"}},
     )
     actual = response.json()
     assert actual["success"]
+    assert actual["error_code"] == 0
+    assert actual["message"] == "Rule executed successfully!"
+    assert actual["data"]["responses"] == [{'text': 'Hi'}]
+    assert actual["data"]["errors"] == []
+    mock_init.assert_called_once_with(bot, {"a": "b"}, None)
+    mock_exec_rule.assert_awaited_once_with("test_flow")
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_store_page_agentic_flow_api_call_encrypted_sender_id_decrypted(mock_exec_rule, mock_init, store_page_customer):
+    mock_exec_rule.return_value = [{'text': 'Hi'}], []
+    response = client.post(
+        f"/api/bot/{bot}/store_page/exec/flow",
+        json={"name": "test_flow", "sender_id": Utility.encrypt_message("user@example.com")},
+    )
+    assert response.json()["success"]
     assert mock_init.call_args[0][2] == "user@example.com"
 
 
 @pytest.mark.asyncio
 @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.__init__", return_value=None)
 @patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
-async def test_agentic_flow_api_call_plain_sender_id_passed_as_is(mock_exec_rule, mock_init):
+async def test_store_page_agentic_flow_api_call_plain_sender_id_passed_as_is(mock_exec_rule, mock_init, store_page_customer):
     mock_exec_rule.return_value = [{'text': 'Hi'}], []
     response = client.post(
-        f"/api/bot/{bot}/exec/flow",
-        headers={"Authorization": token_type + " " + token},
+        f"/api/bot/{bot}/store_page/exec/flow",
         json={"name": "test_flow", "sender_id": "user@example.com"},
     )
-    actual = response.json()
-    assert actual["success"]
+    assert response.json()["success"]
     assert mock_init.call_args[0][2] == "user@example.com"
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_store_page_agentic_flow_api_call_requires_store_page_token(mock_exec_rule):
+    response = client.post(
+        f"/api/bot/{bot}/store_page/exec/flow",
+        json={"name": "test_flow"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+    assert actual["message"] == "Store page token is missing"
+    mock_exec_rule.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch("kairon.shared.chat.agent.agent_flow.AgenticFlow.execute_rule", new_callable=AsyncMock)
+async def test_store_page_agentic_flow_api_call_rejects_login_token(mock_exec_rule):
+    response = client.post(
+        f"/api/bot/{bot}/store_page/exec/flow",
+        headers={"Authorization": token_type + " " + token},
+        json={"name": "test_flow"},
+    )
+    actual = response.json()
+    assert not actual["success"]
+    assert actual["error_code"] == 401
+    mock_exec_rule.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -71,7 +71,7 @@ class CustomerOrderProcessor:
                 "/api/bot/.+/customer_data/.*",
                 "/api/bot/.+/store_page/metadata",
                 "/api/bot/.+/data/collection/.*",
-                "/api/bot/.+/exec/flow"
+                "/api/bot/.+/store_page/exec/flow"
             ],
         )
         return f"{catalog_base}/{page_name}/{bot}/{encrypted_id}/{token}"
