@@ -2333,7 +2333,7 @@ def test_http_action_execution(aioresponses):
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2470,7 +2470,7 @@ def test_http_action_execution_returns_custom_json(aioresponses):
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200,
     )
@@ -2558,7 +2558,7 @@ def test_http_action_execution_custom_json_with_invalid_json_response(aiorespons
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2645,7 +2645,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2747,7 +2747,7 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
-                                        "tag": "from_bot"}),
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -4216,13 +4216,14 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
 
     aioresponses.add(
         method=responses.GET,
-        url=http_url + "?bot=5f50fd0a56b698ca10d35d2d&tag=from_bot&user=1011",
+        url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
         json={"success": True, "data": "error", },
         status=200,
         match=[
@@ -4233,7 +4234,8 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
                                         'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
-                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']asdf"})]
     )
@@ -4313,13 +4315,14 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
 
     aioresponses.add(
         method=responses.GET,
-        url=http_url + "?bot=5f50fd0a56b698ca10d35d2d&tag=from_bot&user=1011",
+        url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200,
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
         json={"success": True, "data": "error", },
         status=200,
         match=[
@@ -4330,7 +4333,8 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
                                         'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
-                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']asdf"})]
     )

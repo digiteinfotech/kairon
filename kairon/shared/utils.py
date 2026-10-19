@@ -23,6 +23,7 @@ from typing import Text, List, Dict, Union, Any, Optional
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
+import bcrypt
 import bson
 import pandas as pd
 import pytz
@@ -47,7 +48,6 @@ from networkx import (
     recursive_simple_cycles,
     all_simple_paths,
 )
-from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from pymongo.common import _CaseInsensitiveDictionary
@@ -106,7 +106,6 @@ class Utility:
         numbers=1,  # need min. 1 digits
         special=1,  # need min. 1 special characters
     )
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @staticmethod
     def valid_password(password: Text):
@@ -144,7 +143,10 @@ class Utility:
         :return: hashed password
         """
         if not Utility.check_empty_string(password):
-            return Utility.pwd_context.hash(password)
+            # bcrypt hashes the first 72 bytes. Truncate so bcrypt 5 accepts the
+            # secret and hashes created before that limit still verify.
+            secret = password.encode("utf-8")[:72]
+            return bcrypt.hashpw(secret, bcrypt.gensalt()).decode("ascii")
 
     @staticmethod
     def check_empty_string(value: str):
@@ -1288,7 +1290,15 @@ class Utility:
         :param hashed_password: saved password
         :return: boolean
         """
-        return Utility.pwd_context.verify(plain_password, hashed_password)
+        if Utility.check_empty_string(plain_password) or not hashed_password:
+            return False
+        secret = plain_password.encode("utf-8")[:72]
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode("ascii")
+        try:
+            return bcrypt.checkpw(secret, hashed_password)
+        except (ValueError, TypeError):
+            return False
 
     @staticmethod
     async def chat(data: Text, bot: Text, user: Text, email: Text):

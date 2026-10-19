@@ -2034,7 +2034,6 @@ dependencies = [
     { name = "opentelemetry-sdk-extension-aws" },
     { name = "orjson" },
     { name = "pandas" },
-    { name = "passlib" },
     { name = "password-strength" },
     { name = "pipedrive-python-lib" },
     { name = "pqdict" },
@@ -2131,7 +2130,6 @@ requires-dist = [
     { name = "opentelemetry-sdk-extension-aws", specifier = "==2.1.0" },
     { name = "orjson", specifier = "==3.13.0" },
     { name = "pandas", specifier = "==3.0.6" },
-    { name = "passlib", specifier = "==1.7.4" },
     { name = "password-strength", specifier = "==0.0.3.post2" },
     { name = "pipedrive-python-lib", specifier = "==1.2.3" },
     { name = "pqdict", specifier = "==1.5.1" },
@@ -3229,15 +3227,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b2/3a/3f06f34820a31257ddcabdfafc2672c5816be79c7e353b02c1f318daa7d4/partd-1.4.2.tar.gz", hash = "sha256:d022c33afbdc8405c226621b015e8067888173d85f7f5ecebb3cafed9a20f02c", size = 21029, upload-time = "2024-05-06T19:51:41.945Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/e7/40fb618334dcdf7c5a316c0e7343c5cd82d3d866edc100d98e29bc945ecd/partd-1.4.2-py3-none-any.whl", hash = "sha256:978e4ac767ec4ba5b86c6eaa52e5a2a3bc748a2ca839e8cc798f1cc6ce6efb0f", size = 18905, upload-time = "2024-05-06T19:51:39.271Z" },
-]
-
-[[package]]
-name = "passlib"
-version = "1.7.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b6/06/9da9ee59a67fae7761aab3ccc84fa4f3f33f125b370f1ccdb915bf967c11/passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04", size = 689844, upload-time = "2020-10-08T19:00:52.121Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/a4/ab6b7589382ca3df236e03faa71deac88cae040af60c071a78d254a62172/passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1", size = 525554, upload-time = "2020-10-08T19:00:49.856Z" },
 ]
 
 [[package]]
