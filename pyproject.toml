@@ -80,7 +80,7 @@ dependencies = [
     "blacksheep==2.0.7",
     "fastembed==0.5.1",
     "markdown-pdf==1.7",
-    "genson==1.3.0",
+    "genson==1.4.0",
     "qdrant-client==1.13.3",
     "twilio>=8.2.0",
     "boto3>=1.34.0",
