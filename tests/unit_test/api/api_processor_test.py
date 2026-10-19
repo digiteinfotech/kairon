@@ -2299,7 +2299,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -2335,7 +2335,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -2382,7 +2382,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
