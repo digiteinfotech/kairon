@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
     """ MongoDB is connected on the bot trainer startup """
     config: dict = Utility.mongoengine_connection(Utility.environment['database']["url"])
     connect(**config)
+    KScheduler.start()
     yield
     disconnect()
 

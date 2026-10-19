@@ -22,6 +22,8 @@ from kairon.shared.data.constant import TASK_TYPE
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 logging.basicConfig()
 
+_start_lock = threading.Lock()
+
 
 def _on_job_event(event):
     if event.exception:
@@ -31,6 +33,17 @@ def _on_job_event(event):
                        getattr(event, 'scheduled_run_time', None))
     else:
         logger.info("SCHEDULER_JOB_EXECUTED | job_id={}", event.job_id)
+
+
+def _revive_scheduler_thread(scheduler):
+    """
+    Starts a new polling thread for a scheduler whose state is still RUNNING but whose thread died.
+    Executors and job stores are left untouched: scheduler.shutdown() would stop the executor pool
+    (later jobs fail with "cannot schedule new futures after shutdown") and close the shared MongoClient.
+    """
+    thread = threading.Thread(target=scheduler._main_loop, name='APScheduler', daemon=scheduler._daemon)
+    scheduler._thread = thread
+    thread.start()
 
 
 def _build_watchdog(scheduler):
@@ -43,10 +56,16 @@ def _build_watchdog(scheduler):
     def _watch():
         while True:
             time.sleep(interval)
-            if not scheduler.running:
+            # `running` only reflects scheduler state; it stays True when the scheduler thread itself dies.
+            thread = getattr(scheduler, '_thread', None)
+            thread_dead = scheduler.running and thread is not None and not thread.is_alive()
+            if not scheduler.running or thread_dead:
                 logger.critical("APScheduler thread found dead — restarting scheduler")
                 try:
-                    scheduler.start()
+                    if thread_dead:
+                        _revive_scheduler_thread(scheduler)
+                    else:
+                        scheduler.start()
                     logger.info("APScheduler restarted by watchdog")
                 except Exception as exc:
                     logger.exception("Watchdog failed to restart APScheduler: {}", exc)
@@ -64,8 +83,20 @@ class KScheduler(EventSchedulerBase):
         jobstores={__job_store_name: MongoDBJobStore(__events_db, __job_store_name, __client)},
         job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
     __scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
-    __scheduler.start()
-    __watchdog = _build_watchdog(__scheduler)
+    __watchdog = None
+
+    @staticmethod
+    def start():
+        """
+        Starts the scheduler and its watchdog. Must be called only by the event server:
+        importing this module must not start a scheduler, otherwise every process importing it
+        competes with the event server for the same job store.
+        """
+        with _start_lock:
+            if not KScheduler.__scheduler.running:
+                KScheduler.__scheduler.start()
+            if KScheduler.__watchdog is None:
+                KScheduler.__watchdog = _build_watchdog(KScheduler.__scheduler)
 
     def update_job(self, event_id: Text, task_type: TASK_TYPE, event_class: Text, data: dict, timezone=None,
                    cron_exp: Optional[Text] = None, run_at: Optional[int] = None):
