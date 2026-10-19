@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
     "rasa==3.6.21",
-    "mongoengine==0.29.1",
+    "mongoengine==0.29.3",
     "fastapi==0.125.0",
     "uvicorn[standard]==0.49.0",
     "smart-config==0.1.3",
