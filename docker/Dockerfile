@@ -1,47 +1,48 @@
 FROM amazonlinux:latest
 
-ENV KAIRON_HOME=/app PYTHON_VERSION=3.10.16 TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT RASA_TELEMETRY_ENABLED=false
-ENV PYENV_ROOT=/root/.pyenv
-ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
+COPY --from=ghcr.io/astral-sh/uv:0.12.17 /uv /uvx /bin/
+
+ENV KAIRON_HOME=/app \
+    TEMPLATE_DIR_DEFAULT=./template/use-cases/Hi-Hello-GPT \
+    RASA_TELEMETRY_ENABLED=false \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON=3.10 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PATH="/app/.venv/bin:$PATH" \
+    HF_HOME="/home/cache" \
+    SENTENCE_TRANSFORMERS_HOME="/home/cache"
 
 WORKDIR ${KAIRON_HOME}
 
+RUN yum update -y && \
+    yum install -y \
+      ca-certificates \
+      git \
+      gcc \
+      gcc-c++ \
+      make \
+      tar \
+      gzip \
+      bzip2 \
+      xz \
+      openssl \
+      openssl-devel \
+      libffi-devel \
+      openblas-devel \
+      libgomp && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
-RUN yum update -y
-RUN yum install -y wget make gcc zlib-devel tar xz gzip openssl openssl-devel bzip2-devel sqlite-devel libffi-devel openblas-devel ca-certificates git ncurses-devel readline-devel xz-devel tk-devel bzip2 patch sqlite
+RUN mkdir -p data_generator training_data testing_data models /home/cache .rasa
 
-RUN curl https://pyenv.run | bash
-RUN echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc && \
-    echo '[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc && \
-    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --frozen --no-dev --no-install-project && \
+    uv pip install pyston_lite_autoload
 
-RUN source ~/.zshrc && \
-    pyenv install ${PYTHON_VERSION} && \
-    pyenv global ${PYTHON_VERSION} &&  \
-    pyenv rehash &&  \
-    python -m pip install --upgrade pip && \
-    mkdir data_generator training_data testing_data models /home/cache .rasa
-
-
-COPY requirements requirements
-RUN python -m pip --no-cache-dir install -r ./requirements/prod.txt && \
-    pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.7.1/en_core_web_md-3.7.1-py3-none-any.whl && \
-    python -m nltk.downloader averaged_perceptron_tagger && \
-    python -m nltk.downloader averaged_perceptron_tagger_eng && \
-    python -m nltk.downloader punkt && \
-    python -m nltk.downloader stopwords && \
-    python -m nltk.downloader omw-1.4 && \
-    python -m nltk.downloader wordnet && \
-    rm -rf requirements
-
-RUN python -m pip install pyston_lite_autoload
 COPY . .
 
 RUN rm -rf ${TEMPLATE_DIR_DEFAULT}/models/* && \
     python -m rasa train --data ${TEMPLATE_DIR_DEFAULT}/data --config ${TEMPLATE_DIR_DEFAULT}/config.yml --domain ${TEMPLATE_DIR_DEFAULT}/domain.yml --out ${TEMPLATE_DIR_DEFAULT}/models
 
-RUN cp kairon/shared/rule_policy.py /root/.pyenv/versions/${PYTHON_VERSION}/lib/python3.10/site-packages/rasa/core/policies/rule_policy.py
-RUN cp kairon/shared/schemas/domain.yml /root/.pyenv/versions/${PYTHON_VERSION}/lib/python3.10/site-packages/rasa/shared/utils/schemas/domain.yml
-
-ENV HF_HOME="/home/cache" SENTENCE_TRANSFORMERS_HOME="/home/cache"
-
+RUN python -c "import pathlib, shutil, rasa; root = pathlib.Path(rasa.__file__).resolve().parent; shutil.copy('kairon/shared/rule_policy.py', root / 'core/policies/rule_policy.py'); shutil.copy('kairon/shared/schemas/domain.yml', root / 'shared/utils/schemas/domain.yml')"

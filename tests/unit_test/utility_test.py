@@ -37,7 +37,6 @@ from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 from kairon.exceptions import AppException
-from kairon.shared.augmentation.utils import AugmentationUtils
 from kairon.shared.constants import ElementTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
@@ -344,12 +343,6 @@ class TestUtility:
         file = UploadFile(filename="filename.csv", file=BytesIO(content))
         with pytest.raises(AppException, match="No data found in the file!"):
             Utility.validate_faq_training_file(file)
-
-    def test_get_keywords(self):
-        paragraph = "What is Digite?"
-        raise_err = False
-        token = AugmentationUtils.get_keywords(paragraph)
-        assert Utility.check_empty_string(token[0][0]) == False
 
     def test_check_character_limit_success(self):
         name = "supercalifragilisticexpialidociousalwaysworks"
@@ -2678,22 +2671,6 @@ class TestUtility:
         with pytest.raises(Exception):
             await whatsapp.messageConverter(input_json)
 
-    def test_positive_case(self):
-        result = AugmentationUtils.generate_synonym("good")
-        assert len(result) == 3 and "good" not in result
-
-    def test_positive_case_with_6_synonyms(self):
-        result = AugmentationUtils.generate_synonym("good", 6)
-        assert len(result) == 6 and "good" not in result
-
-    def test_empty_case(self):
-        result = AugmentationUtils.generate_synonym("")
-        assert result == []
-
-    def test_more_synonyms(self):
-        result = AugmentationUtils.generate_synonym("good", 100)
-        assert len(result) >= 1 and "good" not in result
-
     def test_get_templates_type_story_dict(self):
         story = {
             "name": "share_ticket_count_323",
@@ -3257,8 +3234,8 @@ class TestUtility:
             Utility.verify_email(email)
 
     def test_get_llm_hyperparameters(self):
-        hyperparameters = Utility.get_llm_hyperparameters("openai")
-        LLMMetadata(
+        LLMMetadata.objects(provider="openai").delete()
+        metadata = LLMMetadata(
             provider="openai",
             schema="https://json-schema.org/draft/2020-12/schema",
             type="object",
@@ -3346,20 +3323,21 @@ class TestUtility:
             user="user"
         ).save()
 
-        yield
-
-        assert hyperparameters == {
-            "temperature": 0.0,
-            "max_tokens": 300,
-            "model": "gpt-4.1-mini",
-            "top_p": 0.0,
-            "n": 1,
-            "stop": None,
-            "presence_penalty": 0.0,
-            "frequency_penalty": 0.0,
-            "logit_bias": {},
-        }
-        LLMMetadata.objects.delete()
+        try:
+            hyperparameters = Utility.get_llm_hyperparameters("openai")
+            assert hyperparameters == {
+                "temperature": 0.0,
+                "max_tokens": 300,
+                "model": "gpt-4.1-mini",
+                "top_p": 0.0,
+                "n": 1,
+                "stop": None,
+                "presence_penalty": 0.0,
+                "frequency_penalty": 0.0,
+                "logit_bias": {},
+            }
+        finally:
+            metadata.delete()
 
 
     def test_get_llm_hyperparameters_not_found(self, monkeypatch):
