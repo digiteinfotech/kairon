@@ -751,7 +751,7 @@ class Utility:
     def get_back_date_1month(request: Request):
         key = "from_date"
         if not request.query_params.get(key):
-            return date.today() - timedelta(30)
+            return utc_now().date() - timedelta(30)
         else:
             return date.fromisoformat(request.query_params.get(key))
 
@@ -759,7 +759,7 @@ class Utility:
     def get_back_date_6month(request: Request) -> date:
         key = "from_date"
         if not request.query_params.get(key):
-            return date.today() - timedelta(180)
+            return utc_now().date() - timedelta(180)
         else:
             return date.fromisoformat(request.query_params.get(key))
 
@@ -767,7 +767,9 @@ class Utility:
     def get_to_date(request: Request):
         date_str = request.query_params.get("till_date") or request.query_params.get("to_date")
         if not date_str:
-            return date.today()
+            # Same UTC day as validate_from_date_and_to_date. date.today() is
+            # already the next day between local midnight and UTC midnight.
+            return utc_now().date()
         else:
             return date.fromisoformat(date_str)
 
