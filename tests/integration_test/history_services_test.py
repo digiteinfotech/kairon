@@ -74,13 +74,18 @@ def test_chat_history_users(mock_mongo):
     assert actual["message"] is None
     assert actual["success"]
     print(response.headers)
-    assert response.headers == {'content-length': '66', 'content-type': 'application/json', 'server': 'Secure',
-                                'strict-transport-security': 'includeSubDomains; preload; max-age=31536000',
-                                'x-frame-options': 'SAMEORIGIN', 'x-xss-protection': '0',
-                                'x-content-type-options': 'nosniff',
-                                'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'api.spam.com; frame-src 'self'; img-src 'self' static.spam.com",
-                                'referrer-policy': 'no-referrer', 'cache-control': 'must-revalidate',
-                                'permissions-policy': "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=(), geolocation=(self 'spam.com'), vibrate=()"}
+    assert response.headers == {
+        'content-length': '66',
+        'content-type': 'application/json',
+        'vary': 'Origin',
+        'cache-control': 'must-revalidate',
+        'content-security-policy': "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'api.spam.com; frame-src 'self'; img-src 'self' static.spam.com",
+        'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+        'permissions-policy': "accelerometer=(), autoplay=(), fullscreen=(), gyroscope=(), magnetometer=(), microphone=(), usb=(), geolocation=(self 'spam.com')",
+        'referrer-policy': 'no-referrer',
+        'server': 'Secure',
+        'x-content-type-options': 'nosniff',
+    }
 
 
 def test_chat_history_users_with_from_date_less_than_six_months():

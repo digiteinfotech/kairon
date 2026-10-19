@@ -74,7 +74,7 @@ class Authentication:
                 alias_user = request.headers.get("X-USER")
                 if Utility.check_empty_string(alias_user) and payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                         detail="Alias user missing for integration",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
@@ -98,7 +98,7 @@ class Authentication:
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='Bot is required',
             )
         if user.is_integration_user:
@@ -363,7 +363,7 @@ class Authentication:
         matches = any(re.match(allowed_endpoint, requested_endpoint) for allowed_endpoint in access_limit)
         if not matches:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='Access denied for this endpoint',
             )
 

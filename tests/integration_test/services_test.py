@@ -32620,7 +32620,7 @@ def test_sso_redirect_url_invalid_type():
 
 def test_list_sso_not_enabled(monkeypatch):
     monkeypatch.setitem(Utility.environment["app"], "enable_sso_only", True)
-    response = client.get(url=f"/api/system/properties", allow_redirects=False)
+    response = client.get(url=f"/api/system/properties", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
@@ -32637,19 +32637,19 @@ def test_list_sso_not_enabled(monkeypatch):
 
 
 def test_sso_redirect_url_not_enabled():
-    response = client.get(url=f"/api/auth/login/sso/google", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/google", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == "google login is not enabled"
     assert not actual["success"]
 
-    response = client.get(url=f"/api/auth/login/sso/linkedin", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/linkedin", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == "linkedin login is not enabled"
     assert not actual["success"]
 
-    response = client.get(url=f"/api/auth/login/sso/facebook", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/facebook", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 422
     assert actual["message"] == "facebook login is not enabled"
@@ -32669,17 +32669,17 @@ def test_sso_redirect_url(monkeypatch):
     Utility.environment["sso"]["facebook"]["enable"] = True
     monkeypatch.setattr(GoogleSSO, "get_discovery_document", _mock_get_discovery_doc)
 
-    response = client.get(url=f"/api/auth/login/sso/google", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/google", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"].__contains__(discovery_url)
 
-    response = client.get(url=f"/api/auth/login/sso/linkedin", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/linkedin", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"].__contains__(
         "https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id="
     )
 
-    response = client.get(url=f"/api/auth/login/sso/facebook", allow_redirects=False)
+    response = client.get(url=f"/api/auth/login/sso/facebook", follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["location"].__contains__(
         "https://www.facebook.com/v9.0/dialog/oauth?response_type=code&client_id="
@@ -32690,7 +32690,7 @@ def test_list_sso_enabled():
     Utility.environment["sso"]["linkedin"]["enable"] = True
     Utility.environment["sso"]["google"]["enable"] = True
 
-    response = client.get(url=f"/api/system/properties", allow_redirects=False)
+    response = client.get(url=f"/api/system/properties", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
@@ -32730,7 +32730,7 @@ def test_sso_get_login_token(monkeypatch):
 
     monkeypatch.setattr(Authentication, "verify_and_process", __mock_verify_and_process)
     response = client.get(
-        url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
+        url=f"/api/auth/login/sso/callback/google?code=123456789", follow_redirects=False
     )
     actual = response.json()
     assert all(
@@ -32753,7 +32753,7 @@ def test_sso_get_login_token(monkeypatch):
 
     response = client.get(
         url=f"/api/auth/login/sso/callback/linkedin?code=123456789",
-        allow_redirects=False,
+        follow_redirects=False,
     )
     actual = response.json()
     assert all(
@@ -32776,7 +32776,7 @@ def test_sso_get_login_token(monkeypatch):
 
     response = client.get(
         url=f"/api/auth/login/sso/callback/facebook?code=123456789",
-        allow_redirects=False,
+        follow_redirects=False,
     )
     actual = response.json()
     assert all(
@@ -32816,7 +32816,7 @@ def test_trigger_mail_on_new_signup_with_sso(monkeypatch):
     monkeypatch.setattr(MailUtility, "trigger_smtp", mock_smtp)
     Utility.email_conf["email"]["enable"] = True
     response = client.get(
-        url=f"/api/auth/login/sso/callback/google?code=123456789", allow_redirects=False
+        url=f"/api/auth/login/sso/callback/google?code=123456789", follow_redirects=False
     )
     actual = response.json()
     Utility.email_conf["email"]["enable"] = False
@@ -41636,7 +41636,7 @@ def test_api_login_with_SSO_only_flag():
 
 
 def test_list_system_metadata():
-    response = client.get(url=f"/api/system/metadata", allow_redirects=False)
+    response = client.get(url=f"/api/system/metadata", follow_redirects=False)
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
