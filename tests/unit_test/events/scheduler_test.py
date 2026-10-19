@@ -541,6 +541,170 @@ class TestResilientSchedulerIsolation:
         mock_super_remove.assert_called_once_with("ok_job", jobstore="store1")
 
 
+class TestResilientSchedulerUpdateJob:
+
+    @staticmethod
+    def _scheduler_with_memory_store():
+        from apscheduler.jobstores.memory import MemoryJobStore
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        scheduler = ResilientBackgroundScheduler()
+        scheduler.add_jobstore(MemoryJobStore(), "mem")
+        return scheduler, scheduler._jobstores["mem"]
+
+    @staticmethod
+    def _due_cron_job(job_id):
+        job = MagicMock()
+        job.id = job_id
+        job.executor = "default"
+        job.coalesce = True
+        job._get_run_times.return_value = [datetime.now(pytz.utc)]
+        job.trigger.get_next_fire_time.return_value = datetime.now(pytz.utc) + timedelta(hours=1)
+        return job
+
+    def test_update_job_swallowed_on_scheduler_thread(self):
+        from kairon.events.scheduler import resilient_scheduler
+
+        scheduler, store = self._scheduler_with_memory_store()
+        scheduler._logger = MagicMock()
+        job = MagicMock()
+        job.id = "deleted_cron_job"
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            store.update_job(job)  # job absent from store -> JobLookupError swallowed
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+        scheduler._logger.warning.assert_called_once()
+        assert "deleted_cron_job" in scheduler._logger.warning.call_args[0]
+
+    def test_update_job_reraised_outside_process_jobs(self):
+        scheduler, store = self._scheduler_with_memory_store()
+        job = MagicMock()
+        job.id = "missing_job"
+        with pytest.raises(JobLookupError):
+            store.update_job(job)
+
+    def test_update_job_other_exceptions_not_swallowed(self):
+        from kairon.events.scheduler import resilient_scheduler
+
+        scheduler, store = self._scheduler_with_memory_store()
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            with patch("apscheduler.jobstores.memory.MemoryJobStore.update_job", side_effect=RuntimeError("boom")):
+                scheduler.add_jobstore(type(store)(), "mem2")
+                with pytest.raises(RuntimeError):
+                    scheduler._jobstores["mem2"].update_job(MagicMock())
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+    def test_update_job_success_is_passed_through(self):
+        from apscheduler.jobstores.memory import MemoryJobStore
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        scheduler = ResilientBackgroundScheduler()
+        store = MemoryJobStore()
+        with patch.object(MemoryJobStore, "update_job") as mock_update:
+            scheduler.add_jobstore(store, "mem")
+            job = MagicMock()
+            store.update_job(job)
+        mock_update.assert_called_once_with(job)
+
+    def test_add_jobstore_by_alias_is_guarded(self):
+        from kairon.events.scheduler import resilient_scheduler
+        from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
+
+        scheduler = ResilientBackgroundScheduler()
+        scheduler.add_jobstore("memory", "by_name")
+        job = MagicMock()
+        job.id = "gone"
+        resilient_scheduler._local.in_process_jobs = True
+        try:
+            scheduler._jobstores["by_name"].update_job(job)
+        finally:
+            resilient_scheduler._local.in_process_jobs = False
+
+    def test_process_jobs_survives_cron_job_deleted_mid_run(self):
+        """End-to-end: job fires, is deleted before update_job, _process_jobs completes."""
+        scheduler, store = self._scheduler_with_memory_store()
+        job = self._due_cron_job("cron_deleted_mid_run")
+        executor = MagicMock()
+        scheduler._lookup_executor = MagicMock(return_value=executor)
+        with patch.object(store, "get_due_jobs", return_value=[job]):
+            scheduler._process_jobs()  # must not raise
+
+        executor.submit_job.assert_called_once()
+        job._modify.assert_called_once()
+
+    def test_process_jobs_flag_reset_after_survived_update_error(self):
+        from kairon.events.scheduler import resilient_scheduler
+
+        scheduler, store = self._scheduler_with_memory_store()
+        scheduler._lookup_executor = MagicMock(return_value=MagicMock())
+        with patch.object(store, "get_due_jobs", return_value=[self._due_cron_job("j1")]):
+            scheduler._process_jobs()
+
+        assert getattr(resilient_scheduler._local, 'in_process_jobs', False) is False
+
+
+class TestKSchedulerStart:
+
+    def test_importing_events_utility_leaves_scheduler_not_running(self):
+        """Regression: mail channel save imports kairon.events.utility in the Trainer API process;
+        that import must never start a scheduler (it competed with the event server on the job store)."""
+        import importlib
+        import sys
+        from kairon.events.scheduler.kscheduler import KScheduler
+
+        original = sys.modules.pop("kairon.events.utility", None)
+        try:
+            importlib.import_module("kairon.events.utility")
+        finally:
+            # keep the original module: other tests patch classes reached through it
+            if original is not None:
+                sys.modules["kairon.events.utility"] = original
+                setattr(sys.modules["kairon.events"], "utility", original)
+
+        scheduler = KScheduler._KScheduler__scheduler
+        assert scheduler.running is False
+        assert getattr(scheduler, "_thread", None) is None
+        assert KScheduler._KScheduler__watchdog is None
+
+    def test_class_body_does_not_start_scheduler(self):
+        """Importing KScheduler must have no side effect: no scheduler.start() / watchdog in the class body."""
+        import ast
+        import inspect
+        from kairon.events.scheduler import kscheduler
+
+        tree = ast.parse(inspect.getsource(kscheduler))
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "KScheduler")
+        class_level_calls = [ast.unparse(n.value) for n in cls.body if isinstance(n, ast.Expr)]
+        class_level_calls += [ast.unparse(n.value) for n in cls.body if isinstance(n, ast.Assign)]
+        assert not any(".start(" in call for call in class_level_calls)
+        assert not any("_build_watchdog" in call for call in class_level_calls)
+        assert kscheduler.KScheduler._KScheduler__watchdog is None
+        assert kscheduler.KScheduler._KScheduler__scheduler.running is False
+
+    def test_start_starts_scheduler_and_watchdog_once(self):
+        from kairon.events.scheduler import kscheduler
+        from kairon.events.scheduler.kscheduler import KScheduler
+
+        mock_scheduler = MagicMock()
+        mock_scheduler.running = False
+        with patch.object(KScheduler, "_KScheduler__scheduler", mock_scheduler), \
+                patch.object(KScheduler, "_KScheduler__watchdog", None), \
+                patch.object(kscheduler, "_build_watchdog", return_value="wd") as mock_watchdog:
+            KScheduler.start()
+            mock_scheduler.start.assert_called_once()
+            mock_watchdog.assert_called_once_with(mock_scheduler)
+            assert KScheduler._KScheduler__watchdog == "wd"
+
+            mock_scheduler.running = True
+            KScheduler.start()
+            mock_scheduler.start.assert_called_once()
+            mock_watchdog.assert_called_once()
+
+
 class TestSchedulerWatchdog:
 
     class _StopLoop(Exception):
@@ -583,6 +747,57 @@ class TestSchedulerWatchdog:
         scheduler.running = True
         self._run_watchdog(scheduler, sleeps=3)
         scheduler.start.assert_not_called()
+
+    def test_revives_thread_when_dead_but_state_running(self):
+        from kairon.events.scheduler import kscheduler
+
+        scheduler = MagicMock()
+        scheduler.running = True
+        scheduler._thread.is_alive.return_value = False
+        with patch.object(kscheduler, "_revive_scheduler_thread") as mock_revive:
+            self._run_watchdog(scheduler, sleeps=2)
+        mock_revive.assert_called_once_with(scheduler)
+        scheduler.shutdown.assert_not_called()
+        scheduler.start.assert_not_called()
+
+    def test_revive_keeps_executor_and_runs_jobs_after_thread_death(self):
+        """Real scheduler: kill the polling thread like prod did, revive it, jobs must still run."""
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from kairon.events.scheduler import kscheduler
+
+        ran = threading.Event()
+        scheduler = BackgroundScheduler()
+        with patch.object(BackgroundScheduler, "_process_jobs", side_effect=JobLookupError("x")):
+            scheduler.start()
+            scheduler._thread.join(5)
+        try:
+            assert scheduler.running is True
+            assert not scheduler._thread.is_alive()
+            executor = scheduler._executors["default"]
+
+            kscheduler._revive_scheduler_thread(scheduler)
+            assert scheduler._thread.is_alive()
+            assert scheduler._executors["default"] is executor
+            scheduler.add_job(ran.set)
+            assert ran.wait(5)
+        finally:
+            scheduler.shutdown(wait=False)
+
+    def test_no_restart_when_thread_alive(self):
+        scheduler = MagicMock()
+        scheduler.running = True
+        scheduler._thread.is_alive.return_value = True
+        self._run_watchdog(scheduler, sleeps=3)
+        scheduler.shutdown.assert_not_called()
+        scheduler.start.assert_not_called()
+
+    def test_start_not_revive_when_scheduler_stopped(self):
+        scheduler = MagicMock()
+        scheduler.running = False
+        scheduler._thread.is_alive.return_value = False
+        self._run_watchdog(scheduler, sleeps=2)
+        scheduler.shutdown.assert_not_called()
+        assert scheduler.start.call_count == 1
 
     def test_restart_failure_does_not_kill_watchdog(self):
         scheduler = MagicMock()
