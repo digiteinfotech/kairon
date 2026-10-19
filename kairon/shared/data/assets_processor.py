@@ -1,11 +1,11 @@
 import os
 import tempfile
-from datetime import datetime
 from typing import Text
 
 from fastapi import File
 from mongoengine import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotAssets
@@ -26,7 +26,7 @@ class AssetsProcessor:
         else:
             asset = BotAssets(asset_type=asset_type, path=path, url=url, bot=bot)
         asset.user = user
-        asset.update_timestamp = datetime.utcnow()
+        asset.update_timestamp = utc_now()
         asset.save()
         return url
 
@@ -37,7 +37,7 @@ class AssetsProcessor:
             Utility.delete_bot_assets_on_s3(asset.path)
             asset.status = False
             asset.user = user
-            asset.timestamp = datetime.utcnow()
+            asset.timestamp = utc_now()
             asset.save()
         except DoesNotExist:
             raise AppException("Asset does not exists")

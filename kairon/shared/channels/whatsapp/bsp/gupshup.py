@@ -2,11 +2,12 @@ import asyncio
 import json
 import mimetypes
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Text, Dict
 
 import requests
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
@@ -360,7 +361,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         resp_data = response.json()
         handle_id_raw = resp_data.get("handleId")
         handle_id = handle_id_raw if isinstance(handle_id_raw, str) else (handle_id_raw or {}).get("message")
-        expiration_date = datetime.utcnow() + timedelta(days=30)
+        expiration_date = utc_now() + timedelta(days=30)
 
         output_filename = f"template_media/{bot}/{filename}"
         bucket = Utility.environment["storage"]["whatsapp_media"].get("bucket")
@@ -618,7 +619,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
     @staticmethod
     def fetch_media_ids(bot: str):
         try:
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot=bot,
                 upload_status=UserMediaUploadStatus.completed.value,
@@ -642,7 +643,7 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
     @staticmethod
     def fetch_broadcast_media_ids(bot: str):
         try:
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot=bot,
                 upload_status=UserMediaUploadStatus.completed.value,

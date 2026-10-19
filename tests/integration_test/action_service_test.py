@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import os
 from unittest.mock import patch, AsyncMock
 from urllib.parse import urlencode, urljoin
@@ -7,6 +6,7 @@ from urllib.parse import urlencode, urljoin
 from aioresponses import aioresponses
 from mongoengine.errors import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -16062,7 +16062,7 @@ def test_schedule_action_invalid_callback():
     bot = '6697add6b8e47524eb983376'
     user = 'test'
     action_name = "test_schedule_action_invalid_callback"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     Actions(name=action_name, type=ActionType.schedule_action.value,
             bot=bot, user=user).save()
 
@@ -16143,7 +16143,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
     user = 'test'
     action_name = "test_schedule_action_execution"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     timezone = "Asia/Kolkata"
 
     pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
@@ -16245,7 +16245,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
     user = 'test'
     action_name = "test_schedule_action_execution_schedule_empty_data"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 
@@ -16353,7 +16353,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
     user = 'test'
     action_name = "test_schedule_action_execution_slot"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 
@@ -16458,7 +16458,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
     user = 'test1'
     action_name = "test_schedule_action_execution_flow"
     flow_name = "greet"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 

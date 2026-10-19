@@ -49,7 +49,7 @@ csp = (
     .frame_ancestors("'self'")
     .form_action("'self'")
     .base_uri("'self'")
-    .connect_src("'self' api.spam.com")
+    .connect_src("'self'", "api.spam.com")
     .frame_src("'self'")
     .img_src("'self'", "static.spam.com")
 )

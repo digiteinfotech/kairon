@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from typing import Text
 from loguru import logger
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.events.definitions.base import EventsBase
 from kairon.shared.constants import EventClass
@@ -22,7 +23,7 @@ class DeleteHistoryEvent(EventsBase):
         """
         self.bot = bot
         self.user = user
-        self.till_date = kwargs.get('till_date', datetime.utcnow().date())
+        self.till_date = kwargs.get('till_date', utc_now().date())
         if not isinstance(self.till_date, date):
             self.till_date = datetime.strptime(self.till_date, "%Y-%m-%d").date()
         self.sender_id = kwargs.get('sender_id') if not Utility.check_empty_string(kwargs.get('sender_id')) else ''

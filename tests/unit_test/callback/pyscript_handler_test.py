@@ -20,6 +20,7 @@ from dateutil.parser import isoparse
 from mongoengine import connect, DoesNotExist
 from pymongo import MongoClient
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
@@ -47,8 +48,8 @@ def test_lambda_handler_with_simple_pyscript():
     from datetime import datetime, timedelta
 
     # Calculate the job trigger time 5 minutes from now
-    trigger_time1 = datetime.utcnow() + timedelta(minutes=30)
-    trigger_time2 = datetime.utcnow() + timedelta(minutes=2)
+    trigger_time1 = utc_now() + timedelta(minutes=30)
+    trigger_time2 = utc_now() + timedelta(minutes=2)
 
     id = generate_id()
 
@@ -476,8 +477,8 @@ def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
     from datetime import datetime, timedelta
 
     # Calculate the job trigger time 5 minutes from now
-    trigger_time1 = datetime.utcnow() + timedelta(minutes=30)
-    trigger_time2 = datetime.utcnow() + timedelta(minutes=2)
+    trigger_time1 = utc_now() + timedelta(minutes=30)
+    trigger_time2 = utc_now() + timedelta(minutes=2)
 
     id = generate_id()
 
@@ -1470,7 +1471,7 @@ def test_get_crud_metadata_with_unsupported_data():
         "phone_number": Int64(919876543210),
         "credit_limit": Decimal128("12345.67"),
         "customer_id": ObjectId("64cfe7d2f1a4b59c4e6c6d11"),
-        "joined_at": datetime.utcnow(),
+        "joined_at": utc_now(),
         "session_uuid": uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
         "profile_image": b"hello world"
     }
@@ -1479,7 +1480,7 @@ def test_get_crud_metadata_with_unsupported_data():
         "phone_number": Int64(919876543201),
         "credit_limit": Decimal128("12111.67"),
         "customer_id": ObjectId("64cfe7d2f1a4b59c4e6c6d11"),
-        "joined_at": datetime.utcnow(),
+        "joined_at": utc_now(),
         "session_uuid": uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
         "profile_image": b"hello world buddy"
     }
@@ -2066,7 +2067,7 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -2075,7 +2076,7 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
         bot=bot,
         user="himanshu.gupta_@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -2091,7 +2092,7 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (
@@ -2191,7 +2192,7 @@ def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffe
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -2251,7 +2252,7 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -2260,7 +2261,7 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
         bot=bot,
         user="himanshu.gupta_@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -2276,7 +2277,7 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (
@@ -2336,7 +2337,7 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
         filesize=410484,
         sender_id="himanshu.gupta@digite.com",
         bot="test_bot",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -2345,7 +2346,7 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
         bot=bot,
         user="himanshu.gupta_@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -2361,7 +2362,7 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (None, None, None)
@@ -2417,7 +2418,7 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
         filesize=410484,
         sender_id="himanshu.gupta@digite.com",
         bot="test_bot",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -2426,7 +2427,7 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
         bot=bot,
         user="himanshu.gupta_@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -2442,7 +2443,7 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (
@@ -2503,7 +2504,7 @@ def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_g
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/test/test.pdf",
         output_filename="user_media/test/test.pdf",
     ).save()
@@ -2512,7 +2513,7 @@ def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_g
         bot=bot,
         user="himanshu.gupta_@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -2528,7 +2529,7 @@ def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_g
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (
@@ -4040,7 +4041,7 @@ def test_save_data_success_returns_id():
         "collection_name": "orders",
         "data": {"a": 1},
         "source": "whatsapp",
-        "received_at": datetime.utcnow(),
+        "received_at": utc_now(),
     }]
     fake_id = ObjectId()
 
@@ -4084,7 +4085,7 @@ def test_fetch_data_returns_correct_format():
         "_id": str(ObjectId()),
         "collection_name": collection_name,
         "source": "whatsapp",
-        "received_at": datetime.utcnow(),
+        "received_at": utc_now(),
         "data": {"x": 1},
         "is_data_processed": False
     }]
@@ -4121,7 +4122,7 @@ def test_fetch_data_with_filters():
         "_id": str(ObjectId()),
         "collection_name": collection_name.lower(),
         "source": "whatsapp",
-        "received_at": datetime.utcnow(),
+        "received_at": utc_now(),
         "data": {"y": 2},
         "is_data_processed": True
     }]
@@ -4218,7 +4219,7 @@ def test_update_data_analytics_success():
     payload = {
         "collection_name": "orders",
         "data": {"a": 1, "b": 2},
-        "received_at": datetime.utcnow(),
+        "received_at": utc_now(),
         "source": "whatsapp",
         "is_data_processed": True
     }

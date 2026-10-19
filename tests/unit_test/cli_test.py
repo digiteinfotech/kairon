@@ -1,13 +1,13 @@
 import argparse
 import json
 import os
-from datetime import datetime
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from mongoengine import connect
 
+from kairon.shared.clock import utc_now
 from kairon import cli
 from kairon.cli.analytics_pipeline import trigger_pipeline
 from kairon.cli.catalog_sync import sync_catalog_content
@@ -217,7 +217,7 @@ class TestConversationsDeletionCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=initiate_history_deletion_archival, bot="test_cli", user="testUser",
-                                                sender_id=None, till_date=datetime.utcnow().date()))
+                                                sender_id=None, till_date=utc_now().date()))
     def test_cli_history_deletion_with_defaults(self, monkeypatch):
         def mock_history_delete(*args, **kwargs):
             return None
@@ -227,7 +227,7 @@ class TestConversationsDeletionCli:
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(func=initiate_history_deletion_archival, bot="test_cli", user="testUser",
-                                                sender_id='testSender', till_date=datetime.utcnow().date()))
+                                                sender_id='testSender', till_date=utc_now().date()))
     def test_cli_history_deletion_all_arguments(self, monkeypatch):
         def mock_history_delete(*args, **kwargs):
             return None

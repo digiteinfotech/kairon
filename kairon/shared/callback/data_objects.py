@@ -1,10 +1,10 @@
 import base64
 import time
-from datetime import datetime
 from enum import Enum
 from typing import Any, Optional, Dict
 import json
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.models import ActionParameterType
 from pydantic import BaseModel
 from uuid6 import uuid7
@@ -388,7 +388,7 @@ class CallbackLog(Document):
     pyscript_code = StringField(required=True)
     sender_id = StringField()
     log = StringField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = StringField(default=CallbackRecordStatusType.SUCCESS.value,
                          choices=[v.value for v in CallbackRecordStatusType.__members__.values()])
     request_data = DynamicField()
@@ -427,7 +427,7 @@ class CallbackLog(Document):
                              callback_url=callback_url,
                              callback_source=callback_source,
                              status=CallbackRecordStatusType.SUCCESS.value,
-                             timestamp=datetime.utcnow())
+                             timestamp=utc_now())
         record.save()
         return record.to_mongo().to_dict()
 
@@ -460,7 +460,7 @@ class CallbackLog(Document):
                              callback_url=callback_url,
                              callback_source=callback_source,
                              status=CallbackRecordStatusType.FAILED.value,
-                             timestamp=datetime.utcnow())
+                             timestamp=utc_now())
         record.save()
         return record.to_mongo().to_dict()
 

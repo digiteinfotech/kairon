@@ -1,12 +1,12 @@
 from zoneinfo import ZoneInfo
 
 import ujson as json
-from datetime import datetime
 from typing import Text, Dict, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Document
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
@@ -97,7 +97,7 @@ class MessageBroadcastProcessor:
             settings.pyscript = config.get("pyscript")
             settings.collection_config = config.get("collection_config", {})
             settings.user = user
-            settings.timestamp = datetime.utcnow()
+            settings.timestamp = utc_now()
             settings.save()
         except DoesNotExist as e:
             logger.exception(e)
@@ -289,7 +289,7 @@ class MessageBroadcastProcessor:
             settings = MessageBroadcastSettings.objects(id=notification_id, bot=bot).get()
             settings.retry_count = retry_count
             settings.user = user
-            settings.timestamp = datetime.utcnow()
+            settings.timestamp = utc_now()
             settings.save()
             return settings.to_mongo().to_dict()
         except DoesNotExist as e:

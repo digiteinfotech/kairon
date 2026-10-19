@@ -70,6 +70,7 @@ from validators import email as mail_check
 from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
 from pydantic import ValidationError as PValidationError
+from kairon.shared.clock import utc_now
 from .actions.models import ActionParameterType
 from .constants import EventClass, UserActivityType
 from .constants import (
@@ -549,7 +550,7 @@ class Utility:
 
         for document in documents:
             kwargs["bot"] = bot
-            update = {"set__user": user, "set__timestamp": datetime.utcnow()}
+            update = {"set__user": user, "set__timestamp": utc_now()}
             if "status" in document._db_field_map:
                 kwargs["status"] = True
                 update["set__status"] = False
@@ -730,11 +731,11 @@ class Utility:
         ).get_config()
 
     @staticmethod
-    def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
+    def convert_date_to_string(date_obj: date = utc_now().date()):
         return date_obj.strftime("%Y-%m-%d")
 
     @staticmethod
-    def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
+    def get_timestamp_from_date(date_obj: date = utc_now().date()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
 
@@ -770,8 +771,8 @@ class Utility:
 
     @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
-        six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
-        today_date = datetime.utcnow().date()
+        six_months_back_date = (utc_now() - timedelta(6 * 30)).date()
+        today_date = utc_now().date()
         if six_months_back_date > from_date or from_date > today_date:
             logger.info(f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("from_date should be within six months and today date")
@@ -877,7 +878,7 @@ class Utility:
     @staticmethod
     def __modify_bot_in_domain(bot: Text, model_file: Text, tempdir: Text):
         updated_model = (
-            f"{tempdir}/{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.tar.gz"
+            f"{tempdir}/{utc_now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
         )
         with tarfile.open(model_file, "r:gz") as model:
             model.extractall(tempdir)
@@ -1004,7 +1005,7 @@ class Utility:
         :return: the token
         """
 
-        expire = datetime.utcnow() + timedelta(minutes=minutes_to_expire)
+        expire = utc_now() + timedelta(minutes=minutes_to_expire)
         payload.update({"exp": expire})
         encoded_jwt = encode(
             payload,

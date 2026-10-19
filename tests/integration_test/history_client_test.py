@@ -2,12 +2,13 @@ import ujson as json
 import os
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 import responses
 from fastapi.testclient import TestClient
 from mongoengine import connect
 import pytest
 
+from kairon.shared.clock import utc_now
 from kairon.api.app.main import app
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.constants import EventClass
@@ -166,8 +167,8 @@ def test_chat_history_users_connection_error(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/users?from_date={from_date}&to_date={to_date}",
@@ -190,8 +191,8 @@ def test_chat_history_users_kairon_client_user_endpoint(mock_auth, mock_mongo_pr
 
 @responses.activate
 def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_processor_endpoint_not_configured):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users"
@@ -215,8 +216,8 @@ def test_chat_history_users_kairon_client_kairon_endpoint(mock_auth, mock_mongo_
 
 @responses.activate
 def test_chat_history_users_with_from_date_and_to_date(mock_auth, mock_mongo_processor_endpoint_not_configured):
-    from_date = (datetime.utcnow() - timedelta(90)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(90)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"{Utility.environment['history_server']['url']}/api/history/{pytest.bot}/conversations/users"
@@ -239,8 +240,8 @@ def test_chat_history_users_with_from_date_and_to_date(mock_auth, mock_mongo_pro
 
 
 def test_chat_history_users_with_from_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(300)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() - timedelta(300)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -253,8 +254,8 @@ def test_chat_history_users_with_from_date_less_than_six_months(mock_auth):
 
 
 def test_chat_history_users_with_from_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() + timedelta(30)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() + timedelta(30)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -267,8 +268,8 @@ def test_chat_history_users_with_from_date_greater_than_today_date(mock_auth):
 
 
 def test_chat_history_users_with_to_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() - timedelta(300)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() - timedelta(300)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -281,8 +282,8 @@ def test_chat_history_users_with_to_date_less_than_six_months(mock_auth):
 
 
 def test_chat_history_users_with_to_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() + timedelta(30)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() + timedelta(30)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -295,8 +296,8 @@ def test_chat_history_users_with_to_date_greater_than_today_date(mock_auth):
 
 
 def test_chat_history_users_with_from_date_greater_than_to_date(mock_auth):
-    from_date = (datetime.utcnow()).date()
-    to_date = (datetime.utcnow() - timedelta(90)).date()
+    from_date = (utc_now()).date()
+    to_date = (utc_now() - timedelta(90)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/users?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -310,8 +311,8 @@ def test_chat_history_users_with_from_date_greater_than_to_date(mock_auth):
 
 @responses.activate
 def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
@@ -335,8 +336,8 @@ def test_chat_history_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_chat_history_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(60)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(60)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/users/5e564fbcdcf0d5fad89e3acd"
@@ -361,8 +362,8 @@ def test_chat_history_with_kairon_client_with_from_date_and_to_date(mock_auth, m
 @responses.activate
 def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_mongo_processor):
     from urllib.parse import quote_plus
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f'https://localhost:8083/api/history/{pytest.bot}/conversations/users/LNLMC1/daIk='
@@ -386,8 +387,8 @@ def test_chat_history_with_kairon_client_with_special_character(mock_auth, mock_
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
@@ -411,8 +412,8 @@ def test_fallback_count_range_no_nlu_fallback_rule(mock_auth, mock_mongo_process
 
 @responses.activate
 def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(60)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(60)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
@@ -435,8 +436,8 @@ def test_fallback_count_range_no_nlu_fallback_rule_with_from_date_and_to_date(mo
 
 
 def test_fallback_count_range_with_from_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(300)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() - timedelta(300)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -449,8 +450,8 @@ def test_fallback_count_range_with_from_date_less_than_six_months(mock_auth):
 
 
 def test_fallback_count_range_with_from_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() + timedelta(30)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() + timedelta(30)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -463,8 +464,8 @@ def test_fallback_count_range_with_from_date_greater_than_today_date(mock_auth):
 
 
 def test_fallback_count_range_with_to_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() - timedelta(300)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() - timedelta(300)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -477,8 +478,8 @@ def test_fallback_count_range_with_to_date_less_than_six_months(mock_auth):
 
 
 def test_fallback_count_range_with_to_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() + timedelta(30)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() + timedelta(30)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -491,8 +492,8 @@ def test_fallback_count_range_with_to_date_greater_than_today_date(mock_auth):
 
 
 def test_fallback_count_range_with_from_date_greater_than_to_date(mock_auth):
-    from_date = (datetime.utcnow()).date()
-    to_date = (datetime.utcnow() - timedelta(90)).date()
+    from_date = (utc_now()).date()
+    to_date = (utc_now() - timedelta(90)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/trend/user/fallback?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -506,8 +507,8 @@ def test_fallback_count_range_with_from_date_greater_than_to_date(mock_auth):
 
 @responses.activate
 def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback?from_date={from_date}&to_date={to_date}"
@@ -539,8 +540,8 @@ def test_visitor_hit_fallback_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps?from_date={from_date}&to_date={to_date}",
@@ -563,8 +564,8 @@ def test_conversation_steps_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_steps_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(60)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(60)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/steps?from_date={from_date}&to_date={to_date}",
@@ -587,8 +588,8 @@ def test_conversation_steps_with_kairon_client_with_from_date_and_to_date(mock_a
 
 @responses.activate
 def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
@@ -611,8 +612,8 @@ def test_conversation_time_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_time_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(60)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(60)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
@@ -634,8 +635,8 @@ def test_conversation_time_with_kairon_client_with_from_date_and_to_date(mock_au
 
 
 def test_conversation_time_with_from_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(300)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() - timedelta(300)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -648,8 +649,8 @@ def test_conversation_time_with_from_date_less_than_six_months(mock_auth):
 
 
 def test_conversation_time_with_from_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() + timedelta(30)).date()
-    to_date = (datetime.utcnow()).date()
+    from_date = (utc_now() + timedelta(30)).date()
+    to_date = (utc_now()).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -662,8 +663,8 @@ def test_conversation_time_with_from_date_greater_than_today_date(mock_auth):
 
 
 def test_conversation_time_with_to_date_less_than_six_months(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() - timedelta(300)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() - timedelta(300)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -676,8 +677,8 @@ def test_conversation_time_with_to_date_less_than_six_months(mock_auth):
 
 
 def test_conversation_time_with_to_date_greater_than_today_date(mock_auth):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = (datetime.utcnow() + timedelta(30)).date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = (utc_now() + timedelta(30)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -690,8 +691,8 @@ def test_conversation_time_with_to_date_greater_than_today_date(mock_auth):
 
 
 def test_conversation_time_with_from_date_greater_than_to_date(mock_auth):
-    from_date = (datetime.utcnow()).date()
-    to_date = (datetime.utcnow() - timedelta(90)).date()
+    from_date = (utc_now()).date()
+    to_date = (utc_now() - timedelta(90)).date()
     response = client.get(
         f"/api/history/{pytest.bot}/metrics/conversation/time?from_date={from_date}&to_date={to_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -705,8 +706,8 @@ def test_conversation_time_with_from_date_greater_than_to_date(mock_auth):
 
 @responses.activate
 def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
@@ -731,8 +732,8 @@ def test_user_with_metrics_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_user_with_metrics_with_kairon_client_with_from_date_and_to_date(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(60)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(60)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users?from_date={from_date}&to_date={to_date}",
@@ -757,8 +758,8 @@ def test_user_with_metrics_with_kairon_client_with_from_date_and_to_date(mock_au
 
 @responses.activate
 def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged"
@@ -782,8 +783,8 @@ def test_engaged_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/new?from_date={from_date}&to_date={to_date}",
@@ -806,8 +807,8 @@ def test_new_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/conversation/success?from_date={from_date}"
@@ -831,8 +832,8 @@ def test_successful_conversation_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/retention?from_date={from_date}&to_date={to_date}",
@@ -855,8 +856,8 @@ def test_user_retention_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}"
@@ -880,8 +881,8 @@ def test_engaged_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/new?from_date={from_date}&to_date={to_date}",
@@ -904,8 +905,8 @@ def test_new_user_range_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/success?from_date={from_date}"
@@ -929,8 +930,8 @@ def test_successful_conversation_range_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/retention?from_date={from_date}&to_date={to_date}",
@@ -953,8 +954,8 @@ def test_user_retention_range_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/engaged"
@@ -978,8 +979,8 @@ def test_engaged_users_with_value_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/users/engaged?from_date={from_date}&to_date={to_date}"
@@ -1003,8 +1004,8 @@ def test_engaged_user_range_with_value_with_kairon_client(mock_auth, mock_mongo_
 
 @responses.activate
 def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/fallback?from_date={from_date}&to_date={to_date}"
@@ -1028,8 +1029,8 @@ def test_fallback_count_range_with_kairon_client(mock_auth, mock_mongo_processor
 
 @responses.activate
 def test_flat_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/?from_date={from_date}&to_date={to_date}",
@@ -1061,8 +1062,8 @@ def mock_list_bots(monkeypatch):
 
 @responses.activate
 def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     file = open('./tests/testing_data/history/conversations_history.json')
     responses.add(
         responses.GET,
@@ -1084,8 +1085,8 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied1(mock_auth, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
@@ -1107,8 +1108,8 @@ def test_download_conversation_with_error_with_kairon_client_access_denied1(mock
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client_access_denied2(mock_auth_designer, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
@@ -1130,8 +1131,8 @@ def test_download_conversation_with_error_with_kairon_client_access_denied2(mock
 
 @responses.activate
 def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mock_mongo_processor, mock_list_bots):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/download?from_date={from_date}&to_date={to_date}",
@@ -1152,8 +1153,8 @@ def test_download_conversation_with_error_with_kairon_client(mock_auth_admin, mo
 
 @responses.activate
 def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/total?from_date={from_date}&to_date={to_date}",
@@ -1176,8 +1177,8 @@ def test_total_conversation_range_with_kairon_client(mock_auth, mock_mongo_proce
 
 @responses.activate
 def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/topmost?from_date={from_date}"
@@ -1201,8 +1202,8 @@ def test_top_intent_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/actions/topmost?from_date={from_date}"
@@ -1226,8 +1227,8 @@ def test_top_action_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(180)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(180)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/steps?from_date={from_date}&to_date={to_date}",
@@ -1250,8 +1251,8 @@ def test_conversation_step_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/wordcloud?from_date={from_date}"
@@ -1272,8 +1273,8 @@ def test_wordcloud_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/users/input?from_date={from_date}&to_date={to_date}",
@@ -1296,8 +1297,8 @@ def test_unique_user_input_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/trends/conversations/time?from_date={from_date}&to_date={to_date}",
@@ -1320,8 +1321,8 @@ def test_conversation_time_range_with_kairon_client(mock_auth, mock_mongo_proces
 
 @responses.activate
 def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/fallback/dropoff?from_date={from_date}"
@@ -1345,8 +1346,8 @@ def test_dropoff_users_with_kairon_client(mock_auth, mock_mongo_processor):
 
 @responses.activate
 def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/intents/dropoff?from_date={from_date}&to_date={to_date}",
@@ -1369,8 +1370,8 @@ def test_user_intent_dropoff_with_kairon_client(mock_auth, mock_mongo_processor)
 
 @responses.activate
 def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/unsuccessful?from_date={from_date}"
@@ -1394,8 +1395,8 @@ def test_unsuccessful_session_count_with_kairon_client(mock_auth, mock_mongo_pro
 
 @responses.activate
 def test_total_sessions_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/metrics/sessions/total?from_date={from_date}&to_date={to_date}",
@@ -1444,7 +1445,7 @@ def test_delete_user_history_unmanaged_history_server(mock_auth_admin, mock_mong
 @responses.activate
 def test_delete_user_chat_history_till_date_not_today(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
                                                       monkeypatch):
-    till_date = datetime.utcnow().date() - timedelta(days=30)
+    till_date = utc_now().date() - timedelta(days=30)
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
@@ -1471,7 +1472,7 @@ def test_delete_user_chat_history_till_date_not_today(mock_auth_admin, mock_mong
 @responses.activate
 def test_delete_bot_chat_history_till_date_not_today(mock_auth_admin, mock_mongo_processor_endpoint_not_configured,
                                                      monkeypatch):
-    till_date = datetime.utcnow().date() - timedelta(days=30)
+    till_date = utc_now().date() - timedelta(days=30)
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
@@ -1496,7 +1497,7 @@ def test_delete_bot_chat_history_till_date_not_today(mock_auth_admin, mock_mongo
 
 @responses.activate
 def test_delete_user_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
-    till_date = datetime.utcnow().date()
+    till_date = utc_now().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
@@ -1563,7 +1564,7 @@ def test_delete_bot_chat_history_unmanaged_history_server(mock_auth_admin, mock_
 
 @responses.activate
 def test_delete_bot_chat_history(mock_auth_admin, mock_mongo_processor_endpoint_not_configured, monkeypatch):
-    till_date = datetime.utcnow().date()
+    till_date = utc_now().date()
     event_url = f"{Utility.environment['events']['server_url']}/api/events/execute/{EventClass.delete_history}"
     responses.add("POST",
                   event_url,
@@ -1607,8 +1608,8 @@ def test_get_delete_history_logs(mock_auth_admin, mock_mongo_processor_endpoint_
 
 @responses.activate
 def test_agent_conversations_with_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/agentic_flow?from_date={from_date}&to_date={to_date}",
@@ -1631,8 +1632,8 @@ def test_agent_conversations_with_kairon_client(mock_auth, mock_mongo_processor)
 
 @responses.activate
 def test_agent_conversations_with_user_kairon_client(mock_auth, mock_mongo_processor):
-    from_date = (datetime.utcnow() - timedelta(30)).date()
-    to_date = datetime.utcnow().date()
+    from_date = (utc_now() - timedelta(30)).date()
+    to_date = utc_now().date()
     responses.add(
         responses.GET,
         f"https://localhost:8083/api/history/{pytest.bot}/conversations/agentic_flow/user/0194f89980837d1195018941d50fefdd?from_date={from_date}&to_date={to_date}",

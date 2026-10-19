@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from loguru import logger
 from mongoengine import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration, EmailActionConfig
@@ -103,7 +104,7 @@ class AnalyticsPipelineProcessor:
 
             settings.scheduler_config = scheduler_config
 
-            settings.timestamp = datetime.utcnow()
+            settings.timestamp = utc_now()
             settings.user = user
             settings.data_deletion_policy = config.get("data_deletion_policy") or []
             settings.triggers = config.get("triggers") or []

@@ -8,6 +8,7 @@ import pytest
 import responses
 from mongoengine import connect, ValidationError
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.auth import Authentication
 from kairon.shared.channels.whatsapp.bsp.base import WhatsappBusinessServiceProviderBase
@@ -1017,7 +1018,7 @@ class TestBusinessServiceProvider:
             filesize=410484,
             sender_id="himanshu.gupta_@digite.com",
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
@@ -1026,7 +1027,7 @@ class TestBusinessServiceProvider:
             bot=bot,
             user="himanshu.gupta_@digite.com",
             whatsapp="360dialog",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         Channels(
@@ -1042,7 +1043,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         mock_get_buffer.return_value = (
@@ -1099,7 +1100,7 @@ class TestBusinessServiceProvider:
             filesize=410484,
             sender_id="himanshu.gupta_@digite.com",
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
@@ -1126,7 +1127,7 @@ class TestBusinessServiceProvider:
             filesize=410484,
             sender_id="himanshu.gupta_@digite.com",
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
@@ -1135,7 +1136,7 @@ class TestBusinessServiceProvider:
             bot=bot,
             user="himanshu.gupta_@digite.com",
             whatsapp="360dialog",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         Channels(
@@ -1151,7 +1152,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         with pytest.raises(AppException) as exc_info:
@@ -1180,7 +1181,7 @@ class TestBusinessServiceProvider:
             filesize=410484,
             sender_id="himanshu.gupta_@digite.com",
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
             output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         ).save()
@@ -1189,7 +1190,7 @@ class TestBusinessServiceProvider:
             bot=bot,
             user="himanshu.gupta_@digite.com",
             whatsapp="360dialog",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         Channels(
@@ -1205,7 +1206,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         mock_get_buffer.return_value = (None, None, None)
@@ -1230,7 +1231,7 @@ class TestBusinessServiceProvider:
             bot=bot,
             user="test@example.com",
             whatsapp="360dialog",
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
         ).save()
         Channels(
             bot=bot,
@@ -1241,7 +1242,7 @@ class TestBusinessServiceProvider:
                 "client_id": "dummy",
             },
             user="test@example.com",
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
         ).save()
 
         media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
@@ -1254,7 +1255,7 @@ class TestBusinessServiceProvider:
             sender_id="tester@example.com",
             bot=bot,
             extension= "image/png",
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="",
             output_filename="",
             external_upload_info={"bsp": "360dialog"},
@@ -1267,7 +1268,7 @@ class TestBusinessServiceProvider:
         assert result[0]["filename"] == "sample.pdf"
         assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
         assert result[0]["sender_id"] == "tester@example.com"
-        assert abs(result[0]["timestamp"] - datetime.utcnow()) < timedelta(seconds=1)
+        assert abs(result[0]["timestamp"] - utc_now()) < timedelta(seconds=1)
 
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
@@ -1284,7 +1285,7 @@ class TestBusinessServiceProvider:
             bot=bot,
             user="test@example.com",
             whatsapp="360dialog",
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
         ).save()
 
         Channels(
@@ -1296,9 +1297,9 @@ class TestBusinessServiceProvider:
                 "client_id": "dummy",
             },
             user="test@example.com",
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
         ).save()
-        recent_timestamp = datetime.utcnow() - timedelta(days=5)
+        recent_timestamp = utc_now() - timedelta(days=5)
         recent_media_id = "valid123"
         UserMediaData(
             media_id=recent_media_id,
@@ -1325,7 +1326,7 @@ class TestBusinessServiceProvider:
             sender_id="tester@example.com",
             bot=bot,
             extension="image/png",
-            timestamp=datetime.utcnow() - timedelta(days=40),
+            timestamp=utc_now() - timedelta(days=40),
             media_url="",
             output_filename="",
             external_upload_info={"bsp": "360dialog"},
@@ -1341,7 +1342,7 @@ class TestBusinessServiceProvider:
         assert result[0]["upload_status"] == UserMediaUploadStatus.completed.value
         assert result[0]["sender_id"] == "tester@example.com"
 
-        assert result[0]["timestamp"] >= datetime.utcnow() - timedelta(days=30)
+        assert result[0]["timestamp"] >= utc_now() - timedelta(days=30)
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
 
@@ -1383,7 +1384,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         responses.add(
             responses.POST,
@@ -1426,7 +1427,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         content_dir = tmp_path / "media_upload_records" / bot
@@ -1476,7 +1477,7 @@ class TestBusinessServiceProvider:
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         # Mock API response with failure
@@ -1602,14 +1603,14 @@ def test_bsp_360dialog_fetch_media_ids_success():
         bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
         upload_status=UserMediaUploadStatus.completed.value,
         upload_type=UserMediaUploadType.broadcast.value,
-        sender_id="u@t.com", timestamp=datetime.utcnow(),
+        sender_id="u@t.com", timestamp=utc_now(),
         external_upload_info={"bsp": "360dialog", "external_media_id": "ext_360_001"},
     ).save()
     UserMediaData(
         bot=bot, media_id="other_bsp_media", filename="img.jpg", extension=".jpg",
         upload_status=UserMediaUploadStatus.completed.value,
         upload_type=UserMediaUploadType.broadcast.value,
-        sender_id="u@t.com", timestamp=datetime.utcnow(),
+        sender_id="u@t.com", timestamp=utc_now(),
         external_upload_info={"bsp": "gupshup", "external_media_id": "gs_001"},
     ).save()
     result = BSP360Dialog.fetch_media_ids(bot)
@@ -1638,7 +1639,7 @@ def test_bsp_360dialog_fetch_broadcast_media_ids_success():
     mock_doc.media_id = "bcast_media_001"
     mock_doc.upload_status = UserMediaUploadStatus.completed.value
     mock_doc.sender_id = "sender@test.com"
-    mock_doc.timestamp = datetime.utcnow()
+    mock_doc.timestamp = utc_now()
 
     mock_qs = MagicMock()
     mock_qs.only.return_value = [mock_doc]
@@ -1698,7 +1699,7 @@ class TestBSPGupshup:
                 "bsp_type": WhatsappBSPTypes.bsp_gupshup.value
             },
             user=self.GS_USER,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         yield
         Channels.objects(bot=self.GS_BOT).delete()
@@ -2338,7 +2339,7 @@ class TestBSPGupshup:
             sender_id="user_a", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
             external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_abc"},
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
@@ -2353,7 +2354,7 @@ class TestBSPGupshup:
             bot=bot, media_id="failed_001", filename="fail.pdf", extension="application/pdf",
             sender_id="user_b", upload_status=UserMediaUploadStatus.failed.value,
             upload_type=UserMediaUploadType.broadcast.value,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert result == []
@@ -2371,7 +2372,7 @@ class TestBSPGupshup:
             sender_id="user_c", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
             external_upload_info={"bsp": "gupshup", "handle_id": "ext_handle_001", "external_media_id": "gs_media_456"},
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
@@ -2387,7 +2388,7 @@ class TestBSPGupshup:
             sender_id="user_d", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
             external_upload_info={"bsp": "gupshup"},
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         result = BSPGupshup.fetch_media_ids(bot)
         assert len(result) == 1
@@ -2404,7 +2405,7 @@ class TestBSPGupshup:
         mock_doc.media_id = "ext_media_001"
         mock_doc.upload_status = UserMediaUploadStatus.completed.value
         mock_doc.sender_id = "user_c"
-        mock_doc.timestamp = datetime.utcnow()
+        mock_doc.timestamp = utc_now()
 
         mock_qs = MagicMock()
         mock_qs.only.return_value = [mock_doc]
@@ -2442,7 +2443,7 @@ class TestBSPGupshup:
             sender_id="user_x", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
             external_upload_info={"bsp": "gupshup", "external_media_id": "ext_gs_001"},
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
         with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
@@ -2461,7 +2462,7 @@ class TestBSPGupshup:
             sender_id="user_y", upload_status=UserMediaUploadStatus.completed.value,
             upload_type=UserMediaUploadType.broadcast.value,
             external_upload_info={"bsp": "gupshup", "external_media_id": "ext_gs_fail"},
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
         channel_config = {"config": {"app_id": "gs_app_001", "partner_app_token": "gs_tok"}}
         with patch("kairon.shared.utils.Utility.execute_http_request") as mock_http:
@@ -2562,12 +2563,12 @@ class TestBSPGupshup:
         UserMediaData(
             bot=bot, media_id=media_id, filename="test.pdf", extension=".pdf",
             upload_status="Completed", upload_type="user", filesize=1000,
-            sender_id="user@test.com", timestamp=datetime.utcnow()
+            sender_id="user@test.com", timestamp=utc_now()
         ).save()
         Channels(
             bot=bot, connector_type="whatsapp",
             config={"app_id": "gs_app_test_001", "partner_app_token": "gs_tok_secret", "bsp_type": bsp_type},
-            user="user@test.com", timestamp=datetime.utcnow()
+            user="user@test.com", timestamp=utc_now()
         ).save(validate=False)
 
         mock_get_buffer.return_value = (_io.BytesIO(b"%PDF mock"), "test.pdf", ".pdf")
@@ -2597,7 +2598,7 @@ class TestBSPGupshup:
         UserMediaData(
             bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
             upload_status="Completed", upload_type="user", filesize=500,
-            sender_id="u@t.com", timestamp=datetime.utcnow()
+            sender_id="u@t.com", timestamp=utc_now()
         ).save()
 
         with pytest.raises(AppException, match="Channel config not found"):
@@ -2613,12 +2614,12 @@ class TestBSPGupshup:
         UserMediaData(
             bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
             upload_status="Completed", upload_type="user", filesize=500,
-            sender_id="u@t.com", timestamp=datetime.utcnow()
+            sender_id="u@t.com", timestamp=utc_now()
         ).save()
         Channels(
             bot=bot, connector_type="whatsapp",
             config={"app_id": "gs_app_no_tok", "bsp_type": bsp_type},
-            user="u@t.com", timestamp=datetime.utcnow()
+            user="u@t.com", timestamp=utc_now()
         ).save(validate=False)
 
         with pytest.raises(AppException, match="partner_app_token not found"):
@@ -2640,12 +2641,12 @@ class TestBSPGupshup:
         UserMediaData(
             bot=bot, media_id=media_id, filename="doc.pdf", extension=".pdf",
             upload_status="Completed", upload_type="user", filesize=500,
-            sender_id="u@t.com", timestamp=datetime.utcnow()
+            sender_id="u@t.com", timestamp=utc_now()
         ).save()
         Channels(
             bot=bot, connector_type="whatsapp",
             config={"app_id": "gs_app_fail", "partner_app_token": "gs_tok_fail", "bsp_type": bsp_type},
-            user="u@t.com", timestamp=datetime.utcnow()
+            user="u@t.com", timestamp=utc_now()
         ).save(validate=False)
 
         mock_get_buffer.return_value = (_io.BytesIO(b"%PDF mock"), "doc.pdf", ".pdf")

@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Text, Dict, Any, List, Optional
 import json
@@ -8,6 +7,7 @@ from mongoengine import DoesNotExist, Q
 from pydantic import StringConstraints, create_model, ValidationError
 from pymongo import UpdateOne
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.meta.processor import MetaProcessor
@@ -209,7 +209,7 @@ class CognitionDataProcessor:
             payload_obj.content_type = content_type
             payload_obj.collection = payload.get('collection', None)
             payload_obj.user = user
-            payload_obj.timestamp = datetime.utcnow()
+            payload_obj.timestamp = utc_now()
             payload_obj.save()
         except DoesNotExist:
             raise AppException("Payload with given id not found!")
@@ -473,7 +473,7 @@ class CognitionDataProcessor:
             integration.smart_catalog_enabled = smart_catalog_enabled
             integration.meta_enabled = meta_enabled
             integration.sync_options = sync_options
-            integration.timestamp = datetime.utcnow()
+            integration.timestamp = utc_now()
             integration.user = user
         else:
             integration = POSIntegrations(
@@ -486,7 +486,7 @@ class CognitionDataProcessor:
                 smart_catalog_enabled=smart_catalog_enabled,
                 meta_enabled=meta_enabled,
                 sync_options=sync_options,
-                timestamp=datetime.utcnow(),
+                timestamp=utc_now(),
             )
         integration.save()
 
@@ -498,7 +498,7 @@ class CognitionDataProcessor:
             doc.config = config_data
             doc.meta_config = meta_config
             doc.sync_options = sync_options
-            doc.timestamp = datetime.utcnow()
+            doc.timestamp = utc_now()
             doc.save()
 
         integration_endpoint = DataUtility.get_integration_endpoint(integration)
@@ -750,7 +750,7 @@ class CognitionDataProcessor:
                     merged_data = {**existing_data, **row}
                     update_operations.append(UpdateOne(
                         {"_id": existing_document["_id"]},
-                        {"$set": {"data": merged_data, "timestamp": datetime.utcnow()}}
+                        {"$set": {"data": merged_data, "timestamp": utc_now()}}
                     ))
                 else:
                     new_doc = CognitionData(
@@ -870,7 +870,7 @@ class CognitionDataProcessor:
                     merged_data = {**existing_data, **row}
                     update_operations.append(UpdateOne(
                         {"_id": existing_document["_id"]},
-                        {"$set": {"data": merged_data, "timestamp": datetime.utcnow()}}
+                        {"$set": {"data": merged_data, "timestamp": utc_now()}}
                     ))
                 else:
                     new_doc = CognitionData(
@@ -975,7 +975,7 @@ class CognitionDataProcessor:
                 else:
                     existing_doc.data = {"kv": kv, "meta": meta}
 
-                existing_doc.timestamp = datetime.utcnow()
+                existing_doc.timestamp = utc_now()
                 existing_doc.user = user
                 existing_doc.save()
             else:
@@ -984,7 +984,7 @@ class CognitionDataProcessor:
                     data={"kv": kv, "meta": meta},
                     user=user,
                     bot=bot,
-                    timestamp=datetime.utcnow(),
+                    timestamp=utc_now(),
                     status=True
                 ).save()
 

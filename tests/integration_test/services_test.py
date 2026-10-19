@@ -30,6 +30,7 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.shared.clock import utc_now
 from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
@@ -1878,14 +1879,14 @@ async def test_vector_data_insertion_full_flow():
         api_key="sk-test-key",
         user="test_user",
         models=["gpt-4o", "gpt-4"],
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     LLMSecret(
         llm_type="openai",
         api_key="sk-test-key-2",
         user="test_user",
         models=["gpt-4o", "gpt-4"],
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     stale_vector_id = str(uuid.uuid4())
@@ -3778,7 +3779,7 @@ def test_get_llm_metadata():
             "models": ["gpt-3.5-turbo", "gpt-4.1-mini", "gpt-4.1"],
             "user": "123",
             "bot": pytest.bot,
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
         {
             "llm_type": "anthropic",
@@ -3786,7 +3787,7 @@ def test_get_llm_metadata():
             "models": ["claude-3-7-sonnet-20250219"],
             "bot": pytest.bot,
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
 
@@ -3821,7 +3822,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
             "bot": pytest.bot,
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
         {
             "llm_type": "anthropic",
@@ -3829,7 +3830,7 @@ def test_get_llm_metadata_bot_specific_model_exists():
             "models": ["common_claude_model1", "common_claude_model2", "custom_claude_model1"],
             "bot": pytest.bot,
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
 
@@ -4363,7 +4364,7 @@ def test_update_pipeline_event_validation_error():
 
 def test_search_and_list_analytics_pipeline_logs():
 
-    now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+    now = utc_now().replace(tzinfo=pytz.UTC)
 
     entries = [
         {
@@ -5164,7 +5165,7 @@ def test_bsp_upload_media_success(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
@@ -5180,7 +5181,7 @@ def test_bsp_upload_media_success(mock_get_buffer):
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="https://upload-doc-poc.s3.amazonaws.com/user_media/682323a603ec3be7dcaa75bc/himanshu.gt_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
         output_filename="user_media/682323a603ec3be7dcaa75bc/himanshu.gupta_digite.com_0196c9efbf547b81a66ba2af7b72d5ba_Upload_Download Data.pdf",
     ).save()
@@ -5247,7 +5248,7 @@ def test_bsp_upload_media_channel_not_configured():
         filesize=410484,
         sender_id="test@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="some_url",
         output_filename="output_file.pdf",
     ).save()
@@ -5284,7 +5285,7 @@ def test_bsp_upload_media_access_token_not_found():
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     media_id = "non_existing_media_id"
@@ -5299,7 +5300,7 @@ def test_bsp_upload_media_access_token_not_found():
         filesize=410484,
         sender_id="test@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="some_url",
         output_filename="output_file.pdf",
     ).save()
@@ -5341,7 +5342,7 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     media_id = "no_stream_media_id"
@@ -5356,7 +5357,7 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
         filesize=410484,
         sender_id="test@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="some_url",
         output_filename="output_file.pdf",
     ).save()
@@ -5402,7 +5403,7 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     media_id = "upload_fail_media"
     bsp_type = "360dialog"
@@ -5416,7 +5417,7 @@ def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
         filesize=410484,
         sender_id="test@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="some_url",
         output_filename="output_file.pdf",
     ).save()
@@ -5643,7 +5644,7 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -5679,7 +5680,7 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
         collection="groceries",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -5773,7 +5774,7 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -5809,7 +5810,7 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
         collection="groceries",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
     dummy_data_two = {
@@ -5824,7 +5825,7 @@ def test_knowledge_vault_sync_item_toggle(mock_embedding, mock_collection_exists
         collection="groceries",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -5895,7 +5896,7 @@ def test_knowledge_vault_sync_sync_type_does_not_exist():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -5936,7 +5937,7 @@ def test_knowledge_vault_sync_missing_collection():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -5978,7 +5979,7 @@ def test_knowledge_vault_sync_missing_primary_key():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -6040,7 +6041,7 @@ def test_knowledge_vault_sync_column_length_mismatch():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -6101,7 +6102,7 @@ def test_knowledge_vault_sync_invalid_columns():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -6137,7 +6138,7 @@ def test_knowledge_vault_sync_invalid_columns():
         collection="groceries",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -6185,7 +6186,7 @@ def test_knowledge_vault_sync_document_non_existence():
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         }
     ]
     for secret in secrets:
@@ -6221,7 +6222,7 @@ def test_knowledge_vault_sync_document_non_existence():
         collection="groceries",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -6316,7 +6317,7 @@ def test_upload_doc_content():
         collection="test_doc_content_upload",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -6439,7 +6440,7 @@ def test_upload_doc_content_append():
         collection="test_doc_content_upload_append",
         user="himanshu.gupta@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     dummy_doc.save()
 
@@ -7040,7 +7041,7 @@ def test_validate_media_file_type_file_already_exists_within_30_days():
         filesize=1024,
         sender_id="user@test.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow() - timedelta(days=5),
+        timestamp=utc_now() - timedelta(days=5),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -7059,11 +7060,11 @@ def test_validate_media_file_type_file_already_exists_within_30_days():
 
 
 @responses.activate
-@patch("kairon.shared.chat.processor.datetime")
+@patch("kairon.shared.chat.processor.utc_now")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_upload_media_file_already_exists(mock_user_media, mock_datetime):
+def test_upload_media_file_already_exists(mock_user_media, mock_utc_now):
     fixed_now = datetime(2026, 1, 1, 12, 0, 0)
-    mock_datetime.utcnow.return_value = fixed_now
+    mock_utc_now.return_value = fixed_now
 
     mock_db_obj = MagicMock()
     mock_db_obj.timestamp = fixed_now - timedelta(days=10)
@@ -7116,7 +7117,7 @@ def test_get_media_ids():
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
 
@@ -7129,7 +7130,7 @@ def test_get_media_ids():
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -7168,7 +7169,7 @@ def test_get_media_ids_within_30_days():
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     media_id = "0196c9efbf547b81a66ba2af7b72d5ba"
 
@@ -7181,7 +7182,7 @@ def test_get_media_ids_within_30_days():
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow()- timedelta(days=40),
+        timestamp=utc_now()- timedelta(days=40),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -7196,7 +7197,7 @@ def test_get_media_ids_within_30_days():
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -7214,7 +7215,6 @@ def test_get_media_ids_within_30_days():
     assert body["data"][0]['media_id'] == media_id2
     assert all(item['media_id'] != media_id for item in body["data"]), "Old media should be filtered out"
 
-@pytest.mark.django_db
 @responses.activate
 def test_delete_media_ids():
     bot = pytest.bot
@@ -7249,7 +7249,7 @@ def test_delete_media_ids():
                 "bsp_type": "360dialog"
             },
             user="test@example.com",
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         UserMediaData(
@@ -7261,7 +7261,7 @@ def test_delete_media_ids():
             filesize=410484,
             sender_id="himanshu.gupta_@digite.com",
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             media_url="",
             output_filename="mock_file.pdf",
             external_upload_info={"bsp": "360dialog"}
@@ -7285,7 +7285,6 @@ def test_delete_media_ids():
         assert body["message"] == "Deleted Successfully"
 
 
-@pytest.mark.django_db
 def test_delete_media_ids_failure():
     bot = pytest.bot
     media_id = "non_existent_media"
@@ -7330,7 +7329,7 @@ def test_fetch_media_url(mock_get_s3):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     channel_obj.save()
     channel_name = channel_obj.connector_type
@@ -7346,7 +7345,7 @@ def test_fetch_media_url(mock_get_s3):
         filesize=410484,
         sender_id="himanshu.gupta_@digite.com",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -7380,7 +7379,7 @@ def create_dummy_channel(bot):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     channel_obj.save()
     return channel_obj.connector_type
@@ -7959,7 +7958,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -8032,7 +8031,7 @@ def test_catalog_sync_push_menu_success(mock_embedding, mock_collection_exists, 
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -8454,7 +8453,7 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -8589,7 +8588,7 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -8726,7 +8725,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -8799,7 +8798,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -8898,7 +8897,7 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9127,7 +9126,7 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9200,7 +9199,7 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -9303,7 +9302,7 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9467,7 +9466,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9540,7 +9539,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -9639,7 +9638,7 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9778,7 +9777,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -9851,7 +9850,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     local_image_data = {
@@ -9866,7 +9865,7 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -9982,7 +9981,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10096,7 +10095,7 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     rerun_sync_url = f"{sync_url}/{rerun_execution_id}"
@@ -10196,7 +10195,7 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10269,7 +10268,7 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -10347,7 +10346,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10420,7 +10419,7 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_validation_errors_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
@@ -10514,7 +10513,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10587,7 +10586,7 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_validation_errors_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_validation_errors.json")
@@ -10673,7 +10672,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10746,7 +10745,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     CatalogSyncLogs(
@@ -10758,7 +10757,7 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
         user="test_user",
         provider="petpooja",
         sync_type="push_menu",
-        start_timestamp=datetime.utcnow(),
+        start_timestamp=utc_now(),
         sync_status="Initiated",
         status=EVENT_STATUS.INPROGRESS.value
     ).save()
@@ -10831,7 +10830,7 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -10904,7 +10903,7 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_payload_path = Path("tests/testing_data/catalog_sync/catalog_sync_push_menu_payload.json")
@@ -10975,7 +10974,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
             "api_key": "common_openai_key",
             "models": ["common_openai_model1", "common_openai_model2"],
             "user": "123",
-            "timestamp": datetime.utcnow()
+            "timestamp": utc_now()
         },
     ]
 
@@ -11048,7 +11047,7 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled_with_validat
         user="integration@demo.ai",
         bot=pytest.bot,
         status=True,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     push_menu_validation_errors_payload_path = Path(
@@ -11868,7 +11867,7 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["data"]["logs"][0]['bot'] == pytest.bot
 
 def test_search_executor_logs(get_executor_logs):
-    from_date = datetime.utcnow().date() - timedelta(days=1)
+    from_date = utc_now().date() - timedelta(days=1)
     to_date = from_date + timedelta(days=2)
 
     search_response = client.get(
@@ -13707,7 +13706,7 @@ def test_callback_get_logs():
         callback_url="callback_url",
         callback_source="callback_source",
         status=CallbackRecordStatusType.FAILED.value,
-        timestamp=datetime.utcnow()).save()
+        timestamp=utc_now()).save()
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/action/callback_logs",
@@ -13733,8 +13732,8 @@ def test_callback_get_logs():
     assert isinstance(actual['data']['logs'], list)
     assert len(actual['data']['logs']) == 1
 
-    from_date = datetime.utcnow().date() - timedelta(days=1)
-    to_date = datetime.utcnow().date() + timedelta(days=1)
+    from_date = utc_now().date() - timedelta(days=1)
+    to_date = utc_now().date() + timedelta(days=1)
 
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/callback/search?from_date={from_date}&to_date={to_date}",
@@ -14960,7 +14959,7 @@ def test_get_broadcast_logs_with_resend_broadcasts():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
     ref_id = ObjectId().__str__()
-    timestamp = datetime.utcnow()
+    timestamp = utc_now()
     MessageBroadcastLogs(
         **{
             "reference_id": ref_id,
@@ -16216,7 +16215,7 @@ def test_add_prompt_action_with_utter(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16285,7 +16284,7 @@ def test_add_prompt_action_with_invalid_similarity_threshold(monkeypatch):
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16355,7 +16354,7 @@ def test_add_prompt_action_with_invalid_top_results(monkeypatch):
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16421,7 +16420,7 @@ def test_add_prompt_action_with_invalid_query_prompt():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16483,7 +16482,7 @@ def test_add_prompt_action_with_invalid_num_bot_responses():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16553,7 +16552,7 @@ def test_add_prompt_action_with_invalid_system_prompt_source():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16623,7 +16622,7 @@ def test_add_prompt_action_with_multiple_system_prompt():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16701,7 +16700,7 @@ def test_add_prompt_action_with_empty_llm_prompt_name():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16771,7 +16770,7 @@ def test_add_prompt_action_with_empty_data_for_static_prompt():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16841,7 +16840,7 @@ def test_add_prompt_action_with_multiple_history_source_prompts():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16915,7 +16914,7 @@ def test_add_prompt_action_with_gpt_feature_disabled():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -16992,7 +16991,7 @@ def test_add_prompt_action_with_invalid_llm_type(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17070,7 +17069,7 @@ def test_add_prompt_action_with_invalid_hyperameters(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17146,7 +17145,7 @@ def test_add_prompt_action(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17220,7 +17219,7 @@ def test_add_prompt_action_already_exist(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17285,7 +17284,7 @@ def test_update_prompt_action_does_not_exist():
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17349,7 +17348,7 @@ def test_update_prompt_action_with_invalid_similarity_threshold():
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17415,7 +17414,7 @@ def test_update_prompt_action_with_invalid_top_results():
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17473,7 +17472,7 @@ def test_update_prompt_action_with_invalid_num_bot_responses():
         collection_name="science",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17532,7 +17531,7 @@ def test_update_prompt_action_with_invalid_query_prompt():
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -17654,7 +17653,7 @@ def test_update_prompt_action():
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -23197,8 +23196,8 @@ def test_train_on_updated_data(monkeypatch):
 
 
 def test_download_model_training_logs(monkeypatch):
-    start_date = datetime.utcnow() - timedelta(days=1)
-    end_date = datetime.utcnow() + timedelta(days=1)
+    start_date = utc_now() - timedelta(days=1)
+    end_date = utc_now() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -23403,8 +23402,8 @@ def test_search_model_testing_logs_is_augmented_True():
 
 
 def test_download_model_testing_logs(monkeypatch):
-    start_date = datetime.utcnow() - timedelta(days=1)
-    end_date = datetime.utcnow() + timedelta(days=1)
+    start_date = utc_now() - timedelta(days=1)
+    end_date = utc_now() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/logs/download/model_testing?start_date={start_date}&end_date={end_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -24181,8 +24180,8 @@ def test_set_templates_insecure():
 @responses.activate
 def test_reload_model(monkeypatch):
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
 
     monkeypatch.setitem(
         Utility.environment["model"]["agent"], "url", "http://localhost/"
@@ -24222,8 +24221,8 @@ def test_reload_model(monkeypatch):
 @responses.activate
 def test_reload_model_exception():
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
     # def mongo_store(*arge, **kwargs):
     #     return None
     #
@@ -27995,8 +27994,8 @@ def test_get_mail_channel_logs():
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     print(response.json())
-    from_date = datetime.utcnow().date() - timedelta(days=1)
-    to_date = datetime.utcnow().date() + timedelta(days=1)
+    from_date = utc_now().date() - timedelta(days=1)
+    to_date = utc_now().date() + timedelta(days=1)
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/mail_channel/search"
         f"?from_date={from_date}&to_date={to_date}&status=success",
@@ -29418,14 +29417,14 @@ def test_refresh_token(monkeypatch):
     assert (
             31
             >= round(
-        (datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60
+        (datetime.utcfromtimestamp(ate) - utc_now()).total_seconds() / 60
     )
             >= 29
     )
     assert (
             61
             >= round(
-        (datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60
+        (datetime.utcfromtimestamp(rte) - utc_now()).total_seconds() / 60
     )
             >= 59
     )
@@ -35542,7 +35541,7 @@ def test_add_one_time_schedule_missing_run_at(mock_event_server):
 
 @patch("kairon.shared.utils.Utility.request_event_server", autospec=True)
 def test_add_one_time_schedule_past_run_at(mock_event_server):
-    past_epoch = int((datetime.utcnow() - timedelta(hours=1)).timestamp())
+    past_epoch = int((utc_now() - timedelta(hours=1)).timestamp())
     config = {
         "name": "past_run_at",
         "broadcast_type": "static",
@@ -36095,7 +36094,7 @@ def test_list_broadcast_logs():
     from kairon.shared.chat.broadcast.data_objects import MessageBroadcastLogs
 
     ref_id = ObjectId().__str__()
-    timestamp = datetime.utcnow()
+    timestamp = utc_now()
     MessageBroadcastLogs(
         **{
             "reference_id": ref_id,
@@ -39552,8 +39551,8 @@ def test_multilingual_language_support(monkeypatch):
 
 
 def test_download_logs(monkeypatch):
-    start_date = datetime.utcnow()
-    end_date = datetime.utcnow() + timedelta(days=1)
+    start_date = utc_now()
+    end_date = utc_now() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/logs/download/model_training?start_date={start_date}&end_date={end_date}",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -39570,8 +39569,8 @@ def test_download_logs(monkeypatch):
 def test_download_logs_with_action_logs(monkeypatch):
     import csv
 
-    start_date = datetime.utcnow()
-    end_date = datetime.utcnow() + timedelta(days=1)
+    start_date = utc_now()
+    end_date = utc_now() + timedelta(days=1)
     bot = pytest.bot
     request_params = {"key": "value", "key2": "value2"}
     ActionServerLogs(
@@ -39664,8 +39663,8 @@ def test_get_auditlog_for_user_1():
 
 
 def test_get_auditlog_for_bot():
-    from_date = datetime.utcnow().date() - timedelta(days=1)
-    to_date = datetime.utcnow().date() + timedelta(days=1)
+    from_date = utc_now().date() - timedelta(days=1)
+    to_date = utc_now().date() + timedelta(days=1)
     response = client.get(
         f"/api/bot/{pytest.bot}/auditlog/data/{from_date}/{to_date}?start_idx=0&page_size=100",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -39980,8 +39979,8 @@ def test_get_llm_logs():
                 "invocation": "prompt_action"
             },
             response=raw_response,
-            start_time=datetime.utcnow(),
-            end_time=datetime.utcnow(),
+            start_time=utc_now(),
+            end_time=utc_now(),
             cost=0.0
         )
 
@@ -40003,8 +40002,8 @@ def test_get_llm_logs():
     assert actual["error_code"] == 0
     assert actual["data"]
 
-    from_date = datetime.utcnow().date() - timedelta(days=1)
-    to_date = datetime.utcnow().date() + timedelta(days=1)
+    from_date = utc_now().date() - timedelta(days=1)
+    to_date = utc_now().date() + timedelta(days=1)
     search_response = client.get(
         f"/api/bot/{pytest.bot}/logs/llm/search?from_date={from_date}&to_date={to_date}&user=test",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
@@ -40493,7 +40492,7 @@ def test_add_prompt_action_with_stop_hyperparameters(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {
@@ -40747,7 +40746,7 @@ def test_add_parallel_action(monkeypatch):
         collection_name="test_collection",
         user="integration@demo.ai",
         bot=pytest.bot,
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
         schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
     ).save()
     action = {

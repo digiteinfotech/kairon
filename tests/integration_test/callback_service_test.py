@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 
 import pytest
@@ -7,6 +7,7 @@ from unittest.mock import patch, AsyncMock
 
 from httpx import QueryParams
 from jose import jwt
+from kairon.shared.clock import utc_now
 from kairon.async_callback.utils import CallbackUtility
 from kairon.shared.actions.models import ActionParameterType
 from mongoengine import connect
@@ -747,8 +748,8 @@ async def test_handle_callback_success(mock_execute, monkeypatch):
 async def test_handle_callback_failure(mock_execute, monkeypatch):
     mock_execute.side_effect = Exception("script error")
 
-    # Use datetime.utcnow() as expected by encrypt_token_claims
-    exp = datetime.utcnow() + timedelta(minutes=5)
+    # Use utc_now() as expected by encrypt_token_claims
+    exp = utc_now() + timedelta(minutes=5)
     token_claims = {
         "type": TOKEN_TYPE.DYNAMIC.value,
         "exp": exp
@@ -861,7 +862,7 @@ async def test_invalid_token_type(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_expired_token(monkeypatch):
-    expired_time = datetime.utcnow() - timedelta(hours=1)
+    expired_time = utc_now() - timedelta(hours=1)
     claims = {"type": TOKEN_TYPE.DYNAMIC.value, "exp": expired_time}
     encrypted_claims = Authentication.encrypt_token_claims(claims)
     payload = {"sub": encrypted_claims["sub"], "exp": int(expired_time.timestamp())}

@@ -5,11 +5,12 @@ import bson.int64
 import ujson as json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
 from rasa.utils.endpoints import EndpointConfig
+from kairon.shared.clock import utc_now
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -1411,8 +1412,8 @@ def test_reload():
 @patch("kairon.chat.utils.ChatUtils.reload")
 def test_reload_logging(mock_reload):
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
     mock_reload.return_value = None
     response = client.get(
         f"/api/bot/{bot}/reload",
@@ -1444,8 +1445,8 @@ def test_reload_logging(mock_reload):
 @mock.patch("kairon.chat.agent_processor.AgentProcessor.reload", autospec=True)
 def test_reload_event_exception(mock_reload):
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
 
     def _reload(*args):
         raise Exception("Simulated exception during model reload")

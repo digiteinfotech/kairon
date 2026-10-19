@@ -7,6 +7,7 @@ from io import BytesIO
 
 from PIL import Image
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.data_objects import Channels
@@ -1142,7 +1143,7 @@ async def test_get_media_content(mock_get_buffer):
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1158,7 +1159,7 @@ async def test_get_media_content(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     expected_media_bytes = b'%IMG-1.4 mock content'
@@ -1218,7 +1219,7 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1234,7 +1235,7 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (None, None, None)

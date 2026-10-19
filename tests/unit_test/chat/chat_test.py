@@ -15,6 +15,7 @@ from bson import ObjectId
 from mongoengine import connect, ValidationError
 from slack_sdk.web.slack_response import SlackResponse
 
+from kairon.shared.clock import utc_now
 from kairon.chat.handlers.channels.base import ChannelHandlerBase
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import Bot
@@ -1217,7 +1218,7 @@ async def test_save_channel_config_with_masked_and_real_values(monkeypatch):
     BotSettings.objects(bot=bot).delete()
     Bot.objects(id=bot).delete()
     Bot(id=bot, account=123, name="Test Bot", user="system_user").save()
-    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+    BotSettings(bot=bot, user=user, timestamp=utc_now()).save()
 
     original_config = {
         "connector_type": "instagram",
@@ -1228,7 +1229,7 @@ async def test_save_channel_config_with_masked_and_real_values(monkeypatch):
         }
     }
 
-    Channels(**original_config, bot=bot, user=user, timestamp=datetime.utcnow()).save()
+    Channels(**original_config, bot=bot, user=user, timestamp=utc_now()).save()
 
     update_masked = {
         "connector_type": "instagram",
@@ -1306,7 +1307,7 @@ async def test_save_channel_config_new_instagram_channel(monkeypatch):
         name="Instagram New Bot",
         user="system_user",
     ).save()
-    BotSettings(bot=bot, user=user, timestamp=datetime.utcnow()).save()
+    BotSettings(bot=bot, user=user, timestamp=utc_now()).save()
 
     new_config = {
         "connector_type": "instagram",
@@ -1816,7 +1817,7 @@ async def test_upload_media_to_bsp_success(mock_bsp_factory, tmp_path):
         bot="test_bot",
         user="test@example.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
     ).save()
     Channels(
         bot="test_bot",
@@ -1831,7 +1832,7 @@ async def test_upload_media_to_bsp_success(mock_bsp_factory, tmp_path):
             "bsp_type": "360dialog"
         },
         user="user123",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     result = await ChatDataProcessor.upload_media_to_bsp(
         bot="test_bot",
@@ -1935,7 +1936,7 @@ def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path
         filesize=1024,
         sender_id="user@test.com",
         bot="test_bot",
-        timestamp=datetime.utcnow() - timedelta(days=50),
+        timestamp=utc_now() - timedelta(days=50),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -1992,7 +1993,7 @@ def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
         filesize=1024,
         sender_id="user@test.com",
         bot="test_bot",
-        timestamp=datetime.utcnow() - timedelta(days=5),
+        timestamp=utc_now() - timedelta(days=5),
         media_url="",
         output_filename="",
         external_upload_info={"bsp": "360dialog"}
@@ -2032,12 +2033,12 @@ def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
 
 
 @pytest.mark.asyncio
-@patch("kairon.shared.chat.processor.datetime")
+@patch("kairon.shared.chat.processor.utc_now")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
-def test_validate_media_file_type_file_already_exists(mock_objects, mock_datetime, tmp_path):
+def test_validate_media_file_type_file_already_exists(mock_objects, mock_utc_now, tmp_path):
 
     fixed_now = datetime(2026, 1, 1, 12, 0, 0)
-    mock_datetime.utcnow.return_value = fixed_now
+    mock_utc_now.return_value = fixed_now
 
     test_file = tmp_path / "file.png"
     test_file.write_bytes(b"x" * (1 * 1024 * 1024))
@@ -2083,7 +2084,7 @@ async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_fa
         bot="test_bot",
         user="test@example.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
     ).save()
     Channels(
         bot="test_bot",
@@ -2098,7 +2099,7 @@ async def test_upload_media_to_bsp_cleanup_failure(mock_remove_file, mock_bsp_fa
             "bsp_type": "360dialog",
         },
         user="user123",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
     ).save()
 
     result = await ChatDataProcessor.upload_media_to_bsp(
@@ -2171,7 +2172,7 @@ def test_delete_media_to_bsp_success(mock_bsp_factory):
         bot="test_bot",
         user="test@example.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow(),
+        timestamp=utc_now(),
     ).save()
     Channels(
         bot="test_bot",
@@ -2186,7 +2187,7 @@ def test_delete_media_to_bsp_success(mock_bsp_factory):
             "bsp_type": "360dialog"
         },
         user="user123",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
     result = ChatDataProcessor.delete_media_from_bsp(
         bot="test_bot",

@@ -4,6 +4,7 @@ from bson import ObjectId
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.shared.cognition.data_objects import CognitionSchema, CollectionData
 from kairon.exceptions import AppException
 from kairon.shared.cognition.processor import CognitionDataProcessor
@@ -47,7 +48,7 @@ class CatalogSyncLogProcessor:
                 provider=provider,
                 raw_payload = raw_payload,
                 sync_type = sync_type,
-                start_timestamp=datetime.utcnow()
+                start_timestamp=utc_now()
             )
         doc.sync_status = sync_status
         if processed_payload:
@@ -59,7 +60,7 @@ class CatalogSyncLogProcessor:
         if validation_errors:
             doc.validation_errors = validation_errors
         if sync_status in {SYNC_STATUS.FAILED.value, SYNC_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
         return str(doc.id)
 
@@ -290,7 +291,7 @@ class CatalogSyncLogProcessor:
                 user=user,
                 bot=bot,
                 status=True,
-                timestamp=datetime.utcnow()
+                timestamp=utc_now()
             ).save()
 
         document = CollectionData.objects(

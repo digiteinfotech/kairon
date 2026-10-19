@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 
 import ujson as json
 from mongoengine import (
@@ -30,6 +29,7 @@ from validators import domain
 from validators import url
 from validators.utils import ValidationError as ValidationFailure
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -81,7 +81,7 @@ class TrainingExamples(Auditlog):
     bot = StringField(required=True)
     entities = ListField(EmbeddedDocumentField(Entity), default=None)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {
@@ -127,7 +127,7 @@ class Synonyms(Auditlog):
     bot = StringField(required=True)
     name = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
@@ -150,7 +150,7 @@ class EntitySynonyms(Auditlog):
     name = StringField(required=True)
     value = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["$value", ("bot", "status")]}]}
@@ -177,7 +177,7 @@ class Lookup(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
@@ -200,7 +200,7 @@ class LookupTables(Auditlog):
     value = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["$value", ("bot", "status")]}]}
@@ -228,7 +228,7 @@ class RegexFeatures(Auditlog):
     pattern = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["$pattern", ("bot", "status")]}]}
@@ -259,7 +259,7 @@ class Intents(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     is_integration = BooleanField(default=False)
     use_entities = BooleanField(default=False)
@@ -283,7 +283,7 @@ class Entities(Auditlog):
     name = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
@@ -307,7 +307,7 @@ class Forms(Auditlog):
     required_slots = ListField(StringField(), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "name")]}]}
@@ -332,7 +332,7 @@ class SlotMapping(Auditlog):
     mapping = DictField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     form_name = StringField(default=None)
 
@@ -391,7 +391,7 @@ class Utterances(Auditlog):
     form_attached = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
@@ -450,7 +450,7 @@ class Responses(Auditlog):
     custom = EmbeddedDocumentField(ResponseCustom)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {
@@ -482,7 +482,7 @@ class SessionConfigs(Auditlog):
     carryOverSlots = BooleanField(required=True, default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
@@ -509,7 +509,7 @@ class Slots(Auditlog):
     min_value = FloatField()
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     influence_conversation = BooleanField(default=False)
     _has_been_set = BooleanField(default=False)
@@ -644,7 +644,7 @@ class Stories(Auditlog):
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     template_type = StringField(
         default=TemplateType.CUSTOM.value,
@@ -681,7 +681,7 @@ class MultiflowStories(Auditlog):
     metadata = ListField(EmbeddedDocumentField(MultiFlowStoryMetadata), default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     template_type = StringField(
         default=TemplateType.CUSTOM.value,
@@ -721,7 +721,7 @@ class Rules(Auditlog):
     events = ListField(EmbeddedDocumentField(StoryEvents), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     template_type = StringField(
         default=TemplateType.CUSTOM.value,
@@ -757,7 +757,7 @@ class Configs(Auditlog):
     policies = ListField(DictField(), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
@@ -801,7 +801,7 @@ class DemoRequestLogs(Document):
     recaptcha_response = StringField(default=None)
     status = StringField(default=DEMO_REQUEST_STATUS.REQUEST_RECEIVED.value,
                          choices=[type.value for type in DEMO_REQUEST_STATUS])
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     def validate(self, clean=True):
         from validators import email
@@ -827,7 +827,7 @@ class Endpoints(Auditlog):
     history_endpoint = EmbeddedDocumentField(EndPointHistory)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
@@ -865,7 +865,7 @@ class ModelDeployment(Auditlog):
     model = StringField(default=None)
     url = StringField(default=None)
     status = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
@@ -920,7 +920,7 @@ class BotSettings(Auditlog):
     max_template_per_broadcast = IntField(default=5)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     system_limits = DictField(default=lambda:{
         "file_upload_limit" : 5
@@ -960,7 +960,7 @@ class ChatClientConfig(Auditlog):
     config = DictField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     white_listed_domain = ListField(StringField(), default=None)
 
@@ -996,7 +996,7 @@ class BotAssets(Auditlog):
     url = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status")]}]}
@@ -1008,7 +1008,7 @@ class KeyVault(Auditlog):
     value = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot"]}]}
 
@@ -1030,7 +1030,7 @@ signals.pre_save_post_validation.connect(
 class EventConfig(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     ws_url = StringField(required=True)
     headers = StringField()
     method = StringField(choices=["POST", "GET", "PATCH"])
@@ -1060,7 +1060,7 @@ class UserOrgMappings(Document):
     organization = StringField(required=True)
     feature_type = StringField(required=True)
     value = DynamicField(default=False)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["user", ("user", "feature_type", "organization")]}]}
 
@@ -1071,7 +1071,7 @@ class GlobalSlots(Auditlog):
     slots = DictField()
     sender_id = StringField(required=True)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "sender_id", "entry_type")]}]}
 
@@ -1095,7 +1095,7 @@ class UserMediaData(Auditlog):
     sender_id = StringField(required=True)
     user_id = StringField(default=None)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     external_upload_info = DictField()
     channel = StringField()
 
@@ -1128,7 +1128,7 @@ class POSIntegrations(Auditlog):
     smart_catalog_enabled = BooleanField(default=False)
     meta_enabled = BooleanField(default=False)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     sync_options = GenericEmbeddedDocumentField(required=True)
 
     meta = {"indexes": [{"fields": ["bot", "provider"]}]}
@@ -1137,7 +1137,7 @@ class POSIntegrations(Auditlog):
 class StorePageMetadata(Document):
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     config = DictField()
 
     meta = {"indexes": [{"fields": ["bot"]}]}
@@ -1179,8 +1179,8 @@ class CustomerDetails(Document):
     persona_details = DictField()
     additional_info = DictField()
     status = BooleanField(default=True)
-    created_at = DateTimeField(default=datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.utcnow)
+    created_at = DateTimeField(default=utc_now)
+    updated_at = DateTimeField(default=utc_now)
 
     meta = {
         "indexes": [
@@ -1194,7 +1194,7 @@ class CustomerDetails(Document):
             self.clean()
 
     def clean(self):
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utc_now()
 
 
 class OrderDetails(Document):
@@ -1210,8 +1210,8 @@ class OrderDetails(Document):
     order_details = DictField()
     filterable_attrs = ListField(DictField(), default=[])
     additional_info = DictField()
-    created_at = DateTimeField(default=datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.utcnow)
+    created_at = DateTimeField(default=utc_now)
+    updated_at = DateTimeField(default=utc_now)
 
     meta = {
         "indexes": [
@@ -1227,4 +1227,4 @@ class OrderDetails(Document):
 
     def clean(self):
         self.filterable_attrs = build_filterable_attrs(self.order_details)
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utc_now()

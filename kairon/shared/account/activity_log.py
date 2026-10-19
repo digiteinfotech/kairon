@@ -4,6 +4,7 @@ from typing import Text
 from fastapi import HTTPException
 from starlette import status
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.constants import UserActivityType
@@ -81,7 +82,7 @@ class UserActivityLogger:
         reset_password_request_count = AuditLogData.objects(
             user=email, action=AuditlogActions.ACTIVITY.value,
             entity=UserActivityType.reset_password_request.value,
-            timestamp__gte=datetime.utcnow().date()
+            timestamp__gte=utc_now().date()
         ).order_by('-timestamp').count()
         if reset_password_request_count >= reset_password_request_limit:
             raise AppException('Password reset limit exhausted for today.')
@@ -96,7 +97,7 @@ class UserActivityLogger:
         """
 
         reset_password_request_limit = Utility.environment['user']['reset_password_cooldown_period']
-        cooldown_period = datetime.utcnow().__sub__(timedelta(seconds=reset_password_request_limit * 60))
+        cooldown_period = utc_now().__sub__(timedelta(seconds=reset_password_request_limit * 60))
         if Utility.is_exist(
                 AuditLogData, raise_error=False, user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period, check_base_fields=False
@@ -106,7 +107,7 @@ class UserActivityLogger:
                 entity=UserActivityType.reset_password.value,
                 timestamp__gte=cooldown_period).order_by('-timestamp').get()
             next_reset_time = log.timestamp + timedelta(minutes=reset_password_request_limit)
-            next_reset = (next_reset_time - datetime.utcnow()).seconds
+            next_reset = (next_reset_time - utc_now()).seconds
             next_login_duration = (int)((next_reset / 60) if (next_reset / 60) != 0 else next_reset)
             unit = "minutes" if (next_reset / 60) != 0 else "seconds"
             raise AppException(
@@ -125,7 +126,7 @@ class UserActivityLogger:
 
         login_cooldown_period = Utility.environment['user']['login_cooldown_period']
         login_request_limit = Utility.environment['user']['login_limit']
-        cutoff_time = datetime.utcnow() - timedelta(minutes=login_cooldown_period)
+        cutoff_time = utc_now() - timedelta(minutes=login_cooldown_period)
         logins_within_cutoff = AuditLogData.objects(
             user=email, action=AuditlogActions.ACTIVITY.value, entity=UserActivityType.invalid_login.value, timestamp__gte=cutoff_time
         ).count()
@@ -135,7 +136,7 @@ class UserActivityLogger:
                 timestamp__gte=cutoff_time
             ).order_by("timestamp"))
             next_login_time = first_login_within_cutoff[0].timestamp + timedelta(minutes=login_cooldown_period)
-            next_login = (next_login_time - datetime.utcnow()).seconds
+            next_login = (next_login_time - utc_now()).seconds
             next_login_duration = (int)((next_login / 60) if (next_login / 60) != 0 else next_login)
             unit = "minutes" if (next_login / 60) != 0 else "seconds"
             raise AppException(f'Account frozen due to too many unsuccessful login attempts. '

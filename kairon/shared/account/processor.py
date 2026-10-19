@@ -1,6 +1,5 @@
 import ujson as json
 import uuid
-from datetime import datetime
 from typing import Dict, Text
 
 from loguru import logger as logging
@@ -12,6 +11,7 @@ from starlette.requests import Request
 from validators.utils import ValidationError as ValidationFailure
 from validators import email as mail_check
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.data_objects import (
@@ -468,7 +468,7 @@ class AccountProcessor:
             bot_access.role = role
             bot_access.user = user
             bot_access.status = status
-            bot_access.timestamp = datetime.utcnow()
+            bot_access.timestamp = utc_now()
             bot_access.save()
         except DoesNotExist:
             raise AppException("User not yet invited to collaborate")
@@ -549,7 +549,7 @@ class AccountProcessor:
                 status=ACTIVITY_STATUS.INVITE_NOT_ACCEPTED.value,
             ).get()
             bot_access.status = ACTIVITY_STATUS.ACTIVE.value
-            bot_access.accept_timestamp = datetime.utcnow()
+            bot_access.accept_timestamp = utc_now()
             bot_access.save()
             return (
                 bot_access.user,
@@ -809,7 +809,7 @@ class AccountProcessor:
             if status in [ONBOARDING_STATUS.COMPLETED.value, ONBOARDING_STATUS.SKIPPED.value]:
                 user.is_onboarded = True
             user.onboarding_status = status
-            user.onboarding_timestamp = datetime.utcnow()
+            user.onboarding_timestamp = utc_now()
             user.save()
         except DoesNotExist as e:
             logging.error(e)
@@ -1437,7 +1437,7 @@ class AccountProcessor:
                 )
             else:
                 device.is_confirmed = True
-                device.confirmation_timestamp = datetime.utcnow()
+                device.confirmation_timestamp = utc_now()
             device.save()
             return link
 
@@ -1456,7 +1456,7 @@ class AccountProcessor:
             user=user, fingerprint=fingerprint, is_confirmed=False, status=True
         ).get()
         device.is_confirmed = True
-        device.confirmation_timestamp = datetime.utcnow()
+        device.confirmation_timestamp = utc_now()
         device.save()
 
     @staticmethod

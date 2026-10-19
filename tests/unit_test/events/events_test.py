@@ -18,6 +18,7 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.data.model_data_imporer import KRasaFileImporter
@@ -2517,7 +2518,7 @@ class TestEventExecution:
         from datetime import datetime
         bot = 'test_events_bot'
         user = 'test_user'
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         sender_id = ""
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
         responses.add("POST",
@@ -3376,7 +3377,7 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": reference_id,
@@ -3637,7 +3638,7 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": reference_id,
@@ -3935,7 +3936,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de2",
@@ -4295,7 +4296,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de1",
@@ -4652,7 +4653,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de1",
@@ -5000,7 +5001,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de3",
@@ -5435,7 +5436,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de4",
@@ -5991,7 +5992,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de5",

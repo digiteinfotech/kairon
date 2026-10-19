@@ -7,6 +7,7 @@ from typing import Any, List, Text, Dict
 
 import ujson as json
 
+from kairon.shared.clock import utc_now
 from kairon.shared.account.data_objects import Bot
 from ..utils import Utility, MailUtility
 import asyncio
@@ -66,7 +67,7 @@ class ActionUtility:
             timeout = Utility.environment['action'].get('request_timeout', 1)
         headers = headers if headers else {}
         headers.update({
-            REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            REQUEST_TIMESTAMP_HEADER: utc_now().strftime('%Y-%m-%d %H:%M:%S')
         })
         kwargs = {"content_type": content_type, "timeout": timeout, "return_json": False}
         client = AioRestClient()
@@ -110,7 +111,7 @@ class ActionUtility:
         if not headers:
             headers = {}
         headers.update({
-            REQUEST_TIMESTAMP_HEADER: datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            REQUEST_TIMESTAMP_HEADER: utc_now().strftime('%Y-%m-%d %H:%M:%S')
         })
 
         try:

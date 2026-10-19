@@ -14,6 +14,7 @@ import ujson as json
 import yaml
 from bson import ObjectId
 
+from kairon.shared.clock import utc_now
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
@@ -844,7 +845,7 @@ class TestMongoProcessor:
             collection_name="test",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_slots', 'num_bot_responses': 5,
@@ -893,7 +894,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_http_action', 'num_bot_responses': 5,
@@ -943,7 +944,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_prompt_action_similarity', 'num_bot_responses': 5,
@@ -987,7 +988,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
 
@@ -1048,7 +1049,7 @@ class TestMongoProcessor:
             collection_name="",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_empty_collection_for_bot_content_prompt',
@@ -1124,7 +1125,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_bot_content_prompt',
@@ -1190,7 +1191,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_query_prompt',
@@ -1220,7 +1221,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_num_bot_responses',
@@ -1254,7 +1255,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_invalid_system_prompt_source',
@@ -1288,7 +1289,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_system_prompt',
@@ -1326,7 +1327,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(
                 training_needed=False,
                 provider="openai",
@@ -1370,7 +1371,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_empty_llm_prompt_name',
@@ -1403,7 +1404,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_empty_data_for_static_prompt',
@@ -1435,7 +1436,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_multiple_history_source_prompts',
@@ -1471,7 +1472,7 @@ class TestMongoProcessor:
             collection_name="test_collection_1",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         CognitionSchema(
@@ -1482,7 +1483,7 @@ class TestMongoProcessor:
             collection_name="test_collection_2",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
         request = {'name': 'test_add_prompt_action_with_no_system_prompts',
@@ -1905,7 +1906,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
 
@@ -2041,7 +2042,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
 
@@ -2141,7 +2142,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
 
@@ -2254,7 +2255,7 @@ class TestMongoProcessor:
             collection_name="test_collection",
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             schema_metadata=SchemaMetadata(training_needed=True, model_id="text-embedding-3-large", size=3072)
         ).save()
 
@@ -2401,7 +2402,7 @@ class TestMongoProcessor:
             user=user,
             bot=bot,
             status=True,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         result = CognitionDataProcessor.preprocess_push_menu_data(bot, push_menu_payload, provider)
@@ -2579,7 +2580,7 @@ class TestMongoProcessor:
             user=user,
             bot=bot,
             status=True,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         result = CognitionDataProcessor.resolve_image_link(bot, item_id)
@@ -2631,7 +2632,7 @@ class TestMongoProcessor:
             user=user,
             bot=bot,
             status=True,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         local_image_data = {
@@ -2646,7 +2647,7 @@ class TestMongoProcessor:
             user=user,
             bot=bot,
             status=True,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         result = CognitionDataProcessor.resolve_image_link(bot, item_id)
@@ -2873,7 +2874,7 @@ class TestMongoProcessor:
                 "api_key": "common_openai_key",
                 "models": ["common_openai_model1", "common_openai_model2"],
                 "user": "123",
-                "timestamp": datetime.utcnow()
+                "timestamp": utc_now()
             },
         ]
 
@@ -2916,7 +2917,7 @@ class TestMongoProcessor:
             collection_name=catalog_collection,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3643,7 +3644,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3705,7 +3706,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3723,7 +3724,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -3739,7 +3740,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -3800,7 +3801,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3887,7 +3888,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3927,7 +3928,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -3969,7 +3970,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4011,7 +4012,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4028,7 +4029,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -4089,7 +4090,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4106,7 +4107,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -4213,7 +4214,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4230,7 +4231,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -4246,7 +4247,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -4345,7 +4346,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4362,7 +4363,7 @@ class TestMongoProcessor:
             collection=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         existing_document.save()
 
@@ -4474,7 +4475,7 @@ class TestMongoProcessor:
             collection_name=collection_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)
         cognition_schema.save()
@@ -4527,7 +4528,7 @@ class TestMongoProcessor:
             collection_name=table_name,
             user=user,
             bot=bot,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         )
         cognition_schema.validate(clean=True)  # Validate before saving
         cognition_schema.save()
@@ -5837,7 +5838,7 @@ class TestMongoProcessor:
     def test_get_collection_data_with_timestamp(self):
         bot = 'test_bot'
         user = 'test_user'
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
 
         processor = CognitionDataProcessor()
 
@@ -5882,7 +5883,7 @@ class TestMongoProcessor:
             bot,
             collection_name="user",
             start_time=timestamp,
-            end_time=datetime.utcnow(),
+            end_time=utc_now(),
             data_filter={"name": "User1"}
         ))
         for coll in response:
@@ -5909,7 +5910,7 @@ class TestMongoProcessor:
         response = list(DataProcessor.get_collection_data_with_timestamp(
             bot,
             collection_name="user",
-            start_time=datetime.utcnow(),
+            start_time=utc_now(),
             end_time="2027-08-06T00:00:00+00:00",
             data_filter={"name": "User2"}
         ))
@@ -5921,7 +5922,7 @@ class TestMongoProcessor:
             bot,
             collection_name="user",
             start_time=timestamp,
-            end_time=datetime.utcnow(),
+            end_time=utc_now(),
             data_filter={"name": "User3"}
         ))
         for coll in response:
@@ -11538,8 +11539,8 @@ class TestMongoProcessor:
         assert actual_config.config['headers']['authorization']['refresh_token_ttl'] == 60
         ate = actual_config.config['headers']['authorization']['access_token_expiry']
         rte = actual_config.config['headers']['authorization']['refresh_token_expiry']
-        ate_minutes = round((datetime.utcfromtimestamp(ate) - datetime.utcnow()).total_seconds() / 60)
-        rte_minutes = round((datetime.utcfromtimestamp(rte) - datetime.utcnow()).total_seconds() / 60)
+        ate_minutes = round((datetime.utcfromtimestamp(ate) - utc_now()).total_seconds() / 60)
+        rte_minutes = round((datetime.utcfromtimestamp(rte) - utc_now()).total_seconds() / 60)
         assert 31 >= ate_minutes >= 29
         assert 61 >= rte_minutes >= 59
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'
@@ -20094,11 +20095,11 @@ class TestMongoProcessor:
             KeyVault.objects(key=key, bot=bot).get()
 
     def test_get_logs(self):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         bot = "test_get_logs"
         user = "testUser2"
-        start_time = datetime.utcnow() - timedelta(days=1)
-        end_time = datetime.utcnow() + timedelta(days=1)
+        start_time = utc_now() - timedelta(days=1)
+        end_time = utc_now() + timedelta(days=1)
         processor = MongoProcessor()
 
         ModelProcessor.set_training_status(bot, user, "Done")
@@ -20141,7 +20142,7 @@ class TestMongoProcessor:
 
     def test_delete_audit_logs(self):
         processor = MongoProcessor()
-        start_time = datetime.utcnow()
+        start_time = utc_now()
         init_time = start_time - timedelta(days=1000)
         logs = processor.get_logs("test", "audit_logs", init_time, start_time)
         num_logs = len(logs)
@@ -21334,8 +21335,8 @@ class TestModelProcessor:
 
     def test_get_auditlog_for_bot_date_range(self):
         bot = "test"
-        from_date = datetime.utcnow().date() - timedelta(days=1)
-        to_date = datetime.utcnow().date()
+        from_date = utc_now().date() - timedelta(days=1)
+        to_date = utc_now().date()
         page_size = 100
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                                      page_size=page_size)
@@ -21343,8 +21344,8 @@ class TestModelProcessor:
 
     def test_get_auditlog_for_bot_top_50(self):
         bot = "test"
-        from_date = datetime.utcnow().date() - timedelta(days=1)
-        to_date = datetime.utcnow().date()
+        from_date = utc_now().date() - timedelta(days=1)
+        to_date = utc_now().date()
         page_size = 50
         auditlog_data, row_cnt = MongoProcessor.get_auditlog_for_bot(bot, from_date=from_date, to_date=to_date,
                                                                      page_size=page_size)
@@ -21509,8 +21510,8 @@ class TestModelProcessor:
         assert result[bot_c["_id"].__str__()] == 0.8424565337899992
 
     def test_auditlog_for_data_with_encrypted_field(self):
-        start_time = datetime.utcnow() - timedelta(days=1)
-        end_time = datetime.utcnow() + timedelta(days=1)
+        start_time = utc_now() - timedelta(days=1)
+        end_time = utc_now() + timedelta(days=1)
 
         processor = MongoProcessor()
         bot = 'secret'

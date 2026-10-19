@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Text
 
 from mongoengine.errors import DoesNotExist
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.authorization.data_objects import Integration
 from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
@@ -13,7 +14,7 @@ class IntegrationProcessor:
 
     @staticmethod
     def add_integration(
-            name: Text, bot: Text, user: Text, role: ACCESS_ROLES, iat: datetime = datetime.utcnow(), expiry: datetime = None,
+            name: Text, bot: Text, user: Text, role: ACCESS_ROLES, iat: datetime = utc_now(), expiry: datetime = None,
             access_list: list = None
     ):
 
