@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Text
 
 from fastapi import HTTPException
 from starlette import status
 
-from kairon.shared.clock import utc_now
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.exceptions import AppException
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.constants import UserActivityType
@@ -204,7 +204,7 @@ class UserActivityLogger:
 
         iat_val = payload.get("iat")
         if iat_val is not None:
-            issued_at = datetime.utcfromtimestamp(iat_val)
+            issued_at = utc_from_timestamp(iat_val)
             if Utility.is_exist(
                     AuditLogData, raise_error=False, user=username, action=AuditlogActions.ACTIVITY.value,
                     entity=UserActivityType.reset_password.value,

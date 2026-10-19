@@ -14,7 +14,7 @@ import ujson as json
 import yaml
 from bson import ObjectId
 
-from kairon.shared.clock import utc_now
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
@@ -11539,8 +11539,8 @@ class TestMongoProcessor:
         assert actual_config.config['headers']['authorization']['refresh_token_ttl'] == 60
         ate = actual_config.config['headers']['authorization']['access_token_expiry']
         rte = actual_config.config['headers']['authorization']['refresh_token_expiry']
-        ate_minutes = round((datetime.utcfromtimestamp(ate) - utc_now()).total_seconds() / 60)
-        rte_minutes = round((datetime.utcfromtimestamp(rte) - utc_now()).total_seconds() / 60)
+        ate_minutes = round((utc_from_timestamp(ate) - utc_now()).total_seconds() / 60)
+        rte_minutes = round((utc_from_timestamp(rte) - utc_now()).total_seconds() / 60)
         assert 31 >= ate_minutes >= 29
         assert 61 >= rte_minutes >= 59
         assert actual_config.config['headers']['X-USER'] == 'user@integration.com'

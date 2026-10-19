@@ -15,7 +15,7 @@ from mongoengine import DoesNotExist
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
-from kairon.shared.clock import utc_now
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
@@ -349,7 +349,7 @@ class Authentication:
         if jti:
             exp = payload.get("exp")
             expires_at = (
-                datetime.utcfromtimestamp(exp)
+                utc_from_timestamp(exp)
                 if exp
                 else utc_now() + timedelta(minutes=Utility.environment["security"]["token_expire"])
             )

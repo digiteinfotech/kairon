@@ -2,12 +2,11 @@ import logging
 import re
 import time
 import traceback
-from datetime import datetime
 from typing import Any, List, Text, Dict
 
 import ujson as json
 
-from kairon.shared.clock import utc_now
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.shared.account.data_objects import Bot
 from ..utils import Utility, MailUtility
 import asyncio
@@ -430,7 +429,7 @@ class ActionUtility:
         initiated_at = None
         for event in tracker_events:
             if event.get('event') == 'session_started' and event.get('timestamp'):
-                initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+                initiated_at = utc_from_timestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
             elif event.get('event') == 'bot':
                 data = {"text": event.get('text')}
                 data.update(event.get('data'))
@@ -449,7 +448,7 @@ class ActionUtility:
         initiated_at = None
         for event in tracker_events:
             if event.get('event') == 'session_started' and event.get('timestamp'):
-                initiated_at = datetime.utcfromtimestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+                initiated_at = utc_from_timestamp(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
             elif event.get('event') == 'user' or event.get('event') == 'bot':
                 message_trail_as_str = f"{message_trail_as_str}{event['event']}: {event.get('text')}\n"
 

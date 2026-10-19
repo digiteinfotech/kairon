@@ -30,7 +30,7 @@ from pydantic import SecretStr
 from rasa.shared.utils.io import read_config_file
 from slack_sdk.web.slack_response import SlackResponse
 
-from kairon.shared.clock import utc_now
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.events.definitions.upload_handler import UploadHandler
 from kairon.shared.account.data_objects import UserActivityLog
 from kairon.shared.account.data_objects import UserEmailConfirmation
@@ -29417,14 +29417,14 @@ def test_refresh_token(monkeypatch):
     assert (
             31
             >= round(
-        (datetime.utcfromtimestamp(ate) - utc_now()).total_seconds() / 60
+        (utc_from_timestamp(ate) - utc_now()).total_seconds() / 60
     )
             >= 29
     )
     assert (
             61
             >= round(
-        (datetime.utcfromtimestamp(rte) - utc_now()).total_seconds() / 60
+        (utc_from_timestamp(rte) - utc_now()).total_seconds() / 60
     )
             >= 59
     )
