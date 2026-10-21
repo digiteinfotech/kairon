@@ -856,7 +856,6 @@ class TestBusinessServiceProvider:
 
 
 
-    @pytest.mark.asyncio
     @responses.activate
     def test_get_user_media_data_with_no_data(self):
         bot = "682323a603ec3be7dcaa75bc"
@@ -866,7 +865,6 @@ class TestBusinessServiceProvider:
         print(media_data)
         UserMediaData.objects().delete()
 
-    @pytest.mark.asyncio
     @responses.activate
     def test_get_user_media_data(self):
         UserMediaData(
@@ -1221,7 +1219,6 @@ class TestBusinessServiceProvider:
         Channels.objects().delete()
 
 
-    @pytest.mark.asyncio
     def test_get_media_ids_success(self):
         bot = "682323a603ec3be7dcaa75bc"
         Channels.objects(bot=bot).delete()
@@ -1273,7 +1270,6 @@ class TestBusinessServiceProvider:
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
 
-    @pytest.mark.asyncio
     def test_get_media_ids_filters_last_30_days(self):
         bot = "682323a603ec3be7dcaa75bc"
 
@@ -1346,7 +1342,6 @@ class TestBusinessServiceProvider:
         Channels.objects(bot=bot).delete()
         UserMediaData.objects(bot=bot).delete()
 
-    @pytest.mark.asyncio
     def test_get_media_ids_no_channel_config(self):
         bot = "682323a603ec3be7dcaa75bc"
         Channels.objects(bot=bot).delete()

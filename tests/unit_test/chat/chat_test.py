@@ -1869,7 +1869,6 @@ async def test_upload_media_to_bsp_failure(mock_bsp_factory, tmp_path):
     BotSettings.objects().delete()
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_valid(tmp_path):
     test_file = tmp_path / "file.pdf"
     test_file.write_bytes(b"x" * (10 * 1024 * 1024))
@@ -1881,7 +1880,6 @@ def test_validate_media_file_type_valid(tmp_path):
     ChatDataProcessor.validate_media_file_type(bot,mock_upload)
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_invalid_type(tmp_path):
     test_file = tmp_path / "file.txt"
     test_file.write_bytes(b"x" * 10)
@@ -1899,7 +1897,6 @@ def test_validate_media_file_type_invalid_type(tmp_path):
         ChatDataProcessor.validate_media_file_type(bot, mock_upload)
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_too_large(tmp_path):
     test_file = tmp_path / "file.pdf"
     test_file.write_bytes(b"x" * (101 * 1024 * 1024))
@@ -1914,7 +1911,6 @@ def test_validate_media_file_type_too_large(tmp_path):
 
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path):
     from kairon.shared.data.data_objects import UserMediaData
     from kairon.shared.models import UserMediaUploadStatus
@@ -1971,7 +1967,6 @@ def test_validate_media_file_type_file_already_exists_more_than_30_days(tmp_path
     }
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
     from kairon.shared.data.data_objects import UserMediaData
     from kairon.shared.models import UserMediaUploadStatus
@@ -2032,7 +2027,6 @@ def test_validate_media_file_type_file_already_exists_within_30_days(tmp_path):
     }
 
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.processor.utc_now")
 @patch("kairon.shared.chat.user_media.UserMediaData.objects")
 def test_validate_media_file_type_file_already_exists(mock_objects, mock_utc_now, tmp_path):

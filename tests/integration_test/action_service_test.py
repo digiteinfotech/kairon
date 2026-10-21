@@ -931,7 +931,6 @@ def test_process_razorpay_action_with_notes():
                                             'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
@@ -1079,7 +1078,6 @@ def test_parallel_action_execution(aioresponses):
     ActionServerLogs.objects(action="test_parallel_action_execution").delete()
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution_dispatch_response_false(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
@@ -1218,7 +1216,6 @@ def test_parallel_action_execution_dispatch_response_false(aioresponses):
     ActionServerLogs.objects(action="test_parallel_action_execution").delete()
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution_failure(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"

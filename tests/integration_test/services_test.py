@@ -1645,7 +1645,6 @@ def test_pos_register_pos_not_enabled():
     assert actual["error_code"] == 422
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_pos_register_with_client_name_exists():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -1672,7 +1671,6 @@ def test_pos_register_with_client_name_exists():
     assert actual["error_code"] == 422
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_pos_register():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -1724,7 +1722,6 @@ def test_pos_login_pos_not_enabled():
     assert actual["error_code"] == 422
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_pos_login_with_page_type_pos_orders():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -1749,7 +1746,6 @@ def test_pos_login_with_page_type_pos_orders():
     assert actual["url"] == 'http://localhost:8080/web#action=380&model=pos.order&view_type=list&cids=1&menu_id=231'
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_pos_login():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -1774,7 +1770,6 @@ def test_pos_login():
     pytest.session_id = actual["session_id"]
     assert actual["url"] == 'http://localhost:8080/web#action=388&model=product.template&view_type=kanban&cids=1&menu_id=233'
 
-@pytest.mark.asyncio
 @responses.activate
 def test_pos_login_with_cid():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -2016,7 +2011,6 @@ def test_get_client_name():
     assert actual["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_delete_client_without_client():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2038,7 +2032,6 @@ def test_delete_client_without_client():
     assert actual["error_code"] == 400
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_delete_client():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2060,7 +2053,6 @@ def test_delete_client():
     assert actual["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_toggle_product():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2097,7 +2089,6 @@ def test_toggle_product():
     assert actual["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_toggle_product_write_failure():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2137,7 +2128,6 @@ def test_toggle_product_write_failure():
     assert actual["error_code"] == 500
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_toggle_product_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2166,7 +2156,6 @@ def test_toggle_product_not_found():
     assert actual["error_code"] == 404
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_list_pos_orders_invalid_status():
     response = client.get(
@@ -2183,7 +2172,6 @@ def test_list_pos_orders_invalid_status():
     assert data["error_code"] == 400
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_list_pos_orders_empty():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2211,7 +2199,6 @@ def test_list_pos_orders_empty():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_list_pos_orders_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2270,7 +2257,6 @@ def test_list_pos_orders_success():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_product_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2302,7 +2288,6 @@ def test_create_pos_order_product_not_found():
     assert data["error_code"] == 404
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_product_not_available():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2344,7 +2329,6 @@ def test_create_pos_order_product_not_available():
     assert data["error_code"] == 400
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_no_pos_config():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2388,7 +2372,6 @@ def test_create_pos_order_no_pos_config():
     assert data["error_code"] == 422
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_no_payment_method():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2458,7 +2441,6 @@ def test_create_pos_order_no_payment_method():
     assert data["error_code"]
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_without_partner():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2521,7 +2503,6 @@ def test_create_pos_order_without_partner():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2609,7 +2590,6 @@ def test_create_pos_order_success():
     assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
     assert data["data"]["kot"]["items"][0]["qty"] == 2
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_success_with_cid():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2699,7 +2679,6 @@ def test_create_pos_order_success_with_cid():
     assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
     assert data["data"]["kot"]["items"][0]["qty"] == 2
 
-@pytest.mark.asyncio
 @responses.activate
 def test_create_pos_order_create_new_session():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2828,7 +2807,6 @@ def test_create_pos_order_create_new_session():
     assert data["data"]["kot"]["items"][0]["name"] == "Pepsi 500ml"
     assert data["data"]["kot"]["items"][0]["qty"] == 2
 
-@pytest.mark.asyncio
 @responses.activate
 def test_accept_pos_order_invalid_state():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2862,7 +2840,6 @@ def test_accept_pos_order_invalid_state():
     assert data["error_code"] == 400
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_accept_pos_order_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2885,7 +2862,6 @@ def test_accept_pos_order_not_found():
     assert not data["data"]
     assert data["error_code"] == 404
 
-@pytest.mark.asyncio
 @responses.activate
 def test_accept_pos_order_unexpected_error():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2913,7 +2889,6 @@ def test_accept_pos_order_unexpected_error():
     assert data["error_code"] == 400
 
 
-@pytest.mark.asyncio
 def test_accept_pos_order_invoice_failure():
     order_id = 11
 
@@ -2948,7 +2923,6 @@ def test_accept_pos_order_invoice_failure():
         }
         assert data["error_code"] == 0
 
-@pytest.mark.asyncio
 @responses.activate
 def test_accept_pos_order_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3011,7 +2985,6 @@ def test_accept_pos_order_success():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_reject_pos_order_invalid_state():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3043,7 +3016,6 @@ def test_reject_pos_order_invalid_state():
     assert data["error_code"] == 400
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_reject_pos_order_not_found():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3072,7 +3044,6 @@ def test_reject_pos_order_not_found():
     assert not data["data"]
     
     
-@pytest.mark.asyncio
 @responses.activate
 def test_reject_pos_order_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3111,7 +3082,6 @@ def test_reject_pos_order_success():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_get_pos_products_odoo_error():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3138,7 +3108,6 @@ def test_get_pos_products_odoo_error():
     assert not data["data"]
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_get_pos_products_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3186,7 +3155,6 @@ def test_get_pos_products_success():
     assert data["error_code"] == 0
     assert not data["message"]
 
-@pytest.mark.asyncio
 @responses.activate
 def test_get_user_access_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3226,7 +3194,6 @@ def test_get_user_access_success():
     assert data["success"]
     assert data["data"] == mock_odoo_response
 
-@pytest.mark.asyncio
 @responses.activate
 def test_get_user_access_odoo_error():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3259,7 +3226,6 @@ def test_get_user_access_odoo_error():
     assert "error" in data["data"]
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_invalidate_session_success():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3286,7 +3252,6 @@ def test_invalidate_session_success():
     assert data["error_code"] == 0
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_invalidate_session_odoo_error_response():
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -3318,7 +3283,6 @@ def test_invalidate_session_odoo_error_response():
     assert data["message"] == "Session invalidated successfully"
 
 
-@pytest.mark.asyncio
 @responses.activate
 def test_invalidate_session_request_failure():
     import requests
@@ -5141,7 +5105,6 @@ def test_get_broadcast_filter_count_no_filter():
     assert actual["data"]["count"] == 4
     CollectionData.objects(bot = pytest.bot, collection_name = "crop_details_test").delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_bsp_upload_media_success(mock_get_buffer):
@@ -5214,7 +5177,6 @@ def test_bsp_upload_media_success(mock_get_buffer):
     UserMediaData.objects().delete()
     Channels.objects().delete()
 
-@pytest.mark.asyncio
 def test_bsp_upload_media_media_id_not_found():
     media_id = "non_existing_media_id"
     bsp_type = "360dialog"
@@ -5231,7 +5193,6 @@ def test_bsp_upload_media_media_id_not_found():
     assert "UserMediaData not found for media_id: non_existing_media_id" in actual["message"]
 
 
-@pytest.mark.asyncio
 def test_bsp_upload_media_channel_not_configured():
     media_id = "non_existing_media_id"
     bsp_type = "360dialog"
@@ -5263,7 +5224,6 @@ def test_bsp_upload_media_channel_not_configured():
     UserMediaData.objects().delete()
 
 
-@pytest.mark.asyncio
 def test_bsp_upload_media_access_token_not_found():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
     bot_settings.whatsapp = "360dialog"
@@ -5319,7 +5279,6 @@ def test_bsp_upload_media_access_token_not_found():
     UserMediaData.objects().delete()
     Channels.objects().delete()
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_bsp_upload_media_no_file_stream(mock_get_buffer):
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
@@ -5379,7 +5338,6 @@ def test_bsp_upload_media_no_file_stream(mock_get_buffer):
     Channels.objects().delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_bsp_upload_media_360dialog_upload_failed(mock_get_buffer):
@@ -5604,7 +5562,6 @@ def test_get_user_media_data():
     assert data["message"]
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -5734,7 +5691,6 @@ def test_knowledge_vault_sync_push_menu(mock_embedding, mock_collection_exists, 
     LLMSecret.objects.delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -7024,7 +6980,6 @@ def test_upload_media_channel_other_exception(mock_channels):
     assert "some random error" in body["message"].lower()
 
 
-@pytest.mark.asyncio
 def test_validate_media_file_type_file_already_exists_within_30_days():
     from kairon.shared.data.data_objects import UserMediaData
     from kairon.shared.models import UserMediaUploadStatus
@@ -7919,7 +7874,6 @@ def test_add_pos_integration_config_invalid_sync_type():
     POSIntegrations.objects(bot=pytest.bot, provider="petpooja", sync_type="invalid_sync").delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8126,7 +8080,6 @@ def test_get_catalog_sync_logs():
     assert "logs" in data
     assert isinstance(data["logs"], list)
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8267,7 +8220,6 @@ def test_catalog_sync_push_menu_success_with_delete_data(mock_embedding, mock_co
         assert cognition_map[item["id"]] == item["price"]
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8414,7 +8366,6 @@ def test_catalog_sync_item_toggle_success(mock_embedding, mock_collection_exists
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8551,7 +8502,6 @@ def test_catalog_sync_push_menu_process_push_menu_disabled(mock_embedding, mock_
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8686,7 +8636,6 @@ def test_catalog_sync_item_toggle_process_item_toggle_disabled(mock_embedding, m
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -8860,7 +8809,6 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_disabled(mock_embedd
 
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9087,7 +9035,6 @@ def test_catalog_sync_item_toggle_smart_catalog_disabled_meta_disabled(mock_embe
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9265,7 +9212,6 @@ def test_catalog_sync_push_menu_smart_catalog_enabled_meta_disabled(mock_embeddi
     # CognitionData.objects(bot=pytest.bot).delete()
     # CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9427,7 +9373,6 @@ def test_catalog_sync_item_toggle_smart_catalog_enabled_meta_disabled(mock_embed
 
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9599,7 +9544,6 @@ def test_catalog_sync_push_menu_smart_catalog_disabled_meta_enabled(mock_embeddi
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9738,7 +9682,6 @@ def test_catalog_sync_push_menu_global_image_not_found(mock_embedding, mock_coll
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -9942,7 +9885,6 @@ def test_catalog_sync_push_menu_global_local_images_success(mock_embedding, mock
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10156,7 +10098,6 @@ def test_catalog_rerun_sync_push_menu_success(mock_embedding, mock_collection_ex
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10307,7 +10248,6 @@ def test_catalog_sync_missing_sync_ref_id(mock_embedding, mock_collection_exists
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10473,7 +10413,6 @@ def test_catalog_sync_validation_errors_exist(mock_embedding, mock_collection_ex
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10632,7 +10571,6 @@ def test_catalog_sync_preprocess_exception(mock_embedding, mock_preprocess, mock
     CognitionSchema.objects(bot=pytest.bot).delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10787,7 +10725,6 @@ def test_catalog_sync_push_menu_sync_already_in_progress(mock_embedding, mock_co
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)
@@ -10935,7 +10872,6 @@ def test_catalog_sync_push_menu_daily_limit_exceeded(mock_embedding, mock_collec
     CognitionData.objects(bot=pytest.bot).delete()
     CognitionSchema.objects(bot=pytest.bot).delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @mock.patch.object(LLMProcessor, "__collection_exists__", autospec=True)
 @mock.patch.object(LLMProcessor, "__create_collection__", autospec=True)

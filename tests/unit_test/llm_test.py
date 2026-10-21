@@ -2025,7 +2025,6 @@ class TestLLM:
         mock_request.assert_called_once()
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
     def test_sparse_embedding_single_sentence(self, mock_sparse):
         bot = "test_bot"
@@ -2142,7 +2141,6 @@ class TestLLM:
         mock_sparse.passage_embed.assert_called_once_with(["Text of error case"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_single_sentence(self, mock_rerank):
         bot = "test_bot"
@@ -2175,7 +2173,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with(["Hello"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_multiple_sentences(self, mock_rerank):
         bot = "test_bot"
@@ -2210,7 +2207,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with(["Hello", "World"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_empty_sentences(self, mock_rerank):
         bot = "test_bot"
@@ -2239,7 +2235,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with([])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_raises_exception(self, mock_rerank):
         bot = "test_bot"

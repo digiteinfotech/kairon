@@ -2051,7 +2051,6 @@ def test_delete_schedule_job_failure(monkeypatch):
 
     mock_execute_http_request.assert_called_once_with("http://mockserver.com/api/events/test_event", "DELETE")
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
@@ -2132,7 +2131,6 @@ def test_pyscript_handler_for_upload_media_success(mock_get_buffer):
     Channels.objects().delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
@@ -2176,7 +2174,6 @@ def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
       "body": "Script execution error: UserMediaData not found for media_id: 0196c9efbf547b81a66ba2af7b72d5aa"
     }
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffer):
@@ -2236,7 +2233,6 @@ def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffe
     }
     UserMediaData.objects().delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffer):
@@ -2321,7 +2317,6 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
     BotSettings.objects().delete()
     Channels.objects().delete()
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer):
@@ -2403,7 +2398,6 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
     Channels.objects().delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buffer):
@@ -2488,7 +2482,6 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
     Channels.objects().delete()
 
 
-@pytest.mark.asyncio
 @responses.activate
 @patch("kairon.shared.chat.user_media.UserMedia.get_media_content_buffer")
 def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_get_buffer):

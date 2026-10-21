@@ -520,7 +520,6 @@ def created_coros(coros):
     return coros
 
 
-@pytest.mark.asyncio
 @patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
 def test_save_whatsapp_media_content_360dialog_failure(mock_get_client):
     config = {"bsp_type": "360dialog", "api_key": "key"}
@@ -533,7 +532,6 @@ def test_save_whatsapp_media_content_360dialog_failure(mock_get_client):
     assert "Failed to download media from 360 dialog" in str(exc.value)
 
 
-@pytest.mark.asyncio
 @patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
 def test_save_whatsapp_media_content_meta_failure(mock_get_client):
     config = {"bsp_type": "meta", "access_token": "token"}
@@ -732,7 +730,6 @@ async def test_extract_media_information_exceptions(mock_objects, mock_agentic_f
 
 
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.asyncio.create_task")
 @patch("kairon.shared.chat.user_media.requests.get")
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
@@ -995,7 +992,6 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     )
 
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.requests.get")
 def test_save_whatsapp_media_and_get_url_360dialog_failure(mock_get):
 
@@ -1021,7 +1017,6 @@ def test_save_whatsapp_media_and_get_url_360dialog_failure(mock_get):
 
     assert "Failed to download media from 360 dialog" in str(exc.value)
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.requests.get")
 def test_save_whatsapp_media_and_get_url_download_failure(mock_get):
 
