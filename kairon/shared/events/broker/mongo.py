@@ -38,6 +38,9 @@ class MongoBroker(BrokerBase):
         """
         execution_timeout = Utility.environment['events']['executor'].get('timeout', 60) * 60 * 1000
         for fn, queue in actors.items():
+            # Actor() rejects a name that is already registered. Drop the previous
+            # definition so declaring the same function again replaces it.
+            self._broker.actors.pop(fn.__name__, None)
             actor = Actor(
                 fn, broker=self._broker, actor_name=fn.__name__,
                 queue_name=queue, priority=0, options={'max_retries': 0, 'time_limit': execution_timeout}

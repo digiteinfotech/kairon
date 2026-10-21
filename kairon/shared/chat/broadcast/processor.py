@@ -169,7 +169,7 @@ class MessageBroadcastProcessor:
 
         excluded_projection_keys = MessageBroadcastProcessor.get_excluded_projection(bot)
 
-        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**excluded_projection_keys)
+        query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp", "-id").skip(start_idx).limit(page_size).fields(**excluded_projection_keys)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
         logs = query_objects.to_json(json_options=LEGACY_JSON_OPTIONS)
         logs = json.loads(logs)

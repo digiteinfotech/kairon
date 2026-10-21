@@ -2221,6 +2221,11 @@ def test_delete_media_from_bsp_channel_does_not_exist():
     assert str(exc_info.value) == "Media deletion failed: No channel found for this bot. Please configure the channel first."
 
 from datetime import datetime, timedelta
+
+# Cron checks only need EventUtility. Skip the scheduler's Mongo job store on import.
+os.environ["system_file"] = "./tests/testing_data/system.yaml"
+os.environ["KAIRON_SKIP_SCHEDULER"] = "1"
+Utility.load_environment()
 from kairon.events.utility import EventUtility
 
 def test_valid_cron():

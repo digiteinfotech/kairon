@@ -57,15 +57,11 @@ def _build_watchdog(scheduler):
 
 
 class KScheduler(EventSchedulerBase):
-    __client = MongoClient(Utility.environment['database']['url'])
-    __events_db = Utility.environment['events']['queue']['name']
-    __job_store_name = Utility.environment['events']['scheduler']['collection']
-    __scheduler = ResilientBackgroundScheduler(
-        jobstores={__job_store_name: MongoDBJobStore(__events_db, __job_store_name, __client)},
-        job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
-    __scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
-    __scheduler.start()
-    __watchdog = _build_watchdog(__scheduler)
+    def __init__(self):
+        # Start on first use. Import-time startup is skipped in tests that set
+        # KAIRON_SKIP_SCHEDULER, and a client stored on the class body is treated
+        # as abstract when it answers __isabstractmethod__.
+        _ensure_started()
 
     def update_job(self, event_id: Text, task_type: TASK_TYPE, event_class: Text, data: dict, timezone=None,
                    cron_exp: Optional[Text] = None, run_at: Optional[int] = None):
@@ -135,3 +131,25 @@ class KScheduler(EventSchedulerBase):
         event = JobEvent(EVENT_JOB_ADDED, event_id, KScheduler.__job_store_name)
         KScheduler.__scheduler._dispatch_event(event)
         KScheduler.__scheduler.wakeup()
+
+
+def _ensure_started():
+    if getattr(KScheduler, "_KScheduler__scheduler", None) is not None:
+        return
+    client = MongoClient(Utility.environment['database']['url'])
+    events_db = Utility.environment['events']['queue']['name']
+    job_store_name = Utility.environment['events']['scheduler']['collection']
+    scheduler = ResilientBackgroundScheduler(
+        jobstores={job_store_name: MongoDBJobStore(events_db, job_store_name, client)},
+        job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
+    scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
+    KScheduler._KScheduler__client = client
+    KScheduler._KScheduler__events_db = events_db
+    KScheduler._KScheduler__job_store_name = job_store_name
+    KScheduler._KScheduler__scheduler = scheduler
+    scheduler.start()
+    KScheduler._KScheduler__watchdog = _build_watchdog(scheduler)
+
+
+if os.getenv("KAIRON_SKIP_SCHEDULER") != "1":
+    _ensure_started()
