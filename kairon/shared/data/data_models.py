@@ -1457,7 +1457,7 @@ class BulkCollectionDataRequest(KaironModel):
 
 class CognitiveDataRequest(KaironModel):
     data: Any
-    content_type: CognitionDataType = CognitionDataType.text.value
+    content_type: CognitionDataType = CognitionDataType.text
     collection: Optional[LowerStr] = None
 
     @model_validator(mode="after")

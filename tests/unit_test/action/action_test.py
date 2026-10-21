@@ -12,6 +12,8 @@ from kairon.shared.admin.data_objects import LLMSecret, LLMMetadata
 from kairon.shared.data.data_models import LlmPromptRequest, CrudConfigRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import LlmPromptSource
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
+
 from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
@@ -3475,7 +3477,7 @@ class TestActions:
             expected_output.pop('_id')
             expected_output.pop('timestamp')
             expected_outputs.append(expected_output)
-        config = ActionFormValidation(bot, 'validate_form_1').retrieve_config().to_json()
+        config = ActionFormValidation(bot, 'validate_form_1').retrieve_config().to_json(json_options=LEGACY_JSON_OPTIONS)
         config = json.loads(config)
         for c in config:
             c.pop('timestamp')

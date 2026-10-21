@@ -5,6 +5,7 @@ from typing import Dict, Text
 from loguru import logger as logging
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 from mongoengine.errors import ValidationError
 from pydantic import SecretStr
 from starlette.requests import Request
@@ -1493,7 +1494,7 @@ class AccountProcessor:
             .skip(start_idx)
             .limit(page_size)
             .exclude("id")
-            .order_by('-timestamp').to_json()
+            .order_by('-timestamp').to_json(json_options=LEGACY_JSON_OPTIONS)
         )
         return json.loads(auditlog_data)
 

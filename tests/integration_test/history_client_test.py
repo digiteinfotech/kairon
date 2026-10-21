@@ -1073,7 +1073,6 @@ def test_download_conversation_with_data_with_kairon_client(mock_auth_admin, moc
         body=file.read(),
         content_type="text/plain",
         adding_headers={"Content-Disposition": "attachment; filename=conversations.csv"},
-        stream=True
     )
 
     response = client.get(

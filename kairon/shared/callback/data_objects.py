@@ -11,6 +11,7 @@ from uuid6 import uuid7
 
 from mongoengine import StringField, DictField, DateTimeField, Document, DynamicField, IntField, BooleanField, \
     FloatField
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 
 from kairon import Utility
 from kairon.async_callback.exceptions import CallbackException
@@ -466,7 +467,8 @@ class CallbackLog(Document):
 
     @staticmethod
     def get_logs(query: dict, offset: int, limit: int) -> tuple[list[dict], int]:
-        logs = CallbackLog.objects(**query).skip(offset).limit(limit).exclude('id').order_by('-timestamp').to_json()
+        logs = CallbackLog.objects(**query).skip(offset).limit(limit).exclude('id').order_by('-timestamp').to_json(
+            json_options=LEGACY_JSON_OPTIONS)
         logs_dict_list = json.loads(logs)
         for log in logs_dict_list:
             log['timestamp'] = log['timestamp']['$date']

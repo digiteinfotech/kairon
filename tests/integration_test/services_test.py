@@ -266,6 +266,10 @@ async def mock_smtp(*args, **kwargs):
     return None
 
 
+def mock_sync_noop(*args, **kwargs):
+    return None
+
+
 def complete_end_to_end_event_execution(bot, user, event_class, **kwargs):
     from kairon.events.definitions.data_importer import TrainingDataImporterEvent
     from kairon.events.definitions.model_training import ModelTrainingEvent
@@ -1428,7 +1432,7 @@ def test_add_trusted_device_on_signup_error(monkeypatch):
 
 
 def test_add_trusted_device_disabled(monkeypatch):
-    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_sync_noop)
     monkeypatch.setattr(MailUtility, "trigger_smtp", mock_smtp)
     response = client.post(
         "/api/account/device/trusted",
@@ -1444,7 +1448,7 @@ def test_add_trusted_device_disabled(monkeypatch):
 def test_add_trusted_device(monkeypatch):
     monkeypatch.setitem(Utility.environment["user"], "validate_trusted_device", True)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
-    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_sync_noop)
     monkeypatch.setattr(MailUtility, "trigger_smtp", mock_smtp)
 
     with patch("kairon.shared.plugins.ipinfo.IpInfoTracker.execute") as mock_geo:
@@ -24670,7 +24674,7 @@ def test_accept_bot_invite(monkeypatch):
 
     monkeypatch.setattr(Utility, "verify_token", __mock_verify_token)
     monkeypatch.setattr(MailUtility, "trigger_smtp", mock_smtp)
-    monkeypatch.setattr(AccountProcessor, "get_user_details", mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "get_user_details", mock_sync_noop)
     monkeypatch.setitem(Utility.email_conf["email"], "enable", True)
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/invite/accept",
@@ -24714,7 +24718,7 @@ def test_accept_bot_invite_logged_in_user_with_email_enabled(monkeypatch):
     assert response["data"]["active_invites"][0]["bot_name"] == "Hi-Hello"
 
     monkeypatch.setattr(MailUtility, "trigger_smtp", mock_smtp)
-    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_smtp)
+    monkeypatch.setattr(AccountProcessor, "check_email_confirmation", mock_sync_noop)
     Utility.email_conf["email"]["enable"] = True
     response = client.post(
         f"/api/user/{pytest.add_member_bot}/member/invite/accept",

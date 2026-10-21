@@ -9,6 +9,8 @@ from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.shared.constants import PluginTypes
 from kairon.shared.metering.constants import MetricType, UpdateMetricType
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
+
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.plugins.factory import PluginFactory
 
@@ -119,7 +121,7 @@ class MeteringProcessor:
             end_date = utc_now().replace(day=calendar.monthrange(year, month)[1])
         kwargs.update({"account": account, "timestamp__gte": start_date, "timestamp__lte": end_date})
         metrics = Metering.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size) \
-            .exclude('id').to_json()
+            .exclude('id').to_json(json_options=LEGACY_JSON_OPTIONS)
 
         row_cnt = MongoProcessor().get_row_count(Metering, **kwargs)
         data = {

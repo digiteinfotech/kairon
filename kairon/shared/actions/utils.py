@@ -1080,6 +1080,10 @@ class ActionUtility:
 
     @staticmethod
     def get_basic_auth_str(username: Text, password: Text):
+        if username is None:
+            username = ""
+        if password is None:
+            password = ""
         return requests.auth._basic_auth_str(username, password)
 
     @staticmethod

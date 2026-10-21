@@ -23,6 +23,7 @@ from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
 from pydantic import ValidationError, create_model
@@ -686,7 +687,7 @@ class MongoProcessor:
         multiflow = (
             MultiflowStories.objects(bot=bot, status=True)
             .exclude("id", "bot", "user", "timestamp", "status")
-            .to_json()
+            .to_json(json_options=LEGACY_JSON_OPTIONS)
         )
         multiflow = json.loads(multiflow)
         return {"multiflow_story": multiflow}
@@ -2713,7 +2714,7 @@ class MongoProcessor:
                     new_entities_as_dict = []
                     if new_entities:
                         new_entities_as_dict = [
-                            json.loads(e.to_json()) for e in new_entities
+                            json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in new_entities
                         ]
                     yield {
                         "text": DataUtility.prepare_nlu_text(
@@ -2762,13 +2763,13 @@ class MongoProcessor:
                 message = "Training Example moved"
                 if training_example.entities:
                     new_entities_as_dict = [
-                        json.loads(e.to_json()) for e in training_example.entities
+                        json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in training_example.entities
                     ]
             except DoesNotExist:
                 if entities:
                     new_entities = self.save_entities_and_add_slots(entities, bot, user)
                     new_entities_as_dict = [
-                        json.loads(e.to_json()) for e in new_entities
+                        json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in new_entities
                     ]
                 else:
                     new_entities = None
@@ -7056,7 +7057,7 @@ class MongoProcessor:
             actions = (
                 SlotSetAction.objects(bot=bot, status=True)
                 .exclude("bot", "user", "timestamp", "status")
-                .to_json()
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
             actions = json.loads(actions)
             slot_set_actions = [
@@ -7066,7 +7067,7 @@ class MongoProcessor:
             actions = (
                 SlotSetAction.objects(bot=bot, status=True)
                 .exclude("id", "bot", "user", "timestamp", "status")
-                .to_json()
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
             slot_set_actions = json.loads(actions)
         return slot_set_actions
@@ -8259,7 +8260,7 @@ class MongoProcessor:
         data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date,
                        "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by(
-            '-timestamp').to_json()
+            '-timestamp').to_json(json_options=LEGACY_JSON_OPTIONS)
         row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
         return json.loads(auditlog_data), row_cnt
 
@@ -8298,7 +8299,7 @@ class MongoProcessor:
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time,
             }
-            query = logs[logtype].objects(**filter_query).to_json()
+            query = logs[logtype].objects(**filter_query).to_json(json_options=LEGACY_JSON_OPTIONS)
         elif logtype == LogType.audit_logs.value:
             filter_query = {
                 "attributes__key": "bot",
@@ -8307,7 +8308,7 @@ class MongoProcessor:
                 "timestamp__lte": end_time,
             }
             query = (
-                logs[logtype].objects(**filter_query).order_by("-timestamp").to_json()
+                logs[logtype].objects(**filter_query).order_by("-timestamp").to_json(json_options=LEGACY_JSON_OPTIONS)
             )
         else:
             filter_query = {
@@ -8315,7 +8316,7 @@ class MongoProcessor:
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time,
             }
-            query = logs[logtype].objects(**filter_query).to_json()
+            query = logs[logtype].objects(**filter_query).to_json(json_options=LEGACY_JSON_OPTIONS)
         value = json.loads(query)
         return value
 

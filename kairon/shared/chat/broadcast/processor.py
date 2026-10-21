@@ -5,6 +5,7 @@ from typing import Text, Dict, List
 
 from loguru import logger
 from mongoengine import DoesNotExist, Document
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 
 from kairon.shared.clock import utc_now
 from kairon import Utility
@@ -170,7 +171,7 @@ class MessageBroadcastProcessor:
 
         query_objects = MessageBroadcastLogs.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size).fields(**excluded_projection_keys)
         total_count = MessageBroadcastLogs.objects(**kwargs).count()
-        logs = query_objects.to_json()
+        logs = query_objects.to_json(json_options=LEGACY_JSON_OPTIONS)
         logs = json.loads(logs)
         return logs, total_count
 
