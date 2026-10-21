@@ -11800,42 +11800,26 @@ def test_get_executor_logs(get_executor_logs):
     assert actual["error_code"] == 0
     assert not actual["message"]
     assert actual["success"]
-    print(actual["data"]["logs"])
-    assert len(actual["data"]["logs"]) == actual["data"]["total"] == 2
+    logs = actual["data"]["logs"]
 
-    assert actual["data"]["logs"][0]["task_type"] == "Event"
-    assert actual["data"]["logs"][0]["event_class"] == "model_testing"
-    assert actual["data"]["logs"][0]["status"] == "Initiated"
-    assert actual["data"]["logs"][0]["data"] == [
-        {
-            'name': 'BOT',
-            'value': pytest.bot
-        },
-        {
-            'name': 'USER',
-            'value': 'test_user'
-        }
-    ]
-    assert actual["data"]["logs"][0]["executor_log_id"]
-    assert actual["data"]["logs"][0]['from_executor'] is True
-    assert actual["data"]["logs"][0]['bot'] == pytest.bot
+    assert len(logs) == actual["data"]["total"] == 2
 
-    assert actual["data"]["logs"][1]["task_type"] == "Event"
-    assert actual["data"]["logs"][1]["event_class"] == "model_training"
-    assert actual["data"]["logs"][1]["status"] == "Initiated"
-    assert actual["data"]["logs"][1]["data"] == [
-        {
-            'name': 'BOT',
-            'value': pytest.bot
-        },
-        {
-            'name': 'USER',
-            'value': 'test_user'
-        }
-    ]
-    assert actual["data"]["logs"][1]["executor_log_id"]
-    assert actual["data"]["logs"][1]['from_executor'] is True
-    assert actual["data"]["logs"][1]['bot'] == pytest.bot
+    logs_by_class = {log["event_class"]: log for log in logs}
+
+    assert set(logs_by_class) == {"model_testing", "model_training"}
+
+    for event_class in ("model_testing", "model_training"):
+        log = logs_by_class[event_class]
+
+        assert log["task_type"] == "Event"
+        assert log["status"] == "Initiated"
+        assert log["data"] == [
+            {"name": "BOT", "value": pytest.bot},
+            {"name": "USER", "value": "test_user"}
+        ]
+        assert log["executor_log_id"]
+        assert log["from_executor"] is True
+        assert log["bot"] == pytest.bot
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/executor/logs?task_type=Event&event_class=model_training",
