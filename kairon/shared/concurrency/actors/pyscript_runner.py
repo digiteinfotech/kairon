@@ -35,8 +35,6 @@ global_safe['url_parse'] = PyscriptUtility.url_parse_quote_plus
 class PyScriptRunner(BaseActor):
 
     def _format_script_error(src_code: Text, exc: Exception) -> str:
-        exc_type, exc_value, exc_tb = sys.exc_info()
-
         exc_tb = exc.__traceback__
         filename = '<inline code>'
         lines = src_code.splitlines()
