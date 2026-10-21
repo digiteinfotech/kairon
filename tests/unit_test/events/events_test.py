@@ -3793,8 +3793,17 @@ class TestEventExecution:
         assert logged_config == config
         logs[0][0].pop("timestamp", None)
 
-        assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value,
-                              'user': user, "exception": "Script execution error: import of 'os' is unauthorized"}
+        assert logs[0][0]["event_id"] == event_id
+        assert logs[0][0]["reference_id"] == reference_id
+        assert logs[0][0]["log_type"] == "common"
+        assert logs[0][0]["bot"] == bot
+        assert logs[0][0]["status"] == EVENT_STATUS.FAIL.value
+        assert logs[0][0]["user"] == user
+
+        exception = logs[0][0]["exception"]
+        assert "import of 'os' is unauthorized" in exception
+        assert "Error on Line" in exception
+        assert "Code: import os" in exception
 
     @responses.activate
     @patch("kairon.shared.channels.broadcast.whatsapp.json")
