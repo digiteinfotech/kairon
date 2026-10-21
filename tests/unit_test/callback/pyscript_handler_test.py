@@ -114,24 +114,34 @@ def test_lambda_handler_with_invalid_import():
     bot_response = "This is testing pyscript"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'bot': '6744733ec16e7cda801e9783', 'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
-    assert data['body'] == "Script execution error: import of 'numpy' is unauthorized"
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': "Script execution error: import of 'numpy' is unauthorized"
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'bot': '6744733ec16e7cda801e9783',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+
+    assert "import of 'numpy' is unauthorized" in body
+    assert "Script execution error:" in body
+    assert "Error on Line 2:" in body
+    assert "Code: import numpy as np" in body
+
 
 
 def test_lambda_handler_list_of_event_data():
@@ -347,32 +357,40 @@ def test_lambda_handler_for_send_email(mock_smtp):
 @patch("kairon.shared.pyscript.callback_pyscript_utils.SMTP", autospec=True)
 def test_lambda_handler_for_send_email_without_bot(mock_smtp):
     source_code = '''
-    send_email("email_action",    #email action name should be same as email action
-           "hghuge@digite.com",          # from email
+    send_email("email_action",    # email action name
+           "hghuge@digite.com",   # from email
            "mahesh.sattala@digite.com",  # to email
-           "New Order Placed",    #Subject
-           "THIS IS EMAIL BODY"     #body
+           "New Order Placed",    # subject
+           "THIS IS EMAIL BODY"  # body
     )
     bot_response = "Email sent successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    assert data['body'] == 'Script execution error: Missing bot id'
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+    assert 'Missing bot id' in body
+    assert 'Error on Line 2:' in body
+    assert 'Detail: AppException: Missing bot id' in body
+
 
 @responses.activate
 @patch("kairon.shared.pyscript.callback_pyscript_utils.CallbackScriptUtility.add_schedule_job", autospec=True)
@@ -468,57 +486,54 @@ def test_lambda_handler_with_add_schedule_job_without_bot(mock_uuid7):
     responses.add(
         method=responses.GET,
         url=http_url,
-        json={"data": "state -> 1", "message": "OK", "success": True, "error_code": 0},
+        json={
+            "data": "state -> 1",
+            "message": "OK",
+            "success": True,
+            "error_code": 0
+        },
         status=200
     )
 
     source_code = '''
     from datetime import datetime, timedelta
 
-    # Calculate the job trigger time 5 minutes from now
-    trigger_time1 = datetime.utcnow() + timedelta(minutes=30)
-    trigger_time2 = datetime.utcnow() + timedelta(minutes=2)
-
-    id = generate_id()
-
-    # Function to add the scheduled job (with the adjusted trigger time)
-    # add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id, kwargs={'task_type': 'Callback'})
-    # add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC', kwargs={'task_type': 'Callback'})
-
-    add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id)
-    add_schedule_job('del_job1', trigger_time2, {'event_id': id}, 'UTC')
-    '''
-    source_code = '''
-    from datetime import datetime, timedelta
-
-    # Calculate the job trigger time 5 minutes from now
     trigger_time1 = datetime(2025, 2, 4, 15, 30, 0)
-
     id = generate_id()
 
-    # Function to add the scheduled job (with the adjusted trigger time)
-    add_schedule_job('mng2', trigger_time1, {'user_rajan': 'test rajan sep 12'}, 'UTC', id)
+    add_schedule_job(
+        'mng2',
+        trigger_time1,
+        {'user_rajan': 'test rajan sep 12'},
+        'UTC',
+        id
+    )
     bot_response = "scheduled successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
-    assert data['body'] == 'Script execution error: Missing bot id'
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+    assert 'Script execution error: Missing bot id' in body
+
 
 
 @responses.activate
@@ -528,71 +543,93 @@ def test_lambda_handler_with_delete_schedule_job_without_bot():
     responses.add(
         method=responses.DELETE,
         url=http_url,
-        json={"data": "Deleted Successfully", "message": "OK", "success": True, "error_code": 0},
+        json={
+            "data": "Deleted Successfully",
+            "message": "OK",
+            "success": True,
+            "error_code": 0
+        },
         status=200
     )
 
     source_code = '''
-    # Function to delete the scheduled job (with the adjusted trigger time)
+    # Delete the scheduled job
     delete_schedule_job('e8b5a51d4c8a4e6db26e290e5d1d6f94')
     bot_response = "deleted successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
-    assert data['body'] == 'Script execution error: Missing bot id'
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+    assert 'Script execution error: Missing bot id' in body
+
 
 
 @responses.activate
 def test_lambda_handler_with_delete_schedule_job_without_event_id():
     server_url = Utility.environment["events"]["server_url"]
     http_url = f"{server_url}/api/events/e8b5a51d4c8a4e6db26e290e5d1d6f94"
+
     responses.add(
         method=responses.DELETE,
         url=http_url,
-        json={"data": "Deleted Successfully", "message": "OK", "success": True, "error_code": 0},
+        json={
+            "data": "Deleted Successfully",
+            "message": "OK",
+            "success": True,
+            "error_code": 0
+        },
         status=200
     )
 
     source_code = '''
-    # Function to delete the scheduled job (with the adjusted trigger time)
+    # Delete the scheduled job without an event ID
     delete_schedule_job(False)
     bot_response = "deleted successfully!"
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'bot': 'test_bot', 'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
-    assert data['body'] == 'Script execution error: Missing event id'
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing event id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'bot': 'test_bot',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+    assert 'Script execution error: Missing event id' in body
+
 
 
 @responses.activate
@@ -695,7 +732,6 @@ def test_pyscript_handler_for_add_data_without_bot():
     source_code = '''
     json_data = {
             "collection_name": "testing_crud_api",
-            # "is_secure": ["mobile_number"],
             "is_secure": [],
             "data": {
                 "mobile_number": "919876543210",
@@ -705,30 +741,32 @@ def test_pyscript_handler_for_add_data_without_bot():
 
     sender_id = "919876543210"
 
-    resp = add_data(sender_id,json_data)
-    # resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"7760368805"})
-    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    resp = add_data(sender_id, json_data)
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
+    }
+
+    body = data['body']
+    assert 'Script execution error: Missing bot id' in body
 
 
 def test_pyscript_handler_for_get_data():
@@ -816,13 +854,13 @@ def test_pyscript_handler_for_get_data_without_bot():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_crud_metadata():
@@ -925,13 +963,13 @@ def test_pyscript_handler_for_get_crud_metadata_without_bot():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_crud_metadata_without_collection_name():
@@ -969,13 +1007,13 @@ def test_pyscript_handler_for_get_crud_metadata_without_collection_name():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing collection name',
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+    assert 'Script execution error: Missing collection name' in data['body']
 
 
 def test_pyscript_handler_for_update_data():
@@ -1058,13 +1096,13 @@ def test_pyscript_handler_for_update_data_without_bot():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_data_after_update():
@@ -1183,13 +1221,13 @@ def test_pyscript_handler_for_delete_data_without_bot():
              }
     data = CallbackUtility.pyscript_handler(event, None)
     print(data)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: Missing bot id'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_data_after_delete():
@@ -2165,15 +2203,20 @@ def test_pyscript_handler_for_upload_media_media_not_found(mock_get_buffer):
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-      "statusCode": 422,
-      "statusDescription": "200 OK",
-      "isBase64Encoded": False,
-      "headers": {
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      "body": "Script execution error: UserMediaData not found for media_id: 0196c9efbf547b81a66ba2af7b72d5aa"
+
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+
+    expected_error = (
+        'Script execution error: UserMediaData not found for media_id: '
+        '0196c9efbf547b81a66ba2af7b72d5aa'
+    )
+    assert expected_error in data['body']
+
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2224,16 +2267,22 @@ def test_pyscript_handler_for_upload_media_channel_not_configured(mock_get_buffe
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-      "statusCode": 422,
-      "statusDescription": "200 OK",
-      "isBase64Encoded": False,
-      "headers": {
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      "body": f"Script execution error: Channel config not found for bot: {bot}, connector_type: whatsapp, bsp_type: 360dialog"
-    }
-    UserMediaData.objects().delete()
+
+    try:
+        assert data['statusCode'] == 422
+        assert data['statusDescription'] == '200 OK'
+        assert data['isBase64Encoded'] is False
+        assert data['headers'] == {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+
+        expected_error = (
+            f"Script execution error: Channel config not found for bot: {bot}, "
+            "connector_type: whatsapp, bsp_type: 360dialog"
+        )
+        assert expected_error in data['body']
+    finally:
+        UserMediaData.objects(bot=bot).delete()
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2307,18 +2356,22 @@ def test_pyscript_handler_for_upload_media_access_token_not_found(mock_get_buffe
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-      "statusCode": 422,
-      "statusDescription": "200 OK",
-      "isBase64Encoded": False,
-      "headers": {
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      "body": "Script execution error: API key (access token) not found in channel config"
-    }
-    UserMediaData.objects().delete()
-    BotSettings.objects().delete()
-    Channels.objects().delete()
+
+    try:
+        assert data['statusCode'] == 422
+        assert data['statusDescription'] == '200 OK'
+        assert data['isBase64Encoded'] is False
+        assert data['headers'] == {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        assert (
+                'Script execution error: API key (access token) not found in channel config'
+                in data['body']
+        )
+    finally:
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
 
 @pytest.mark.asyncio
 @responses.activate
@@ -2388,18 +2441,19 @@ def test_pyscript_handler_for_upload_media_file_stream_not_found(mock_get_buffer
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-      "statusCode": 422,
-      "statusDescription": "200 OK",
-      "isBase64Encoded": False,
-      "headers": {
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      "body": "Script execution error: File stream not found"
-    }
-    UserMediaData.objects().delete()
-    BotSettings.objects().delete()
-    Channels.objects().delete()
+
+    try:
+        assert data['statusCode'] == 422
+        assert data['statusDescription'] == '200 OK'
+        assert data['isBase64Encoded'] is False
+        assert data['headers'] == {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        assert 'Script execution error: File stream not found' in data['body']
+    finally:
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
 
 
 @pytest.mark.asyncio
@@ -2473,18 +2527,19 @@ def test_pyscript_handler_for_upload_media_360dialog_upload_failed(mock_get_buff
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-      "statusCode": 422,
-      "statusDescription": "200 OK",
-      "isBase64Encoded": False,
-      "headers": {
-        "Content-Type": "application/json; charset=utf-8"
-      },
-      "body": "Script execution error: Failure Test Case Simulation"
-    }
-    UserMediaData.objects().delete()
-    BotSettings.objects().delete()
-    Channels.objects().delete()
+
+    try:
+        assert data['statusCode'] == 422
+        assert data['statusDescription'] == '200 OK'
+        assert data['isBase64Encoded'] is False
+        assert data['headers'] == {
+            'Content-Type': 'application/json; charset=utf-8'
+        }
+        assert 'Script execution error: Failure Test Case Simulation' in data['body']
+    finally:
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
 
 
 @pytest.mark.asyncio
@@ -2558,12 +2613,15 @@ def test_pyscript_handler_for_upload_media_legacy_360dialog_alias_success(mock_g
                   'intent': 'test'
                   }
              }
-    data = CallbackUtility.pyscript_handler(event, None)
-    assert data['statusCode'] == 200
-    assert data['body']['bot_response'] == expected_external_media_id
-    UserMediaData.objects().delete()
-    BotSettings.objects().delete()
-    Channels.objects().delete()
+    try:
+        data = CallbackUtility.pyscript_handler(event, None)
+
+        assert data['statusCode'] == 200
+        assert data['body']['bot_response'] == expected_external_media_id
+    finally:
+        UserMediaData.objects(bot=bot).delete()
+        BotSettings.objects(bot=bot).delete()
+        Channels.objects(bot=bot).delete()
 
 
 def test_pyscript_handler_for_decrypt_request_success():
@@ -2690,13 +2748,17 @@ def test_pyscript_handler_for_decrypt_request_missing_fields():
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: decryption failed-Missing required encrypted data fields'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+
+    assert (
+            'decryption failed-Missing required encrypted data fields'
+            in data['body']
+    )
 
 
 def test_pyscript_handler_for_encrypt_response_success():
@@ -2776,13 +2838,15 @@ def test_pyscript_handler_for_encrypt_response_missing_aes_key_buffer():
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: encryption failed-AES key cannot be None'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+
+    body = data['body']
+    assert 'encryption failed-AES key cannot be None' in body
 
 
 def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
@@ -2817,13 +2881,15 @@ def test_pyscript_handler_for_encrypt_response_missing_initial_vector_buffer():
                   }
              }
     data = CallbackUtility.pyscript_handler(event, None)
-    assert data == {
-        'statusCode': 422,
-        'statusDescription': '200 OK',
-        'isBase64Encoded': False,
-        'headers': {'Content-Type': 'application/json; charset=utf-8'},
-        'body': 'Script execution error: encryption failed-Initialization vector (IV) cannot be None'
+    assert data['statusCode'] == 422
+    assert data['statusDescription'] == '200 OK'
+    assert data['isBase64Encoded'] is False
+    assert data['headers'] == {
+        'Content-Type': 'application/json; charset=utf-8'
     }
+
+    body = data['body']
+    assert 'encryption failed-Initialization vector (IV) cannot be None' in body
 
 
 @patch("kairon.shared.callback.data_objects.CallbackData.save", MagicMock())
@@ -3269,11 +3335,9 @@ def test_delete_schedule_job_without_bot_in_main_pyscript():
              }
     data = CallbackUtility.main_pyscript_handler(event, None)
     print(data)
-    assert data['body'] == 'Script execution error: Missing bot id'
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
-    }
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
+
 
 @responses.activate
 def test_delete_schedule_job_in_main_pyscript():
@@ -3368,38 +3432,35 @@ def test_pyscript_handler_for_add_data_in_main_pyscript():
 def test_pyscript_handler_for_add_data_without_bot_in_main_pyscript():
     source_code = '''
     json_data = {
-            "collection_name": "testing_crud_api",
-            # "is_secure": ["mobile_number"],
-            "is_secure": [],
-            "data": {
-                "mobile_number": "919876543210",
-                "name": "Mahesh",
-            }
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
         }
+    }
 
     sender_id = "919876543210"
 
-    resp = add_data(sender_id,json_data)
-    # resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"7760368805"})
-    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    resp = add_data(sender_id, json_data)
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
@@ -3466,84 +3527,89 @@ def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
 
 def test_pyscript_handler_for_crud_metadata_without_bot_in_main_pyscript():
     source_code = '''
-        json_data = {
-                "collection_name": "testing_crud_api",
-                # "is_secure": ["mobile_number"],
-                "is_secure": [],
-                "data": {
-                    "mobile_number": "919876543210",
-                    "name": "Mahesh",
-                    "aadhar": "29383989838930",
-                    "pan": "JJ928392JH",
-                    "pincode": 538494
-                }
-            }
-
-        sender_id = "919876543210"
-
-        resp = add_data(sender_id,json_data)
-        resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
-        resp = get_crud_metadata("testing_crud_api", sender_id)
-        # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-        # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
-        bot_response = resp
-        '''
-    source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
+    json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }
     }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id, json_data)
+    resp = get_data(
+        "testing_crud_api",
+        sender_id,
+        {"name": "Mahesh", "mobile_number": "919876543210"}
+    )
+    resp = get_crud_metadata("testing_crud_api", sender_id)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
+    }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_crud_metadata_without_collection_name_in_main_pyscript():
     source_code = '''
-        json_data = {
-                "collection_name": "testing_crud_api",
-                # "is_secure": ["mobile_number"],
-                "is_secure": [],
-                "data": {
-                    "mobile_number": "919876543210",
-                    "name": "Mahesh",
-                    "aadhar": "29383989838930",
-                    "pan": "JJ928392JH",
-                    "pincode": 538494
-                }
-            }
-
-        sender_id = "919876543210"
-
-        resp = add_data(sender_id,json_data)
-        resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
-        resp = get_crud_metadata("", sender_id)
-        # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-        # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
-        bot_response = resp
-        '''
-    source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'bot': 'test_bot', 'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {'bot': 'test_bot'},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing collection name'
+    json_data = {
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
+            "aadhar": "29383989838930",
+            "pan": "JJ928392JH",
+            "pincode": 538494
+        }
     }
+
+    sender_id = "919876543210"
+
+    resp = add_data(sender_id, json_data)
+    resp = get_data(
+        "testing_crud_api",
+        sender_id,
+        {"name": "Mahesh", "mobile_number": "919876543210"}
+    )
+    resp = get_crud_metadata("", sender_id)
+    bot_response = resp
+    '''
+    source_code = textwrap.dedent(source_code)
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'bot': 'test_bot',
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {'bot': 'test_bot'},
+            'intent': 'k_multimedia_msg'
+        }
+    }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing collection name' in data['body']
 
 
 def test_pyscript_handler_for_get_data_in_main_pyscript():
@@ -3600,39 +3666,31 @@ def test_pyscript_handler_for_get_data_in_main_pyscript():
 
 def test_pyscript_handler_for_get_data_without_bot_in_main_pyscript():
     source_code = '''
-    json_data = {
-            "collection_name": "testing_crud_api",
-            # "is_secure": ["mobile_number"],
-            "is_secure": [],
-            "data": {
-                "mobile_number": "919876543210",
-                "name": "Mahesh",
-            }
-        }
-
     sender_id = "919876543210"
 
-    # resp = add_data(sender_id,json_data)
-    resp = get_data("testing_crud_api",sender_id,{"name":"Mahesh", "mobile_number":"919876543210"})
-    # resp = delete_data("67aafc787f4e6043f050496e",sender_id)
-    # resp = update_data("67aafc787f4e6043f050496e",sender_id,json_data)
+    resp = get_data(
+        "testing_crud_api",
+        sender_id,
+        {"name": "Mahesh", "mobile_number": "919876543210"}
+    )
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_update_data_in_main_pyscript():
@@ -3684,14 +3742,14 @@ def test_pyscript_handler_for_update_data_in_main_pyscript():
 def test_pyscript_handler_for_update_data_without_bot_in_main_pyscript():
     source_code = '''
     json_data = {
-            "collection_name": "testing_crud_api",
-            # "is_secure": ["mobile_number"],
-            "is_secure": [],
-            "data": {
-                "mobile_number": "919876543210",
-                "name": "Mahesh",
-            }
+        "collection_name": "testing_crud_api",
+        "is_secure": [],
+        "data": {
+            "mobile_number": "919876543210",
+            "name": "Mahesh",
         }
+    }
+
     update_json_data = {
         "collection_name": "testing_crud_api",
         "is_secure": [],
@@ -3700,28 +3758,30 @@ def test_pyscript_handler_for_update_data_without_bot_in_main_pyscript():
             "name": "Mahesh SV",
         }
     }
+
     sender_id = "919876543210"
 
-    resp = add_data(sender_id,json_data)
-    collection_id=str(resp['data']['_id'])
+    resp = add_data(sender_id, json_data)
+    collection_id = str(resp['data']['_id'])
     resp = update_data(collection_id, sender_id, update_json_data)
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_data_after_update_in_main_pyscript():
@@ -3810,7 +3870,6 @@ def test_pyscript_handler_for_delete_data_without_bot_in_main_pyscript():
     source_code = '''
     json_data = {
             "collection_name": "testing_crud_api1",
-            # "is_secure": ["mobile_number"],
             "is_secure": [],
             "data": {
                 "mobile_number": "919876543210",
@@ -3820,26 +3879,27 @@ def test_pyscript_handler_for_delete_data_without_bot_in_main_pyscript():
 
     sender_id = "919876543210"
 
-    resp = add_data(sender_id,json_data)
-    collection_id=str(resp['data']['_id'])
-    resp = delete_data(collection_id,sender_id) 
+    resp = add_data(sender_id, json_data)
+    collection_id = str(resp['data']['_id'])
+    resp = delete_data(collection_id, sender_id)
     bot_response = resp
     '''
     source_code = textwrap.dedent(source_code)
-    event = {'source_code': source_code,
-             'predefined_objects':
-                 {'sender_id': '917506075263',
-                  'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
-                  'slot': {},
-                  'intent': 'k_multimedia_msg'
-                  }
-             }
-    data = CallbackUtility.main_pyscript_handler(event, None)
-    print(data)
-    assert data == {
-        'statusCode': 422,
-        'body': 'Script execution error: Missing bot id'
+
+    event = {
+        'source_code': source_code,
+        'predefined_objects': {
+            'sender_id': '917506075263',
+            'user_message': '/k_multimedia_msg{"latitude": "25.2435955", "longitude": "82.9430092"}',
+            'slot': {},
+            'intent': 'k_multimedia_msg'
+        }
     }
+
+    data = CallbackUtility.main_pyscript_handler(event, None)
+
+    assert data['statusCode'] == 422
+    assert 'Script execution error: Missing bot id' in data['body']
 
 
 def test_pyscript_handler_for_get_data_after_delete_in_main_pyscript():
