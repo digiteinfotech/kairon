@@ -1,3 +1,5 @@
+import sys
+import traceback
 from functools import partial
 from types import ModuleType
 from typing import Text, Dict, Optional, Callable
@@ -31,6 +33,39 @@ global_safe['url_parse'] = PyscriptUtility.url_parse_quote_plus
 
 
 class PyScriptRunner(BaseActor):
+
+    def _format_script_error(src_code: Text, exc: Exception) -> str:
+        exc_type, exc_value, exc_tb = sys.exc_info()
+
+        exc_tb = exc.__traceback__
+        filename = '<inline code>'
+        lines = src_code.splitlines()
+
+        error_details = []
+
+        for frame in traceback.extract_tb(exc_tb):
+            if frame.filename == filename:
+                line_number = frame.lineno
+
+                source_line = (
+                    lines[line_number - 1].strip()
+                    if 1 <= line_number <= len(lines)
+                    else ""
+                )
+
+                error_details.append(
+                    f"Error on Line {line_number}:\n"
+                    f"    Code: {source_line}\n"
+                    f"    Detail: {type(exc).__name__}: {exc}"
+                )
+
+        error_message = f"Script execution error: {exc}"
+
+        if error_details:
+            error_message += "\n" + error_details[-1]
+
+        return error_message
+
 
     def execute(self, source_code: Text, predefined_objects: Optional[Dict] = None, **kwargs):
         """
@@ -86,7 +121,8 @@ class PyScriptRunner(BaseActor):
                 return filtered_locals
             except Exception as e:
                 logger.exception(e)
-                raise AppException(f"Script execution error: {e}")
+                error_message = PyScriptRunner._format_script_error(src_code, e)
+                raise AppException(f"Script execution error: {error_message}")
 
         return execute_script_with_timeout(source_code, global_safe, local_vars)
 
