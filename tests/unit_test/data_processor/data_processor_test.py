@@ -103,6 +103,59 @@ from kairon.shared.multilingual.processor import MultilingualLogProcessor
 from kairon.shared.test.data_objects import ModelTestingLogs
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.train import train_model_for_bot, start_training
+
+# These tests only check that a model archive is written. The stored bot config
+# still has DIET and TED; rewriting the file rasa trains on keeps that config.
+# The first call trains this pipeline once. Later calls copy that archive.
+_FAST_TRAIN_CONFIG = (
+    "recipe: default.v1\n"
+    "language: en\n"
+    "pipeline:\n"
+    "- name: KeywordIntentClassifier\n"
+    "policies:\n"
+    "- name: MemoizationPolicy\n"
+    "- name: RulePolicy\n"
+)
+_FAST_MODEL_DIR = tempfile.mkdtemp(prefix="kairon_fast_model_")
+_FAST_MODEL = {"path": None}
+
+
+@pytest.fixture(autouse=True)
+def fast_rasa_training(monkeypatch):
+    def _reuse(output):
+        from rasa.model_training import TrainingResult
+
+        os.makedirs(output, exist_ok=True)
+        dest = os.path.join(output, f"{utc_now().strftime('%Y%m%d-%H%M%S%f')}.tar.gz")
+        shutil.copy(_FAST_MODEL["path"], dest)
+        return TrainingResult(model=dest)
+
+    def _train(*args, **kwargs):
+        output = kwargs.get("output")
+        if _FAST_MODEL["path"] and os.path.isfile(_FAST_MODEL["path"]) and isinstance(output, str):
+            return _reuse(output)
+
+        from rasa.api import train as rasa_train
+
+        config_path = kwargs.get("config")
+        if config_path is None and len(args) > 1:
+            config_path = args[1]
+        if isinstance(config_path, str) and os.path.isfile(config_path):
+            with open(config_path, "w") as config_file:
+                config_file.write(_FAST_TRAIN_CONFIG)
+        core_args = dict(kwargs.get("core_additional_arguments") or {})
+        core_args["augmentation_factor"] = 0
+        kwargs["core_additional_arguments"] = core_args
+        result = rasa_train(*args, **kwargs)
+        if result.model and os.path.isfile(result.model):
+            stable = os.path.join(_FAST_MODEL_DIR, os.path.basename(result.model))
+            shutil.copy(result.model, stable)
+            _FAST_MODEL["path"] = stable
+        return result
+
+    monkeypatch.setattr("kairon.train.train", _train)
+
+
 from deepdiff import DeepDiff
 
 
@@ -11790,7 +11843,7 @@ class TestMongoProcessor:
         bot = 'test_add_regex'
         user = 'test_user'
         with pytest.raises(AppException) as e:
-            processor.add_regex({"name": "bot11", "pattern": "[0-9]++"}, bot=bot, user=user)
+            processor.add_regex({"name": "bot11", "pattern": "[0-9"}, bot=bot, user=user)
         assert str(e).__contains__("invalid regular expression")
 
     def test_add_lookup(self):

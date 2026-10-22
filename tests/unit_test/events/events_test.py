@@ -2381,7 +2381,18 @@ class TestEventExecution:
     def test_trigger_model_training_event(self, load_data, create_model):
         bot = 'test_events_bot'
         user = 'test_user'
-        config_path = 'tests/testing_data/model_tester/config.yml'
+        # This test only checks that training writes a model archive.
+        # DIET and TED at 100 epochs are what make the shared model_tester config slow.
+        config_path = os.path.join(pytest.tmp_dir, 'fast_train_config.yml')
+        with open(config_path, 'w') as target:
+            target.write(
+                "language: en\n"
+                "pipeline:\n"
+                "- name: KeywordIntentClassifier\n"
+                "policies:\n"
+                "- name: MemoizationPolicy\n"
+                "- name: RulePolicy\n"
+            )
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_with_entities/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
