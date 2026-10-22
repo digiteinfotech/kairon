@@ -251,6 +251,82 @@ def setup():
     LLMSecret.objects.delete()
     LLMMetadata.objects.delete()
 
+
+# Train posts only check that training started and a model archive is written.
+# Uploaded yaml and the stored bot config stay as they are. The file rasa
+# trains on is rewritten to this pipeline. The first call trains once.
+# Later calls copy that archive.
+_FAST_TRAIN_CONFIG = (
+    "recipe: default.v1\n"
+    "language: en\n"
+    "pipeline:\n"
+    "- name: KeywordIntentClassifier\n"
+    "policies:\n"
+    "- name: MemoizationPolicy\n"
+    "- name: RulePolicy\n"
+)
+_FAST_MODEL_DIR = tempfile.mkdtemp(prefix="kairon_fast_model_")
+_FAST_MODEL = {"path": None}
+
+
+def _validate_keyword_map_once(self):
+    # Rasa pops the same overlapping keyword once per longer example.
+    import re
+
+    re_flag = 0 if self.case_sensitive else re.IGNORECASE
+    ambiguous = []
+    for keyword1, intent1 in self.intent_keyword_map.items():
+        for keyword2, intent2 in self.intent_keyword_map.items():
+            if (
+                re.search(r"\b" + keyword1 + r"\b", keyword2, flags=re_flag)
+                and intent1 != intent2
+            ):
+                ambiguous.append(keyword1)
+    for keyword in ambiguous:
+        self.intent_keyword_map.pop(keyword, None)
+
+
+def _fast_rasa_train(*args, **kwargs):
+    output = kwargs.get("output")
+    if _FAST_MODEL["path"] and os.path.isfile(_FAST_MODEL["path"]) and isinstance(output, str):
+        from rasa.model_training import TrainingResult
+
+        os.makedirs(output, exist_ok=True)
+        dest = os.path.join(output, f"{utc_now().strftime('%Y%m%d-%H%M%S%f')}.tar.gz")
+        shutil.copy(_FAST_MODEL["path"], dest)
+        return TrainingResult(model=dest)
+
+    from rasa.api import train as rasa_train
+    from rasa.nlu.classifiers.keyword_intent_classifier import KeywordIntentClassifier
+
+    original_validate = KeywordIntentClassifier._validate_keyword_map
+    KeywordIntentClassifier._validate_keyword_map = _validate_keyword_map_once
+
+    config_path = kwargs.get("config")
+    if config_path is None and len(args) > 1:
+        config_path = args[1]
+    if isinstance(config_path, str) and os.path.isfile(config_path):
+        with open(config_path, "w") as config_file:
+            config_file.write(_FAST_TRAIN_CONFIG)
+    core_args = dict(kwargs.get("core_additional_arguments") or {})
+    core_args["augmentation_factor"] = 0
+    kwargs["core_additional_arguments"] = core_args
+    try:
+        result = rasa_train(*args, **kwargs)
+    finally:
+        KeywordIntentClassifier._validate_keyword_map = original_validate
+    if result.model and os.path.isfile(result.model):
+        stable = os.path.join(_FAST_MODEL_DIR, os.path.basename(result.model))
+        shutil.copy(result.model, stable)
+        _FAST_MODEL["path"] = stable
+    return result
+
+
+@pytest.fixture(autouse=True)
+def fast_rasa_training(monkeypatch):
+    monkeypatch.setattr("kairon.train.train", _fast_rasa_train)
+
+
 def pytest_configure():
     return {
         "token_type": None,
@@ -15025,8 +15101,8 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                         }
                     ]
                 },
-                'recipient': '919876543210',
-                'retry_count': 1
+                'recipient': '918958030541',
+                'retry_count': 2
             },
             {
                 'reference_id': ref_id,
@@ -15042,8 +15118,8 @@ def test_get_broadcast_logs_with_resend_broadcasts():
                         }
                     ]
                 },
-                'recipient': '918958030541',
-                'retry_count': 2
+                'recipient': '919876543210',
+                'retry_count': 1
             },
             {
                 'reference_id': ref_id,

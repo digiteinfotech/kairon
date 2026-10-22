@@ -28,6 +28,9 @@ class TestMessageBroadcastProcessor:
 
         bot = "test_bot"
         user = "test_user"
+        watchdog_before = sum(
+            thread.name == "SchedulerWatchdog" for thread in threading.enumerate()
+        )
         scheduler = KScheduler()
         assert scheduler.name == "KScheduler"
         assert scheduler._KScheduler__scheduler._job_defaults == {'misfire_grace_time': 7200, 'coalesce': True,
@@ -37,7 +40,11 @@ class TestMessageBroadcastProcessor:
         assert isinstance(mongostore, MongoDBJobStore)
         assert mongostore.collection.full_name == f'{Utility.environment["events"]["queue"]["name"]}.' \
                                                   f'{Utility.environment["events"]["scheduler"]["collection"]}'
-        assert not any(thread.name == "SchedulerWatchdog" for thread in threading.enumerate())
+        # A full suite may already have started the daemon. This call must not add one.
+        watchdog_after = sum(
+            thread.name == "SchedulerWatchdog" for thread in threading.enumerate()
+        )
+        assert watchdog_after == watchdog_before
 
     @patch("pymongo.collection.Collection.create_index")
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
