@@ -18,6 +18,12 @@ from kairon.events.publisher import KaironEvent, KaironEventPublisher
 
 class ActionERPNextCRMLeadQualified(ActionsBase):
     """
+    DEPRECATED for new bots: lead qualification is now done by the scheduled analytics pipeline
+    (`kairon/crm/analytics`, event `crm_lead_analysis`), which judges whole conversations against the company's own
+    configured criteria. This flow-step action is kept so bots that already use it keep working; both paths send the
+    same `conversation_id`, and the tenant connector dedupes Leads on it, so they cannot create two Leads for one user.
+    See docs/crm_redesign_design.md section 1.6 for the files to remove once no bot depends on it.
+
     Publishes a `lead.qualified` event to the bot's provisioned ERPNext CRM tenant
     (via kairon_connector's webhook receiver) when a conversation reaches the
     qualification point the bot's flow designer wired this action to.

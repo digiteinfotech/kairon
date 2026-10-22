@@ -54,6 +54,7 @@ def main():
                 "extract_data": CallbackScriptUtility.extract_data,
                 "process_instruction": CallbackScriptUtility.process_instruction,
                 "create_vector_collection": CallbackScriptUtility.create_vector_collection,
+                "analyse_crm_leads": partial(CallbackScriptUtility.analyse_crm_leads, bot=bot),
                 "send_email": partial(CallbackScriptUtility.send_email, bot=bot),
                 "srtp_time": PyscriptUtility.srtptime,
                 "srtf_time": PyscriptUtility.srtftime,

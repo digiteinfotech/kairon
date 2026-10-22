@@ -29,6 +29,14 @@ class CRMOnboardingStatus(str, Enum):
     FAILED_UPGRADE = "FAILED_UPGRADE"
 
 
+class CRMAdminInvitationStatus(str, Enum):
+    NOT_SENT = "NOT_SENT"      # tenant not ready yet, nothing to send
+    PENDING = "PENDING"        # tenant ready; waiting for (re)delivery
+    SENDING = "SENDING"        # claimed by exactly one worker
+    SENT = "SENT"              # accepted by the mail provider (not a read receipt)
+    FAILED = "FAILED"          # last attempt failed; retried until max attempts
+
+
 @auditlogger.log
 class CRMClientDetails(Auditlog):
     company_name = StringField(required=True)
@@ -84,6 +92,24 @@ class CRMClientDetails(Auditlog):
     # Module Selection
     selected_modules = ListField(StringField(), default=list)  # business module keys chosen at onboarding
     module_profile_name = StringField()                        # ERPNext Module Profile doc name for this site
+
+    # CRM administrator: the person who administers the tenant (not necessarily the bot owner) and who receives
+    # the invitation once the tenant is verified ready.
+    crm_admin_email = StringField()
+
+    # Administrator invitation delivery state. Independent of `onboarding_status`: a failed email never fails
+    # provisioning. Holds diagnostics only, never the setup link or any credential.
+    invitation_status = StringField(
+        default=CRMAdminInvitationStatus.NOT_SENT.value,
+        choices=[s.value for s in CRMAdminInvitationStatus],
+    )
+    invitation_attempts = IntField(default=0)
+    invitation_provisioning_id = StringField()   # provisioning run the invitation belongs to (duplicate guard)
+    invitation_claimed_at = DateTimeField()      # when SENDING was claimed (stale-claim recovery)
+    invitation_last_attempt_at = DateTimeField()
+    invitation_sent_at = DateTimeField()
+    invitation_next_attempt_at = DateTimeField()
+    invitation_last_error = StringField()        # short error class/message, no secrets
 
     # Metering handoff state (metadata only; see kairon/crm/metering_sync.py)
     metering_synced = BooleanField(default=False)

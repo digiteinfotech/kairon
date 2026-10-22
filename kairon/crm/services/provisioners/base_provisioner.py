@@ -1,11 +1,13 @@
 import json
 import subprocess
+import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 from loguru import logger
 from cryptography.fernet import Fernet
 from kairon.exceptions import AppException
 from kairon.crm.models import CRMClientDetails
+from kairon.crm.services.bench_runner import BenchResult, get_bench_runner
 from kairon.crm.services.docker_utils import resolve_container_name
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 
@@ -20,7 +22,17 @@ class BaseProvisioner(ABC):
     def __init__(self, plan: ProvisioningPlan, bench_config: dict):
         self.plan = plan
         self.bench_config = bench_config
+        # None in docker mode (the default): every method below then runs exactly the docker exec it always did.
+        self.runner = get_bench_runner()
+        self.provisioning_id = ""
+        self._run_id = uuid.uuid4().hex
         self.container_name = resolve_container_name(bench_config, self.__class__.__name__)
+
+    def _op(self, operation: str, site: str = None, params: dict = None, secrets: dict = None) -> BenchResult:
+        """One Bench runner operation. The idempotency key names this provisioning run, so a retry of the same run reuses
+        the job while a new run (new provisioning id) after a failure starts fresh."""
+        key = f"{self.provisioning_id or self._run_id}:{operation}:{site or 'global'}"
+        return self.runner.run(operation, site, params, idempotency_key=key, secrets=secrets)
 
     @staticmethod
     def _clean_site_name(company_name: str) -> tuple:
@@ -37,6 +49,13 @@ class BaseProvisioner(ABC):
 
     def _bench_new_site(self, site_name: str, db_name: str, admin_password: str, install_app: str, label: str):
         """Runs `bench new-site` installing the given app. Raises AppException on failure."""
+        if self.runner:
+            result = self._op("new_site", site_name, {"db_name": db_name, "apps": [install_app]},
+                              secrets={"admin_password": admin_password})   # the runner holds the DB root credentials itself
+            if not result.ok:
+                self._rollback_partial_site(site_name, label)
+                raise AppException(f"[{label}] Bench new-site failed: {result.error}")
+            return
         cmd = [
             "docker", "exec", self.container_name,
             "bench", "new-site", site_name,
@@ -53,10 +72,43 @@ class BaseProvisioner(ABC):
         logger.info(f"[{label}] Running command: docker exec {self.container_name} bench new-site {site_name} --install-app {install_app}")
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:
+            # new-site creates the site directory before the database/app steps. Left behind, it makes every retry
+            # fail pre-flight with "site already exists", so a transient failure (e.g. database unreachable) would
+            # never be recoverable. Pre-flight guarantees the directory did not exist before this call, so removing
+            # it only discards what this failed attempt created.
+            self._rollback_partial_site(site_name, label)
             raise AppException(f"[{label}] Bench new-site failed: {res.stderr or res.stdout}")
+
+    def _rollback_partial_site(self, site_name: str, label: str):
+        if self.runner:
+            try:
+                self._op("drop_site", site_name)
+            except Exception as e:
+                logger.error(f"[{label}] Could not roll back partial site {site_name}: {type(e).__name__}")
+            return
+        try:
+            drop = subprocess.run([
+                "docker", "exec", self.container_name, "bench", "drop-site", site_name, "--force", "--no-backup",
+                "--db-root-username", self.bench_config.get("db_user", "postgres"),
+                "--db-root-password", self.bench_config.get("db_password", ""),
+            ], capture_output=True, text=True, timeout=120)
+            if drop.returncode == 0:
+                logger.info(f"[{label}] Rolled back partially created site {site_name}.")
+                return
+            # drop-site needs a working database; if it was the failure, removing the directory is all that is left.
+            subprocess.run(["docker", "exec", self.container_name, "rm", "-rf", f"sites/{site_name}"],
+                           capture_output=True, text=True, timeout=60)
+            logger.warning(f"[{label}] drop-site failed; removed directory sites/{site_name} so provisioning can be retried.")
+        except Exception as e:
+            logger.error(f"[{label}] Could not roll back partial site {site_name}: {type(e).__name__}")
 
     def _bench_install_app(self, site_name: str, app: str, label: str):
         """Runs `bench install-app` for one app. Raises AppException on failure."""
+        if self.runner:
+            result = self._op("install_app", site_name, {"app": app})
+            if not result.ok:
+                raise AppException(f"[{label}] install-app '{app}' failed: {result.error}")
+            return
         res = subprocess.run(
             ["docker", "exec", self.container_name, "bench", "--site", site_name, "install-app", app],
             capture_output=True, text=True, timeout=600,
@@ -66,6 +118,11 @@ class BaseProvisioner(ABC):
 
     def _install_kairon_connector(self, site_name: str, label: str):
         """Installs the kairon_connector app used for webhook/lead-sync integration. Raises AppException on failure."""
+        if self.runner:
+            result = self._op("install_app", site_name, {"app": "kairon_connector"})
+            if not result.ok:
+                raise AppException(f"[{label}] kairon_connector install failed: {result.error}")
+            return
         connector_cmd = [
             "docker", "exec", self.container_name,
             "bench", "--site", site_name, "install-app", "kairon_connector"
@@ -77,6 +134,12 @@ class BaseProvisioner(ABC):
 
     def _bypass_setup_wizard(self, site_name: str, app_names: list, label: str):
         """Marks the given apps + System Settings as setup-complete, clears cache, and switches bench context to the site."""
+        if self.runner:
+            try:
+                self._op("finalize_tenant", site_name, {"apps": list(app_names)})
+            except Exception as e:
+                logger.warning(f"[{label}] Setup wizard bypass warning: {e}")
+            return
         try:
             for app_name in app_names:
                 subprocess.run([
@@ -105,6 +168,12 @@ class BaseProvisioner(ABC):
         Reloads backend workers gracefully using configurable strategy.
         Supports sighup_pid1, supervisorctl, or fallback.
         """
+        if self.runner:
+            try:
+                self._op("reload_workers")
+            except Exception as e:
+                logger.warning(f"[BaseProvisioner] Failed to reload workers: {e}")
+            return
         reload_strategy = self.bench_config.get("reload_strategy", "sighup_pid1")
         logger.info(f"[BaseProvisioner] Reloading workers via strategy '{reload_strategy}'...")
 
@@ -126,6 +195,12 @@ class BaseProvisioner(ABC):
 
     def prelock_encryption_key(self, site_name: str):
         """Generates and sets encryption_key in site_config.json before any DB operations."""
+        if self.runner:
+            try:
+                self._op("set_encryption_key", site_name)       # generated and kept by the runner; never returned
+            except Exception as e:
+                logger.warning(f"[BaseProvisioner] Failed to pre-set encryption_key for {site_name}: {e}")
+            return
         try:
             new_enc_key = Fernet.generate_key().decode()
             subprocess.run([
@@ -138,6 +213,12 @@ class BaseProvisioner(ABC):
 
     def set_homepage(self, site_name: str, home_page: str):
         """Configures default home page / workspace route for the site."""
+        if self.runner:
+            try:
+                self._op("set_homepage", site_name, {"home_page": home_page})
+            except Exception as e:
+                logger.warning(f"[BaseProvisioner] Failed to set home page: {e}")
+            return
         try:
             subprocess.run([
                 "docker", "exec", self.container_name,
@@ -157,6 +238,14 @@ class BaseProvisioner(ABC):
         abbr: str = None, default_currency: str = "INR", country: str = "India"
     ):
         """Creates logs directory, runs bench migrate, initializes Company, Fiscal Year, User with email/roles, and sets setup_complete."""
+        if self.runner:
+            try:
+                self._op("prepare_tenant", site_name, {
+                    "admin_email": (admin_email or "").strip(), "company_name": (company_name or "").strip(),
+                    "abbr": abbr, "default_currency": default_currency, "country": country})
+            except Exception as e:
+                logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
+            return
         try:
             # 1. Ensure logs directory exists for site
             subprocess.run(["docker", "exec", self.container_name, "mkdir", "-p", f"sites/{site_name}/logs"], capture_output=True)

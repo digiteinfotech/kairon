@@ -1181,7 +1181,8 @@ class SchedulerConfiguration(EmbeddedDocument):
                 self.schedule, start_time=first_occurrence
             ).get_next(ret_type=datetime)
 
-            min_trigger_interval = Utility.environment["events"]["scheduler"]["min_trigger_interval"]
+            from kairon.shared.analytics.schedule_limits import analytics_min_trigger_interval
+            min_trigger_interval = analytics_min_trigger_interval()
             if (second_occurrence - first_occurrence).total_seconds() < min_trigger_interval:
                 raise ValidationError(
                     f"Recurrence interval must be at least {min_trigger_interval} seconds!"

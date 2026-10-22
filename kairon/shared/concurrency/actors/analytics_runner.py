@@ -62,6 +62,7 @@ class AnalyticsRunner():
             "extract_data": partial(CallbackScriptUtility.extract_data, bot=bot, user=user),
             "process_instruction": partial(CallbackScriptUtility.process_instruction, bot=bot, user=user),
             "create_vector_collection": partial(CallbackScriptUtility.create_vector_collection, bot=bot),
+            "analyse_crm_leads": partial(CallbackScriptUtility.analyse_crm_leads, bot=bot),
             "send_email": partial(CallbackScriptUtility.send_email, bot=bot),
             "srtp_time": PyscriptUtility.srtptime,
             "srtf_time": PyscriptUtility.srtftime,

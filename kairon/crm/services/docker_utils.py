@@ -8,6 +8,9 @@ def resolve_container_name(bench_config: dict, log_prefix: str = "DockerUtils") 
     falling back to a docker ps label lookup, then a hardcoded default.
     """
     container_name = bench_config.get("container_name")
+    from kairon.crm.services.bench_runner import execution_mode
+    if not container_name and execution_mode() != "docker":
+        return ""   # runner mode has no container to find (and may have no docker binary at all)
     if not container_name:
         cmd = [
             "docker", "ps",

@@ -45,6 +45,8 @@ class AppUpgradeProvisioner(BaseProvisioner):
         doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
 
         try:
+            if self.runner:
+                raise AppException("Tier 1 -> Tier 2 upgrades are not supported in BENCH_EXECUTION_MODE=runner yet.")
             # Phase 0: Infrastructure & Container Readiness Check
             PreFlightValidator.validate_infrastructure(self.container_name, site_name, self.plan, is_upgrade=True)
 

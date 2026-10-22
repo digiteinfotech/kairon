@@ -90,3 +90,37 @@ class KaironEventPublisher:
         except Exception as e:
             logger.error(f"[KaironEventPublisher] Failed to dispatch event {event.event_id} to {target_url}: {e}")
             raise AppException(f"Webhook dispatch failed: {str(e)}")
+
+    @classmethod
+    def request_signed(
+        cls,
+        target_url: str,
+        secret: str,
+        body: Dict[str, Any],
+        timeout_seconds: int = 15,
+    ) -> Dict[str, Any]:
+        """
+        Signed request/response call (same timestamp-bound HMAC scheme as `publish_webhook`) for connector
+        endpoints that return data, such as user management. `X-Kairon-Event-ID` is a fresh single-use value the
+        receiver records to reject replays within the signature window. Returns status code and parsed JSON.
+        """
+        body_bytes = json.dumps(body, separators=(',', ':')).encode('utf-8')
+        timestamp = str(int(time.time()))
+        request_id = f"req_{uuid.uuid4().hex}"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Kairon-Signature": f"sha256={cls.calculate_signature(secret, timestamp, body_bytes)}",
+            "X-Kairon-Timestamp": timestamp,
+            "X-Kairon-Event-ID": request_id,
+        }
+        try:
+            response = requests.post(target_url, data=body_bytes, headers=headers, timeout=timeout_seconds)
+        except requests.RequestException as e:
+            # Log the class only: the exception text can echo the URL.
+            logger.error(f"[KaironEventPublisher] Signed request {request_id} failed: {type(e).__name__}")
+            raise AppException(f"Connector request failed: {type(e).__name__}")
+        try:
+            data = response.json()
+        except ValueError:
+            data = None
+        return {"status_code": response.status_code, "json": data, "success": response.status_code == 200}

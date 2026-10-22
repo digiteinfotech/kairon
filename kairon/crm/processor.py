@@ -19,6 +19,8 @@ from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 from kairon.crm.lead_dispatch import get_lead_webhook_secret
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus, CRMInvitation, CRMInvitationStatus
+from kairon.crm.schemas import validate_email_address, normalize_email
+from kairon.crm.services.admin_invitation import CRMAdminInvitationService
 from kairon.crm.services.bench_executor import BenchExecutor
 from kairon.crm.metering_sync import (
     CRMMeteringSync, CRM_TENANT_PROVISIONED, CRM_TENANT_PROVISION_FAILED,
@@ -35,6 +37,17 @@ class CRMProcessor:
         return MongoProcessor.is_crm_enabled(bot)
 
     @staticmethod
+    def set_crm_enabled(bot: str, user: str, enabled: bool) -> dict:
+        """The enable_crm toggle through the one authoritative path (slot provisioning and the Metering notification)."""
+        from kairon.shared.data.data_objects import BotSettings
+        settings = BotSettings.objects(bot=bot, status=True).first()
+        if not settings:
+            raise AppException("Bot Settings for the bot not found")
+        analytics = settings.analytics.to_mongo().to_dict() if settings.analytics else {}
+        MongoProcessor.edit_bot_settings({"enable_crm": bool(enabled), "analytics": analytics}, bot, user)
+        return {"enabled": bool(enabled)}
+
+    @staticmethod
     def save_crm_details(
         company_name: str,
         abbr: str,
@@ -43,6 +56,7 @@ class CRMProcessor:
         bot: str,
         user: str,
         selected_modules: list = None,
+        crm_admin_email: str = None,
     ):
         if Utility.check_empty_string(company_name):
             raise AppException("Company Name cannot be empty.")
@@ -79,6 +93,7 @@ class CRMProcessor:
                 user=user.strip(),
                 onboarding_status=CRMOnboardingStatus.PENDING.value,
                 selected_modules=selected_modules or [],
+                crm_admin_email=crm_admin_email,
             )
             .save()
             .to_mongo()
@@ -130,7 +145,77 @@ class CRMProcessor:
         "workflow_started_at",
         "workflow_completed_at",
         "attempt_number",
+        "crm_admin_email",
+        "invitation_status",
+        "invitation_attempts",
+        "invitation_sent_at",
+        "invitation_next_attempt_at",
+        "invitation_last_error",
     )
+
+    # Public provisioning vocabulary over the stored state machine. No data migration: the stored statuses stay the
+    # source of truth and are only grouped for display.
+    PUBLIC_STATUS = {
+        CRMOnboardingStatus.PENDING.value: "Pending",
+        CRMOnboardingStatus.PROJECT_CREATED.value: "Provisioning",
+        CRMOnboardingStatus.BENCH_RUNNING.value: "Provisioning",
+        CRMOnboardingStatus.SITE_CREATED.value: "Provisioning",
+        CRMOnboardingStatus.SITE_HEALTHY.value: "Configuring",
+        CRMOnboardingStatus.COMPANY_CREATED.value: "Configuring",
+        CRMOnboardingStatus.USER_CREATED.value: "Verifying",
+        CRMOnboardingStatus.COMPLETED.value: "Ready",
+        CRMOnboardingStatus.UPGRADING_TO_TIER_2.value: "Configuring",
+    }
+
+    @staticmethod
+    def public_provisioning_status(onboarding_status: str) -> str:
+        if not onboarding_status:
+            return "Pending"
+        if onboarding_status.startswith("FAILED"):
+            return "Failed"
+        return CRMProcessor.PUBLIC_STATUS.get(onboarding_status, "Provisioning")
+
+    @staticmethod
+    def get_provisioning_status(bot: str) -> dict:
+        """Accurate, secret-free status for the Admin UI. `ready` is true only for a verified COMPLETED tenant."""
+        record = CRMClientDetails.objects(bot=bot).first()
+        if not record:
+            raise AppException("No CRM configuration found for this bot.")
+        failed = (record.onboarding_status or "").startswith("FAILED")
+        return {
+            "onboarding_status": record.onboarding_status,
+            "status": CRMProcessor.public_provisioning_status(record.onboarding_status),
+            "ready": record.onboarding_status == CRMOnboardingStatus.COMPLETED.value,
+            "failed": failed,
+            "company_name": record.company_name,
+            "crm_admin_email": record.crm_admin_email,
+            "tenant_url": CRMProcessor.get_tenant_url(record.site_name) if record.site_name else None,
+            "attempt_number": record.attempt_number,
+            "invitation": {
+                "status": record.invitation_status or "NOT_SENT",
+                "attempts": record.invitation_attempts or 0,
+                "sent_at": record.invitation_sent_at.isoformat() if record.invitation_sent_at else None,
+                "next_attempt_at": record.invitation_next_attempt_at.isoformat() if record.invitation_next_attempt_at else None,
+                "last_error": record.invitation_last_error,
+            },
+        }
+
+    @staticmethod
+    def assert_staff_allowed(user_email: str):
+        """
+        Optional fail-closed gate for provisioning/user-management by Kairon staff. When `crm.staff_allowlist`
+        (env CRM_STAFF_ALLOWLIST, comma separated emails or `@domain` suffixes) is set, only matching callers pass;
+        when unset, the existing per-bot ADMIN_ACCESS rule applies unchanged.
+        """
+        raw = (Utility.environment.get("crm") or {}).get("staff_allowlist")
+        entries = [e.strip().lower() for e in str(raw or "").split(",") if e.strip()]
+        if not entries:
+            return
+        email = normalize_email(user_email)
+        for entry in entries:
+            if (entry.startswith("@") and email.endswith(entry)) or email == entry:
+                return
+        raise AppException("You are not authorised to manage CRM tenants.")
 
     @staticmethod
     def _bench_config() -> dict:
@@ -369,12 +454,29 @@ class CRMProcessor:
         bot: str,
         current_user: User,
         selected_modules: list = None,
+        crm_admin_email: str = None,
     ):
         if not MongoProcessor.is_crm_enabled(bot):
             raise AppException("CRM integration is not enabled")
+        CRMProcessor.assert_staff_allowed(current_user.email)
+        try:
+            crm_admin_email = validate_email_address(crm_admin_email, "CRM administrator email")
+        except ValueError as e:
+            raise AppException(str(e))
 
         # 1. Save or get the initial CRMClientDetails document
         existing = CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).first()
+        if existing and existing.crm_admin_email != crm_admin_email:
+            # Once the administrator account exists it is managed through user management, not re-onboarding.
+            if existing.onboarding_status == CRMOnboardingStatus.COMPLETED.value or (
+                existing.crm_admin_email and existing.onboarding_status in (
+                    CRMOnboardingStatus.USER_CREATED.value, CRMOnboardingStatus.FAILED_VERIFICATION.value)
+            ):
+                raise AppException(
+                    "This tenant already has a CRM administrator. Use user management to change administrators."
+                )
+            existing.crm_admin_email = crm_admin_email
+            existing.save()
         if not existing:
             CRMProcessor.save_crm_details(
                 company_name=company_name,
@@ -384,6 +486,7 @@ class CRMProcessor:
                 bot=bot,
                 user=current_user.get_user(),
                 selected_modules=selected_modules,
+                crm_admin_email=crm_admin_email,
             )
         elif selected_modules is not None:
             existing.selected_modules = selected_modules
@@ -427,14 +530,20 @@ class CRMProcessor:
         try:
             # 3. Delegate completely to ProvisioningService
             service = ProvisioningService(bot, company_name.strip(), provisioning_id)
+            local_part = crm_admin_email.split("@", 1)[0]
             result = service.execute_onboarding_workflow(
-                current_user_email=current_user.email,
-                first_name=current_user.first_name,
-                last_name=current_user.last_name
+                current_user_email=crm_admin_email,
+                first_name=(local_part.replace(".", " ").replace("_", " ").title() or "CRM")[:60],
+                last_name="Administrator"
             )
-            
+
             # The lock is released inside execute_onboarding_workflow (via update_onboarding_status)
             CRMProcessor._notify_metering(bot, company_name)
+            if result.status == CRMOnboardingStatus.COMPLETED.value:
+                # Readiness is verified at this point; delivery is attempted off the request path and retried by the
+                # scheduled job, and its outcome never changes the provisioning status.
+                if CRMAdminInvitationService.mark_pending(bot, company_name, provisioning_id):
+                    CRMAdminInvitationService.send_in_background(bot)
             return result.dict()
             
         except Exception as e:
