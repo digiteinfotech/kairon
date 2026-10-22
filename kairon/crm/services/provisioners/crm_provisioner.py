@@ -1,7 +1,5 @@
-import subprocess
 from typing import Dict, Any
 from loguru import logger
-from kairon.exceptions import AppException
 from kairon.crm.models import CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -24,6 +22,7 @@ class CRMProvisioner(BaseProvisioner):
         doc = self._load_client_doc(company_name)
         clean_name, site_name = self._clean_site_name(company_name)
         doc.site_name = site_name
+        self.provisioning_id = doc.provisioning_id or ""
 
         # Phase 0: Pre-flight validation
         PreFlightValidator.validate_infrastructure(self.container_name, site_name, self.plan, is_upgrade=False)
@@ -39,13 +38,7 @@ class CRMProvisioner(BaseProvisioner):
 
         for app in self.plan.apps[1:]:
             logger.info(f"[{self.LABEL}] Installing additional Tier 1 app '{app}' on {site_name}...")
-            install_cmd = [
-                "docker", "exec", self.container_name,
-                "bench", "--site", site_name, "install-app", app
-            ]
-            res = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
-            if res.returncode != 0:
-                raise AppException(f"[{self.LABEL}] install-app '{app}' failed: {res.stderr or res.stdout}")
+            self._bench_install_app(site_name, app, self.LABEL)
 
         # Post-creation setup: Encryption key, setup wizard bypass, homepage, migrate & user creation
         self.prelock_encryption_key(site_name)

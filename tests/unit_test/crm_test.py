@@ -219,6 +219,7 @@ def test_onboard_company_flow(mock_verify_state, mock_verify_health, mock_erpnex
         country="India",
         bot="test_crm_bot",
         current_user=mock_user,
+        crm_admin_email="crm.admin@newcompany.com",
     )
 
     assert result["status"] == "COMPLETED"
@@ -248,6 +249,7 @@ def test_onboard_company_disabled_crm():
             country="France",
             bot="test_crm_bot",
             current_user=mock_user,
+            crm_admin_email="crm.admin@other.com",
         )
 
 
@@ -288,7 +290,9 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def mock_auth_dependency():
     from kairon.shared.auth import Authentication
+    from kairon.crm.auth import get_crm_user_and_bot
     app.dependency_overrides[Authentication.get_current_user_and_bot] = lambda: mock_user
+    app.dependency_overrides[get_crm_user_and_bot] = lambda: mock_user
     yield
     app.dependency_overrides.clear()
 
@@ -344,6 +348,7 @@ def test_api_onboard(mock_verify_state, mock_verify_health, mock_erpnext_client,
         "abbr": "AC",
         "default_currency": "USD",
         "country": "United States",
+        "crm_admin_email": "owner@apicompany.com",
     }
     response = client.post("/api/bot/test_crm_bot/crm/onboard", json=payload)
     assert response.status_code == 200
@@ -396,7 +401,7 @@ def test_api_get_details_excludes_infrastructure_secrets_and_returns_site_url():
 
 
 def test_api_validate_tenant_config():
-    payload = {"company_name": "Brand New Co", "abbr": "BN", "default_currency": "USD", "country": "United States"}
+    payload = {"company_name": "Brand New Co", "abbr": "BN", "default_currency": "USD", "country": "United States", "crm_admin_email": "admin@brandnew.co"}
     response = client.post("/api/bot/test_crm_bot/crm/validate", json=payload)
     assert response.status_code == 200
     assert response.json()["data"] == {"valid": True, "company_exists": False, "onboarding_status": None}
@@ -410,18 +415,18 @@ def test_api_validate_tenant_config():
 
 
 def test_api_validate_tenant_config_rejects_invalid_and_crm_disabled():
-    bad = {"company_name": "Bad!Name", "abbr": "BN", "default_currency": "USD", "country": "US"}
+    bad = {"company_name": "Bad!Name", "abbr": "BN", "default_currency": "USD", "country": "US", "crm_admin_email": "a@b.co"}
     response = client.post("/api/bot/test_crm_bot/crm/validate", json=bad)
     assert response.json()["success"] is False
 
-    empty = {"company_name": "  ", "abbr": "BN", "default_currency": "USD", "country": "US"}
+    empty = {"company_name": "  ", "abbr": "BN", "default_currency": "USD", "country": "US", "crm_admin_email": "a@b.co"}
     assert client.post("/api/bot/test_crm_bot/crm/validate", json=empty).json()["success"] is False
 
     settings = BotSettings.objects(bot="test_crm_bot").first()
     settings.enable_crm = False
     settings.save()
     try:
-        ok = {"company_name": "Some Co", "abbr": "SC", "default_currency": "USD", "country": "US"}
+        ok = {"company_name": "Some Co", "abbr": "SC", "default_currency": "USD", "country": "US", "crm_admin_email": "a@b.co"}
         response = client.post("/api/bot/test_crm_bot/crm/validate", json=ok)
         assert response.json()["success"] is False
         assert "not enabled" in response.json()["message"]
@@ -968,6 +973,7 @@ def test_schema_selected_modules_validation():
         abbr="TC",
         default_currency="USD",
         country="United States",
+        crm_admin_email="admin@test.co",
         selected_modules=["CRM", "POS"]
     )
     assert req.selected_modules == ["CRM", "POS"]
@@ -976,9 +982,9 @@ def test_schema_selected_modules_validation():
     for bad_abbr in ("TOOLONGABBR1", "AB CD", "A-B", "<b>"):
         with pytest.raises(ValueError, match="abbr must be 1-10 letters or numbers"):
             CRMOnboardRequest(company_name="Test Co", abbr=bad_abbr, default_currency="USD",
-                              country="United States")
+                              country="United States", crm_admin_email="admin@test.co")
     assert CRMOnboardRequest(company_name="Test Co", abbr="ABCDE12345", default_currency="USD",
-                             country="United States").abbr == "ABCDE12345"
+                             country="United States", crm_admin_email="admin@test.co").abbr == "ABCDE12345"
 
     # CRMConfigureModulesRequest validation
     conf_req = CRMConfigureModulesRequest(selected_modules=["HR"])
@@ -1339,7 +1345,7 @@ def _onboard_via_api(result):
     with patch.object(CRMProcessor, "onboard_company", return_value=result):
         return client.post("/api/bot/test_crm_bot/crm/onboard", json={
             "company_name": "Acme Co", "abbr": "ACM", "default_currency": "USD", "country": "United States",
-            "selected_modules": ["CRM"]}).json()
+            "crm_admin_email": "admin@acme.co", "selected_modules": ["CRM"]}).json()
 
 
 def test_onboard_api_failed_provisioning_is_not_reported_as_success():

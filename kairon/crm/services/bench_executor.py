@@ -1,5 +1,6 @@
 import json
 import re
+import uuid
 import secrets
 import subprocess
 import time
@@ -112,6 +113,14 @@ except Exception as e:
         """
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
+        from kairon.crm.services.bench_runner import get_bench_runner
+        runner = get_bench_runner()
+        if runner:
+            result = runner.run("set_admin_password", site_name, secrets={"admin_password": admin_password},
+                                idempotency_key=f"{uuid.uuid4().hex}:set_admin_password:{site_name}")
+            if not result.ok:
+                raise AppException(f"Failed to set admin password on retry: {result.error}")
+            return
         container_name = self._resolve_container_name(bench_config)
 
         cmd = [
@@ -132,6 +141,9 @@ except Exception as e:
             f"BenchExecutor.create_crm_user: bot={bot}, email={email}, role={role}"
         )
 
+        from kairon.crm.services.bench_runner import execution_mode
+        if execution_mode() != "docker":
+            raise AppException("Direct user creation is not supported in BENCH_EXECUTION_MODE=runner; use user invitation.")
         doc = CRMClientDetails.objects(bot=bot).first()
         if not doc:
             raise AppException("CRM configuration details not found for this bot.")

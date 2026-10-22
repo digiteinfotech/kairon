@@ -134,3 +134,22 @@ INFRASTRUCTURE_MODULE_NAMES = frozenset({
     "Regional",
     "ERPNext Integrations",
 })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# User management: roles Kairon staff may grant through the connector
+# ─────────────────────────────────────────────────────────────────────────────
+# Deliberately excludes System Manager, Workspace Manager, Administrator, Guest and All: those carry tenant-wide
+# administration and are held only by the CRM administrator created at provisioning. The connector enforces the same
+# list independently (kairon_connector/core/user_roles.py); keep them in step.
+ASSIGNABLE_USER_ROLES = (
+    "Sales User",
+    "Sales Manager",
+    "Accounts User",
+    "Accounts Manager",
+    "Stock User",
+    "Stock Manager",
+    "Purchase User",
+    "Purchase Manager",
+    "Employee",
+)

@@ -21,6 +21,7 @@ class ERPNextProvisioner(BaseProvisioner):
         doc = self._load_client_doc(company_name)
         clean_name, site_name = self._clean_site_name(company_name)
         doc.site_name = site_name
+        self.provisioning_id = doc.provisioning_id or ""
 
         # Phase 0: Pre-flight validation
         PreFlightValidator.validate_infrastructure(self.container_name, site_name, self.plan, is_upgrade=False)

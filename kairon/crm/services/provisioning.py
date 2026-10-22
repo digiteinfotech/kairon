@@ -96,7 +96,14 @@ class ProvisioningService:
         """State: PENDING -> PROJECT_CREATED (instant setup of site_name)."""
         if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
             clean_name = "".join(c if c.isalnum() else "_" for c in doc.company_name.lower())
-            doc.site_name = f"{clean_name}.localhost"
+            site_name = f"{clean_name}.localhost"
+            # A tenant site is addressed by name alone, so two bots must never resolve to the same one.
+            clash = CRMClientDetails.objects(site_name=site_name, id__ne=doc.id).first()
+            if clash:
+                raise AppException(
+                    f"Tenant name '{site_name}' is already used by another company. Choose a different company name."
+                )
+            doc.site_name = site_name
             doc.save()
             self.update_onboarding_status(CRMOnboardingStatus.PROJECT_CREATED)
             doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
@@ -232,16 +239,21 @@ class ProvisioningService:
             client.login(admin_password)
 
             logger.info(f"[{self.provisioning_id}] Creating ERPNext User...")
-            if not smtp_enabled:
-                temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+            # The administrator is invited by Kairon only after the tenant is verified ready, so ERPNext must not send
+            # its own welcome mail. The random password exists only to verify that this account can log in; it is
+            # never stored or returned and is rotated away once verification passes.
+            temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
 
             client.create_erpnext_user(
                 email=current_user_email,
                 first_name=first_name,
                 last_name=last_name,
-                send_welcome_email=smtp_enabled,
+                send_welcome_email=False,
                 password=temp_password
             )
+            # create_erpnext_user is a no-op for an existing user (resumed run), so make the verification password
+            # authoritative either way.
+            client.set_user_password(current_user_email, temp_password)
 
             # Recomputed here (not just relying on step 4's locals) so a resumed
             # execution that skips step 4 -- e.g. retrying from FAILED_USER, where
@@ -286,8 +298,6 @@ class ProvisioningService:
             # Update DB with operational metadata
             doc.erpnext_owner_email = current_user_email
             doc.erpnext_user = current_user_email
-            if temp_password:
-                doc.erpnext_password = Utility.encrypt_message(temp_password)
             doc.erpnext_site = doc.site_name
             doc.erpnext_company = doc.company_name
             doc.erpnext_roles = roles
@@ -302,8 +312,8 @@ class ProvisioningService:
         if doc.onboarding_status in (CRMOnboardingStatus.USER_CREATED.value, CRMOnboardingStatus.FAILED_VERIFICATION.value):
             logger.info(f"[{self.provisioning_id}] Verifying provisioning state...")
 
-            # If smtp is disabled, we pass temp_password to test auth
-            if not smtp_enabled and not temp_password:
+            # Verification logs in as the administrator with a password that only lives in memory
+            if not temp_password:
                 temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
                 logger.info(f"[{self.provisioning_id}] Rotating user password for login verification...")
                 client.login(admin_password)
@@ -319,8 +329,17 @@ class ProvisioningService:
             ):
                 raise AppException("Verification failed.")
 
+            self._rotate_verification_password(client, admin_password, current_user_email)
             self.update_onboarding_status(CRMOnboardingStatus.COMPLETED)
-        return temp_password
+        return None
+
+    def _rotate_verification_password(self, client, admin_password: str, email: str):
+        """Replaces the verification password with a fresh random one nobody holds (access is by emailed setup link)."""
+        try:
+            client.login(admin_password)
+            client.set_user_password(email, secrets.token_urlsafe(24))
+        except Exception as e:  # best effort: the value was never stored or shown
+            logger.warning(f"[{self.provisioning_id}] Could not rotate verification password: {type(e).__name__}")
 
     def execute_onboarding_workflow(self, current_user_email: str, first_name: str, last_name: str) -> ProvisioningResult:
         """
@@ -339,7 +358,7 @@ class ProvisioningService:
 
         admin_password = None
         temp_password = None
-        auth_method = "send_welcome_email" if smtp_enabled else "temporary_password"
+        auth_method = "invitation_email"
 
         # 1. PENDING -> PROJECT_CREATED
         doc = self._phase_project_created(doc)
@@ -405,5 +424,5 @@ class ProvisioningService:
             company=doc.company_name,
             erpnext_user=current_user_email,
             authentication_method=auth_method,
-            temporary_password=temp_password
+            temporary_password=None
         )

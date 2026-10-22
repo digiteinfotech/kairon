@@ -67,6 +67,8 @@ E2E_KAIRON_PASSWORD = os.getenv("KAIRON_E2E_PASSWORD", "")
 BENCH_DB_PASSWORD = os.getenv("BENCH_DB_PASSWORD", "")
 # Passwords for the disposable tenants / invited user are generated per run, never hardcoded.
 E2E_PASSWORD = secrets.token_urlsafe(18)
+# Address of the CRM administrator created by onboarding (must be a mailbox you control if invitation email is enabled).
+E2E_ADMIN_EMAIL = os.getenv("KAIRON_E2E_CRM_ADMIN_EMAIL", "e2e-crm-admin@example.com")
 
 
 # --------------------------------------------------------------------------------------
@@ -267,11 +269,14 @@ class LiveContext:
         self.company_name = details.get("company_name") or details.get("erpnext_company", "")
         assert self.site_name and self.company_name, f"Tenant details incomplete: {details}"
 
-        # Onboarding issues the tenant owner a temporary password; it is stored encrypted in Mongo.
+        # Onboarding no longer issues or stores a password: the administrator sets their own through the emailed
+        # one-time link. This disposable test tenant gets a throw-away password through the bench CLI instead.
         record = CRMClientDetails.objects(bot=self.bot_id).first()
         self.owner_email = record.erpnext_user
-        self.owner_password = Utility.decrypt_message(record.erpnext_password) if record.erpnext_password else ""
-        assert self.owner_email and self.owner_password, "Onboarded tenant has no owner credentials"
+        assert self.owner_email, "Onboarded tenant has no CRM administrator"
+        res = bench_exec("bench", "--site", self.site_name, "set-password", self.owner_email, E2E_PASSWORD, timeout=60)
+        assert res.returncode == 0, "Could not set a test password for the CRM administrator"
+        self.owner_password = E2E_PASSWORD
 
     def onboard_tenant(self) -> Dict[str, Any]:
         """Enable CRM for the bot and onboard a disposable tenant through the Kairon API."""
@@ -282,7 +287,8 @@ class LiveContext:
         self.created_tenant = True
         res = requests.post(self.crm_url("onboard"), headers=self.headers, timeout=1200,
                             json={"company_name": f"E2E Tenant {suffix}", "abbr": f"E{suffix[:3].upper()}",
-                                  "default_currency": "USD", "country": "United States"})
+                                  "default_currency": "USD", "country": "United States",
+                                  "crm_admin_email": E2E_ADMIN_EMAIL})
         assert res.status_code == 200, res.text
         data = res.json().get("data") or {}
         assert data.get("status") == CRMOnboardingStatus.COMPLETED.value, f"Onboarding failed: {data}"

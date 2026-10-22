@@ -2,10 +2,18 @@ from fastapi import APIRouter, Security, Query, Request, Header
 
 from kairon.api.models import Response
 from kairon.shared.constants import ADMIN_ACCESS
-from kairon.shared.auth import Authentication
 from kairon.shared.models import User
+from kairon.crm.auth import get_crm_user_and_bot
 from kairon.crm.processor import CRMProcessor
+from kairon.crm.analytics.processor import LeadQualificationProcessor
+from kairon.crm.services.admin_invitation import CRMAdminInvitationService
+from kairon.crm.services.user_management import CRMUserManagement
 from kairon.crm.schemas import (
+    CRMManagedUserInviteRequest,
+    CRMUserEnabledRequest,
+    CRMEnabledRequest,
+    CRMLeadPromptRequest,
+    CRMLeadPromptTestRequest,
     CRMOnboardRequest,
     CRMCreateUserRequest,
     CRMInviteUserRequest,
@@ -20,13 +28,13 @@ crm_processor = CRMProcessor()
 def onboard_company(
     req: CRMOnboardRequest,
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
     Initiates automated ERPNext site provisioning for a tenant bot.
 
-    - **Request Schema**: `CRMOnboardRequest` (company_name, abbr, default_currency, country, selected_modules)
+    - **Request Schema**: `CRMOnboardRequest` (company_name, abbr, default_currency, country, crm_admin_email, selected_modules)
     - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, accepted, provisioned, failed }` (`temporary_password` only when the deployment opts in). `success` only means the request was accepted; read `provisioned`/`failed`/`status` for the real outcome.
     - **Possible Error Responses**:
       - 400 Bad Request: Missing or invalid company parameters.
@@ -43,6 +51,7 @@ def onboard_company(
         bot=current_user.get_bot(),
         current_user=current_user,
         selected_modules=req.selected_modules,
+        crm_admin_email=req.crm_admin_email,
     )
     outcome = CRMProcessor.onboarding_outcome(result)
     # The one-time ERPNext password is NOT returned by default. A deployment that still needs it (clients that
@@ -65,7 +74,7 @@ def onboard_company(
 def validate_tenant_config(
     req: CRMOnboardRequest,
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -76,6 +85,7 @@ def validate_tenant_config(
     - **Possible Error Responses**: CRM not enabled for the bot, empty/invalid company fields (422/400).
     - **Security Note**: Requires `ADMIN_ACCESS`. Read-only; no site, DB or Mongo record is created.
     """
+    CRMProcessor.assert_staff_allowed(current_user.email)
     result = CRMProcessor.validate_tenant_config(
         bot=current_user.get_bot(),
         company_name=req.company_name,
@@ -89,7 +99,7 @@ def validate_tenant_config(
 @router.post("/metering-sync", response_model=Response)
 def sync_metering_metadata(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -108,7 +118,7 @@ def sync_metering_metadata(
 @router.get("/available-modules", response_model=Response)
 def get_available_modules(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -129,7 +139,7 @@ def get_available_modules(
 @router.get("/selected-modules", response_model=Response)
 def get_selected_modules(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -150,7 +160,7 @@ def get_selected_modules(
 def configure_modules(
     req: CRMConfigureModulesRequest,
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -175,7 +185,7 @@ def configure_modules(
 @router.post("/reconcile-modules", response_model=Response)
 def reconcile_modules(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -199,7 +209,7 @@ def reconcile_modules(
 def create_crm_user(
     req: CRMCreateUserRequest,
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -226,7 +236,7 @@ def create_crm_user(
 def invite_erpnext_user(
     req: CRMInviteUserRequest,
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -279,7 +289,7 @@ async def handle_invitation_webhook(
 @router.post("/login-link", response_model=Response)
 def create_login_link(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -295,26 +305,25 @@ def create_login_link(
 @router.get("/status", response_model=Response)
 def get_onboarding_status(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
     Returns current onboarding lifecycle status for the tenant bot.
 
     - **Request Schema**: None
-    - **Response Schema**: `Response` wrapping `{ onboarding_status: str }`
+    - **Response Schema**: `Response` wrapping `{ onboarding_status, status (Pending|Provisioning|Configuring|Verifying|Ready|Failed),
+      ready, failed, company_name, crm_admin_email, tenant_url, attempt_number, invitation: { status, attempts, sent_at, next_attempt_at, last_error } }`.
+      `ready` is true only for a verified tenant. Invitation delivery never affects `status`.
     - **Security Note**: Requires `ADMIN_ACCESS`.
     """
-    details = CRMProcessor.get_crm_details(current_user.get_bot())
-    return Response(
-        data={"onboarding_status": details.get("onboarding_status")}
-    )
+    return Response(data=CRMProcessor.get_provisioning_status(current_user.get_bot()))
 
 
 @router.get("/details", response_model=Response)
 def get_crm_details(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -331,7 +340,7 @@ def get_crm_details(
 @router.get("/users", response_model=Response)
 def get_erpnext_users(
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -349,7 +358,7 @@ def get_erpnext_users(
 def delete_project(
     company_name: str = Query(..., description="Company name"),
     current_user: User = Security(
-        Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
@@ -362,3 +371,209 @@ def delete_project(
     result = CRMProcessor.delete_crm_details(current_user.get_bot(), company_name)
     return Response(data=result)
 
+
+
+@router.post("/admin-invitation/resend", response_model=Response)
+def resend_admin_invitation(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Re-sends the CRM administrator's invitation email (one attempt, 60 s cooldown).
+
+    - **Response Schema**: `Response` wrapping `{ attempted, invitation_status, attempts }`. `attempted=false` means the
+      cooldown, a concurrent attempt or the tenant state prevented a send.
+    - **Security Note**: `ADMIN_ACCESS` plus the optional staff allowlist. A fresh single-use setup link is generated for
+      each send; nothing secret is returned or stored.
+    """
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMAdminInvitationService.send(current_user.get_bot(), force=True))
+
+
+@router.get("/managed-users", response_model=Response)
+def list_managed_users(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Users of this bot's tenant with roles and account/invitation status, read through the tenant's kairon_connector.
+
+    - **Response Schema**: `Response` wrapping a list of `{ email, first_name, last_name, enabled, status
+      (Active|Invited|Not signed in|Disabled), roles, created, last_login }`. Administrator, Guest and the integration
+      user are never listed.
+    - **Possible Error Responses**: tenant not ready; connector unreachable or rejecting the signed request.
+    - **Security Note**: `ADMIN_ACCESS` + optional staff allowlist. The tenant is resolved from the caller's bot only.
+    """
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMUserManagement.list_users(current_user.get_bot()))
+
+
+@router.get("/users/assignable-roles", response_model=Response)
+def get_assignable_roles(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Roles that may be granted through user management (never System Manager / Administrator)."""
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data={"roles": CRMUserManagement.assignable_roles()})
+
+
+@router.post("/users/invite", response_model=Response)
+def invite_managed_user(
+    req: CRMManagedUserInviteRequest,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Invites a new user to the tenant through the tenant's kairon_connector.
+
+    - **Request Schema**: `CRMManagedUserInviteRequest` (email, roles, first_name?)
+    - **Response Schema**: `Response` wrapping `{ email, roles, status: "invited", email_delivery: "sent"|"failed" }`
+    - **Possible Error Responses**: tenant not ready, role not permitted, user already exists.
+    - **Security Note**: `ADMIN_ACCESS` + staff allowlist; roles are checked here and again by the connector.
+    """
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMUserManagement.invite_user(
+        current_user.get_bot(), current_user.get_user(), req.email, req.roles, req.first_name))
+
+
+@router.get("/users/{email}", response_model=Response)
+def get_managed_user(
+    email: str,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Account and roles of one tenant user (via the connector)."""
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMUserManagement.get_user(current_user.get_bot(), email))
+
+
+@router.post("/users/{email}/resend-invitation", response_model=Response)
+def resend_managed_user_invitation(
+    email: str,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Sends the user a fresh single-use setup link (60 s cooldown)."""
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMUserManagement.resend_invitation(current_user.get_bot(), current_user.get_user(), email))
+
+
+@router.put("/users/{email}/enabled", response_model=Response)
+def set_managed_user_enabled(
+    email: str,
+    req: CRMUserEnabledRequest,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Enables or disables a tenant user. The CRM administrator cannot be disabled here."""
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMUserManagement.set_enabled(current_user.get_bot(), current_user.get_user(), email, req.enabled))
+
+
+@router.get("/lead-qualification/prompt", response_model=Response)
+def get_lead_prompt(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Active lead-qualification prompt for this bot/company, or null when none is configured."""
+    return Response(data=LeadQualificationProcessor.get_prompt(current_user.get_bot()))
+
+
+@router.put("/lead-qualification/prompt", response_model=Response)
+def save_lead_prompt(
+    req: CRMLeadPromptRequest,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Creates or updates the prompt. Changing the text increments `version`; every analysis records the version it used.
+    The prompt is scoped to the caller's bot and is never applied to another bot's conversations.
+    """
+    return Response(data=LeadQualificationProcessor.save_prompt(
+        current_user.get_bot(), current_user.get_user(), req.prompt, req.enabled, req.min_confidence))
+
+
+@router.get("/lead-qualification/prompt/revisions", response_model=Response)
+def list_lead_prompt_revisions(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    return Response(data=LeadQualificationProcessor.list_revisions(current_user.get_bot()))
+
+
+@router.post("/lead-qualification/prompt/test", response_model=Response)
+def test_lead_prompt(
+    req: CRMLeadPromptTestRequest,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Runs the prompt on a sample conversation. Read-only: nothing is stored and nothing is sent to ERPNext."""
+    return Response(data=LeadQualificationProcessor.test_prompt(
+        current_user.get_bot(), current_user.get_user(), req.prompt, req.conversation))
+
+
+@router.get("/lead-qualification/status", response_model=Response)
+def get_lead_analysis_status(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Last run, watermark and per-status counts for this bot's analytics job."""
+    return Response(data=LeadQualificationProcessor.job_status(current_user.get_bot()))
+
+
+@router.get("/lead-qualification/failed", response_model=Response)
+def get_failed_leads(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Permanently failed analyses/deliveries (the dead-letter view): sender id, attempts and short error only."""
+    return Response(data=LeadQualificationProcessor.failed_leads(current_user.get_bot()))
+
+
+@router.post("/lead-qualification/retry-failed", response_model=Response)
+def retry_failed_leads(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Requeues dead-lettered rows for the next scheduled run."""
+    return Response(data=LeadQualificationProcessor.retry_failed(current_user.get_bot()))
+
+
+@router.get("/enabled", response_model=Response)
+def get_crm_enabled(
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """Whether CRM is enabled for this bot: `{ enabled: bool }`."""
+    return Response(data={"enabled": CRMProcessor.is_crm_enabled(current_user.get_bot())})
+
+
+@router.put("/enabled", response_model=Response)
+def set_crm_enabled(
+    req: CRMEnabledRequest,
+    current_user: User = Security(
+        get_crm_user_and_bot, scopes=ADMIN_ACCESS
+    ),
+):
+    """
+    Turns CRM on or off for this bot (a simple toggle). Changes only `enable_crm`; no tenant is created or removed, and
+    an existing tenant is preserved when disabling. Provisioning is a separate step (`POST /onboard`).
+    """
+    CRMProcessor.assert_staff_allowed(current_user.email)
+    return Response(data=CRMProcessor.set_crm_enabled(current_user.get_bot(), current_user.get_user(), req.enabled))

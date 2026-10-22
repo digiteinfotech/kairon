@@ -53,3 +53,6 @@ Config. Kairon: `CRM_METERING_URL`, `CRM_METERING_EVENT_SECRET` (both unset => h
 - Failure handling: a Metering outage or rejection is logged and never fails onboarding or settings. Retry with `POST /api/bot/{bot}/crm/metering-sync` (rebuilds from Kairon's record; deterministic event id `evt_<provisioning_id>_<type>`, so repeats are ignored). Delivery state is stored on `CRMClientDetails.metering_synced*` and is not returned by `/crm/details`.
 - Limitation: delivery happens inline at the end of the synchronous `/crm/onboard`, up to 5 s extra when Metering is down; there is no background retry queue.
 - `enable_crm` is Kairon-only: Metering's generic features API no longer shows or writes it (422).
+
+## Redesign (administrator invitation, user management, scheduled lead analytics)
+See `docs/crm_redesign_design.md`. It supersedes the "Deferred" notes on `/crm/create-user`, `reconcile_invitations` scheduling and `temporary_password` where they conflict.

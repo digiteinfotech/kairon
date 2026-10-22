@@ -24,7 +24,8 @@ class EventRequest(BaseModel):
         return v
 
     def validate_request(self, is_scheduled: bool, event_type: EventClass):
-        scheduled_events = {EventClass.message_broadcast.value, EventClass.analytics_pipeline.value}
+        scheduled_events = {EventClass.message_broadcast.value, EventClass.analytics_pipeline.value,
+                            EventClass.crm_lead_analysis.value}
 
         if is_scheduled:
             if not self.cron_exp and not self.run_at:

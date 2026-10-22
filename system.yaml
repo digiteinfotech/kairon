@@ -167,6 +167,8 @@ events:
     collection: ${EVENT_SCHEDULER_COLLECTION:"kscheduler"}
     type: ${EVENT_SCHEDULER_TYPE:"kscheduler"}
     min_trigger_interval: ${MIN_SCHDULER_TRIGGER_INTERVAL:86340}
+    # Analytics Pipelines only. Unset => min_trigger_interval applies. The CRM lead pipeline needs 300.
+    analytics_min_trigger_interval: ${ANALYTICS_MIN_TRIGGER_INTERVAL}
   audit_logs:
     retention: ${AUDIT_LOGS_RETENTION_PERIOD:365}
     attributes:
@@ -321,11 +323,32 @@ crm:
     base_url: ${BENCH_BASE_URL:"http://localhost:8080"}
     tenant_url_port: ${BENCH_TENANT_URL_PORT}   # optional: port added to tenant links (unset => http://<site>)
     tenant_url_scheme: ${BENCH_TENANT_URL_SCHEME:"http"}   # `https` in production; one-click login needs https
+    execution_mode: ${BENCH_EXECUTION_MODE:"docker"}   # "docker" (default, local) or "runner" (HTTP Bench runner; its service is infrastructure-owned and not in this repo)
+    runner:
+      url: ${BENCH_RUNNER_URL}
+      secret: ${BENCH_RUNNER_SECRET}
+      allow_insecure_http: ${BENCH_RUNNER_ALLOW_INSECURE_HTTP:false}   # local development only
+      job_timeout_seconds: ${BENCH_RUNNER_JOB_TIMEOUT:1200}
     sso_allow_insecure_http: ${BENCH_SSO_ALLOW_INSECURE_HTTP:false}   # local development only
     onboard_return_temporary_password: ${BENCH_ONBOARD_RETURN_TEMP_PASSWORD:false}   # true => /crm/onboard returns the one-time ERPNext password (legacy clients)
     app_name: ${BENCH_APP_NAME:"frappe"}
     invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
     reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}
+  # Optional fail-closed gate for CRM provisioning / user management: comma separated emails or "@domain" suffixes.
+  # Unset => the per-bot ADMIN_ACCESS rule alone applies.
+  staff_allowlist: ${CRM_STAFF_ALLOWLIST}
+  # Metering staff tokens accepted on /crm routes. Same value as Metering METERING_JWT_SECRET; unset => disabled.
+  staff_auth:
+    jwt_secret: ${CRM_STAFF_JWT_SECRET}
+  lead_analysis:
+    # Provider and key are the Analytics Pipeline's own (LLMSecret "openrouter"); only the model id is chosen here.
+    model: ${CRM_LEAD_LLM_MODEL:"openai/gpt-4o-mini"}
+    llm_timeout_seconds: ${CRM_LEAD_LLM_TIMEOUT:60}
+    batch_size: ${CRM_LEAD_BATCH_SIZE:50}
+    idle_seconds: ${CRM_LEAD_IDLE_SECONDS:120}
+    lookback_seconds: ${CRM_LEAD_LOOKBACK_SECONDS:900}
+    max_attempts: ${CRM_LEAD_MAX_ATTEMPTS:5}
+    max_transcript_chars: ${CRM_LEAD_MAX_TRANSCRIPT_CHARS:6000}
 
 store_page:
   url: ${STORE_PAGE_URL}

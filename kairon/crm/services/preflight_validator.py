@@ -3,6 +3,7 @@ from typing import List
 from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
+from kairon.crm.services.bench_runner import get_bench_runner
 from kairon.crm.services.feature_resolver import FeatureAppResolver
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 
@@ -53,6 +54,25 @@ class PreFlightValidator:
         logger.info("[PreFlightValidator] Application configuration validated successfully.")
         return plan
 
+    @staticmethod
+    def _validate_via_runner(runner, site_name: str, plan: ProvisioningPlan, is_upgrade: bool):
+        """The same three checks as the docker path, asked of the Bench runner (no container, no docker binary)."""
+        health = runner.run("health")
+        if not health.ok:
+            raise AppException(f"Pre-flight infrastructure failure: the Bench runner is not healthy ({health.error}).")
+        if not is_upgrade:
+            exists = runner.run("site_exists", site_name)
+            if not exists.ok:
+                raise AppException(f"Pre-flight infrastructure failure: could not check site '{site_name}' ({exists.error}).")
+            if exists.result.get("exists"):
+                raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
+        apps = runner.run("list_apps")
+        available = set(apps.result.get("apps") or []) if apps.ok else set()
+        missing = [a for a in plan.apps if a not in available]
+        if missing:
+            raise AppException(f"Pre-flight infrastructure failure: required apps not available on the Bench: {', '.join(missing)}.")
+        logger.info("[PreFlightValidator] Runner pre-flight validation completed successfully.")
+
     @classmethod
     def validate_infrastructure(cls, container_name: str, site_name: str, plan: ProvisioningPlan, is_upgrade: bool = False):
         """
@@ -62,6 +82,10 @@ class PreFlightValidator:
         3. Site name non-existence (unless upgrade).
         4. Target app repositories exist in container bench/apps.
         """
+        runner = get_bench_runner()      # None in docker mode; raises on an invalid mode or incomplete runner configuration
+        if runner:
+            cls._validate_via_runner(runner, site_name, plan, is_upgrade)
+            return
         logger.info(f"[PreFlightValidator] Validating infrastructure for container '{container_name}', site '{site_name}'...")
 
         # 1. Verify backend container running via docker exec test

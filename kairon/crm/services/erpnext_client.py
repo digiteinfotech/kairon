@@ -285,6 +285,8 @@ class ERPNextClient:
             crm_config = Utility.environment.get("crm", {})
             bench_config = crm_config.get("bench", {})
             container_name = BenchExecutor()._resolve_container_name(bench_config)
+            if not container_name:   # runner mode: no container; the caller's HTTP path is used
+                raise RuntimeError("no Bench container in runner mode")
 
             script = f"""
 import frappe, json
@@ -537,6 +539,8 @@ print(json.dumps(keys))
             crm_config = Utility.environment.get("crm", {})
             bench_config = crm_config.get("bench", {})
             container_name = BenchExecutor()._resolve_container_name(bench_config)
+            if not container_name:   # runner mode: no container; the caller's HTTP path is used
+                raise RuntimeError("no Bench container in runner mode")
             script = (
                 f"import frappe; frappe.init(site={json.dumps(self.site_name)}); frappe.connect(); "
                 f"frappe.db.set_value('Workspace', {json.dumps(workspace_name)}, "
@@ -568,6 +572,8 @@ print(json.dumps(keys))
             crm_config = Utility.environment.get("crm", {})
             bench_config = crm_config.get("bench", {})
             container_name = BenchExecutor()._resolve_container_name(bench_config)
+            if not container_name:   # runner mode: no container; the caller's HTTP path is used
+                raise RuntimeError("no Bench container in runner mode")
 
             cmd = [
                 "docker", "exec", container_name,
@@ -611,6 +617,8 @@ print(json.dumps(keys))
             crm_config = Utility.environment.get("crm", {})
             bench_config = crm_config.get("bench", {})
             container_name = BenchExecutor()._resolve_container_name(bench_config)
+            if not container_name:   # runner mode: no container; the caller's HTTP path is used
+                raise RuntimeError("no Bench container in runner mode")
 
             script = f"""
 import frappe
@@ -880,6 +888,13 @@ frappe.db.commit()
                 logger.warning(f"[ERPNextClient] Welcome/reset-password email trigger failed for '{email}': HTTP {reset_resp.status_code}")
             else:
                 self._log_api_op("send_welcome_email", email, True, reset_resp.status_code)
+
+    def set_user_password(self, email: str, password: str):
+        """Sets a user's password through the REST API (verification credentials only; never persisted by callers)."""
+        response = self.session.put(f"{self.base_url}/api/resource/User/{email}", json={"new_password": password}, timeout=15)
+        if response.status_code != 200:
+            self._log_api_op("set_user_password", email, False, response.status_code)
+            raise AppException(f"Failed to set password for User {email}: HTTP {response.status_code}")
 
     def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None, default_workspace: Optional[str] = None, role_profile: Optional[str] = None):
         """
