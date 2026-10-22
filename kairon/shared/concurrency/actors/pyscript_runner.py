@@ -57,6 +57,25 @@ class PyScriptRunner(BaseActor):
                     f"    Detail: {type(exc).__name__}: {exc}"
                 )
 
+        if not error_details:
+            line_number = getattr(exc, "lineno", None)
+
+            if line_number is None:
+                line_number = getattr(exc, "line_number", None)
+
+            if line_number is not None:
+                source_line = (
+                    lines[line_number - 1].strip()
+                    if 1 <= line_number <= len(lines)
+                    else ""
+                )
+
+                error_details.append(
+                    f"Error on Line {line_number}:\n"
+                    f"    Code: {source_line}\n"
+                    f"    Detail: {type(exc).__name__}: {exc}"
+                )
+
         error_message = f"Script execution error: {exc}"
 
         if error_details:
@@ -120,7 +139,7 @@ class PyScriptRunner(BaseActor):
             except Exception as e:
                 logger.exception(e)
                 error_message = PyScriptRunner._format_script_error(src_code, e)
-                raise AppException(f"Script execution error: {error_message}")
+                raise AppException(error_message)
 
         return execute_script_with_timeout(source_code, global_safe, local_vars)
 
