@@ -55,7 +55,8 @@ os.environ["system_file"] = "./tests/testing_data/system.yaml"
 class TestEventExecution:
 
     @pytest.fixture(scope='class', autouse=True)
-    def init(self):
+    @classmethod
+    def init(cls):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))

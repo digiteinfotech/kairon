@@ -885,7 +885,7 @@ class Utility:
             f"{tempdir}/{utc_now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
         )
         with tarfile.open(model_file, "r:gz") as model:
-            model.extractall(tempdir)
+            model.extractall(tempdir, filter="data")
 
             metadata = json.load(open(f"{tempdir}/metadata.json"))
             metadata["domain"]["slots"]["bot"]["initial_value"] = bot

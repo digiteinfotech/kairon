@@ -24,6 +24,15 @@ import os
 Utility.load_environment()
 Utility.load_system_metadata()
 
+
+def _capture_scheduled(bucket):
+    def _capture(coro):
+        bucket.append(coro)
+        coro.close()
+
+    return _capture
+
+
 @pytest.fixture
 def sample_binary():
     return b"sample data"
@@ -466,7 +475,7 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get_client, mo
     mock_uuid.return_value.hex = "uuid123"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid123"]
@@ -508,7 +517,7 @@ async def test_save_whatsapp_media_content_meta_success(mock_get_client, mock_re
     mock_uuid.return_value.hex = "uuid456"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid456"]
@@ -575,7 +584,7 @@ async def test_save_whatsapp_media_content_gupshup_success(mock_get_client, mock
     mock_uuid.return_value.hex = "uuid_gs_001"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid_gs_001"]
@@ -754,6 +763,8 @@ def test_save_whatsapp_media_content_background_task_failure(mock_get_client, mo
     mock_requests_get.return_value = mock_media_resp
 
     def mock_background_task(*args, **kwargs):
+        if args:
+            args[0].close()
         raise Exception("Background task failed")
     mock_create_task.side_effect = mock_background_task
 
@@ -798,6 +809,7 @@ def test_save_whatsapp_media_content_success(mock_get_client, mock_create_user_m
     mock_requests_get.assert_called()
     mock_create_user_media_data.assert_called_once()
     mock_create_task.assert_called_once()
+    mock_create_task.call_args.args[0].close()
 
 
 @pytest.mark.asyncio
@@ -890,7 +902,7 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
     mock_save_media.return_value = "https://s3.aws/test/file.jpg"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot,
             sender_id,
@@ -959,7 +971,7 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     mock_save_media.return_value = "https://s3.aws/test/image.jpg"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot,
             sender_id,
@@ -1093,7 +1105,7 @@ async def test_save_whatsapp_media_and_get_url_gupshup_success(
     mock_save_media.return_value = "https://s3.aws/test/doc.pdf"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot, sender_id, whatsapp_media_id, config, description
         )

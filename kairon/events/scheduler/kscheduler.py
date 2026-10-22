@@ -148,7 +148,10 @@ def _ensure_started():
     KScheduler._KScheduler__job_store_name = job_store_name
     KScheduler._KScheduler__scheduler = scheduler
     scheduler.start()
-    KScheduler._KScheduler__watchdog = _build_watchdog(scheduler)
+    # A mocked start() leaves the scheduler stopped. The watchdog would then
+    # call the real start() and block on Mongo.
+    if scheduler.running:
+        KScheduler._KScheduler__watchdog = _build_watchdog(scheduler)
 
 
 if os.getenv("KAIRON_SKIP_SCHEDULER") != "1":

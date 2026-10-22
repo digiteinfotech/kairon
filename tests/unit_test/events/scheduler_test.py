@@ -37,6 +37,7 @@ class TestMessageBroadcastProcessor:
         assert isinstance(mongostore, MongoDBJobStore)
         assert mongostore.collection.full_name == f'{Utility.environment["events"]["queue"]["name"]}.' \
                                                   f'{Utility.environment["events"]["scheduler"]["collection"]}'
+        assert not any(thread.name == "SchedulerWatchdog" for thread in threading.enumerate())
 
     @patch("pymongo.collection.Collection.create_index")
     @patch("apscheduler.schedulers.background.BackgroundScheduler.start", autospec=True)
