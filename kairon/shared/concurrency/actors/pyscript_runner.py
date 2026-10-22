@@ -1,4 +1,3 @@
-import sys
 import traceback
 from functools import partial
 from types import ModuleType
@@ -34,6 +33,7 @@ global_safe['url_parse'] = PyscriptUtility.url_parse_quote_plus
 
 class PyScriptRunner(BaseActor):
 
+    @staticmethod
     def _format_script_error(src_code: Text, exc: Exception) -> str:
         exc_tb = exc.__traceback__
         filename = '<inline code>'
