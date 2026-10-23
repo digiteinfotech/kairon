@@ -416,9 +416,10 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
     print(json_response)
     assert not json_response["success"]
     assert not json_response["data"]
-    assert json_response["message"] == "Error"
+    assert json_response["message"] == "Callback script execution failed. Check callback logs for details."
     assert json_response["error_code"] == 400
-    assert json_response == {"message": "Error", "error_code": 400, "success": False, "data": None}
+    assert json_response == {"message": "Callback script execution failed. Check callback logs for details.",
+                             "error_code": 400, "success": False, "data": None}
     assert mock_run_pyscript.called_once()
     assert mock_dispatch_message.called_once()
 
