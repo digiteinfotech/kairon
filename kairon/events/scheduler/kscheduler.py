@@ -22,6 +22,8 @@ from kairon.shared.data.constant import TASK_TYPE
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
 logging.basicConfig()
 
+_start_lock = threading.Lock()
+
 
 def _on_job_event(event):
     if event.exception:
@@ -31,6 +33,17 @@ def _on_job_event(event):
                        getattr(event, 'scheduled_run_time', None))
     else:
         logger.info("SCHEDULER_JOB_EXECUTED | job_id={}", event.job_id)
+
+
+def _revive_scheduler_thread(scheduler):
+    """
+    Starts a new polling thread for a scheduler whose state is still RUNNING but whose thread died.
+    Executors and job stores are left untouched: scheduler.shutdown() would stop the executor pool
+    (later jobs fail with "cannot schedule new futures after shutdown") and close the shared MongoClient.
+    """
+    thread = threading.Thread(target=scheduler._main_loop, name='APScheduler', daemon=scheduler._daemon)
+    scheduler._thread = thread
+    thread.start()
 
 
 def _build_watchdog(scheduler):
@@ -43,10 +56,16 @@ def _build_watchdog(scheduler):
     def _watch():
         while True:
             time.sleep(interval)
-            if not scheduler.running:
+            # `running` only reflects scheduler state; it stays True when the scheduler thread itself dies.
+            thread = getattr(scheduler, '_thread', None)
+            thread_dead = scheduler.running and thread is not None and not thread.is_alive()
+            if not scheduler.running or thread_dead:
                 logger.critical("APScheduler thread found dead — restarting scheduler")
                 try:
-                    scheduler.start()
+                    if thread_dead:
+                        _revive_scheduler_thread(scheduler)
+                    else:
+                        scheduler.start()
                     logger.info("APScheduler restarted by watchdog")
                 except Exception as exc:
                     logger.exception("Watchdog failed to restart APScheduler: {}", exc)
@@ -57,11 +76,18 @@ def _build_watchdog(scheduler):
 
 
 class KScheduler(EventSchedulerBase):
-    def __init__(self):
-        # Start on first use. Import-time startup is skipped in tests that set
-        # KAIRON_SKIP_SCHEDULER, and a client stored on the class body is treated
-        # as abstract when it answers __isabstractmethod__.
-        _ensure_started()
+    @staticmethod
+    def start():
+        """
+        Starts the scheduler and its watchdog. Must be called only by the event server:
+        importing this module must not start a scheduler, otherwise every process importing it
+        competes with the event server for the same job store.
+        """
+        with _start_lock:
+            if not KScheduler.__scheduler.running:
+                KScheduler.__scheduler.start()
+            if KScheduler.__watchdog is None:
+                KScheduler.__watchdog = _build_watchdog(KScheduler.__scheduler)
 
     def update_job(self, event_id: Text, task_type: TASK_TYPE, event_class: Text, data: dict, timezone=None,
                    cron_exp: Optional[Text] = None, run_at: Optional[int] = None):
@@ -133,9 +159,10 @@ class KScheduler(EventSchedulerBase):
         KScheduler.__scheduler.wakeup()
 
 
-def _ensure_started():
-    if getattr(KScheduler, "_KScheduler__scheduler", None) is not None:
-        return
+def _build_scheduler():
+    # A MongoClient stored on the class body answers __isabstractmethod__,
+    # so the class stays abstract. Build the job store after the class exists.
+    # Import does not start it. Only the event server calls KScheduler.start().
     client = MongoClient(Utility.environment['database']['url'])
     events_db = Utility.environment['events']['queue']['name']
     job_store_name = Utility.environment['events']['scheduler']['collection']
@@ -147,12 +174,7 @@ def _ensure_started():
     KScheduler._KScheduler__events_db = events_db
     KScheduler._KScheduler__job_store_name = job_store_name
     KScheduler._KScheduler__scheduler = scheduler
-    scheduler.start()
-    # A mocked start() leaves the scheduler stopped. The watchdog would then
-    # call the real start() and block on Mongo.
-    if scheduler.running:
-        KScheduler._KScheduler__watchdog = _build_watchdog(scheduler)
+    KScheduler._KScheduler__watchdog = None
 
 
-if os.getenv("KAIRON_SKIP_SCHEDULER") != "1":
-    _ensure_started()
+_build_scheduler()

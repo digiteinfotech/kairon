@@ -6,6 +6,7 @@ import pytest
 import pytz
 from dramatiq.brokers.stub import StubBroker
 from loguru import logger
+from mongoengine import connect, disconnect
 from unittest.mock import patch
 from starlette.testclient import TestClient
 
@@ -43,6 +44,14 @@ def event_app_lifespan():
 
 
 broker = StubBroker()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def mongo_connection():
+    """TestClient is not used as a context manager, so the app lifespan never connects mongoengine."""
+    connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+    yield
+    disconnect()
 
 
 def test_index():
@@ -588,8 +597,9 @@ def test_delete_scheduled_event_request(mock_delet_job):
     }
 
 
+@patch("apscheduler.schedulers.blocking.BlockingScheduler.wakeup", autospec=True)
 @patch("apscheduler.schedulers.base.BaseScheduler._dispatch_event", autospec=True)
-def test_scheduled_event_request_dispatch(mock_dispatch_event):
+def test_scheduled_event_request_dispatch(mock_dispatch_event, mock_wakeup):
     response = client.get(
         f"/api/events/dispatch/test",
     )
@@ -608,6 +618,26 @@ def test_scheduled_event_request_dispatch(mock_dispatch_event):
     assert event.jobstore == 'kscheduler'
     assert isinstance(args[1], JobEvent)
     assert isinstance(args[0], BackgroundScheduler)
+    mock_wakeup.assert_called_once()
+
+
+def test_lifespan_starts_scheduler():
+    import asyncio
+    from kairon.events.server import lifespan
+
+    async def run():
+        async with lifespan(app):
+            pass
+
+    with patch("kairon.events.server.KScheduler.start") as mock_start, \
+            patch("kairon.events.server.connect") as mock_connect, \
+            patch("kairon.events.server.disconnect") as mock_disconnect, \
+            patch("kairon.events.server.Utility.mongoengine_connection", return_value={}):
+        asyncio.run(run())
+
+    mock_connect.assert_called_once()
+    mock_start.assert_called_once()
+    mock_disconnect.assert_called_once()
 
 
 @patch('kairon.events.utility.EventUtility.schedule_channel_mail_reading')

@@ -15,6 +15,7 @@ from kairon.shared.chat.agent.agent_flow import AgenticFlow
 from kairon.shared.chat.models import ChatRequest, AgenticFlowRequest
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.constants import CHAT_ACCESS
+from kairon.shared.data.data_objects import CustomerDetails
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import User
 
@@ -115,6 +116,26 @@ async def verity_auth(current_user: User = Security(Authentication.get_current_u
         "bot_id": current_user.get_bot()
     }}
 
+@router.post('/store_page/exec/flow', response_model=Response)
+async def execute_flow(
+        request: AgenticFlowRequest,
+        bot: Text = Path(description="Bot id"),
+        current_user: CustomerDetails = Security(Authentication.validate_store_page_token, scopes=CHAT_ACCESS)
+):
+    """
+    Executes Agentic flow for Store Page.
+    """
+    sender_id = Utility.process_sender_id(request.sender_id)
+    flow = AgenticFlow(bot, request.slot_vals, sender_id)
+    responses, errors = await flow.execute_rule(request.name)
+    return {
+        "data": {
+            "responses": responses,
+            "errors": errors,
+        },
+        "message": "Rule executed successfully!"
+    }
+
 @router.post('/exec/flow', response_model=Response)
 async def execute_flow(
         request: AgenticFlowRequest,
@@ -122,7 +143,7 @@ async def execute_flow(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=CHAT_ACCESS)
 ):
     """
-    Retrieves chat client config of a bot.
+    Executes Agentic flow.
     """
     flow = AgenticFlow(bot, request.slot_vals, request.sender_id)
     responses, errors = await flow.execute_rule(request.name)
