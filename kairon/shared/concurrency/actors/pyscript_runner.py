@@ -83,7 +83,6 @@ class PyScriptRunner(BaseActor):
 
         return error_message
 
-
     def execute(self, source_code: Text, predefined_objects: Optional[Dict] = None, **kwargs):
         """
         Executes a python script. Objects(variables/callables) present in predefined_objects will be

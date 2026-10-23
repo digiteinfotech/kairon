@@ -210,4 +210,6 @@ class CallbackProcessor:
                                                       action_name=entry.get("action_name"),
                                                       user_query_history=request_data.get('body'))
 
+            message = "Callback script execution failed. Check callback logs for details."
+
         return data, message, error_code, response_type, redirect_url

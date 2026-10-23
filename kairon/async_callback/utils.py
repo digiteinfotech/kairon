@@ -1,7 +1,9 @@
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
 from kairon.exceptions import AppException
-from kairon.shared.actions.models import ActionParameterType
+from kairon.shared.actions.data_objects import ActionServerLogs
+from kairon.shared.actions.models import ActionParameterType, ActionType
+from kairon.shared.data.constant import STATUSES
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -155,8 +157,9 @@ class CallbackUtility:
             output["body"] = response
         except Exception as e:
             logger.exception(e)
+            CallbackUtility._log_main_pyscript_failure(data, str(e), context)
             output["statusCode"] = 422
-            output["body"] = str(e)
+            output["body"] = "Script execution failed. Check server logs for details."
 
         logger.info(output)
         return output
@@ -237,3 +240,20 @@ class CallbackUtility:
             ]
 
         )
+
+    @staticmethod
+    def _log_main_pyscript_failure(data: dict, error: str, context: dict = None):
+        try:
+            objs = data.get('predefined_objects') or {}
+            ActionServerLogs(
+                type=ActionType.pyscript_action.value,
+                action="main_pyscript",
+                intent=objs.get('intent'),
+                sender=objs.get('sender_id'),
+                bot=(objs.get('slot') or {}).get('bot'),
+                exception=error,
+                status=STATUSES.FAIL.value,
+                request_id=(context or {}).get('request_id'),
+            ).save()
+        except Exception as log_err:
+            logger.exception(log_err)
