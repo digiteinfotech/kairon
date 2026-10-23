@@ -1732,3 +1732,59 @@ async def test_get_media_content_file_stream_not_found(mock_get_buffer):
     UserMediaData.objects().delete()
     BotSettings.objects().delete()
     Channels.objects().delete()
+
+
+def test_format_script_error_includes_line_details():
+    src_code = "x = 1\nraise ValueError('test error')"
+
+    try:
+        exec(compile(src_code, "<inline code>", "exec"), {})
+    except ValueError as exc:
+        result = PyScriptRunner._format_script_error(src_code, exc)
+
+    assert "Script execution error: test error" in result
+    assert "Error on Line 2" in result
+    assert "Code: raise ValueError('test error')" in result
+    assert "Detail: ValueError: test error" in result
+
+
+def test_format_script_error_without_inline_traceback():
+    src_code = "x = 1\nraise ValueError('test error')"
+
+    try:
+        raise ValueError("test error")
+    except ValueError as exc:
+        result = PyScriptRunner._format_script_error(src_code, exc)
+
+    assert result == "Script execution error: test error"
+
+
+def test_format_script_error_when_source_line_missing():
+    src_code = ""
+
+    try:
+        exec(compile("raise ValueError('test error')", "<inline code>", "exec"), {})
+    except ValueError as exc:
+        result = PyScriptRunner._format_script_error(src_code, exc)
+
+    assert "Script execution error: test error" in result
+    assert "Error on Line 1" in result
+    assert "Code: " in result
+    assert "Detail: ValueError: test error" in result
+
+def test_format_script_error_for_compiler_error():
+    src_code = "x = 1\nreturn x"
+
+    try:
+        compile(
+            src_code,
+            "<inline code>",
+            "exec"
+        )
+    except SyntaxError as exc:
+        result = PyScriptRunner._format_script_error(src_code, exc)
+
+    assert "Script execution error:" in result
+    assert "Error on Line 2" in result
+    assert "Code: return x" in result
+    assert "Detail: SyntaxError:" in result
