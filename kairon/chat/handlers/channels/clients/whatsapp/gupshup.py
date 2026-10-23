@@ -13,6 +13,7 @@ INVALID_STATUS_CODES = set(range(400, 600))
 
 class BSPGupshup(WhatsappCloud):
     WHATSAPP_REQUEST_TIMEOUT = 120.0
+    MESSAGING_TYPES = WhatsappCloud.MESSAGING_TYPES | {"document"}
 
     def __init__(self, access_token, **kwargs):
         """Initialize BSPGupshup chat client with access token and channel config."""
@@ -42,20 +43,8 @@ class BSPGupshup(WhatsappCloud):
         return self._auth_args
 
     def send_action(self, payload, timeout=None, **kwargs):
-        """Send a synchronous Gupshup message."""
-        messaging_type = payload.get("type")
-        destination = payload.get("to") or payload.get("recipient")
-        form_data = {
-            "source": self.phone_number,
-            "destination": destination,
-            "message": json.dumps(self._build_gupshup_message(messaging_type, payload.get(messaging_type, {})))
-        }
-        r = requests.post(
-            self.get_url(api_type="message"),
-            headers=self.auth_args,
-            data=form_data,
-            timeout=timeout
-        )
+        """Send a synchronous Gupshup v3 message (Meta Cloud payload)."""
+        r = requests.post(self._v3_url(), headers=self._v3_headers(), json=payload, timeout=timeout)
         resp = r.json()
         logger.debug(resp)
         return resp
@@ -67,15 +56,10 @@ class BSPGupshup(WhatsappCloud):
         try:
             retry_options = ExponentialRetry(attempts=attempts, statuses=INVALID_STATUS_CODES, max_timeout=timeout)
             url = kwargs.get('url')
-            use_form = kwargs.get('use_form', False)
             headers = kwargs.get('headers') or self.auth_args
 
             async with RetryClient(raise_for_status=False, retry_options=retry_options) as client:
-                if use_form:
-                    request = client.post(url, data=payload, headers=headers)
-                else:
-                    request = client.post(url, json=payload, headers=headers)
-                async with request as response:
+                async with client.post(url, json=payload, headers=headers) as response:
                     last_status_code = response.status
 
                     if response.status in (200, 202):
@@ -98,41 +82,6 @@ class BSPGupshup(WhatsappCloud):
             return False, last_status_code, {"error": str(ce), "response": last_response}
         except Exception as e:
             return False, last_status_code, {"error": str(e), "response": last_response}
-
-    def get_url(self, api_type: str) -> str:
-        if api_type == "message":
-            # SMSGW apps use /msg (form-encoded); CAPI apps use /v3/message (JSON)
-            return f"{self.partner_base_url}/partner/app/{self.app_id}/msg"
-        elif api_type == "template":
-            return f"{self.partner_base_url}/partner/app/{self.app_id}/template/msg"
-        else:
-            raise ValueError(f"Unknown api_type: {api_type}")
-
-    def _build_gupshup_message(self, messaging_type: str, payload: dict) -> dict:
-        """Map Meta Cloud API message payload to Gupshup SMSGW message format."""
-        if messaging_type == "text":
-            return {"type": "text", "text": payload.get("body", "")}
-        elif messaging_type == "image":
-            url = payload.get("link", "")
-            return {"type": "image", "originalUrl": url, "previewUrl": url,
-                    "caption": payload.get("caption", "")}
-        elif messaging_type == "document":
-            return {"type": "file", "url": payload.get("link", ""),
-                    "filename": payload.get("filename", ""),
-                    "caption": payload.get("caption", "")}
-        elif messaging_type == "audio":
-            return {"type": "audio", "url": payload.get("link", "")}
-        elif messaging_type == "video":
-            return {"type": "video", "url": payload.get("link", ""),
-                    "caption": payload.get("caption", "")}
-        elif messaging_type == "location":
-            return {"type": "location", "longitude": payload.get("longitude"),
-                    "latitude": payload.get("latitude"),
-                    "name": payload.get("name", ""), "address": payload.get("address", "")}
-        logger.warning(f"Gupshup SMSGW: unsupported messaging_type '{messaging_type}'")
-        return {"type": messaging_type}
-
-
 
     async def _send_v3_template(self, template_id: str, to_phone_number: str,
                                 language_code: str, components: list) -> tuple:
@@ -159,26 +108,23 @@ class BSPGupshup(WhatsappCloud):
     async def send_async(self, payload: dict, to_phone_number: str, messaging_type: str,
                          recipient_type: str = 'individual',
                          timeout: float = WHATSAPP_REQUEST_TIMEOUT, tag=None) -> (bool, int, any):
-        """Send an async Gupshup message via SMSGW form-encoded endpoint."""
+        """Send an async Gupshup v3 message (Meta Cloud payload)."""
         if messaging_type not in self.MESSAGING_TYPES:
             raise ValueError('`{}` is not a valid `messaging_type`'.format(messaging_type))
 
-        url = self.get_url(api_type="message")
-
-        form_data = {
-            "source": self.phone_number,
-            "destination": to_phone_number,
-            "message": json.dumps(self._build_gupshup_message(messaging_type, payload))
+        body = {
+            "messaging_product": "whatsapp",
+            "recipient_type": recipient_type,
+            "type": messaging_type,
+            messaging_type: payload,
+            self._recipient_field(to_phone_number): to_phone_number
         }
-
         return await self.send_action_async(
-            payload=form_data,
-            url=url,
+            payload=body,
+            url=self._v3_url(),
             timeout=timeout,
-            headers=self.auth_args,
-            use_form=True
+            headers=self._v3_headers(),
         )
-
 
     def _v3_url(self):
         return f"{self.partner_base_url}/partner/app/{self.app_id}/v3/message"

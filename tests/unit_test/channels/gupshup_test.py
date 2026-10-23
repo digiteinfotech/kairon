@@ -3,7 +3,7 @@
 Covers:
 - WhatsappCloud BSUID recipient field routing ("." in phone → "recipient", else "to")
 - BSPGupshup chat client (send_action, send_action_async,
-  _build_gupshup_message, get_url, mark_as_read, typing_indicator, get_media_info)
+  get_url, mark_as_read, typing_indicator, get_media_info)
 - WhatsappBroadcast Gupshup routing (send_template_message, send_template_message_retry,
   ChannelLogs creation)
 - Whatsapp handler Gupshup paths (handle_gupshup_native_payload, message_received routing,
@@ -150,92 +150,21 @@ class TestGupshupClientInit:
         assert "token" in auth
         assert auth["token"] == "tok_abc"
 
-
-class TestGupshupClientGetUrl:
-
-    def test_get_url_message(self, gupshup_client):
-        url = gupshup_client.get_url("message")
-        assert url == "https://partner.gupshup.io/partner/app/app_001/msg"
-
-    def test_get_url_template(self, gupshup_client):
-        url = gupshup_client.get_url("template")
-        assert url == "https://partner.gupshup.io/partner/app/app_001/template/msg"
-
-    def test_get_url_unknown_raises(self, gupshup_client):
-        with pytest.raises(ValueError, match="Unknown api_type"):
-            gupshup_client.get_url("unknown")
-
-
-class TestBuildGupshupMessage:
-
-    def test_text_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("text", {"body": "Hello"})
-        assert result == {"type": "text", "text": "Hello"}
-
-    def test_image_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("image", {"link": "http://img.png", "caption": "Cap"})
-        assert result["type"] == "image"
-        assert result["originalUrl"] == "http://img.png"
-        assert result["caption"] == "Cap"
-
-    def test_document_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("document", {"link": "http://doc.pdf", "filename": "doc.pdf"})
-        assert result["type"] == "file"
-        assert result["url"] == "http://doc.pdf"
-        assert result["filename"] == "doc.pdf"
-
-    def test_audio_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("audio", {"link": "http://audio.mp3"})
-        assert result == {"type": "audio", "url": "http://audio.mp3"}
-
-    def test_video_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("video", {"link": "http://vid.mp4", "caption": "vid"})
-        assert result["type"] == "video"
-        assert result["url"] == "http://vid.mp4"
-
-    def test_location_message(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("location", {
-            "longitude": 77.5, "latitude": 12.9, "name": "Loc", "address": "Addr"
-        })
-        assert result["type"] == "location"
-        assert result["longitude"] == 77.5
-        assert result["latitude"] == 12.9
-
-    def test_unsupported_type_returns_passthrough(self, gupshup_client):
-        result = gupshup_client._build_gupshup_message("sticker", {})
-        assert result == {"type": "sticker"}
-
-
 class TestGupshupClientSendAction:
 
-    def test_send_action_posts_form_encoded(self, gupshup_client):
+    def test_send_action_posts_json_to_v3(self, gupshup_client):
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"status": "submitted", "messageId": "msg1"}
+        payload = {"messaging_product": "whatsapp", "type": "text", "text": {"body": "hi"}, "to": "919000000002"}
         with patch("requests.post", return_value=mock_resp) as mock_post:
-            result = gupshup_client.send_action({"type": "text", "text": {"body": "hi"}, "to": "919000000002"})
+            result = gupshup_client.send_action(payload, timeout=10)
         mock_post.assert_called_once()
+        assert mock_post.call_args[0][0] == "https://partner.gupshup.io/partner/app/app_001/v3/message"
         call_kwargs = mock_post.call_args[1]
-        assert "data" in call_kwargs          # form-encoded, not json=
-        assert "json" not in call_kwargs
-        form = call_kwargs["data"]
-        assert form["source"] == gupshup_client.phone_number
+        assert call_kwargs["json"] == payload
+        assert "data" not in call_kwargs
+        assert call_kwargs["headers"]["Authorization"] == gupshup_client.access_token
         assert result == {"status": "submitted", "messageId": "msg1"}
-
-    def test_send_action_destination_prefers_to_field(self, gupshup_client):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {}
-        with patch("requests.post", return_value=mock_resp) as mock_post:
-            gupshup_client.send_action({"type": "text", "text": {"body": "hi"}, "to": "919111111111"})
-        form = mock_post.call_args[1]["data"]
-        assert form["destination"] == "919111111111"
-
-    def test_send_action_destination_falls_back_to_recipient(self, gupshup_client):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {}
-        with patch("requests.post", return_value=mock_resp) as mock_post:
-            gupshup_client.send_action({"type": "text", "text": {"body": "hi"}, "recipient": "uid.bsuid"})
-        form = mock_post.call_args[1]["data"]
-        assert form["destination"] == "uid.bsuid"
 
 
 class TestGupshupClientSendActionAsync:
@@ -248,7 +177,7 @@ class TestGupshupClientSendActionAsync:
             m.post(url, payload={"messageId": "gm1", "status": "submitted"}, status=200)
             ok, status, resp = await gupshup_client.send_action_async(
                 {"source": "919000000001", "destination": "919000000002"},
-                url=url, use_form=True
+                url=url
             )
         assert ok is True
         assert status == 200
@@ -264,7 +193,7 @@ class TestGupshupClientSendActionAsync:
             m.post(url, payload={"error": "bad request"}, status=400)
             ok, status, resp = await gupshup_client.send_action_async(
                 {"source": "919000000001", "destination": "919000000002"},
-                url=url, use_form=True, attempts=3
+                url=url, attempts=3
             )
         assert ok is False
 
@@ -276,7 +205,7 @@ class TestGupshupClientSendActionAsync:
             m.post(url, payload={"messageId": "gm2", "status": "submitted"}, status=202)
             ok, status, resp = await gupshup_client.send_action_async(
                 {"source": "919000000001", "destination": "919000000002"},
-                url=url, use_form=True
+                url=url
             )
         assert ok is True
         assert status == 202
@@ -289,7 +218,7 @@ class TestGupshupClientSendActionAsync:
             mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
             mock_inst.post.side_effect = ClientConnectionError("conn refused")
             ok, status, resp = await gupshup_client.send_action_async(
-                {}, url="https://partner.gupshup.io/msg", use_form=True
+                {}, url="https://partner.gupshup.io/msg"
             )
         assert ok is False
         assert "error" in resp
@@ -308,7 +237,7 @@ class TestGupshupClientSendActionAsync:
                    headers={"Content-Type": "text/plain"})
             ok, status, resp = await gupshup_client.send_action_async(
                 {"source": "919000000001", "destination": "919000000002"},
-                url=url, use_form=True, attempts=3
+                url=url, attempts=3
             )
         assert ok is False
         assert status == 500
@@ -322,7 +251,7 @@ class TestGupshupClientSendActionAsync:
                 request_info=MagicMock(), history=(), status=503, message="service unavailable"
             )
             ok, status, resp = await gupshup_client.send_action_async(
-                {}, url="https://partner.gupshup.io/msg", use_form=True
+                {}, url="https://partner.gupshup.io/msg"
             )
         assert ok is False
         assert "error" in resp
@@ -334,7 +263,7 @@ class TestGupshupClientSendActionAsync:
             mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
             mock_inst.post.side_effect = ClientError("generic client error")
             ok, status, resp = await gupshup_client.send_action_async(
-                {}, url="https://partner.gupshup.io/msg", use_form=True
+                {}, url="https://partner.gupshup.io/msg"
             )
         assert ok is False
         assert "error" in resp
@@ -345,7 +274,7 @@ class TestGupshupClientSendActionAsync:
             mock_inst = mock_retry.return_value.__aenter__.return_value = MagicMock()
             mock_inst.post.side_effect = RuntimeError("unexpected failure")
             ok, status, resp = await gupshup_client.send_action_async(
-                {}, url="https://partner.gupshup.io/msg", use_form=True
+                {}, url="https://partner.gupshup.io/msg"
             )
         assert ok is False
         assert "error" in resp
@@ -354,20 +283,34 @@ class TestGupshupClientSendActionAsync:
 class TestGupshupClientSendAsync:
 
     @pytest.mark.asyncio
-    async def test_send_async_posts_form_encoded(self, gupshup_client):
-        """send_async builds form data from _build_gupshup_message and delegates to send_action_async."""
+    @pytest.mark.parametrize("messaging_type,payload", [
+        ("text", {"body": "hello"}),
+        ("image", {"link": "http://img.png", "caption": "Cap"}),
+        ("video", {"link": "http://vid.mp4", "caption": "vid"}),
+        ("audio", {"id": "media1"}),
+        ("document", {"link": "http://doc.pdf", "filename": "doc.pdf", "caption": "Cap"}),
+        ("location", {"longitude": 77.5, "latitude": 12.9, "name": "Loc", "address": "Addr"}),
+        ("contacts", [{"name": {"formatted_name": "A B"}, "phones": [{"phone": "+911234567890"}]}]),
+        ("interactive", {"type": "button", "body": {"text": "pick"},
+                         "action": {"buttons": [{"type": "reply", "reply": {"id": "1", "title": "One"}}]}}),
+        ("interactive", {"type": "location_request_message", "body": {"text": "share"},
+                         "action": {"name": "send_location"}}),
+    ])
+    async def test_send_async_posts_meta_payload_to_v3(self, gupshup_client, messaging_type, payload):
         with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock) as mock_send:
             mock_send.return_value = (True, 200, {"messageId": "sa1"})
             ok, status, resp = await gupshup_client.send_async(
-                payload={"body": "hello"}, to_phone_number="919000000002", messaging_type="text"
+                payload=payload, to_phone_number="919000000002", messaging_type=messaging_type
             )
         assert ok is True
         call_kwargs = mock_send.call_args[1]
-        assert call_kwargs["use_form"] is True
-        import json
-        msg = json.loads(mock_send.call_args[1]["payload"]["message"])
-        assert msg["type"] == "text"
-        assert msg["text"] == "hello"
+        assert call_kwargs["url"] == "https://partner.gupshup.io/partner/app/app_001/v3/message"
+        assert call_kwargs["headers"] == gupshup_client._v3_headers()
+        assert "use_form" not in call_kwargs
+        assert call_kwargs["payload"] == {
+            "messaging_product": "whatsapp", "recipient_type": "individual",
+            "type": messaging_type, messaging_type: payload, "to": "919000000002"
+        }
 
     @pytest.mark.asyncio
     async def test_send_async_invalid_messaging_type_raises(self, gupshup_client):
@@ -375,17 +318,6 @@ class TestGupshupClientSendAsync:
             await gupshup_client.send_async(
                 payload={}, to_phone_number="919000000002", messaging_type="unsupported_type"
             )
-
-    @pytest.mark.asyncio
-    async def test_send_async_passes_phone_number_as_source(self, gupshup_client):
-        with patch.object(gupshup_client, "send_action_async", new_callable=AsyncMock) as mock_send:
-            mock_send.return_value = (True, 200, {})
-            await gupshup_client.send_async(
-                payload={"link": "http://img.png"}, to_phone_number="919000000002", messaging_type="image"
-            )
-        payload = mock_send.call_args[1]["payload"]
-        assert payload["source"] == gupshup_client.phone_number
-        assert payload["destination"] == "919000000002"
 
 
 class TestBSPGupshupSendBroadcastTemplateAsync:
