@@ -2412,7 +2412,19 @@ class TestEventExecution:
         nlu_path = 'tests/testing_data/model_tester/nlu_with_entities/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         asyncio.run(load_data(config_path, domain_path, nlu_path, stories_path, bot, user))
-        pytest.model_path = ModelTrainingEvent(bot, user).execute()
+        # train_model_for_bot always passes augmentation_factor 100. This test only
+        # checks that an archive is written, so the call here trains with 0.
+        import kairon.train as train_module
+        original_train = train_module.train
+
+        def _train_without_augmentation(*args, **kwargs):
+            core = dict(kwargs.get("core_additional_arguments") or {})
+            core["augmentation_factor"] = 0
+            kwargs["core_additional_arguments"] = core
+            return original_train(*args, **kwargs)
+
+        with patch("kairon.train.train", _train_without_augmentation):
+            pytest.model_path = ModelTrainingEvent(bot, user).execute()
         assert not Utility.check_empty_string(pytest.model_path)
 
     @mock.patch("kairon.test.test_models.ModelTester.run_test_on_stories")
@@ -3851,7 +3863,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 1}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 0.05}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -3880,7 +3892,7 @@ class TestEventExecution:
         assert logged_config == config
 
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value,
-                              'user': user, 'exception': 'Operation timed out: 1 seconds'}
+                              'user': user, 'exception': 'Operation timed out: 0.05 seconds'}
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
