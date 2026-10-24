@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 
 import pytest
@@ -7,6 +7,7 @@ from unittest.mock import patch, AsyncMock
 
 from httpx import QueryParams
 from jose import jwt
+from kairon.shared.clock import utc_now
 from kairon.async_callback.utils import CallbackUtility
 from kairon.shared.actions.models import ActionParameterType
 from mongoengine import connect
@@ -228,7 +229,7 @@ async def test_get_callback(mock_dispatch_message):
     assert "i am happy : )" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -247,7 +248,7 @@ async def test_get_callback_response_type(mock_dispatch_message):
     json_response = await response.text()
     assert "i am happy : )" in json_response
     assert "{'type': 'GET', 'body': None" in json_response
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
     callback.response_type = 'json'
     callback.pyscript_code = "bot_response={'arr': [1,2,3]}"
     callback.save()
@@ -281,7 +282,7 @@ async def test_post_callback(mock_dispatch_message):
     assert "'type': 'POST', 'body': {'key_1': 'value_1'}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -300,7 +301,7 @@ async def test_post_callback_req_body_non_json(mock_dispatch_message):
     assert "'type': 'POST', 'body': 'key_1=value_1'" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -318,7 +319,7 @@ async def test_put_callback(mock_dispatch_message):
     assert "'type': 'PUT', 'body': None," in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -336,7 +337,7 @@ async def test_patch_callback(mock_dispatch_message):
     assert "'type': 'PATCH'," in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -354,9 +355,7 @@ async def test_delete_callback(mock_dispatch_message):
     assert "{'type': 'DELETE', 'body': None, 'params': {}" in json_response["data"]
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert mock_dispatch_message.called_once_with("6697add6b8e47524eb983373", "5489844732",
-                                                  "{'type': 'DELETE', 'body': None, 'params': {}} i am happy : )",
-                                                  "telegram")
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -381,7 +380,7 @@ async def test_request_fallback_to_text():
 
 
 @pytest.mark.asyncio
-@patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async", new_callable=AsyncMock)
+@patch("kairon.async_callback.processor.CallbackProcessor.run_pyscript_async")
 @patch("kairon.async_callback.channel_message_dispacher.ChannelMessageDispatcher.dispatch_message",
        new_callable=AsyncMock)
 async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
@@ -397,8 +396,8 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert json_response == {"message": "success", "data": {"message": "Request Acknowledged"}, "error_code": 0, "success": True}
-    assert mock_run_pyscript_async.called_once()
-    assert mock_dispatch_message.called_once()
+    mock_run_pyscript_async.assert_called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -419,8 +418,8 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
     assert json_response["message"] == "Error"
     assert json_response["error_code"] == 400
     assert json_response == {"message": "Error", "error_code": 400, "success": False, "data": None}
-    assert mock_run_pyscript.called_once()
-    assert mock_dispatch_message.called_once()
+    mock_run_pyscript.assert_called_once()
+    mock_dispatch_message.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -430,6 +429,7 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
 async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript):
     await app.start()
     client = TestClient(app)
+    mock_run_pyscript.return_value = {"bot_response": "hello", "dispatch_bot_response": True}
     mock_dispatch_message.side_effect = AppException("Error")
     response = await client.get(
         '/callback/d/01916940879576a391a0cd1223fa8684/gAAAAABmwuGEYHfCz1vYBH9cp8KVcB0Pf9y5c6N3IOYIw8y0A-m4dX2gE9VW-1c9yLAK-ZKXVODp58jmSfhyeI03yUkLR1kqZUNPk_qNRIKROMXMV-wKDbqAtWOwXBXM5EVbWNj6YHCyZKwJgrGidGSjpt7UrDnprr_rmDexgCssfag_5xEtrHzVSziDEZSDCHxupAJZ_l1AA8SkxwVpqgxLdt1Nu1r2SjyZaMvtt4TFYCKYIO6CeMfgShbEqcqHeonfox_UCbhPA68RNWWHhsoHh5o66fm94A==')
@@ -437,8 +437,8 @@ async def test_dispatch_message_failure(mock_dispatch_message, mock_run_pyscript
     result = await response.json()
     assert result["error_code"] == 400
     assert not result["success"]
-    assert mock_run_pyscript.called_once()
-    assert mock_dispatch_message.called_once()
+    mock_run_pyscript.assert_called_once()
+    mock_dispatch_message.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -747,8 +747,8 @@ async def test_handle_callback_success(mock_execute, monkeypatch):
 async def test_handle_callback_failure(mock_execute, monkeypatch):
     mock_execute.side_effect = Exception("script error")
 
-    # Use datetime.utcnow() as expected by encrypt_token_claims
-    exp = datetime.utcnow() + timedelta(minutes=5)
+    # Use utc_now() as expected by encrypt_token_claims
+    exp = utc_now() + timedelta(minutes=5)
     token_claims = {
         "type": TOKEN_TYPE.DYNAMIC.value,
         "exp": exp
@@ -861,7 +861,7 @@ async def test_invalid_token_type(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_expired_token(monkeypatch):
-    expired_time = datetime.utcnow() - timedelta(hours=1)
+    expired_time = utc_now() - timedelta(hours=1)
     claims = {"type": TOKEN_TYPE.DYNAMIC.value, "exp": expired_time}
     encrypted_claims = Authentication.encrypt_token_claims(claims)
     payload = {"sub": encrypted_claims["sub"], "exp": int(expired_time.timestamp())}

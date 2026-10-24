@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Dict, Text
 
 from loguru import logger
 from mongoengine import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
 from kairon.shared.live_agent.data_objects import LiveAgents, LiveAgentMetadata
@@ -32,7 +32,7 @@ class LiveAgentsProcessor:
             agent = LiveAgents(**configuration)
             agent.bot = bot
         agent.user = user
-        agent.timestamp = datetime.utcnow()
+        agent.timestamp = utc_now()
         agent.save()
 
     @staticmethod

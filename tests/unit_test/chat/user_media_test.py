@@ -7,6 +7,7 @@ from io import BytesIO
 
 from PIL import Image
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.chat.data_objects import Channels
@@ -22,6 +23,15 @@ import os
 
 Utility.load_environment()
 Utility.load_system_metadata()
+
+
+def _capture_scheduled(bucket):
+    def _capture(coro):
+        bucket.append(coro)
+        coro.close()
+
+    return _capture
+
 
 @pytest.fixture
 def sample_binary():
@@ -465,7 +475,7 @@ async def test_save_whatsapp_media_content_360dialog_success(mock_get_client, mo
     mock_uuid.return_value.hex = "uuid123"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid123"]
@@ -507,7 +517,7 @@ async def test_save_whatsapp_media_content_meta_success(mock_get_client, mock_re
     mock_uuid.return_value.hex = "uuid456"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid456"]
@@ -519,7 +529,6 @@ def created_coros(coros):
     return coros
 
 
-@pytest.mark.asyncio
 @patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
 def test_save_whatsapp_media_content_360dialog_failure(mock_get_client):
     config = {"bsp_type": "360dialog", "api_key": "key"}
@@ -532,7 +541,6 @@ def test_save_whatsapp_media_content_360dialog_failure(mock_get_client):
     assert "Failed to download media from 360 dialog" in str(exc.value)
 
 
-@pytest.mark.asyncio
 @patch("kairon.chat.handlers.channels.clients.whatsapp.factory.WhatsappFactory.get_client")
 def test_save_whatsapp_media_content_meta_failure(mock_get_client):
     config = {"bsp_type": "meta", "access_token": "token"}
@@ -576,7 +584,7 @@ async def test_save_whatsapp_media_content_gupshup_success(mock_get_client, mock
     mock_uuid.return_value.hex = "uuid_gs_001"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_content(bot, sender_id, whatsapp_media_id, config)
 
     assert result == ["uuid_gs_001"]
@@ -731,7 +739,6 @@ async def test_extract_media_information_exceptions(mock_objects, mock_agentic_f
 
 
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.asyncio.create_task")
 @patch("kairon.shared.chat.user_media.requests.get")
 @patch("kairon.shared.chat.user_media.UserMedia.create_user_media_data")
@@ -756,6 +763,8 @@ def test_save_whatsapp_media_content_background_task_failure(mock_get_client, mo
     mock_requests_get.return_value = mock_media_resp
 
     def mock_background_task(*args, **kwargs):
+        if args:
+            args[0].close()
         raise Exception("Background task failed")
     mock_create_task.side_effect = mock_background_task
 
@@ -800,6 +809,7 @@ def test_save_whatsapp_media_content_success(mock_get_client, mock_create_user_m
     mock_requests_get.assert_called()
     mock_create_user_media_data.assert_called_once()
     mock_create_task.assert_called_once()
+    mock_create_task.call_args.args[0].close()
 
 
 @pytest.mark.asyncio
@@ -892,7 +902,7 @@ async def test_save_whatsapp_media_and_get_url_360dialog_success(
     mock_save_media.return_value = "https://s3.aws/test/file.jpg"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot,
             sender_id,
@@ -961,7 +971,7 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     mock_save_media.return_value = "https://s3.aws/test/image.jpg"
 
     created = []
-    with patch("asyncio.create_task", lambda coro: created.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(created)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot,
             sender_id,
@@ -994,7 +1004,6 @@ async def test_save_whatsapp_media_and_get_url_meta_image_success(
     )
 
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.requests.get")
 def test_save_whatsapp_media_and_get_url_360dialog_failure(mock_get):
 
@@ -1020,7 +1029,6 @@ def test_save_whatsapp_media_and_get_url_360dialog_failure(mock_get):
 
     assert "Failed to download media from 360 dialog" in str(exc.value)
 
-@pytest.mark.asyncio
 @patch("kairon.shared.chat.user_media.requests.get")
 def test_save_whatsapp_media_and_get_url_download_failure(mock_get):
 
@@ -1097,7 +1105,7 @@ async def test_save_whatsapp_media_and_get_url_gupshup_success(
     mock_save_media.return_value = "https://s3.aws/test/doc.pdf"
 
     called = []
-    with patch("asyncio.create_task", lambda coro: called.append(coro)):
+    with patch("asyncio.create_task", _capture_scheduled(called)):
         result = UserMedia.save_whatsapp_media_and_get_url(
             bot, sender_id, whatsapp_media_id, config, description
         )
@@ -1142,7 +1150,7 @@ async def test_get_media_content(mock_get_buffer):
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1158,7 +1166,7 @@ async def test_get_media_content(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     expected_media_bytes = b'%IMG-1.4 mock content'
@@ -1218,7 +1226,7 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1234,7 +1242,7 @@ async def test_get_media_bytes_from_media_id_file_stream_not_found(mock_get_buff
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (None, None, None)

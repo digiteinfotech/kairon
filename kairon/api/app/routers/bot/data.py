@@ -79,7 +79,7 @@ async def save_cognition_schema(
         "message": "Schema saved!",
         "data": {
             "_id": cognition_processor.save_cognition_schema(
-                    schema.dict(),
+                    schema.model_dump(),
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -134,7 +134,7 @@ async def save_cognition_data(
         "message": "Record saved!",
         "data": {
             "_id": cognition_processor.save_cognition_data(
-                    cognition.dict(),
+                    cognition.model_dump(),
                     current_user.get_user(),
                     current_user.get_bot(),
             )
@@ -156,7 +156,7 @@ async def update_cognition_data(
         "data": {
             "_id": cognition_processor.update_cognition_data(
                 row_id,
-                cognition.dict(),
+                cognition.model_dump(),
                 current_user.get_user(),
                 current_user.get_bot(),
             )
@@ -220,7 +220,7 @@ async def save_collection_data(
         "message": "Record saved!",
         "data": {
             "_id": DataProcessor.save_collection_data(
-                collection.dict(),
+                collection.model_dump(),
                 current_user.get_user(),
                 current_user.get_bot(),
             )
@@ -242,7 +242,7 @@ async def update_collection_data(
         "data": {
             "_id": DataProcessor.update_collection_data(
                 collection_id,
-                collection.dict(),
+                collection.model_dump(),
                 current_user.get_user(),
                 current_user.get_bot(),
             )
@@ -542,7 +542,7 @@ async def add_pos_integration_config(
         raise AppException("Invalid Provider")
 
     integration_endpoint = await cognition_processor.save_pos_integration_config(
-        request_data.dict(), current_user.get_bot(), current_user.get_user(), sync_type
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user(), sync_type
     )
 
     return Response(message='POS Integration Complete', data=integration_endpoint)
@@ -604,7 +604,7 @@ async def save_bulk_collection_data(
     Saves collection data in bulk.
     """
     result = DataProcessor.save_bulk_collection_data(
-        payloads=[collection.dict() for collection in request.payload],
+        payloads=[collection.model_dump() for collection in request.payload],
         user=current_user.get_user(),
         bot=current_user.get_bot(),
         collection_name=collection_name

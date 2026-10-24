@@ -40,9 +40,15 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer("").autoplay("").camera("").document_domain("").encrypted_media("")
-        .fullscreen("").geolocation("").gyroscope("").magnetometer("").microphone("").midi("").payment("")
-        .picture_in_picture("").sync_xhr("").usb("").geolocation("self", "'spam.com'").vibrate()
+    PermissionsPolicy()
+    .accelerometer()
+    .autoplay()
+    .fullscreen()
+    .gyroscope()
+    .magnetometer()
+    .microphone()
+    .usb()
+    .geolocation("self", "'spam.com'")
 )
 secure_headers = Secure(
     server=server,
@@ -51,7 +57,7 @@ secure_headers = Secure(
     referrer=referrer,
     permissions=permissions_value,
     cache=cache_value,
-    content=content
+    xcto=content,
 )
 
 app = FastAPI()
@@ -72,7 +78,7 @@ instrument_fastapi(app)
 async def add_secure_headers(request: Request, call_next):
     """Add security headers."""
     response = await call_next(request)
-    secure_headers.framework.fastapi(response)
+    secure_headers.set_headers(response)
     return response
 
 
@@ -90,7 +96,7 @@ async def startlette_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -105,7 +111,7 @@ async def assertion_error_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -122,7 +128,7 @@ async def http_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -137,7 +143,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=exc.errors()).dict()
+        Response(success=False, error_code=422, message=exc.errors()).model_dump()
     )
 
 
@@ -152,7 +158,7 @@ async def app_does_not_exist_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -167,7 +173,7 @@ async def pymongo_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -182,7 +188,7 @@ async def app_validation_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -197,7 +203,7 @@ async def mongoengine_operation_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -212,7 +218,7 @@ async def mongoengine_notregistered_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -227,7 +233,7 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
      """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -242,7 +248,7 @@ async def mongoengine_lookup_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -257,7 +263,7 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -272,7 +278,7 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -287,7 +293,7 @@ async def app_exception_handler(request, exc):
     """
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 

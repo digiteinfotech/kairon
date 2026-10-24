@@ -329,7 +329,6 @@ class TestMailChannel:
         assert criteria == '((UNSEEN) (OR OR SUBJECT "Test Subject" SUBJECT "another test subject" SUBJECT "happy") NOT ((SUBJECT "cat")) (OR FROM "@digite.com" FROM "@nimblework.com") NOT ((FROM "info")) NOT ((FROM "nomreply")) (UID 124:*))'
 
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @pytest.mark.asyncio
     def test_generate_criteria_with_last_email_uid_zero(self, mock_get_channel_config):
         import pytz
         from datetime import datetime
@@ -367,7 +366,6 @@ class TestMailChannel:
     @patch("kairon.shared.channels.mail.processor.croniter")
     @patch("kairon.shared.channels.mail.processor.datetime")
     @patch("kairon.shared.chat.processor.ChatDataProcessor.get_channel_config")
-    @pytest.mark.asyncio
     def test_generate_criteria_cron_exception_fallback(self, mock_get_channel_config, mock_datetime, mock_croniter):
         """
         Test fallback behavior when croniter raises an exception

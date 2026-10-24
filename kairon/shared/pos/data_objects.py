@@ -1,8 +1,8 @@
-from datetime import datetime
 
 from mongoengine import StringField, DateTimeField, DictField, ListField
 from mongoengine.errors import ValidationError
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.shared.pos.constants import POSType, OnboardingStatus
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -20,7 +20,7 @@ class POSClientDetails(Auditlog):
     user = StringField(required=True)
     config = DictField(required=True)
     branches = ListField(DictField())
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
 
     meta = {
@@ -46,7 +46,7 @@ class POSUserDetails(Auditlog):
     user = StringField(required=True)
     config = DictField(required=True)
     branches = ListField(DictField())
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.client_name):

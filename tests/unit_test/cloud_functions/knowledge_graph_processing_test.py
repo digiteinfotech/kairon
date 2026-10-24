@@ -82,10 +82,15 @@ def test_knowledge_graph_processing():
             },
         ]
     )
+    ec2 = client("ec2", region_name="us-east-1")
+    vpc_id = ec2.create_vpc(CidrBlock="10.0.0.0/16")["Vpc"]["VpcId"]
+    # moto only sets the ENI private DNS name when the VPC has DNS hostnames.
+    ec2.modify_vpc_attribute(VpcId=vpc_id, EnableDnsHostnames={"Value": True})
+    subnet_id = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24")["Subnet"]["SubnetId"]
     os.environ['CONTAINER_NAME'] = 'Test'
     os.environ['CLUSTER'] = "arn:aws:ecs:us-east-1:012345678910:cluster/KGCluster"
     os.environ['TASK_DEFINITION'] = "kairon-task:1"
-    os.environ['SUBNETS'] = "subnet-037df6ee62a8ac427,subnet-07a5cf356523a41c0,subnet-0e31d40f5be383435,subnet-06387a0b324a0e2b7,subnet-00714fa410157b038,subnet-0cd859c4a6087cf3b"
+    os.environ['SUBNETS'] = subnet_id
     request = {
         'requestContext':
             {

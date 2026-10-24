@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import os
 from unittest.mock import patch, AsyncMock
 from urllib.parse import urlencode, urljoin
@@ -7,6 +6,7 @@ from urllib.parse import urlencode, urljoin
 from aioresponses import aioresponses
 from mongoengine.errors import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.actions.definitions.schedule import ActionSchedule
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -931,7 +931,6 @@ def test_process_razorpay_action_with_notes():
                                             'template': None, 'text': 'https://rzp.io/i/nxrHnLJ'}]}
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
@@ -1079,7 +1078,6 @@ def test_parallel_action_execution(aioresponses):
     ActionServerLogs.objects(action="test_parallel_action_execution").delete()
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution_dispatch_response_false(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
@@ -1218,7 +1216,6 @@ def test_parallel_action_execution_dispatch_response_false(aioresponses):
     ActionServerLogs.objects(action="test_parallel_action_execution").delete()
 
 @responses.activate
-@pytest.mark.asyncio
 def test_parallel_action_execution_failure(aioresponses):
     import textwrap
     name = "test_parallel_action_execution"
@@ -2333,7 +2330,7 @@ def test_http_action_execution(aioresponses):
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2470,7 +2467,7 @@ def test_http_action_execution_returns_custom_json(aioresponses):
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200,
     )
@@ -2558,7 +2555,7 @@ def test_http_action_execution_custom_json_with_invalid_json_response(aiorespons
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2645,7 +2642,7 @@ def test_http_action_execution_return_custom_json_with_script_evaluation(aioresp
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2e", "user": "1011", "tag": "from_bot",
-                                        "name": "udit"}),
+                                        "name": "udit", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -2747,7 +2744,7 @@ def test_http_action_execution_script_evaluation_with_json_response(aioresponses
     aioresponses.add(
         method=responses.GET,
         url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
-                                        "tag": "from_bot"}),
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200
     )
@@ -4216,13 +4213,14 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
 
     aioresponses.add(
         method=responses.GET,
-        url=http_url + "?bot=5f50fd0a56b698ca10d35d2d&tag=from_bot&user=1011",
+        url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
         json={"success": True, "data": "error", },
         status=200,
         match=[
@@ -4233,7 +4231,8 @@ def test_http_action_execution_script_evaluation_failure_no_dispatch(aioresponse
                                         'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
-                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']asdf"})]
     )
@@ -4313,13 +4312,14 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
 
     aioresponses.add(
         method=responses.GET,
-        url=http_url + "?bot=5f50fd0a56b698ca10d35d2d&tag=from_bot&user=1011",
+        url=http_url + "?" + urlencode({"bot": "5f50fd0a56b698ca10d35d2d", "user": "1011",
+                                        "tag": "from_bot", "name": "", "contact": ""}),
         body=resp_msg,
         status=200,
     )
     responses.add(
         method=responses.POST,
-        url=Utility.environment['evaluator']['pyscript']['url'],
+        url=Utility.environment['async_callback_action']['pyscript']['url'],
         json={"success": True, "data": "error", },
         status=200,
         match=[
@@ -4330,7 +4330,8 @@ def test_http_action_execution_script_evaluation_failure_and_dispatch(aiorespons
                                         'latest_message': {'intent_ranking': [{'name': 'test_run'}],
                                                            'text': 'get intents'},
                                         'sender_id': 'default', 'session_started': None,
-                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'status_code': 200,
+                                        'slot': {'bot': '5f50fd0a56b698ca10d35d2d'}, 'http_status_code': 200,
+                                        'response_headers': {'Content-Type': 'application/json'},
                                         'user_message': 'get intents'},
                  'source_code': "bot_response = data['b']['name']asdf"})]
     )
@@ -16062,7 +16063,7 @@ def test_schedule_action_invalid_callback():
     bot = '6697add6b8e47524eb983376'
     user = 'test'
     action_name = "test_schedule_action_invalid_callback"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     Actions(name=action_name, type=ActionType.schedule_action.value,
             bot=bot, user=user).save()
 
@@ -16143,7 +16144,7 @@ def test_schedule_action_execution(mock_add_job, aioresponses):
     user = 'test'
     action_name = "test_schedule_action_execution"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     timezone = "Asia/Kolkata"
 
     pattern = re.compile(rf'^{Utility.environment["events"]["server_url"]}/api/events/dispatch/.*')
@@ -16245,7 +16246,7 @@ def test_schedule_action_execution_schedule_empty_data(mock_add_job, aioresponse
     user = 'test'
     action_name = "test_schedule_action_execution_schedule_empty_data"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 
@@ -16353,7 +16354,7 @@ def test_schedule_action_execution_schedule_time_from_slot(mock_add_job, aioresp
     user = 'test'
     action_name = "test_schedule_action_execution_slot"
     callback_script = "test_schedule_action_script"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 
@@ -16458,7 +16459,7 @@ def test_schedule_action_execution_flow(mock_add_job, aioresponses):
     user = 'test1'
     action_name = "test_schedule_action_execution_flow"
     flow_name = "greet"
-    date_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = utc_now().strftime("%Y-%m-%d %H:%M:%S")
     slot_name = "schedule_slot"
     timezone = "Asia/Kolkata"
 

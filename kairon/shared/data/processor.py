@@ -23,6 +23,7 @@ from loguru import logger as logging
 from mongoengine import Document
 from mongoengine.errors import DoesNotExist
 from mongoengine.errors import NotUniqueError
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 from mongoengine.queryset.visitor import Q
 from pandas import DataFrame
 from pydantic import ValidationError, create_model
@@ -57,6 +58,7 @@ from rasa.shared.nlu.training_data.training_data import TrainingData
 from rasa.shared.utils.io import read_config_file
 from werkzeug.utils import secure_filename
 
+from kairon.shared.clock import utc_now
 from kairon.api import models
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import (
@@ -685,7 +687,7 @@ class MongoProcessor:
         multiflow = (
             MultiflowStories.objects(bot=bot, status=True)
             .exclude("id", "bot", "user", "timestamp", "status")
-            .to_json()
+            .to_json(json_options=LEGACY_JSON_OPTIONS)
         )
         multiflow = json.loads(multiflow)
         return {"multiflow_story": multiflow}
@@ -977,7 +979,7 @@ class MongoProcessor:
                         collection_name=data_item['collection'],
                         user=user,
                         bot=bot,
-                        timestamp=datetime.utcnow()
+                        timestamp=utc_now()
                     )
                     cognition_schema.save()
 
@@ -2712,7 +2714,7 @@ class MongoProcessor:
                     new_entities_as_dict = []
                     if new_entities:
                         new_entities_as_dict = [
-                            json.loads(e.to_json()) for e in new_entities
+                            json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in new_entities
                         ]
                     yield {
                         "text": DataUtility.prepare_nlu_text(
@@ -2761,13 +2763,13 @@ class MongoProcessor:
                 message = "Training Example moved"
                 if training_example.entities:
                     new_entities_as_dict = [
-                        json.loads(e.to_json()) for e in training_example.entities
+                        json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in training_example.entities
                     ]
             except DoesNotExist:
                 if entities:
                     new_entities = self.save_entities_and_add_slots(entities, bot, user)
                     new_entities_as_dict = [
-                        json.loads(e.to_json()) for e in new_entities
+                        json.loads(e.to_json(json_options=LEGACY_JSON_OPTIONS)) for e in new_entities
                     ]
                 else:
                     new_entities = None
@@ -2828,7 +2830,7 @@ class MongoProcessor:
                 training_example.entities = list(self.__extract_entities(entities))
             else:
                 training_example.entities = None
-            training_example.timestamp = datetime.utcnow()
+            training_example.timestamp = utc_now()
             training_example.save()
         except DoesNotExist:
             raise AppException("Invalid training example!")
@@ -2986,7 +2988,7 @@ class MongoProcessor:
             doc = document.objects(bot=bot, **kwargs).get(id=id)
             doc.status = False
             doc.user = user
-            doc.timestamp = datetime.utcnow()
+            doc.timestamp = utc_now()
             doc.save(validate=False)
         except DoesNotExist as e:
             logging.info(e)
@@ -3272,7 +3274,7 @@ class MongoProcessor:
                 response.custom = r_object
                 response.text = None
             response.user = user
-            response.timestamp = datetime.utcnow()
+            response.timestamp = utc_now()
             response.save()
         except DoesNotExist:
             raise AppException("Utterance does not exist!")
@@ -4315,7 +4317,7 @@ class MongoProcessor:
             http_action.response = HttpActionResponse(**request_data.get("response", {}))
             http_action.set_slots = set_slots
             http_action.user = user
-            http_action.timestamp = datetime.utcnow()
+            http_action.timestamp = utc_now()
             http_action.save()
 
             return http_action.id.__str__()
@@ -4488,7 +4490,7 @@ class MongoProcessor:
         action.source_code = request_data["source_code"]
         action.dispatch_response = request_data["dispatch_response"]
         action.user = user
-        action.timestamp = datetime.utcnow()
+        action.timestamp = utc_now()
         action.save()
 
         return action.id.__str__()
@@ -4548,7 +4550,7 @@ class MongoProcessor:
             for slot in request_data.get("set_slots")
         ]
         action.user = user
-        action.timestamp = datetime.utcnow()
+        action.timestamp = utc_now()
         action_id = action.save().id.__str__()
         return action_id
 
@@ -4777,7 +4779,7 @@ class MongoProcessor:
         action.dispatch_response = action_config.get("dispatch_response", True)
         action.set_slot = action_config.get("set_slot")
         action.user = user
-        action.timestamp = datetime.utcnow()
+        action.timestamp = utc_now()
         action.save()
 
     def list_google_search_actions(self, bot: Text, with_doc_id: bool = True):
@@ -4858,7 +4860,7 @@ class MongoProcessor:
         action.dispatch_response = action_config.get("dispatch_response", True)
         action.set_slot = action_config.get("set_slot")
         action.user = user
-        action.timestamp = datetime.utcnow()
+        action.timestamp = utc_now()
         action.save()
 
     def list_web_search_actions(self, bot: Text, with_doc_id: bool = True):
@@ -5970,7 +5972,7 @@ class MongoProcessor:
             )
             val.value = value
             val.user = user
-            val.timestamp = datetime.utcnow()
+            val.timestamp = utc_now()
             val.save()
         except DoesNotExist:
             raise AppException("Synonym value does not exist!")
@@ -6191,7 +6193,7 @@ class MongoProcessor:
         settings = BotSettings.objects(bot=bot, status=True).get()
         analytics = Analytics(**bot_settings.get("analytics"))
         settings.update(
-            set__analytics=analytics, set__user=user, set__timestamp=datetime.utcnow()
+            set__analytics=analytics, set__user=user, set__timestamp=utc_now()
         )
 
     @staticmethod
@@ -6412,7 +6414,7 @@ class MongoProcessor:
             ).get()
             regex.pattern = regex_dict.get("pattern")
             regex.user = user
-            regex.timestamp = datetime.utcnow()
+            regex.timestamp = utc_now()
             regex.save()
         except DoesNotExist:
             raise AppException("Regex name does not exist!")
@@ -6597,7 +6599,7 @@ class MongoProcessor:
             )
             val.value = value
             val.user = user
-            val.timestamp = datetime.utcnow()
+            val.timestamp = utc_now()
             val.save()
         except DoesNotExist:
             raise AppException("Lookup value does not exist!")
@@ -6660,7 +6662,7 @@ class MongoProcessor:
                 validation.slot_set.type = slot_set.get("type")
                 validation.slot_set.value = slot_set.get("value")
                 validation.user = user
-                validation.timestamp = datetime.utcnow()
+                validation.timestamp = utc_now()
                 validation.save()
             else:
                 FormValidationAction(
@@ -6851,7 +6853,7 @@ class MongoProcessor:
                     )
             form.required_slots = slots_required_for_form
             form.user = user
-            form.timestamp = datetime.utcnow()
+            form.timestamp = utc_now()
             form.save()
             self.__add_or_update_form_validations(f"validate_{name}", path, bot, user)
         except DoesNotExist:
@@ -6902,7 +6904,7 @@ class MongoProcessor:
         if mapping["mapping"].get("conditions"):
             slot_mapping.form_name = mapping["mapping"]["condition"][0]["active_loop"]
         slot_mapping.user = user
-        slot_mapping.timestamp = datetime.utcnow()
+        slot_mapping.timestamp = utc_now()
         return slot_mapping.save().id.__str__()
 
     def add_slot_mapping(self, mapping: dict, bot: Text, user: Text):
@@ -6950,7 +6952,7 @@ class MongoProcessor:
             slot_mapping.mapping = mapping["mapping"]
             if mapping["mapping"].get("conditions"):
                 slot_mapping.form_name = mapping["mapping"]["conditions"][0]["active_loop"]
-            slot_mapping.timestamp = datetime.utcnow()
+            slot_mapping.timestamp = utc_now()
             slot_mapping.save()
         except Exception as e:
             raise AppException(e)
@@ -7055,7 +7057,7 @@ class MongoProcessor:
             actions = (
                 SlotSetAction.objects(bot=bot, status=True)
                 .exclude("bot", "user", "timestamp", "status")
-                .to_json()
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
             actions = json.loads(actions)
             slot_set_actions = [
@@ -7065,7 +7067,7 @@ class MongoProcessor:
             actions = (
                 SlotSetAction.objects(bot=bot, status=True)
                 .exclude("id", "bot", "user", "timestamp", "status")
-                .to_json()
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
             slot_set_actions = json.loads(actions)
         return slot_set_actions
@@ -7090,7 +7092,7 @@ class MongoProcessor:
             ).get()
             slot_set_action.set_slots = set_slots
             slot_set_action.user = user
-            slot_set_action.timestamp = datetime.utcnow()
+            slot_set_action.timestamp = utc_now()
             slot_set_action.save()
         except DoesNotExist:
             raise AppException(
@@ -7208,7 +7210,7 @@ class MongoProcessor:
         email_action.dispatch_bot_response = action["dispatch_bot_response"]
         email_action.tls = action["tls"]
         email_action.user = user
-        email_action.timestamp = datetime.utcnow()
+        email_action.timestamp = utc_now()
         email_action.save()
 
     def list_email_action(self, bot: Text, with_doc_id: bool = True):
@@ -7264,7 +7266,7 @@ class MongoProcessor:
         voice_action.response = action.get("response")
         voice_action.dispatch_bot_response = action.get("dispatch_bot_response", True)
         voice_action.user = user
-        voice_action.timestamp = datetime.utcnow()
+        voice_action.timestamp = utc_now()
         voice_action.save()
 
     def list_voice_call_action(self, bot: Text, with_doc_id: bool = True):
@@ -7314,7 +7316,7 @@ class MongoProcessor:
         store_page_action.identifier_slot = action["identifier_slot"]
         store_page_action.callback_identifier = action.get("callback_identifier")
         store_page_action.user = user
-        store_page_action.timestamp = datetime.utcnow()
+        store_page_action.timestamp = utc_now()
         store_page_action.save()
 
     def list_store_page_action(self, bot: Text, with_doc_id: bool = True):
@@ -7367,7 +7369,7 @@ class MongoProcessor:
         agent_action.agent_id = action["agent_id"]
         agent_action.dispatch_bot_response = action.get("dispatch_bot_response", True)
         agent_action.user = user
-        agent_action.timestamp = datetime.utcnow()
+        agent_action.timestamp = utc_now()
         agent_action.save()
 
     def list_agent_action(self, bot: Text, with_doc_id: bool = True):
@@ -7462,7 +7464,7 @@ class MongoProcessor:
         jira_action.summary = action["summary"]
         jira_action.response = action["response"]
         jira_action.user = user
-        jira_action.timestamp = datetime.utcnow()
+        jira_action.timestamp = utc_now()
         jira_action.save()
 
     def list_form_validation_actions(self, bot: Text):
@@ -7545,7 +7547,7 @@ class MongoProcessor:
         zendesk_action.subject = action["subject"]
         zendesk_action.response = action["response"]
         zendesk_action.user = user
-        zendesk_action.timestamp = datetime.utcnow()
+        zendesk_action.timestamp = utc_now()
         zendesk_action.save()
 
     def list_zendesk_actions(self, bot: Text, with_doc_id: bool = True):
@@ -7620,7 +7622,7 @@ class MongoProcessor:
         pipedrive_action.response = action["response"]
         pipedrive_action.metadata = action["metadata"]
         pipedrive_action.user = user
-        pipedrive_action.timestamp = datetime.utcnow()
+        pipedrive_action.timestamp = utc_now()
         pipedrive_action.save()
 
     def list_pipedrive_actions(self, bot: Text, with_doc_id: bool = True):
@@ -7692,7 +7694,7 @@ class MongoProcessor:
         hubspot_forms_action.response = action["response"]
         hubspot_forms_action.fields = action["fields"]
         hubspot_forms_action.user = user
-        hubspot_forms_action.timestamp = datetime.utcnow()
+        hubspot_forms_action.timestamp = utc_now()
         hubspot_forms_action.save()
 
     def list_hubspot_forms_actions(self, bot: Text, with_doc_id: bool = True):
@@ -8189,7 +8191,7 @@ class MongoProcessor:
         action.instructions = request_data.get("instructions", [])
         action.set_slots = request_data.get("set_slots", [])
         action.dispatch_response = request_data.get("dispatch_response", True)
-        action.timestamp = datetime.utcnow()
+        action.timestamp = utc_now()
         action.process_media=request_data.get("process_media", False)
         action.user = user
         action.save()
@@ -8251,14 +8253,14 @@ class MongoProcessor:
     def get_auditlog_for_bot(bot, from_date=None, to_date=None, start_idx: int = 0, page_size: int = 10):
         processor = MongoProcessor()
         if not from_date:
-            from_date = datetime.utcnow().date()
+            from_date = utc_now().date()
         if not to_date:
             to_date = from_date + timedelta(days=1)
         to_date = to_date + timedelta(days=1)
         data_filter = {"attributes__key": 'bot', "attributes__value": bot, "timestamp__gte": from_date,
                        "timestamp__lte": to_date}
         auditlog_data = AuditLogData.objects(**data_filter).skip(start_idx).limit(page_size).exclude('id').order_by(
-            '-timestamp').to_json()
+            '-timestamp').to_json(json_options=LEGACY_JSON_OPTIONS)
         row_cnt = processor.get_row_count(AuditLogData, bot, **data_filter)
         return json.loads(auditlog_data), row_cnt
 
@@ -8297,7 +8299,7 @@ class MongoProcessor:
                 "timestamp__gte": start_time,
                 "timestamp__lte": end_time,
             }
-            query = logs[logtype].objects(**filter_query).to_json()
+            query = logs[logtype].objects(**filter_query).to_json(json_options=LEGACY_JSON_OPTIONS)
         elif logtype == LogType.audit_logs.value:
             filter_query = {
                 "attributes__key": "bot",
@@ -8306,7 +8308,10 @@ class MongoProcessor:
                 "timestamp__lte": end_time,
             }
             query = (
-                logs[logtype].objects(**filter_query).order_by("-timestamp").to_json()
+                logs[logtype]
+                .objects(**filter_query)
+                .order_by("-timestamp", "-id")
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
         else:
             filter_query = {
@@ -8314,13 +8319,13 @@ class MongoProcessor:
                 "start_timestamp__gte": start_time,
                 "start_timestamp__lte": end_time,
             }
-            query = logs[logtype].objects(**filter_query).to_json()
+            query = logs[logtype].objects(**filter_query).to_json(json_options=LEGACY_JSON_OPTIONS)
         value = json.loads(query)
         return value
 
     def delete_audit_logs(self):
         retention_period = Utility.environment["events"]["audit_logs"]["retention"]
-        overdue_time = datetime.utcnow() - timedelta(days=retention_period)
+        overdue_time = utc_now() - timedelta(days=retention_period)
         AuditLogData.objects(timestamp__lte=overdue_time).delete()
 
     def flatten_qna(self, bot: Text, start_idx=0, page_size=10, fetch_all=False):
@@ -9411,7 +9416,7 @@ class MongoProcessor:
         parallel_action.actions = request_data.get("actions")
         parallel_action.dispatch_response_text = request_data.get("dispatch_response_text")
         parallel_action.user = user
-        parallel_action.timestamp = datetime.utcnow()
+        parallel_action.timestamp = utc_now()
         parallel_action.save()
         return parallel_action.id.__str__()
 
@@ -9575,6 +9580,6 @@ class MongoProcessor:
         StorePageMetadata.objects(bot=bot).update_one(
             set__config=config,
             set__user=user,
-            set__timestamp=datetime.utcnow(),
+            set__timestamp=utc_now(),
             upsert=True,
         )

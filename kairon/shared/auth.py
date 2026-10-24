@@ -15,6 +15,7 @@ from mongoengine import DoesNotExist
 from pydantic import SecretStr
 from starlette.status import HTTP_401_UNAUTHORIZED
 
+from kairon.shared.clock import utc_from_timestamp, utc_now
 from kairon.api.models import TokenData
 from kairon.shared.account.activity_log import UserActivityLogger
 from kairon.shared.account.processor import AccountProcessor
@@ -73,7 +74,7 @@ class Authentication:
                 alias_user = request.headers.get("X-USER")
                 if Utility.check_empty_string(alias_user) and payload.get("type") == TOKEN_TYPE.INTEGRATION.value:
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                         detail="Alias user missing for integration",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
@@ -97,7 +98,7 @@ class Authentication:
         bot_id = request.path_params.get('bot')
         if Utility.check_empty_string(bot_id):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='Bot is required',
             )
         if user.is_integration_user:
@@ -165,12 +166,12 @@ class Authentication:
         algorithm = Utility.environment['security']["algorithm"]
         to_encode = data.copy()
         if store_page_token_expiry:
-            expire = datetime.utcnow() + timedelta(minutes=store_page_token_expiry)
+            expire = utc_now() + timedelta(minutes=store_page_token_expiry)
         else:
-            expire = datetime.utcnow() + timedelta(minutes=token_expire)
+            expire = utc_now() + timedelta(minutes=token_expire)
         to_encode.update({"exp": expire})
         if to_encode.get("iat") is None:
-            to_encode.update({"iat": datetime.utcnow()})
+            to_encode.update({"iat": utc_now()})
         to_encode.update({"jti": str(uuid7())})
 
         if access_limit:
@@ -256,16 +257,16 @@ class Authentication:
         if token_type == TOKEN_TYPE.LOGIN.value or token_type not in [t_type.value for t_type in TOKEN_TYPE]:
             token_type = TOKEN_TYPE.LOGIN.value
             if token_expire > 0:
-                expire = datetime.utcnow() + timedelta(minutes=token_expire)
+                expire = utc_now() + timedelta(minutes=token_expire)
             else:
                 if access_token_expire_minutes:
                     expires_delta = timedelta(minutes=access_token_expire_minutes)
                 else:
                     expires_delta = timedelta(minutes=15)
-                expire = datetime.utcnow() + expires_delta
+                expire = utc_now() + expires_delta
             to_encode.update({"exp": expire})
             if to_encode.get("iat") is None:
-                to_encode.update({"iat": datetime.utcnow()})
+                to_encode.update({"iat": utc_now()})
             to_encode.update({"jti": str(uuid7())})
         to_encode.update({"type": token_type})
         to_encode = Authentication.encrypt_token_claims(to_encode)
@@ -348,9 +349,9 @@ class Authentication:
         if jti:
             exp = payload.get("exp")
             expires_at = (
-                datetime.utcfromtimestamp(exp)
+                utc_from_timestamp(exp)
                 if exp
-                else datetime.utcnow() + timedelta(minutes=Utility.environment["security"]["token_expire"])
+                else utc_now() + timedelta(minutes=Utility.environment["security"]["token_expire"])
             )
             UserSessions(jti=jti, user=user, expires_at=expires_at).save()
 
@@ -362,7 +363,7 @@ class Authentication:
         matches = any(re.match(allowed_endpoint, requested_endpoint) for allowed_endpoint in access_limit)
         if not matches:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='Access denied for this endpoint',
             )
 

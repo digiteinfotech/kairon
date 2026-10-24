@@ -18,6 +18,7 @@ from rasa.shared.constants import DEFAULT_DOMAIN_PATH, DEFAULT_DATA_PATH, DEFAUL
 from rasa.shared.importers.rasa import RasaFileImporter
 from responses import matchers
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.data_objects import Actions
 from kairon.shared.chat.broadcast.constants import MessageBroadcastLogType
 from kairon.shared.data.model_data_imporer import KRasaFileImporter
@@ -51,10 +52,26 @@ from kairon.test.test_models import ModelTester
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
+@pytest.fixture(autouse=True)
+def _skip_broadcast_settle_sleep(monkeypatch):
+    # execute() sleeps so a channel webhook can land before the event log.
+    # Replace this module's time name only. Patching time.sleep would no-op
+    # every sleep in the process, including the pyscript timeout test.
+    import kairon.events.definitions.message_broadcast as message_broadcast
+
+    class _NoSleep:
+        @staticmethod
+        def sleep(*_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(message_broadcast, "time", _NoSleep)
+
+
 class TestEventExecution:
 
     @pytest.fixture(scope='class', autouse=True)
-    def init(self):
+    @classmethod
+    def init(cls):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
@@ -2379,12 +2396,35 @@ class TestEventExecution:
     def test_trigger_model_training_event(self, load_data, create_model):
         bot = 'test_events_bot'
         user = 'test_user'
-        config_path = 'tests/testing_data/model_tester/config.yml'
+        # This test only checks that training writes a model archive.
+        # DIET and TED at 100 epochs are what make the shared model_tester config slow.
+        config_path = os.path.join(pytest.tmp_dir, 'fast_train_config.yml')
+        with open(config_path, 'w') as target:
+            target.write(
+                "language: en\n"
+                "pipeline:\n"
+                "- name: KeywordIntentClassifier\n"
+                "policies:\n"
+                "- name: MemoizationPolicy\n"
+                "- name: RulePolicy\n"
+            )
         domain_path = 'tests/testing_data/model_tester/domain.yml'
         nlu_path = 'tests/testing_data/model_tester/nlu_with_entities/nlu.yml'
         stories_path = 'tests/testing_data/model_tester/training_stories_success/stories.yml'
         asyncio.run(load_data(config_path, domain_path, nlu_path, stories_path, bot, user))
-        pytest.model_path = ModelTrainingEvent(bot, user).execute()
+        # train_model_for_bot always passes augmentation_factor 100. This test only
+        # checks that an archive is written, so the call here trains with 0.
+        import kairon.train as train_module
+        original_train = train_module.train
+
+        def _train_without_augmentation(*args, **kwargs):
+            core = dict(kwargs.get("core_additional_arguments") or {})
+            core["augmentation_factor"] = 0
+            kwargs["core_additional_arguments"] = core
+            return original_train(*args, **kwargs)
+
+        with patch("kairon.train.train", _train_without_augmentation):
+            pytest.model_path = ModelTrainingEvent(bot, user).execute()
         assert not Utility.check_empty_string(pytest.model_path)
 
     @mock.patch("kairon.test.test_models.ModelTester.run_test_on_stories")
@@ -2517,7 +2557,7 @@ class TestEventExecution:
         from datetime import datetime
         bot = 'test_events_bot'
         user = 'test_user'
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         sender_id = ""
         event_url = urljoin(Utility.environment['events']['server_url'], f"/api/events/execute/{EventClass.delete_history}")
         responses.add("POST",
@@ -3376,7 +3416,7 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": reference_id,
@@ -3637,7 +3677,7 @@ class TestEventExecution:
         assert logged_config.pop("template_config") == []
         assert logged_config == config
 
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": reference_id,
@@ -3823,7 +3863,7 @@ class TestEventExecution:
             json={"message": "Event Triggered!", "success": True, "error_code": 0, "data": None}
         )
 
-        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 1}
+        mock_get_bot_settings.return_value = {"whatsapp": "360dialog", "notification_scheduling_limit": 4, "dynamic_broadcast_execution_timeout": 0.05}
         mock_channel_config.return_value = {
             "config": {"access_token": "shjkjhrefdfghjkl", "from_phone_number_id": "918958030415"}}
 
@@ -3852,7 +3892,7 @@ class TestEventExecution:
         assert logged_config == config
 
         assert logs[0][0] == {"event_id": event_id, 'reference_id': reference_id, 'log_type': 'common', 'bot': bot, 'status': EVENT_STATUS.FAIL.value,
-                              'user': user, 'exception': 'Operation timed out: 1 seconds'}
+                              'user': user, 'exception': 'Operation timed out: 0.05 seconds'}
 
     @responses.activate
     @mongomock.patch(servers=(('localhost', 27017),))
@@ -3935,7 +3975,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de2",
@@ -4295,7 +4335,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de1",
@@ -4652,7 +4692,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de1",
@@ -5000,7 +5040,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de3",
@@ -5435,7 +5475,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de4",
@@ -5991,7 +6031,7 @@ class TestEventExecution:
         mock_get_partner_auth_token.return_value = None
 
         msg_broadcast_id = MessageBroadcastSettings(**config).save().id.__str__()
-        timestamp = datetime.utcnow()
+        timestamp = utc_now()
         MessageBroadcastLogs(
             **{
                 "reference_id": "667bed955bfdaf3466b19de5",

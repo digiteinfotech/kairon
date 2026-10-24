@@ -2,6 +2,7 @@ import pytz
 from mongoengine import Document, StringField, DateTimeField, DynamicDocument, EmbeddedDocument, \
     EmbeddedDocumentField, ValidationError, ListField, BooleanField, IntField, DictField
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.shared.constants import WhatsappBSPTypes
 from kairon.shared.data.audit.data_objects import Auditlog
@@ -119,7 +120,7 @@ class MessageBroadcastSettings(Auditlog):
     bot = StringField(required=True)
     user = StringField(required=True)
     status = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("id", "bot", "status")]}]}
 
@@ -142,7 +143,7 @@ class MessageBroadcastLogs(DynamicDocument):
     reference_id = StringField(required=True)
     log_type = StringField(required=True, choices=[m.value for m in MessageBroadcastLogType])
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "reference_id", "-timestamp")]}]}
 
