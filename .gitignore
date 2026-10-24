@@ -26,3 +26,6 @@ coverage_html
 /enable_gpt_uat.py
 # Added by code-review-graph
 .code-review-graph/
+
+# Rust action server
+/kairon-action/target/
