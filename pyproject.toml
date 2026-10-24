@@ -133,3 +133,7 @@ rasa = { git = "https://github.com/sfahad1414/rasa.git" }
 # This Rasa commit and rasa-sdk at this rev both require pydantic==2.14.1.
 rasa-sdk = { git = "https://github.com/sfahad1414/rasa-sdk.git", rev = "5fd04f97071972fe87d56f32f29b7fdc0adf300d" }
 mitie = { git = "https://github.com/mit-nlp/MITIE.git" }
+
+[tool.pytest.ini_options]
+# services_test_02_*.py and data_processor_test_02_*.py do not match test_*.py or *_test.py.
+python_files = ["test_*.py", "*_test.py", "*_test_*.py"]

@@ -109,11 +109,46 @@ refresh_token = None
 token_type = None
 
 
+def _bind_default_documents_to_current_connection():
+    # disconnect() only clears classes still stored in mongoengine's registry.
+    # stress_test.data_objects registers its own Account, Bot, and User under
+    # those names, so the kairon classes keep a collection on the old mongomock
+    # client while sequence ids restart on the new one.
+    from mongoengine import Document
+    from mongoengine.connection import DEFAULT_CONNECTION_NAME, _connections, _dbs, get_connection
+
+    if DEFAULT_CONNECTION_NAME not in _connections:
+        return
+    client = get_connection(DEFAULT_CONNECTION_NAME)
+    cached_db = _dbs.get(DEFAULT_CONNECTION_NAME)
+    if cached_db is not None and getattr(cached_db, "client", None) is not client:
+        _dbs.pop(DEFAULT_CONNECTION_NAME, None)
+
+    pending = list(Document.__subclasses__())
+    seen = set()
+    while pending:
+        doc_cls = pending.pop()
+        if doc_cls in seen:
+            continue
+        seen.add(doc_cls)
+        pending.extend(doc_cls.__subclasses__())
+        meta = getattr(doc_cls, "_meta", None)
+        if meta is None or meta.get("db_alias", DEFAULT_CONNECTION_NAME) != DEFAULT_CONNECTION_NAME:
+            continue
+        cached = doc_cls.__dict__.get("_collection")
+        if cached is None:
+            continue
+        cached_client = getattr(getattr(cached, "database", None), "client", None)
+        if cached_client is not None and cached_client is not client:
+            doc_cls._collection = None
+
+
 @pytest.fixture(autouse=True, scope="function")
 def setup():
     os.environ["system_file"] = "./tests/testing_data/system.yaml"
     Utility.load_environment()
     connect(**Utility.mongoengine_connection(Utility.environment["database"]["url"]))
+    _bind_default_documents_to_current_connection()
     AccountProcessor.load_system_properties()
 
     LLMSecret.objects.delete()

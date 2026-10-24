@@ -3907,6 +3907,7 @@ class TestActions:
         assert not ActionUtility.create_jira_issue(url, username, api_token, project_key, issue_type, summary,
                                                    description)
 
+    @responses.activate
     def test_create_jira_issue_failure(self):
         url = 'https://test-digite.atlassian.net'
         username = 'test@digite.com'

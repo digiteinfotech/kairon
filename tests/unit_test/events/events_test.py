@@ -52,6 +52,21 @@ from kairon.test.test_models import ModelTester
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 
 
+@pytest.fixture(autouse=True)
+def _skip_broadcast_settle_sleep(monkeypatch):
+    # execute() sleeps so a channel webhook can land before the event log.
+    # Replace this module's time name only. Patching time.sleep would no-op
+    # every sleep in the process, including the pyscript timeout test.
+    import kairon.events.definitions.message_broadcast as message_broadcast
+
+    class _NoSleep:
+        @staticmethod
+        def sleep(*_args, **_kwargs):
+            return None
+
+    monkeypatch.setattr(message_broadcast, "time", _NoSleep)
+
+
 class TestEventExecution:
 
     @pytest.fixture(scope='class', autouse=True)

@@ -2530,36 +2530,18 @@ class TestLLM:
     #     LLMSecret.objects.delete()
 
     def test_load_sparse_embedding_model_already_initialized(self):
-        """Test that the sparse embedding model loads correctly when LLMProcessor is initialized."""
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        LLMProcessor._sparse_embedding = SparseTextEmbedding("Qdrant/bm25")
-
+        """An existing sparse model is left in place and is not loaded again."""
+        sentinel = object()
+        LLMProcessor._sparse_embedding = sentinel
         log_output = StringIO()
-        logger.add(log_output, format="{message}")
-
-        processor = LLMProcessor(bot="test_bot", llm_type="openai")
-
-        logger.remove()
-        log_contents = log_output.getvalue()
-
-        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
-        assert "SPARSE MODEL LOADED" not in log_contents
-
-        LLMSecret.objects.delete()
+        sink_id = logger.add(log_output, format="{message}")
+        try:
+            LLMProcessor.load_sparse_embedding_model()
+            assert LLMProcessor._sparse_embedding is sentinel
+            assert "SPARSE MODEL LOADED" not in log_output.getvalue()
+        finally:
+            logger.remove(sink_id)
+            LLMProcessor._sparse_embedding = None
 
     def test_load_sparse_embedding_model_not_initialized(self):
         """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""
