@@ -3,7 +3,7 @@
 Covers:
 - WhatsappCloud BSUID recipient field routing ("." in phone → "recipient", else "to")
 - BSPGupshup chat client (send_action, send_action_async,
-  get_url, mark_as_read, typing_indicator, get_media_info)
+  mark_as_read, typing_indicator, get_media_info)
 - WhatsappBroadcast Gupshup routing (send_template_message, send_template_message_retry,
   ChannelLogs creation)
 - Whatsapp handler Gupshup paths (handle_gupshup_native_payload, message_received routing,
@@ -150,6 +150,7 @@ class TestGupshupClientInit:
         assert "token" in auth
         assert auth["token"] == "tok_abc"
 
+
 class TestGupshupClientSendAction:
 
     def test_send_action_posts_json_to_v3(self, gupshup_client):
@@ -166,8 +167,35 @@ class TestGupshupClientSendAction:
         assert call_kwargs["headers"]["Authorization"] == gupshup_client.access_token
         assert result == {"status": "submitted", "messageId": "msg1"}
 
+    @pytest.mark.parametrize("to,field,messaging_type,payload", [
+        ("919000000002", "to", "text", {"body": "hi"}),
+        ("uid.bsuid", "recipient", "text", {"body": "hi"}),
+        ("919000000002", "to", "document", {"link": "http://doc.pdf", "filename": "doc.pdf"}),
+    ])
+    def test_send_builds_v3_body_via_whatsapp_cloud(self, gupshup_client, to, field, messaging_type, payload):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"messageId": "m1"}
+        with patch("requests.post", return_value=mock_resp) as mock_post:
+            gupshup_client.send(payload, to, messaging_type)
+        assert mock_post.call_args[0][0] == "https://partner.gupshup.io/partner/app/app_001/v3/message"
+        assert mock_post.call_args[1]["json"] == {
+            "messaging_product": "whatsapp", "recipient_type": "individual",
+            "type": messaging_type, messaging_type: payload, field: to
+        }
+
 
 class TestGupshupClientSendActionAsync:
+
+    @pytest.mark.asyncio
+    async def test_send_action_async_defaults_to_v3_url_and_headers(self, gupshup_client):
+        from aioresponses import aioresponses
+        url = "https://partner.gupshup.io/partner/app/app_001/v3/message"
+        with aioresponses() as m:
+            m.post(url, payload={"messages": [{"id": "m1"}]}, status=200)
+            ok, status, resp = await gupshup_client.send_action_async({"type": "text"})
+            _, kwargs = list(m.requests.values())[0][0]
+        assert ok is True
+        assert kwargs["headers"] == gupshup_client._v3_headers()
 
     @pytest.mark.asyncio
     async def test_send_action_async_success(self, gupshup_client):
@@ -176,7 +204,7 @@ class TestGupshupClientSendActionAsync:
         with aioresponses() as m:
             m.post(url, payload={"messageId": "gm1", "status": "submitted"}, status=200)
             ok, status, resp = await gupshup_client.send_action_async(
-                {"source": "919000000001", "destination": "919000000002"},
+                {"messaging_product": "whatsapp", "to": "919000000002", "type": "text", "text": {"body": "hi"}},
                 url=url
             )
         assert ok is True
@@ -192,7 +220,7 @@ class TestGupshupClientSendActionAsync:
             m.post(url, payload={"error": "bad request"}, status=400)
             m.post(url, payload={"error": "bad request"}, status=400)
             ok, status, resp = await gupshup_client.send_action_async(
-                {"source": "919000000001", "destination": "919000000002"},
+                {"messaging_product": "whatsapp", "to": "919000000002", "type": "text", "text": {"body": "hi"}},
                 url=url, attempts=3
             )
         assert ok is False
@@ -204,7 +232,7 @@ class TestGupshupClientSendActionAsync:
         with aioresponses() as m:
             m.post(url, payload={"messageId": "gm2", "status": "submitted"}, status=202)
             ok, status, resp = await gupshup_client.send_action_async(
-                {"source": "919000000001", "destination": "919000000002"},
+                {"messaging_product": "whatsapp", "to": "919000000002", "type": "text", "text": {"body": "hi"}},
                 url=url
             )
         assert ok is True
@@ -236,7 +264,7 @@ class TestGupshupClientSendActionAsync:
             m.post(url, body=b"internal server error", status=500,
                    headers={"Content-Type": "text/plain"})
             ok, status, resp = await gupshup_client.send_action_async(
-                {"source": "919000000001", "destination": "919000000002"},
+                {"messaging_product": "whatsapp", "to": "919000000002", "type": "text", "text": {"body": "hi"}},
                 url=url, attempts=3
             )
         assert ok is False

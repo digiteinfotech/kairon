@@ -1,4 +1,3 @@
-import json
 import requests
 from aiohttp import ClientResponseError, ClientConnectionError, ClientError
 from aiohttp_retry import ExponentialRetry, RetryClient
@@ -55,8 +54,8 @@ class BSPGupshup(WhatsappCloud):
         last_response = None
         try:
             retry_options = ExponentialRetry(attempts=attempts, statuses=INVALID_STATUS_CODES, max_timeout=timeout)
-            url = kwargs.get('url')
-            headers = kwargs.get('headers') or self.auth_args
+            url = kwargs.get('url') or self._v3_url()
+            headers = kwargs.get('headers') or self._v3_headers()
 
             async with RetryClient(raise_for_status=False, retry_options=retry_options) as client:
                 async with client.post(url, json=payload, headers=headers) as response:
