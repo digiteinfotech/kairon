@@ -27,20 +27,22 @@ os_patch = patch.dict(
     clear=True,
 )
 os_patch.start()
-with patch("pymongo.collection.Collection.create_index"):
-        from kairon.events.server import app
+from kairon.events.server import app
 
-        Utility.load_environment()
-        client = TestClient(app)
+Utility.load_environment()
+client = TestClient(app)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def event_app_lifespan():
     # Starlette TestClient starts the FastAPI lifespan only inside the context
     # manager. Executor tests write ExecutorLogs, which needs that mongomock
-    # connection.
-    with client:
-        yield
+    # connection. The lifespan calls KScheduler.start(), which opens the real
+    # job store. This module has no mongod, and that start must not stay running
+    # for later scheduler tests.
+    with patch("kairon.events.server.KScheduler.start"):
+        with client:
+            yield
 
 
 broker = StubBroker()

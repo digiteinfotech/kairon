@@ -8308,7 +8308,10 @@ class MongoProcessor:
                 "timestamp__lte": end_time,
             }
             query = (
-                logs[logtype].objects(**filter_query).order_by("-timestamp").to_json(json_options=LEGACY_JSON_OPTIONS)
+                logs[logtype]
+                .objects(**filter_query)
+                .order_by("-timestamp", "-id")
+                .to_json(json_options=LEGACY_JSON_OPTIONS)
             )
         else:
             filter_query = {
