@@ -66,11 +66,11 @@ Brownfield verification of every acceptance criterion against the existing port 
 | cavekit-events-schedule-api.md | 1 | 16 | 1 | 18 |
 | cavekit-integration-actions.md | 74 | 9 | 2 | 85 |
 | cavekit-orchestration-actions.md | 13 | 7 | 3 | 23 |
-| cavekit-outbound-clients.md | 25 | 11 | 3 | 39 |
+| cavekit-outbound-clients.md | 23 | 13 | 3 | 39 |
 | cavekit-parity-harness.md | 0 | 26 | 1 | 27 |
 | cavekit-templating-and-secrets.md | 27 | 8 | 7 | 42 |
 | cavekit-webhook-contract.md | 21 | 15 | 3 | 39 |
-| **Total** | **241** | **132** | **28** | **401** |
+| **Total** | **239** | **134** | **28** | **401** |
 
 **Where the gaps concentrate:**
 - Entire capabilities missing: SMTP (email action and failure mail), the fixture recorder and replay harness, the events-server scheduling endpoint, startup secret validation, blocking-executor configuration.

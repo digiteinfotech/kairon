@@ -521,10 +521,10 @@ graph LR
 | cavekit-templating-and-secrets.md | R8 | A sender id that is a Fernet token of `user@x.com` under the configure | T-008 | COVERED |
 | cavekit-templating-and-secrets.md | R8 | A sender id that is not a valid Fernet token resolves to itself unchan | T-008 | COVERED |
 | cavekit-outbound-clients.md | R1 | The timeout is a wall-clock cap on the whole exchange (connect, redire | T-033 | COVERED |
-| cavekit-outbound-clients.md | R1 | A connection refusal yields response body `null` and status `null` wit | T-033 | COVERED |
-| cavekit-outbound-clients.md | R1 | A timeout yields response body `null` and status `null` with no except | T-033 | COVERED |
+| cavekit-outbound-clients.md | R1 | A connection failure (refused, DNS, reset) yields response body `null` | T-033 | COVERED |
+| cavekit-outbound-clients.md | R1 | A timeout yields response body `null` and status `408` with no excepti | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | Exactly one request is sent per call, including for 502/503/504 respon | T-033 | COVERED |
-| cavekit-outbound-clients.md | R1 | Statuses 200, 201, 202, 204 are treated as OK; a null status is not tr | T-033 | COVERED |
+| cavekit-outbound-clients.md | R1 | Statuses 200, 201, 202, 204 are treated as OK; a null status (only pos | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | A request-timestamp header is added to each request | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | Methods GET, PUT, POST and DELETE are supported | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | Content type `json` sends a JSON body; content type `data` sends a for | T-033 | COVERED |

@@ -16,10 +16,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Used by http_action and parallel children. Transport errors are swallowed and the action continues.
 **Acceptance Criteria:**
 - [ ] [GAP] The timeout is a wall-clock cap on the whole exchange (connect, redirects, body) equal to `ACTION_SERVER_REQUEST_TIMEOUT` seconds
-- [ ] A connection refusal yields response body `null` and status `null` with no exception
-- [ ] A timeout yields response body `null` and status `null` with no exception
+- [ ] [GAP] A connection failure (refused, DNS, reset) yields response body `null` and status `503` with no exception, so the action continues and the status counts as non-2xx
+- [ ] [GAP] A timeout yields response body `null` and status `408` with no exception; any other transport error yields body `null` and status `500`
 - [ ] Exactly one request is sent per call, including for 502/503/504 responses (no retry)
-- [ ] Statuses 200, 201, 202, 204 are treated as OK; a null status is not treated as a failure
+- [ ] Statuses 200, 201, 202, 204 are treated as OK; a null status (only possible when no request was attempted) is not treated as a failure
 - [ ] A request-timestamp header is added to each request
 - [ ] Methods GET, PUT, POST and DELETE are supported
 - [ ] Content type `json` sends a JSON body; content type `data` sends a form body
@@ -117,11 +117,13 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R8: kairon/shared/actions/utils.py:162-232 (process_media_and_execute_requests, validate_media_sizes)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 25 met, 11 gaps, 3 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 23 met, 13 gaps, 3 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
 |---|---|---|
+| R1 | A connection failure (refused, DNS, reset) yields response body `null` and status `503` | HttpCaller.java Exchange.statusCode() returns null on transport failure; Python rest_client.py:89-101 sets 503/408/500 before execute_request_async returns normally. |
+| R1 | A timeout yields response body `null` and status `408` with no exception; any other | same as above |
 | R1 | The timeout is a wall-clock cap on the whole exchange (connect, redirects, body) equal to  | action-server/src/main/java/com/kairon/action/support/HttpCaller.java:96 — Uses java.net.http per-request timeout from KAIRON_ACTION_TIMEOUT (application.yml:26), which covers up to the response headers only (not the body) and is applied per hop, not as a whole-exchange wall clock. |
 | R3 | Up to 10 redirect hops are followed; the 11th fails the exchange | action-server/src/main/java/com/kairon/action/support/HttpCaller.java:30 — Redirect.NORMAL uses the JDK default limit (jdk.httpclient.redirects.retrylimit=5), not 10. |
 | R3 | `Authorization`, `Cookie` and `Proxy-Authorization` are not sent to a different origin aft | action-server/src/main/java/com/kairon/action/support/HttpCaller.java:83-115 — No explicit stripping of Authorization/Cookie/Proxy-Authorization on cross-origin redirect; relies on the JDK, which does not strip user-set headers. |
@@ -139,3 +141,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 12 [GAP], 3 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R8 c1 corrected to literal Python (one request per media file, utils.py:210-230); gap marker removed.
+- 2026-10-26: Build wave 3: R1 c2/c3/c5 corrected to Python (transport errors set status 503/408/500, rest_client.py:89-101); marked [GAP] (port returns null).
