@@ -25,6 +25,9 @@ import java.util.UUID;
 @Singleton
 public class Tokens {
 
+    /** Authentication.create_store_page_token(token_expire=15). */
+    public static final int STORE_PAGE_DEFAULT_EXPIRY = 15;
+
     private final ActionSettings settings;
     private final SecureRandom random = new SecureRandom();
 
@@ -57,7 +60,12 @@ public class Tokens {
         byte[] key = fernetKey();
         byte[] signing = Arrays.copyOfRange(key, 0, 16);
         byte[] encryption = Arrays.copyOfRange(key, 16, 32);
-        byte[] raw = Base64.getUrlDecoder().decode(token);
+        byte[] raw;
+        try {
+            raw = Base64.getUrlDecoder().decode(token);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ActionFailure("Fernet token is invalid");
+        }
         if (raw.length < 1 + 8 + 16 + 32 || raw[0] != (byte) 0x80) {
             throw new ActionFailure("Fernet token is invalid");
         }
@@ -84,9 +92,13 @@ public class Tokens {
         }
     }
 
+    /**
+     * Matches Authentication.create_store_page_token: the bot's store_page_token_expiry, else the
+     * literal default of 15 minutes (its token_expire argument, not security.token_expire).
+     */
     public String storePageToken(Map<String, Object> data, int expiryMinutes, java.util.List<String> accessLimit) {
         long now = Instant.now().getEpochSecond();
-        int minutes = expiryMinutes > 0 ? expiryMinutes : settings.getTokenExpire();
+        int minutes = expiryMinutes > 0 ? expiryMinutes : STORE_PAGE_DEFAULT_EXPIRY;
         Map<String, Object> claims = new LinkedHashMap<>();
         if (data != null) {
             claims.putAll(data);
@@ -160,7 +172,8 @@ public class Tokens {
             throw new ActionFailure("JWT secret is not configured");
         }
         try {
-            String header = base64Url(("{\"typ\":\"JWT\",\"alg\":\"" + algorithm + "\"}").getBytes(StandardCharsets.UTF_8));
+            // PyJWT 2.x (pinned 2.15.1) sorts header keys: {"alg":...,"typ":"JWT"}.
+            String header = base64Url(("{\"alg\":\"" + algorithm + "\",\"typ\":\"JWT\"}").getBytes(StandardCharsets.UTF_8));
             String body = base64Url(compact(payload).getBytes(StandardCharsets.UTF_8));
             String signingInput = header + "." + body;
             byte[] signature = mac(macName, secret.getBytes(StandardCharsets.UTF_8), signingInput.getBytes(StandardCharsets.UTF_8));
