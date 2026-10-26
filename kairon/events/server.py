@@ -11,9 +11,10 @@ from secure import StrictTransportSecurity, ReferrerPolicy, ContentSecurityPolic
     CacheControl, Secure, PermissionsPolicy
 
 from kairon.api.models import Response
-from kairon.events.models import EventRequest
+from kairon.events.models import EventRequest, ScheduleActionRequest
 from kairon.events.scheduler.kscheduler import KScheduler
 from kairon.events.utility import EventUtility
+from kairon.exceptions import AppException
 from kairon.shared.constants import EventClass
 from kairon.shared.utils import Utility
 from contextlib import asynccontextmanager
@@ -146,6 +147,22 @@ def update_scheduled_event(
 @app.delete("/api/events/{event_id}", response_model=Response)
 def delete_scheduled_event(event_id: Text = Path(description="Event id")):
     return {"data": KScheduler().delete_job(event_id), "message": "Scheduled event deleted!"}
+
+
+@app.post("/api/events/schedule/action", response_model=Response)
+async def schedule_action(request: Request):
+    """
+    Writes a schedule_action job (pyscript or flow) into the scheduler job store.
+    Body: job_id, run_at, timezone, schedule_action_type, schedule_action, bot, user, data.
+    Invalid bodies and duplicate job ids are returned as {success: false, error_code: 422, message}.
+    """
+    try:
+        payload = await request.json()
+    except ValueError:
+        raise AppException("Request body must be valid JSON")
+    schedule_request = ScheduleActionRequest.from_payload(payload)
+    data = EventUtility.schedule_action(schedule_request)
+    return {"data": data, "message": "Scheduled action job created!"}
 
 
 @app.get("/api/events/dispatch/{event_id}", response_model=Response)

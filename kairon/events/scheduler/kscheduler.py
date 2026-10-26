@@ -1,22 +1,30 @@
 import logging
 import os
+import pickle
 import threading
 import time
-from typing import Text, Optional
+from calendar import timegm
+from datetime import datetime
+from typing import Any, Dict, Optional, Text, Tuple
 
 from apscheduler.events import JobEvent, EVENT_JOB_ADDED, EVENT_JOB_ERROR, EVENT_JOB_MISSED, EVENT_JOB_EXECUTED
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.util import astimezone, obj_to_ref
+from bson import Binary
 from loguru import logger
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
+from tzlocal import get_localzone
 
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.events.scheduler.base import EventSchedulerBase
 from kairon.events.scheduler.resilient_scheduler import ResilientBackgroundScheduler
 from kairon.exceptions import AppException
+from kairon.shared.constants import EventClass, EventExecutor
 from kairon.shared.data.constant import TASK_TYPE
 
 logging.getLogger('apscheduler').setLevel(logging.DEBUG)
@@ -73,6 +81,69 @@ def _build_watchdog(scheduler):
     t = threading.Thread(target=_watch, name="SchedulerWatchdog", daemon=True)
     t.start()
     return t
+
+
+def datetime_to_utc_timestamp(timeval: Optional[datetime]) -> Optional[float]:
+    """Same conversion the job store (and schedule_action's direct write) uses for next_run_time."""
+    if timeval is not None:
+        return timegm(timeval.utctimetuple()) + timeval.microsecond / 1000000
+
+
+def build_schedule_action_job(job_id: Text, date_time: datetime, data: Dict, timezone: Optional[Text],
+                              is_flow: bool = False, **kwargs) -> Tuple[Dict[str, Any], Optional[datetime]]:
+    """
+    Builds the job_kwargs of a schedule_action job exactly as
+    kairon/actions/definitions/schedule.py add_schedule_job does (same keys, order, values and
+    object identities, so the pickled job_state is byte-identical for the same inputs).
+
+    For a pyscript job `data` is {'source_code', 'predefined_objects'} and
+    `predefined_objects['event']` is set to the job id. For a flow job `data` is
+    {'slot_data', 'flow_name', 'bot', 'user'}.
+
+    :return: (job_kwargs, next_run_time)
+    """
+    if not is_flow:
+        func = obj_to_ref(ExecutorFactory.get_executor(EventExecutor.callback).execute_task)
+    else:
+        func = obj_to_ref(ExecutorFactory.get_executor().execute_task)
+
+    _id = job_id
+    args = (func, "scheduler_evaluator", data,)
+    if is_flow:
+        args = (ExecutorFactory.get_executor(), EventClass.agentic_flow, data,)
+        kwargs.update({'task_type': TASK_TYPE.EVENT.value})
+    else:
+        kwargs.update({'task_type': TASK_TYPE.ACTION.value})
+        data['predefined_objects']['event'] = _id
+
+    trigger = DateTrigger(run_date=date_time, timezone=timezone)
+
+    next_run_time = trigger.get_next_fire_time(None, datetime.now(astimezone(timezone) or get_localzone()))
+
+    job_kwargs = {
+        'version': 1,
+        'trigger': trigger,
+        'executor': "default",
+        'func': func,
+        'args': tuple(args) if args is not None else (),
+        'kwargs': dict(kwargs) if kwargs is not None else {},
+        'id': _id,
+        'name': "execute_task",
+        'misfire_grace_time': 7200,
+        'coalesce': True,
+        'next_run_time': next_run_time,
+        'max_instances': 1,
+    }
+    return job_kwargs, next_run_time
+
+
+def schedule_job_document(job_id: Text, job_kwargs: Dict[str, Any], next_run_time: Optional[datetime]) -> Dict:
+    """The job-store document schedule_action's direct write inserts: {_id, next_run_time, job_state}."""
+    return {
+        '_id': job_id,
+        'next_run_time': datetime_to_utc_timestamp(next_run_time),
+        'job_state': Binary(pickle.dumps(job_kwargs, pickle.HIGHEST_PROTOCOL))
+    }
 
 
 class KScheduler(EventSchedulerBase):
@@ -145,6 +216,25 @@ class KScheduler(EventSchedulerBase):
             jobstore=KScheduler.__job_store_name
         )
 
+
+    def add_schedule_action_job(self, job_id: Text, date_time: datetime, data: Dict, timezone: Optional[Text],
+                                is_flow: bool = False) -> Text:
+        """
+        Writes a schedule_action job into the scheduler job store (one document, `_id` = job_id).
+        The scheduler is not woken here: callers send GET /api/events/dispatch/{job_id} afterwards,
+        as schedule_action does today.
+
+        :raises AppException: when a job with this id already exists (nothing is written)
+        """
+        job_kwargs, next_run_time = build_schedule_action_job(job_id, date_time, data, timezone, is_flow)
+        logger.info(job_kwargs)
+        collection = KScheduler.__client.get_database(KScheduler.__events_db).get_collection(
+            KScheduler.__job_store_name)
+        try:
+            collection.insert_one(schedule_job_document(job_id, job_kwargs, next_run_time))
+        except DuplicateKeyError:
+            raise AppException(f"Job with id '{job_id}' already exists!")
+        return job_id
 
     def list_jobs(self):
         return [job.id for job in KScheduler.__scheduler.get_jobs(jobstore=KScheduler.__job_store_name)]
