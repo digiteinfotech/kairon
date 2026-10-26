@@ -15,3 +15,9 @@ Build site: context/plans/build-site.md
 - Follow-ups: EmailAction/ParallelAction/RazorpayAction still call legacy failureMail (no slots/stack); EMAIL_SENDER_* + EMAIL_TEMPLATES_ACTION_FAILURE not in application.yml/CONFIG.md; CORS localhost-pass-through needs human review.
 - Note: coordinator commit 804a36e6 (impl tracking) also committed the user's pre-staged deletion of kairon-action/ (no pathspec). Matches staged intent; revertible.
 - Waiting: python packet T-024..027 (Tier 0), then T-041,042,045.
+
+### Iteration 3 (Wave 1 python packet landed) — 2026-10-26T14:07:45Z
+- T-024,025,026,027 DONE (cherry-picked de2b2b31 -> 76be2453; worktree was on origin/master). Tier 0 complete 32/32.
+- Python env: /Data/projects/kairon/.venv310 (uv sync --frozen, py3.10). Shared .venv unusable for kairon.
+- BLOCKER for replay tier: no MongoDB -> fixtures not recorded yet.
+- Tier 0 gate: Codex review pending.
