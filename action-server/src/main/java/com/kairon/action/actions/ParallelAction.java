@@ -77,7 +77,7 @@ public class ParallelAction implements KaironAction {
             exception = ActionFlags.message(e);
             LOG.error("parallel action failed", e);
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 if (Maps.truthy(responseText)) {

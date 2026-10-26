@@ -12,6 +12,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -86,7 +87,10 @@ public class LiveAgentAction implements KaironAction {
                 botResponse = payload;
                 context.dispatcher.custom(payload);
             }
-            support.save(context, type(), status, exception, botResponse, null);
+            // msg_logger: the json dispatch here always gets a dict, so no conversion message is ever added.
+            Map<String, Object> extra = new LinkedHashMap<>();
+            extra.put("messages", new ArrayList<String>());
+            support.save(context, type(), status, exception, botResponse, extra);
         }
         return Map.of();
     }
