@@ -1,6 +1,8 @@
 package com.kairon.action.support;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +14,10 @@ import java.util.Map;
 
 public final class Jsons {
 
-    public static final ObjectMapper MAPPER = new ObjectMapper()
+    /** Python's json has no string-length cap; Jackson's 20M-char default would reject a 20 MB slot value. */
+    public static final ObjectMapper MAPPER = new ObjectMapper(JsonFactory.builder()
+            .streamReadConstraints(StreamReadConstraints.builder().maxStringLength(Integer.MAX_VALUE).build())
+            .build())
             .setSerializationInclusion(JsonInclude.Include.ALWAYS)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
