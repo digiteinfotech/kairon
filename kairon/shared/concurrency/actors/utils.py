@@ -18,6 +18,7 @@ from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.admin.processor import Sysadmin
 from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.constant import DEFAULT_LLM, QDRANT_SUFFIX
 from kairon.shared.data.data_objects import UserMediaData
 from kairon.shared.models import UserMediaUploadStatus, UserMediaUploadType
@@ -197,6 +198,22 @@ class PyscriptUtility:
         waba_url = "https://waba-v2.360dialog.io/messages"
         headers = {"D360-API-KEY": key, "Content-TYpe": "application/json"}
         return requests.post(url=waba_url, headers=headers, data=orjson.dumps(payload)).json
+
+    @staticmethod
+    def send_waba_message_bsp(payload: dict, bot: str, predefined_objects: dict):
+        from mongoengine import DoesNotExist
+        from kairon.shared.channels.whatsapp.bsp.factory import BusinessServiceProviderFactory
+        from kairon.shared.chat.processor import ChatDataProcessor
+
+        try:
+            channel = ChatDataProcessor.get_channel_config(ChannelTypes.WHATSAPP.value, bot, mask_characters=False)
+        except DoesNotExist:
+            channel = {}
+        config = channel.get("config", {})
+        if not config.get("bsp_type"):
+            raise AppException(f"BSP channel config not found for bot: {bot}")
+        bsp_class = BusinessServiceProviderFactory.get_instance(config["bsp_type"])
+        return bsp_class.send_waba_message_bsp(payload, config)
 
     @staticmethod
     def upload_media_to_bsp(bot: str, bsp_type: str, media_id: str):

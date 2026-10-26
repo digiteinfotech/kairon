@@ -52,6 +52,10 @@ class WhatsappBusinessServiceProviderBase(ABC):
     def fetch_broadcast_media_ids(bot: str):
         raise NotImplementedError("Provider not implemented")
 
+    @staticmethod
+    def send_waba_message_bsp(payload: dict, config: dict):
+        raise NotImplementedError("Provider not implemented")
+
     def normalize_raw_template(self, raw_template):
         raise NotImplementedError("Provider not implemented")
 
