@@ -33,3 +33,12 @@ Build site: context/plans/build-site.md
 - T-041,042,045 DONE + T-033 follow-up. Merged 9269357a, c594d3ff, cee3461a. Tier 0 32/32, Tier 1 13/13, Tier 2 4/10.
 - Gate (ck:inspector fallback): REVISE — 0 P0, 5 P1 (mask strategy, media download from cloud storage, non-2xx -> 500/None, intent fallback rules, ScheduleAction job-store write), 12 P2, 12 P3. Findings: context/impl/impl-review-findings.md.
 - P1 F-001..F-004 verified against Python (live check: 404 -> (None, 500)); kits corrected (+4 criteria, now 405). F-005 is T-049 (next wave). Fix cycle 1 dispatched next.
+
+### Iteration 6 (Wave 4 partial; SESSION CUT OFF by usage limit) — 2026-10-26T14:38:10Z
+- Merged: T-049 (63aee133), T-053 + master red fix (0c0b78db). Master at 0c0b78db should be green (261 tests on the replay branch); re-run `cd action-server && ./gradlew test` to confirm.
+- STILL RUNNING at cutoff (will commit on their own branches in .claude/worktrees/): w4-fix (branch w4-fix: gate P1 fixes F-001..F-004), w4-python (branch w4-python: T-050, T-051, T-052). Merge them with `git merge <branch> --no-edit`, run the Java suite and the Python modules with .venv310, then `git worktree remove <path> --force && git branch -D <branch>`.
+- Progress: 51/96 tasks DONE (Tier 0 32/32, Tier 1 13/13, Tier 2 6/10). Tier 0 gate: inspector REVISE (5 P1) -> fix cycle 1 in flight (w4-fix); after merge re-run the gate (Codex fails on diff size; use ck:inspector on the fix diff) before Tier 3.
+- Remaining frontier after merges: T-054 (load test; run when machine idle), Tier 3 verification tasks T-056..T-092 (need real fixtures -> need a MongoDB to run the recorder: `KAIRON_RECORD_FIXTURES=1 .venv310/bin/pytest tests/integration_test/action_service_test.py ...`), Tier 4 T-093..T-096.
+- Resume with /ck:resume (or /ck:make) once the two branches are merged.
+- HUMAN REVIEW backlog: key_vault secrets embedded in Python-parity log events; compose SECRET_KEY must equal kairon-api's; CORS localhost-pass-through; docker image build unverified (daemon not usable); 64MB request ceiling; failure-mail wording; events endpoint auth posture; P2 findings in impl-review-findings.md (decryptMaybe sends ciphertext upstream on key mismatch; https-stub-base settable from env in prod).
+- Note: commit 804a36e6 swept the user's pre-staged deletion of kairon-action/ into the tracking commit; revert that commit's kairon-action hunk if the Rust port should stay.
