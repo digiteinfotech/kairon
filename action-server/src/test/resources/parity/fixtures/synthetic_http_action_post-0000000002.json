@@ -61,7 +61,14 @@
               "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
               "request_id": "{{REQUEST_ID}}",
               "user_msg": "two pizzas please",
-              "http_status_code": {"$numberInt": "201"}
+              "http_status_code": {"$numberInt": "201"},
+              "events": [
+                {"type": "response", "dispatch_bot_response": true, "dispatch_type": "text", "data": "Order ${data.order_id} placed", "evaluation_type": "expression", "response": "Order {{UUID:1}} placed", "bot_response_log": ["evaluation_type: expression", "expression: Order ${data.order_id} placed", "data: {'data': {'order_id': '{{UUID:1}}', 'status': 'created'}, 'context': {'sender_id': 'default', 'user_message': 'two pizzas please', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'order', 'chat_log': [], 'key_vault': {}, 'latest_message': {'text': 'two pizzas please', 'intent': {'name': 'order'}, 'entities': []}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 201, 'response_headers': {'content-length': '70', 'content-type': 'application/json', 'date': '{{TIMESTAMP}}'}}", "response: Order {{UUID:1}} placed"], "time_elapsed": {"$numberInt": "0"}},
+                {"type": "api_call", "headers": {"Authorization": "Bearer order-token"}, "method": "POST", "url": "http://localhost:8081/orders", "payload": {"item": "pizza", "quantity": "2"}, "response": {"order_id": "{{UUID:1}}", "status": "created"}, "status_code": {"$numberInt": "201"}, "time_elapsed": {"$numberDouble": "12.5"}, "response_headers": {"content-length": "70", "content-type": "application/json"}},
+                {"type": "params_list", "request_body": {"item": "pizza", "quantity": "2"}, "request_params": {"item": "pizza", "quantity": "2"}},
+                {"type": "filled_slots", "data": {}, "slot_eval_log": ["initiating slot evaluation"], "time_elapsed": {"$numberInt": "0"}}
+              ],
+              "time_elapsed": {"$numberDouble": "12.5"}
             }
           ],
           "updated": [],
