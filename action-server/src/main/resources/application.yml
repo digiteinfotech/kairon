@@ -3,6 +3,11 @@ micronaut:
     name: kairon-action
   server:
     port: 5055
+    # The Python server (uvicorn) has no body-size limit. Micronaut defaults to 10 MB, which rejects a
+    # 20 MB tracker with 413. Ceiling below needs human sign-off (cavekit-webhook-contract.md R6); see CONFIG.md.
+    max-request-size: 64MB
+    # Micronaut >= 4.5 buffers @Body String up to this separate limit (default 10 MB); keep it equal.
+    max-request-buffer-size: 64MB
     cors:
       enabled: true
       configurations:
@@ -19,29 +24,40 @@ micronaut:
 jackson:
   serialization-inclusion: ALWAYS
 
+# Env var names and defaults mirror the Python system.yaml keys (see CONFIG.md).
+# Defaults containing ':' are wrapped in backticks, or Micronaut reads them as nested placeholders.
+# Secrets (FERNET_KEY, SECRET_KEY, ASYNC_CALLBACK_AES_KEY, ASYNC_CALLBACK_AES_IV, LIVE_AGENT_AUTH_TOKEN)
+# deliberately have no default here.
 kairon:
   action:
     catalog: ${KAIRON_ACTION_CATALOG:mongo}
     rasa-sdk-version: "3.6.21"
-    request-timeout: ${KAIRON_ACTION_TIMEOUT:5}
-    callback-base-url: ${KAIRON_CALLBACK_URL:}
-    events-server-url: ${KAIRON_EVENTS_URL:}
-    web-search-url: ${KAIRON_WEB_SEARCH_URL:}
-    evaluator-url: ${KAIRON_EVALUATOR_URL:}
-    pyscript-url: ${KAIRON_PYSCRIPT_URL:}
-    live-agent-url: ${KAIRON_LIVE_AGENT_URL:}
-    live-agent-token: ${KAIRON_LIVE_AGENT_TOKEN:}
-    live-agent-enabled: ${KAIRON_LIVE_AGENT_ENABLED:false}
-    vector-url: ${KAIRON_VECTOR_URL:}
-    llm-url: ${KAIRON_LLM_URL:}
-    simple-agent-url: ${KAIRON_SIMPLE_AGENT_URL:}
+    request-timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:60}
+    action-server-url: ${ACTION_SERVER_URL:`http://localhost:5055/webhook`}
+    callback-base-url: ${ASYNC_CALLBACK_ACTION_SERVER_URL:`http://localhost:5059/callback`}
+    events-server-url: ${EVENT_SERVER_ENDPOINT:`http://localhost:5056`}
+    web-search-url: ${WEB_SEARCH_URL:}
+    evaluator-url: ${EXPRESSION_EVALUATOR_ENDPOINT:`http://192.168.100.109:8085/evaluate`}
+    pyscript-url: ${TRIGGER_MAIN_PYSCRIPT_URL:`http://localhost:5059/main_pyscript/execute-python`}
+    live-agent-url: ${LIVE_AGENT_SERVER_URL:`http://localhost:8000/api/v1`}
+    live-agent-token: ${LIVE_AGENT_AUTH_TOKEN:}
+    live-agent-enabled: true
+    vector-url: ${VECTOR_DB:}
+    llm-url: ${LLM_SERVER_URL:}
+    simple-agent-url: ${SIMPLE_AGENT_URL:}
     voice-call-url: ${KAIRON_VOICE_CALL_URL:}
-    frontend-url: ${KAIRON_FRONTEND_URL:}
-    fernet-key: ${KAIRON_FERNET_KEY:}
-    jwt-secret: ${KAIRON_JWT_SECRET:}
-    jwt-algorithm: ${KAIRON_JWT_ALGORITHM:HS256}
-    token-expire: ${KAIRON_TOKEN_EXPIRE:15}
-    unmasked-char-count: ${KAIRON_UNMASKED_CHARS:4}
+    frontend-url: ${FRONTEND_URL:`http://localhost:3000`}
+    support-mail: ${KAIRON_SUPPORT_MAIL:kairon@digite.com}
+    cors-origin: '${ALLOWED_ORIGIN:["*"]}'
+    fernet-key: ${FERNET_KEY:}
+    jwt-secret: ${SECRET_KEY:}
+    jwt-algorithm: HS256
+    async-callback-aes-key: ${ASYNC_CALLBACK_AES_KEY:}
+    async-callback-aes-iv: ${ASYNC_CALLBACK_AES_IV:}
+    token-expire: 15
+    unmasked-char-count: ${SECRET_UNMASKED_CHAR_COUNT:2}
+    unmasked-char-strategy: ${SECRET_UNMASKED_CHAR_STRATEGY:from_right}
 
 mongodb:
-  uri: ${MONGODB_URI:mongodb://localhost:27017/conversations}
+  # database.url / DATABASE_URL. A URL without a database name uses `kairon` (MongoFactory).
+  uri: ${DATABASE_URL:`mongodb://localhost:27017/conversations`}

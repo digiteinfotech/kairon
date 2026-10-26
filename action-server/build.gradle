@@ -19,6 +19,14 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     testAnnotationProcessor("io.micronaut:micronaut-inject-java")
     testImplementation("io.micronaut.test:micronaut-test-junit5")
+    constraints {
+        // GHSA-q6gh-6v2r-hjv3: micronaut-http-client 4.x < 4.10.24 forwards credentials across origins on
+        // redirect. Not shipped today (outbound calls use java.net.http); floor it in case it is pulled in.
+        implementation("io.micronaut:micronaut-http-client:4.10.24") { because "GHSA-q6gh-6v2r-hjv3" }
+        implementation("io.micronaut:micronaut-http-client-core:4.10.24") { because "GHSA-q6gh-6v2r-hjv3" }
+        testImplementation("io.micronaut:micronaut-http-client:4.10.24") { because "GHSA-q6gh-6v2r-hjv3" }
+        testImplementation("io.micronaut:micronaut-http-client-core:4.10.24") { because "GHSA-q6gh-6v2r-hjv3" }
+    }
 }
 
 application {
@@ -43,6 +51,35 @@ micronaut {
         annotations("com.kairon.action.*")
     }
 }
+
+// Fails the build when a resolved Micronaut core/http artifact is in the GHSA-q6gh-6v2r-hjv3 range (4.x < 4.10.24).
+tasks.register("checkAdvisories") {
+    group = "verification"
+    description = "Checks resolved Micronaut versions against GHSA-q6gh-6v2r-hjv3."
+    def classpaths = [configurations.runtimeClasspath, configurations.testRuntimeClasspath]
+    doLast {
+        def floor = [4, 10, 24]
+        def bad = []
+        classpaths.each { cfg ->
+            cfg.incoming.resolutionResult.allComponents.each { c ->
+                def id = c.moduleVersion
+                if (id != null && id.group == "io.micronaut" && (id.name == "micronaut-core" || id.name.startsWith("micronaut-http"))) {
+                    def parts = id.version.tokenize(".-").take(3).collect { it.isInteger() ? it.toInteger() : 0 }
+                    def below = parts[0] == 4 && (parts[1] < floor[1] || (parts[1] == floor[1] && parts[2] < floor[2]))
+                    if (below) {
+                        bad << "${id.group}:${id.name}:${id.version}"
+                    }
+                }
+            }
+        }
+        if (!bad.isEmpty()) {
+            throw new GradleException("GHSA-q6gh-6v2r-hjv3: affected versions resolved: ${bad.unique()}")
+        }
+        logger.lifecycle("checkAdvisories: no Micronaut core/http artifact below 4.10.24")
+    }
+}
+
+tasks.named("check") { dependsOn("checkAdvisories") }
 
 test {
     useJUnitPlatform()

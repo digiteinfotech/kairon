@@ -1,0 +1,255 @@
+package com.kairon.action.config;
+
+import com.kairon.action.ActionSettings;
+import com.kairon.action.catalog.MongoFactory;
+import io.micronaut.context.ApplicationContext;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** cavekit-config-and-deploy.md R1: Python env var names and defaults, and the CONFIG.md mapping table. */
+class ConfigMappingTest {
+
+    private static final Path PORT = Path.of("").toAbsolutePath();
+    private static final Path SYSTEM_YAML = PORT.resolve("../system.yaml").normalize();
+    private static final Path APPLICATION_YML = PORT.resolve("src/main/resources/application.yml");
+    private static final Path CONFIG_MD = PORT.resolve("CONFIG.md");
+
+    /** Every env var the in-scope actions need (R1 c3), with the Python default (null = secret or none). */
+    private static final Map<String, String> REQUIRED = new LinkedHashMap<>();
+
+    static {
+        REQUIRED.put("DATABASE_URL", "mongodb://localhost:27017/conversations");
+        REQUIRED.put("ACTION_SERVER_REQUEST_TIMEOUT", "60");
+        REQUIRED.put("ACTION_SERVER_URL", "http://localhost:5055/webhook");
+        REQUIRED.put("TRIGGER_MAIN_PYSCRIPT_URL", "http://localhost:5059/main_pyscript/execute-python");
+        REQUIRED.put("EXPRESSION_EVALUATOR_ENDPOINT", "http://192.168.100.109:8085/evaluate");
+        REQUIRED.put("EVENT_SERVER_ENDPOINT", "http://localhost:5056");
+        REQUIRED.put("ASYNC_CALLBACK_ACTION_SERVER_URL", "http://localhost:5059/callback");
+        REQUIRED.put("LIVE_AGENT_SERVER_URL", "http://localhost:8000/api/v1");
+        REQUIRED.put("LIVE_AGENT_AUTH_TOKEN", null);
+        REQUIRED.put("SIMPLE_AGENT_URL", null);
+        REQUIRED.put("WEB_SEARCH_URL", null);
+        REQUIRED.put("KAIRON_SUPPORT_MAIL", "kairon@digite.com");
+        REQUIRED.put("ALLOWED_ORIGIN", "[\"*\"]");
+        REQUIRED.put("FERNET_KEY", null);
+        REQUIRED.put("SECRET_KEY", null);
+        REQUIRED.put("ASYNC_CALLBACK_AES_KEY", null);
+        REQUIRED.put("ASYNC_CALLBACK_AES_IV", null);
+        REQUIRED.put("SECRET_UNMASKED_CHAR_COUNT", "2");
+        REQUIRED.put("FRONTEND_URL", "http://localhost:3000");
+    }
+
+    record Row(String pythonKey, String env, String property, String defaultCell) {
+    }
+
+    @Test
+    void everyMappedEnvVarMatchesSystemYamlAndApplicationYml() throws IOException {
+        String system = read(SYSTEM_YAML);
+        String application = read(APPLICATION_YML);
+        List<Row> rows = table();
+        assertFalse(rows.isEmpty());
+        for (Row row : rows) {
+            if (row.env().isEmpty()) {
+                continue;
+            }
+            String pythonDefault = placeholderDefault(system, row.env());
+            assertTrue(pythonDefault != null, row.env() + " is not a system.yaml env var");
+            String portDefault = placeholderDefault(application, row.env());
+            assertTrue(portDefault != null, row.env() + " is not bound in application.yml");
+            String cell = row.defaultCell();
+            if (cell.equals("secret")) {
+                assertFalse(pythonDefault.isEmpty(), row.env());
+                assertEquals("", portDefault, row.env() + " must not ship a default secret");
+            } else if (cell.equals("none")) {
+                assertEquals("", pythonDefault, row.env());
+                assertEquals("", portDefault, row.env());
+            } else if (cell.startsWith("deviation:")) {
+                assertEquals("", portDefault, row.env());
+            } else {
+                String expected = unquote(cell);
+                assertEquals(expected, pythonDefault, row.env() + " default differs from system.yaml");
+                assertEquals(expected, portDefault, row.env() + " default differs in application.yml");
+            }
+        }
+    }
+
+    @Test
+    void tableCoversEveryRequiredKey() throws IOException {
+        Map<String, Row> byEnv = new LinkedHashMap<>();
+        for (Row row : table()) {
+            byEnv.put(row.env(), row);
+        }
+        String system = read(SYSTEM_YAML);
+        for (Map.Entry<String, String> required : REQUIRED.entrySet()) {
+            assertTrue(byEnv.containsKey(required.getKey()), required.getKey() + " missing from CONFIG.md");
+            if (required.getValue() != null) {
+                assertEquals(required.getValue(), placeholderDefault(system, required.getKey()), required.getKey());
+            }
+        }
+        assertTrue(table().stream().anyMatch(r -> r.pythonKey().equals("security.algorithm")));
+        assertTrue(table().stream().anyMatch(r -> r.pythonKey().equals("live_agent.enable")));
+    }
+
+    @Test
+    void defaultsResolveWithoutEnv() {
+        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).start()) {
+            ActionSettings settings = context.getBean(ActionSettings.class);
+            if (System.getenv("ACTION_SERVER_REQUEST_TIMEOUT") == null) {
+                assertEquals(60, settings.getRequestTimeout());
+            }
+            if (System.getenv("EVENT_SERVER_ENDPOINT") == null) {
+                assertEquals("http://localhost:5056", settings.getEventsServerUrl());
+            }
+            if (System.getenv("TRIGGER_MAIN_PYSCRIPT_URL") == null) {
+                assertEquals("http://localhost:5059/main_pyscript/execute-python", settings.getPyscriptUrl());
+            }
+            if (System.getenv("SECRET_UNMASKED_CHAR_COUNT") == null) {
+                assertEquals(2, settings.getUnmaskedCharCount());
+            }
+            if (System.getenv("ALLOWED_ORIGIN") == null) {
+                assertEquals(List.of("*"), settings.corsOrigins());
+            }
+            assertEquals("HS256", settings.getJwtAlgorithm());
+            assertTrue(settings.isLiveAgentEnabled());
+            if (System.getenv("ACTION_SERVER_URL") == null) {
+                assertEquals("http://localhost:5055/webhook", settings.getActionServerUrl());
+            }
+            if (System.getenv("EXPRESSION_EVALUATOR_ENDPOINT") == null) {
+                assertEquals("http://192.168.100.109:8085/evaluate", settings.getEvaluatorUrl());
+            }
+            if (System.getenv("DATABASE_URL") == null) {
+                assertEquals("mongodb://localhost:27017/conversations", context.getProperty("mongodb.uri", String.class).orElseThrow());
+            }
+        }
+    }
+
+    @Test
+    void pythonEnvNamesOverrideSettings() {
+        Map<String, Object> env = new LinkedHashMap<>();
+        env.put("ACTION_SERVER_REQUEST_TIMEOUT", "33");
+        env.put("DATABASE_URL", "mongodb://db.test:27017");
+        env.put("FERNET_KEY", "fernet-from-env");
+        env.put("SECRET_KEY", "secret-from-env");
+        env.put("ASYNC_CALLBACK_AES_KEY", "aes-key-from-env");
+        env.put("ASYNC_CALLBACK_AES_IV", "aes-iv-from-env");
+        env.put("TRIGGER_MAIN_PYSCRIPT_URL", "http://pyscript.test/run");
+        env.put("EXPRESSION_EVALUATOR_ENDPOINT", "http://eval.test/evaluate");
+        env.put("EVENT_SERVER_ENDPOINT", "http://events.test");
+        env.put("ASYNC_CALLBACK_ACTION_SERVER_URL", "http://callback.test/callback");
+        env.put("LIVE_AGENT_SERVER_URL", "http://live.test/api/v1");
+        env.put("LIVE_AGENT_AUTH_TOKEN", "live-token-from-env");
+        env.put("SIMPLE_AGENT_URL", "http://agent.test");
+        env.put("KAIRON_VOICE_CALL_URL", "http://voice.test");
+        env.put("WEB_SEARCH_URL", "http://search.test");
+        env.put("KAIRON_SUPPORT_MAIL", "support@test");
+        env.put("ALLOWED_ORIGIN", "[\"https://a.test\", \"https://b.test\"]");
+        env.put("SECRET_UNMASKED_CHAR_COUNT", "3");
+        env.put("SECRET_UNMASKED_CHAR_STRATEGY", "from_left");
+        env.put("ACTION_SERVER_URL", "http://self.test/webhook");
+        env.put("FRONTEND_URL", "http://front.test");
+        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).properties(env).start()) {
+            ActionSettings settings = context.getBean(ActionSettings.class);
+            assertEquals(33, settings.getRequestTimeout());
+            assertEquals("fernet-from-env", settings.getFernetKey());
+            assertEquals("secret-from-env", settings.getJwtSecret());
+            assertEquals("aes-key-from-env", settings.getAsyncCallbackAesKey());
+            assertEquals("aes-iv-from-env", settings.getAsyncCallbackAesIv());
+            assertEquals("http://pyscript.test/run", settings.getPyscriptUrl());
+            assertEquals("http://eval.test/evaluate", settings.getEvaluatorUrl());
+            assertEquals("http://events.test", settings.getEventsServerUrl());
+            assertEquals("http://callback.test/callback", settings.getCallbackBaseUrl());
+            assertEquals("http://live.test/api/v1", settings.getLiveAgentUrl());
+            assertEquals("live-token-from-env", settings.getLiveAgentToken());
+            assertEquals("http://agent.test", settings.getSimpleAgentUrl());
+            assertEquals("http://voice.test", settings.getVoiceCallUrl());
+            assertEquals("http://search.test", settings.getWebSearchUrl());
+            assertEquals("support@test", settings.getSupportMail());
+            assertEquals(List.of("https://a.test", "https://b.test"), settings.corsOrigins());
+            assertEquals(3, settings.getUnmaskedCharCount());
+            assertEquals("from_left", settings.getUnmaskedCharStrategy());
+            assertEquals("http://self.test/webhook", settings.getActionServerUrl());
+            assertEquals("http://front.test", settings.getFrontendUrl());
+            String uri = context.getProperty("mongodb.uri", String.class).orElseThrow();
+            assertEquals("mongodb://db.test:27017", uri);
+            assertEquals("kairon", MongoFactory.databaseName(uri));
+        }
+    }
+
+    @Test
+    void databaseNameFromUrlElseKairon() {
+        assertEquals("kairon", MongoFactory.databaseName("mongodb://localhost:27017"));
+        assertEquals("kairon", MongoFactory.databaseName("mongodb://localhost:27017/"));
+        assertEquals("kairon", MongoFactory.databaseName("mongodb://u:p@h1:27017,h2:27017/?replicaSet=rs"));
+        assertEquals("conversations", MongoFactory.databaseName("mongodb://localhost:27017/conversations"));
+    }
+
+    @Test
+    void corsOriginAcceptsCommaSeparated() {
+        ActionSettings settings = new ActionSettings();
+        settings.setCorsOrigin("https://a.test, https://b.test");
+        assertEquals(List.of("https://a.test", "https://b.test"), settings.corsOrigins());
+    }
+
+    private static List<Row> table() throws IOException {
+        List<Row> rows = new ArrayList<>();
+        boolean inTable = false;
+        for (String line : read(CONFIG_MD).split("\n")) {
+            if (line.startsWith("## Python key to port key")) {
+                inTable = true;
+                continue;
+            }
+            if (inTable && line.startsWith("## ")) {
+                break;
+            }
+            if (!inTable || !line.startsWith("| `")) {
+                continue;
+            }
+            String[] cells = line.split("\\|");
+            rows.add(new Row(unquote(cells[1]), cells[2].trim().equals("-") ? "" : unquote(cells[2]),
+                    unquote(cells[3]), cells[4].trim()));
+        }
+        return rows;
+    }
+
+    /** Default of {@code ${NAME:default}} in a yaml file, "" for {@code ${NAME}} or {@code ${NAME:}}, null if absent. */
+    private static String placeholderDefault(String yaml, String name) {
+        Matcher m = Pattern.compile("\\$\\{" + Pattern.quote(name) + "(?::([^}]*))?}").matcher(yaml);
+        if (!m.find()) {
+            return null;
+        }
+        String value = m.group(1) == null ? "" : m.group(1).trim();
+        if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"") && !value.startsWith("[")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+
+    private static String unquote(String cell) {
+        String value = cell.trim();
+        if (value.length() >= 2 && value.startsWith("`") && value.endsWith("`")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+
+    private static String read(Path path) throws IOException {
+        return Files.readString(path, StandardCharsets.UTF_8);
+    }
+}
