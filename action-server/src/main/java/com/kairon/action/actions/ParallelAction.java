@@ -4,17 +4,18 @@ import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.RequestIds;
-import com.kairon.action.server.ActionProcessor;
 import com.kairon.action.support.ActionSupport;
+import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
-import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Children run in-process. An HTTP call back into this Netty server deadlocks,
- * and Provider breaks the factory to processor cycle.
+ * Port of kairon/actions/definitions/custom_parallel_actions.py. Each child action is a POST of the
+ * original request (next_action and trigger_info replaced) to this server's own webhook URL
+ * ({@code action.url} / ACTION_SERVER_URL) carrying the parent's X-Kairon-Request-ID. The webhook runs
+ * on the blocking (virtual thread) executor, so the loopback call does not tie up the Netty event loop.
+ * Child utterances are discarded; only child slot events are merged, last write wins in child order.
  */
 @Singleton
 public class ParallelAction implements KaironAction {
@@ -33,11 +37,9 @@ public class ParallelAction implements KaironAction {
     private static final Logger LOG = LoggerFactory.getLogger(ParallelAction.class);
 
     private final ActionSupport support;
-    private final Provider<ActionProcessor> processor;
 
-    public ParallelAction(ActionSupport support, Provider<ActionProcessor> processor) {
+    public ParallelAction(ActionSupport support) {
         this.support = support;
-        this.processor = processor;
     }
 
     @Override
@@ -51,6 +53,7 @@ public class ParallelAction implements KaironAction {
         boolean dispatch = false;
         Object responseText = null;
         Object logId = null;
+        Date created = null;
         String status = Kairon.SUCCESS;
         String exception = null;
         Object botResponse = null;
@@ -63,7 +66,8 @@ public class ParallelAction implements KaironAction {
             }
             dispatch = Maps.truthy(config.get("dispatch_response_text"));
             responseText = config.get("response_text");
-            logId = insertStub();
+            created = new Date();
+            logId = insertPreRecord(created);
             List<Object> results = runChildren(context, config.get("actions"), logId);
             extractSlots(results, filled);
         } catch (Exception e) {
@@ -83,9 +87,12 @@ public class ParallelAction implements KaironAction {
                 botResponse = responseText;
             }
             if (logId == null) {
-                logId = insertStub();
+                created = new Date();
+                logId = insertPreRecord(created);
             }
             Document log = new Document();
+            // mongoengine keeps the timestamp default set when Python first saved the pre-created record.
+            log.put("timestamp", created);
             log.put("type", type());
             log.put("intent", context.tracker.intent());
             log.put("action", context.actionName);
@@ -106,20 +113,36 @@ public class ParallelAction implements KaironAction {
         return filled;
     }
 
-    private Object insertStub() {
-        Document stub = new Document();
-        stub.put("request_id", RequestIds.get());
-        return support.catalog().insert(Kairon.LOGS, stub).get("_id");
+    /**
+     * Python {@code ActionServerLogs(request_id=get_request_id()).save()}: mongoengine stores the field
+     * defaults (timestamp, status, trigger_info) plus request_id, in declaration order. Its _id is the trigger_id.
+     */
+    private Object insertPreRecord(Date created) {
+        Document record = new Document("_id", new ObjectId());
+        record.put("timestamp", created);
+        record.put("status", Kairon.SUCCESS);
+        Document trigger = new Document();
+        trigger.put("trigger_name", "");
+        trigger.put("trigger_type", "implicit");
+        trigger.put("trigger_id", "");
+        record.put("trigger_info", trigger);
+        String requestId = RequestIds.get();
+        if (requestId != null) {
+            record.put("request_id", requestId);
+        }
+        return support.catalog().insert(Kairon.LOGS, record).get("_id");
     }
 
     private List<Object> runChildren(ActionContext context, Object names, Object logId) throws InterruptedException {
         String parentRequest = RequestIds.get();
+        String url = support.settings().getActionServerUrl();
         List<Callable<Object>> tasks = new ArrayList<>();
         for (Object name : Maps.list(names)) {
             String child = String.valueOf(name);
-            tasks.add(() -> childCall(context, child, logId, parentRequest));
+            tasks.add(() -> childCall(context, url, child, logId, parentRequest));
         }
         List<Object> results = new ArrayList<>();
+        // asyncio.gather(..., return_exceptions=True): every child runs, errors become results.
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (Future<Object> future : pool.invokeAll(tasks)) {
                 try {
@@ -132,21 +155,27 @@ public class ParallelAction implements KaironAction {
         return results;
     }
 
-    private Object childCall(ActionContext context, String name, Object logId, String requestId) {
-        RequestIds.set(requestId);
+    private Object childCall(ActionContext context, String url, String name, Object logId, String requestId) {
         try {
-            Map<String, Object> copy = Jsons.readMap(Jsons.write(context.actionCall));
-            copy.put("next_action", name);
+            Map<String, Object> body = Jsons.readMap(Jsons.write(context.actionCall));
+            body.put("next_action", name);
             Map<String, Object> trigger = new LinkedHashMap<>();
             trigger.put("trigger_name", context.actionName);
             trigger.put("trigger_type", "parallel_action");
-            trigger.put("trigger_id", logId == null ? "" : String.valueOf(logId));
-            copy.put("trigger_info", trigger);
-            return processor.get().handle(copy);
+            trigger.put("trigger_id", String.valueOf(logId));
+            body.put("trigger_info", trigger);
+            Map<String, Object> headers = new LinkedHashMap<>();
+            if (requestId != null && !requestId.isEmpty()) {
+                headers.put(Kairon.REQUEST_ID, requestId);
+            }
+            HttpCaller.Exchange exchange = support.http().exchange("POST", url, headers, body, "json");
+            if (exchange.status() == 0) {
+                LOG.warn("parallel_action child {} could not reach {}", name, url);
+            }
+            return exchange.body();
         } catch (Exception e) {
+            LOG.warn("parallel_action child {} failed", name, e);
             return e;
-        } finally {
-            RequestIds.clear();
         }
     }
 

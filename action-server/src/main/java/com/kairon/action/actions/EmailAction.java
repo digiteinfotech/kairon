@@ -2,28 +2,43 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.SmtpMailer;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** SMTP is not configured on this server. A valid request is logged and follows the success path. */
+/**
+ * Port of kairon/actions/definitions/email.py: one SMTP message per recipient through {@link SmtpMailer}.
+ * As in Python, only {@code smtp_userid} and {@code smtp_password} go through parameter resolution;
+ * {@code smtp_url}, {@code smtp_port} and {@code tls} are read from the config as stored.
+ */
 @Singleton
 public class EmailAction implements KaironAction {
 
     private static final Logger LOG = LoggerFactory.getLogger(EmailAction.class);
 
-    private final ActionSupport support;
+    /** template/emails/custom_text_mail.html, read verbatim like Python Utility.email_conf. */
+    private static final String CUSTOM_TEXT_MAIL = load("custom_text_mail.html");
 
-    public EmailAction(ActionSupport support) {
+    private final ActionSupport support;
+    private final SmtpMailer mailer;
+
+    public EmailAction(ActionSupport support, SmtpMailer mailer) {
         this.support = support;
+        this.mailer = mailer;
     }
 
     @Override
@@ -43,11 +58,16 @@ public class EmailAction implements KaironAction {
             String from = address(config.get("from_email"), context, true);
             List<String> to = recipients(config.get("to_email"), context);
             Map<String, Object> trackerData = support.context(context.tracker, false);
-            String subject = Maps.text(context.tracker.senderId) + " " + Maps.text(config.get("subject"));
-            for (String mail : to) {
-                String body = body(config, trackerData, context.bot, mail);
-                LOG.info("smtp is not configured; email not sent to {} subject {}", mail, subject);
-                LOG.debug("email body {}", body);
+            Object password = support.one(trackerData, config.get("smtp_password"), context.bot);
+            Object userId = support.one(trackerData, config.get("smtp_userid"), context.bot);
+            if (!to.isEmpty()) {
+                // Python reads smtp_url/smtp_port/tls/subject inside the per-recipient loop.
+                SmtpMailer.SmtpConfig smtp = new SmtpMailer.SmtpConfig(
+                        Maps.str(required(config, "smtp_url")), port(required(config, "smtp_port")),
+                        Maps.str(userId), Maps.str(password), Maps.truthy(required(config, "tls")));
+                String subject = Maps.str(required(config, "subject"));
+                mailer.sendEach(smtp, from, to, Maps.text(context.tracker.senderId), subject,
+                        mail -> body(config, trackerData, context.bot, mail));
             }
         } catch (Exception e) {
             LOG.error("email action failed", e);
@@ -64,14 +84,60 @@ public class EmailAction implements KaironAction {
         return ActionFlags.response(botResponse);
     }
 
+    /** Python: prepare_email_text(custom text) when custom_text is set, else prepare_email_body(chat_log). */
     private String body(Document config, Map<String, Object> trackerData, String bot, String mail) {
         Object custom = config.get("custom_text");
-        String subject = Maps.text(config.get("subject"));
+        String subject = Maps.str(config.get("subject"));
         if (Maps.truthy(custom)) {
             Object text = support.one(trackerData, custom, bot);
-            return "<html><body><h3>" + subject + "</h3><p>" + (text == null ? "" : text) + "</p><p>" + mail + "</p></body></html>";
+            return customText(text, subject, mail, Maps.text(support.settings().getFrontendUrl()));
         }
         return support.emailBody(Maps.mapList(trackerData.get("chat_log")), subject, mail);
+    }
+
+    /** Port of ActionUtility.prepare_email_text over template/emails/custom_text_mail.html. */
+    static String customText(Object text, String subject, String userEmail, String baseUrl) {
+        String template = CUSTOM_TEXT_MAIL.replace("SUBJECT", requireStr(subject));
+        if (!Maps.isEmpty(userEmail)) {
+            template = template.replace("USER_EMAIL", userEmail);
+        }
+        template = template.replace("CUSTOM_TEXT", requireStr(text));
+        return template.replace("BASE_URL", requireStr(baseUrl));
+    }
+
+    /** Python action_config['key'] raises KeyError('key') when the field is absent. */
+    private static Object required(Document config, String key) {
+        if (!config.containsKey(key)) {
+            throw new ActionFailure("'" + key + "'");
+        }
+        return config.get(key);
+    }
+
+    private static int port(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return Integer.parseInt(String.valueOf(value).strip());
+    }
+
+    /** Python str.replace(old, new) raises TypeError unless new is a str. */
+    private static String requireStr(Object value) {
+        if (value instanceof String text) {
+            return text;
+        }
+        throw new ActionFailure("replace() argument 2 must be str, not "
+                + (value == null ? "NoneType" : value.getClass().getSimpleName()));
+    }
+
+    private static String load(String name) {
+        try (InputStream in = EmailAction.class.getResourceAsStream("/templates/emails/" + name)) {
+            if (in == null) {
+                throw new IllegalStateException("missing email template " + name);
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private String address(Object spec, ActionContext context, boolean from) {
