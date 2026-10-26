@@ -86,13 +86,6 @@ public class MongoActionCatalog implements ActionCatalog {
     }
 
     @Override
-    public Object insertEmpty(String collection) {
-        ObjectId id = new ObjectId();
-        collection(collection).insertOne(new Document("_id", id));
-        return id;
-    }
-
-    @Override
     public void replace(String collection, Object id, Document document) {
         document.put("_id", id);
         collection(collection).replaceOne(Filters.eq("_id", id), document);

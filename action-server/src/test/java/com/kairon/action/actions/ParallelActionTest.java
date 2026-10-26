@@ -126,14 +126,22 @@ class ParallelActionTest implements TestPropertyProvider {
         names.sort(String::compareTo);
         assertEquals(List.of("child_a", "child_b", "child_broken"), names);
 
-        // c2 the pre-created record exists before any child call, is empty, and its _id is the trigger_id
+        // c2 the pre-created record exists before any child call and matches Python
+        // ActionServerLogs(request_id=...).save(): mongoengine defaults plus request_id; its _id is the trigger_id
         Document parent = catalog.all(Kairon.LOGS).get(0);
         String trigger = String.valueOf(parent.get("_id"));
+        java.util.Date created = null;
         for (Child child : children) {
             List<Document> before = child.logsAtCall();
             assertEquals(1, before.size());
-            assertEquals(List.of("_id"), List.copyOf(before.get(0).keySet()), "pre-created record holds only _id");
-            assertEquals(trigger, String.valueOf(before.get(0).get("_id")));
+            Document pre = before.get(0);
+            assertEquals(List.of("_id", "timestamp", "status", "trigger_info", "request_id"), List.copyOf(pre.keySet()));
+            assertEquals(trigger, String.valueOf(pre.get("_id")));
+            assertTrue(pre.get("timestamp") instanceof java.util.Date);
+            assertEquals(Kairon.SUCCESS, pre.get("status"));
+            assertEquals(new Document("trigger_name", "").append("trigger_type", "implicit").append("trigger_id", ""), pre.get("trigger_info"));
+            assertEquals("parent-req-1", pre.get("request_id"));
+            created = (java.util.Date) pre.get("timestamp");
         }
 
         // c4 child body = original request with next_action and trigger_info replaced
@@ -164,7 +172,7 @@ class ParallelActionTest implements TestPropertyProvider {
         assertEquals("hi", filled.get("user_msg"));
         assertEquals("parent-req-1", filled.get("request_id"));
         assertEquals(new Document("trigger_name", "").append("trigger_type", "implicit").append("trigger_id", ""), filled.get("trigger_info"));
-        assertTrue(filled.get("timestamp") instanceof java.util.Date, "timestamp set when the record is filled");
+        assertEquals(created, filled.get("timestamp"), "fill keeps the pre-record creation timestamp");
     }
 
     @Test

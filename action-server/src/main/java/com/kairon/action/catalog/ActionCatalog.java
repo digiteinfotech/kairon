@@ -24,12 +24,6 @@ public interface ActionCatalog {
 
     Document insert(String collection, Document document);
 
-    /**
-     * Inserts a document holding only a new ObjectId {@code _id} (no timestamp or other defaults)
-     * and returns that id. Used for the parallel_action pre-created parent log record.
-     */
-    Object insertEmpty(String collection);
-
     void replace(String collection, Object id, Document document);
 
     List<Document> all(String collection);

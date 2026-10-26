@@ -161,13 +161,6 @@ public class MemoryActionCatalog implements ActionCatalog {
     }
 
     @Override
-    public Object insertEmpty(String collection) {
-        ObjectId id = new ObjectId();
-        add(collection, new Document("_id", id));
-        return id;
-    }
-
-    @Override
     public void replace(String collection, Object id, Document document) {
         List<Document> list = bucket(collection);
         synchronized (list) {

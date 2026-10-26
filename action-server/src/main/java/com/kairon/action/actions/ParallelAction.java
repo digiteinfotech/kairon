@@ -10,6 +10,7 @@ import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
 import jakarta.inject.Singleton;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +67,7 @@ public class ParallelAction implements KaironAction {
             dispatch = Maps.truthy(config.get("dispatch_response_text"));
             responseText = config.get("response_text");
             created = new Date();
-            logId = support.catalog().insertEmpty(Kairon.LOGS);
+            logId = insertPreRecord(created);
             List<Object> results = runChildren(context, config.get("actions"), logId);
             extractSlots(results, filled);
         } catch (Exception e) {
@@ -87,7 +88,7 @@ public class ParallelAction implements KaironAction {
             }
             if (logId == null) {
                 created = new Date();
-                logId = support.catalog().insertEmpty(Kairon.LOGS);
+                logId = insertPreRecord(created);
             }
             Document log = new Document();
             // mongoengine keeps the timestamp default set when Python first saved the pre-created record.
@@ -110,6 +111,26 @@ public class ParallelAction implements KaironAction {
             support.catalog().replace(Kairon.LOGS, logId, log);
         }
         return filled;
+    }
+
+    /**
+     * Python {@code ActionServerLogs(request_id=get_request_id()).save()}: mongoengine stores the field
+     * defaults (timestamp, status, trigger_info) plus request_id, in declaration order. Its _id is the trigger_id.
+     */
+    private Object insertPreRecord(Date created) {
+        Document record = new Document("_id", new ObjectId());
+        record.put("timestamp", created);
+        record.put("status", Kairon.SUCCESS);
+        Document trigger = new Document();
+        trigger.put("trigger_name", "");
+        trigger.put("trigger_type", "implicit");
+        trigger.put("trigger_id", "");
+        record.put("trigger_info", trigger);
+        String requestId = RequestIds.get();
+        if (requestId != null) {
+            record.put("request_id", requestId);
+        }
+        return support.catalog().insert(Kairon.LOGS, record).get("_id");
     }
 
     private List<Object> runChildren(ActionContext context, Object names, Object logId) throws InterruptedException {
