@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -48,6 +50,9 @@ class WebhookTest {
 
     @Inject
     Tokens tokens;
+
+    @Inject
+    ProbeAction probe;
 
     @BeforeAll
     static void servers() throws Exception {
@@ -87,6 +92,7 @@ class WebhookTest {
     @BeforeEach
     void reset() {
         catalog.clear();
+        probe.reset();
         synchronized (EVENT_PATHS) {
             EVENT_PATHS.clear();
         }
@@ -177,21 +183,228 @@ class WebhookTest {
     }
 
     @Test
-    void missingTrackerIs422() throws Exception {
-        Reply reply = post("{\"next_action\":\"x\"}");
-        assertEquals(422, reply.status());
-        Map<String, Object> body = Jsons.readMap(reply.body());
-        assertEquals(false, body.get("success"));
-        assertEquals(422, ((Number) body.get("error_code")).intValue());
-        assertEquals("tracker", body.get("message"));
-        assertNull(body.get("data"));
+    void missingOrWhitespaceNextActionIsJsonNull() throws Exception {
+        for (String json : List.of("{\"tracker\":{}}", "{\"next_action\":\"   \",\"tracker\":{}}",
+                "{\"next_action\":null}", "{\"next_action\":\" \\t\"}")) {
+            Reply reply = post(json);
+            assertEquals(200, reply.status(), json);
+            assertEquals("null", reply.body().trim(), json);
+        }
+        assertTrue(catalog.all(Kairon.LOGS).isEmpty());
     }
 
     @Test
-    void emptyBodyIs422() throws Exception {
-        Reply reply = post("   ");
-        assertEquals(422, reply.status());
-        assertEquals("Request body is empty", Jsons.readMap(reply.body()).get("message"));
+    void missingTrackerIs500() throws Exception {
+        register("probe", ProbeAction.TYPE);
+        Reply reply = post("{\"next_action\":\"probe\"}");
+        assertEquals(500, reply.status());
+        assertEquals(0, probe.executions);
+        assertTrue(catalog.all(Kairon.LOGS).isEmpty());
+    }
+
+    @Test
+    void missingSenderIdIs500() throws Exception {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> tracker = new LinkedHashMap<>();
+        tracker.put("slots", slots());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("next_action", "probe");
+        body.put("tracker", tracker);
+        Reply reply = post(Jsons.write(body));
+        assertEquals(500, reply.status());
+        assertEquals(0, probe.executions);
+        assertTrue(catalog.all(Kairon.LOGS).isEmpty());
+    }
+
+    @Test
+    void nonObjectTrackerIs500() throws Exception {
+        for (String json : List.of("{\"next_action\":\"probe\",\"tracker\":null}",
+                "{\"next_action\":\"probe\",\"tracker\":[1]}")) {
+            assertEquals(500, post(json).status(), json);
+        }
+        assertEquals(0, probe.executions);
+    }
+
+    @Test
+    void emptyBodyIsErrorEnvelope() throws Exception {
+        Map<String, Object> error = envelopeError(post(""));
+        assertEquals("missing", error.get("type"));
+        assertEquals(List.of("body"), error.get("loc"));
+        assertEquals("Field required", error.get("msg"));
+    }
+
+    @Test
+    void jsonNullBodyIsErrorEnvelope() throws Exception {
+        assertEquals("missing", envelopeError(post("null")).get("type"));
+    }
+
+    @Test
+    void invalidJsonIsErrorEnvelope() throws Exception {
+        for (String json : List.of("   ", "{not json", "{\"a\":1} trailing")) {
+            Map<String, Object> error = envelopeError(post(json));
+            assertEquals("json_invalid", error.get("type"), json);
+            assertEquals("JSON decode error", error.get("msg"), json);
+            assertEquals("body", list(error.get("loc")).get(0), json);
+        }
+    }
+
+    @Test
+    void nonObjectBodyIsErrorEnvelope() throws Exception {
+        for (String json : List.of("[1,2]", "\"text\"", "5", "true")) {
+            Map<String, Object> error = envelopeError(post(json));
+            assertEquals("dict_type", error.get("type"), json);
+            assertEquals("Input should be a valid dictionary", error.get("msg"), json);
+        }
+    }
+
+    @Test
+    void nonJsonContentTypeIsErrorEnvelope() throws Exception {
+        register("probe", ProbeAction.TYPE);
+        HttpRequest request = HttpRequest.newBuilder(uri("/webhook"))
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString(call("probe", slots(), latest("hi"), null)))
+                .build();
+        HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        Map<String, Object> error = envelopeError(new Reply(response.statusCode(), response.body(), response.headers()));
+        assertEquals("dict_type", error.get("type"));
+        assertEquals(0, probe.executions);
+    }
+
+    @Test
+    void noRequestReturns422Status() throws Exception {
+        for (String json : List.of("", "   ", "{bad", "[]", "null", "{\"next_action\":\"x\"}",
+                "{\"next_action\":\"x\",\"tracker\":{}}", "{\"next_action\":\"\"}")) {
+            int status = post(json).status();
+            assertTrue(status == 200 || status == 500, json + " -> " + status);
+        }
+    }
+
+    @Test
+    void catchAllReturnsEmptyEventsAndResponses() throws Exception {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> values = slots();
+        values.put("probe_fail", true);
+        Reply reply = post(call("probe", values, latest("hi"), null));
+        assertEquals(200, reply.status());
+        assertEquals("{\"events\":[],\"responses\":[]}", reply.body().trim());
+        assertEquals(1, probe.executions);
+        List<Document> failed = logs("probe");
+        assertEquals(1, failed.size());
+        assertNull(failed.get(0).get("type"));
+        assertEquals("probe failure", failed.get(0).get("exception"));
+        assertEquals(reply.header(Kairon.REQUEST_ID), failed.get(0).get("request_id"));
+    }
+
+    @Test
+    void successKeepsUtteredResponses() {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> body = ok(call("probe", slots(), latest("hi"), null));
+        assertEquals("uttered before failure", responses(body).get(0).get("text"));
+        assertEquals("sender-1", event(body, "probe_sender").get("value"));
+    }
+
+    @Test
+    void nextActionIsStrippedNotLowercased() {
+        register("My_Probe", ProbeAction.TYPE);
+        Map<String, Object> body = ok(call("  My_Probe \t", slots(), latest("hi"), null));
+        assertEquals("sender-1", event(body, "probe_sender").get("value"));
+        assertEquals(1, probe.executions);
+        Map<String, Object> missed = ok(call("my_probe", slots(), latest("hi"), null));
+        assertEquals(List.of(), missed.get("events"));
+        assertEquals(1, probe.executions);
+        assertEquals("No action found for given bot and name", logs("my_probe").get(0).get("exception"));
+    }
+
+    @Test
+    void webhookRunsOffTheEventLoop() {
+        register("probe", ProbeAction.TYPE);
+        ok(call("probe", slots(), latest("hi"), null));
+        Thread thread = probe.lastThread;
+        assertNotNull(thread);
+        assertFalse(thread.getName().toLowerCase().contains("eventloop"), thread.getName());
+        assertTrue(thread.isVirtual(), "blocking executor uses virtual threads: " + thread);
+    }
+
+    @Test
+    void fernetSenderIdIsDecrypted() {
+        register("probe", ProbeAction.TYPE);
+        String token = tokens.encrypt("user@x.com");
+        Map<String, Object> body = ok(callAs(token, "probe"));
+        assertEquals("user@x.com", event(body, "probe_sender").get("value"));
+        Map<String, Object> plain = ok(callAs("not-a-token", "probe"));
+        assertEquals("not-a-token", event(plain, "probe_sender").get("value"));
+    }
+
+    @Test
+    void trackerDefaultsReachTheAction() {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> tracker = new LinkedHashMap<>();
+        tracker.put("sender_id", "sender-1");
+        tracker.put("slots", slots());
+        tracker.put("active_form", Map.of("name", "f"));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("next_action", "probe");
+        body.put("tracker", tracker);
+        body.put("unknown_key", 1);
+        ok(Jsons.write(body));
+        assertEquals(false, probe.lastTracker.paused);
+        assertEquals(Map.of("name", "f"), probe.lastTracker.activeLoop);
+        assertNull(probe.lastTracker.latestActionName);
+        assertEquals(List.of(), probe.lastTracker.stack);
+        assertEquals(List.of(), probe.lastTracker.events);
+        assertEquals(Map.of(), probe.lastTracker.latestMessage);
+    }
+
+    @Test
+    void requestIdEchoedOrGenerated() throws Exception {
+        assertEquals("abc", send("/", "abc", null).header(Kairon.REQUEST_ID));
+        UUID uuid = UUID.fromString(send("/", null, null).header(Kairon.REQUEST_ID));
+        assertEquals(4, uuid.version());
+        Reply webhook = post("{\"next_action\":\"\"}");
+        assertEquals(4, UUID.fromString(webhook.header(Kairon.REQUEST_ID)).version());
+    }
+
+    @Test
+    void secureHeadersMatchPython() throws Exception {
+        Map<String, String> expected = new LinkedHashMap<>();
+        expected.put("server", "Secure");
+        expected.put("strict-transport-security", "includeSubDomains; preload; max-age=31536000");
+        expected.put("x-frame-options", "SAMEORIGIN");
+        expected.put("x-xss-protection", "0");
+        expected.put("x-content-type-options", "nosniff");
+        expected.put("content-security-policy", "default-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; connect-src 'self'; frame-src 'self'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https:; script-src 'self' https: 'unsafe-inline'");
+        expected.put("referrer-policy", "no-referrer");
+        expected.put("cache-control", "must-revalidate");
+        expected.put("permissions-policy", "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()");
+        expected.put("cross-origin-embedder-policy", "require-corp");
+        expected.put("cross-origin-opener-policy", "same-origin");
+        expected.put("cross-origin-resource-policy", "same-origin");
+        expected.put("access-control-allow-origin", "*");
+        for (Reply reply : List.of(send("/", null, null), send("/healthcheck", null, null),
+                post("{\"next_action\":\"\"}"), post(""))) {
+            for (Map.Entry<String, String> entry : expected.entrySet()) {
+                assertEquals(List.of(entry.getValue()), reply.headers().allValues(entry.getKey()), entry.getKey());
+            }
+        }
+        Reply cors = send("/healthcheck", null, "https://app.example.com");
+        assertEquals(List.of("https://app.example.com"), cors.headers().allValues("access-control-allow-origin"));
+    }
+
+    @Test
+    void healthBodiesAreExact() throws Exception {
+        Reply root = send("/", null, null);
+        assertEquals(200, root.status());
+        assertEquals(Map.of("message", "Kairon Action Server Up and Running"), Jsons.readMap(root.body()));
+        Reply health = send("/healthcheck", null, null);
+        assertEquals(200, health.status());
+        assertEquals(Map.of("message", "health check ok"), Jsons.readMap(health.body()));
+    }
+
+    @Test
+    void webhookNeedsNoAuthorization() {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> body = ok(call("probe", slots(), latest("hi"), null));
+        assertEquals("sender-1", event(body, "probe_sender").get("value"));
     }
 
     @Test
@@ -416,7 +629,41 @@ class WebhookTest {
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
         HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        return new Reply(response.statusCode(), response.body());
+        return new Reply(response.statusCode(), response.body(), response.headers());
+    }
+
+    private Reply send(String path, String requestId, String origin) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path)).GET();
+        if (requestId != null) {
+            builder.header(Kairon.REQUEST_ID, requestId);
+        }
+        if (origin != null) {
+            builder.header("Origin", origin);
+        }
+        HttpResponse<String> response = CLIENT.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+        return new Reply(response.statusCode(), response.body(), response.headers());
+    }
+
+    private Map<String, Object> envelopeError(Reply reply) {
+        assertEquals(200, reply.status(), reply.body());
+        Map<String, Object> body = Jsons.readMap(reply.body());
+        assertEquals(List.of("success", "error_code", "message", "data"), List.copyOf(body.keySet()));
+        assertEquals(false, body.get("success"));
+        assertEquals(422, ((Number) body.get("error_code")).intValue());
+        assertNull(body.get("data"));
+        List<?> message = list(body.get("message"));
+        assertEquals(1, message.size());
+        return map(message.get(0));
+    }
+
+    private String callAs(String sender, String action) {
+        Map<String, Object> tracker = new LinkedHashMap<>();
+        tracker.put("sender_id", sender);
+        tracker.put("slots", slots());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("next_action", action);
+        body.put("tracker", tracker);
+        return Jsons.write(body);
     }
 
     private URI uri(String path) {
@@ -492,5 +739,9 @@ class WebhookTest {
         return document;
     }
 
-    private record Reply(int status, String body) {}
+    private record Reply(int status, String body, HttpHeaders headers) {
+        String header(String name) {
+            return headers.firstValue(name).orElse(null);
+        }
+    }
 }

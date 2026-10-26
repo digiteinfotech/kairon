@@ -7,37 +7,67 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
-/** Rasa tracker fields the action server reads. */
+/**
+ * Rasa tracker fields the action server reads. Defaults follow rasa_sdk Tracker.from_dict:
+ * slots {}, latest_message {}, events [], paused false, followup_action null,
+ * active_loop = active_loop else active_form else {}, latest_action_name null, stack [].
+ */
 public final class TrackerState {
 
     public final String senderId;
     public final Map<String, Object> slots;
     public final Map<String, Object> latestMessage;
     public final List<Map<String, Object>> events;
+    /** Raw `paused` value; false when absent. */
+    public final Object paused;
     public final String followupAction;
+    /** Raw `active_loop`, else raw `active_form`, else an empty map. */
+    public final Object activeLoop;
+    public final String latestActionName;
+    /** Raw `stack` value; empty list when absent. */
+    public final Object stack;
     private final Map<String, Object> raw;
 
-    private TrackerState(String senderId, Map<String, Object> slots, Map<String, Object> latestMessage,
-                         List<Map<String, Object>> events, String followupAction, Map<String, Object> raw) {
+    private TrackerState(String senderId, Map<String, Object> source) {
         this.senderId = senderId;
-        this.slots = slots;
-        this.latestMessage = latestMessage;
-        this.events = events;
-        this.followupAction = followupAction;
-        this.raw = raw;
+        this.slots = Maps.map(source.get("slots"));
+        this.latestMessage = Maps.map(source.get("latest_message"));
+        this.events = Maps.mapList(source.get("events"));
+        this.paused = source.containsKey("paused") ? source.get("paused") : Boolean.FALSE;
+        this.followupAction = Maps.str(source.get("followup_action"));
+        this.activeLoop = source.containsKey("active_loop") ? source.get("active_loop")
+                : source.containsKey("active_form") ? source.get("active_form") : new LinkedHashMap<>();
+        this.latestActionName = Maps.str(source.get("latest_action_name"));
+        this.stack = source.containsKey("stack") ? source.get("stack") : new ArrayList<>();
+        this.raw = source;
     }
 
+    /** Sender id taken verbatim. */
     public static TrackerState from(Map<String, Object> tracker) {
+        return from(tracker, UnaryOperator.identity());
+    }
+
+    /**
+     * Sender id passed through {@code senderDecrypt} when it is a non-empty string. A decrypt failure
+     * (not a valid Fernet token under the configured key) keeps the sender id unchanged.
+     */
+    public static TrackerState from(Map<String, Object> tracker, UnaryOperator<String> senderDecrypt) {
         Map<String, Object> source = tracker == null ? Map.of() : tracker;
-        return new TrackerState(
-                Maps.str(source.get("sender_id")),
-                Maps.map(source.get("slots")),
-                Maps.map(source.get("latest_message")),
-                Maps.mapList(source.get("events")),
-                Maps.str(source.get("followup_action")),
-                source
-        );
+        return new TrackerState(resolveSenderId(Maps.str(source.get("sender_id")), senderDecrypt), source);
+    }
+
+    static String resolveSenderId(String senderId, UnaryOperator<String> senderDecrypt) {
+        if (senderId == null || senderId.isEmpty() || senderDecrypt == null) {
+            return senderId;
+        }
+        try {
+            String decrypted = senderDecrypt.apply(senderId);
+            return decrypted == null ? senderId : decrypted;
+        } catch (RuntimeException e) {
+            return senderId;
+        }
     }
 
     public Object slotValue(String name) {
