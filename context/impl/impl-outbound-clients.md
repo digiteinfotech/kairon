@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T13:46:03Z"
-last_edited: "2026-10-26T14:04:01Z"
+last_edited: "2026-10-26T14:26:54Z"
 ---
 # Implementation Tracking: outbound-clients
 
@@ -16,3 +16,4 @@ Build site: context/plans/build-site.md
 | T-022 | DONE | SmtpMailer (angus-mail), GreenMail tests, STARTTLS semantics |
 | T-023 | DONE | Email HTML templates copied from template/emails; golden tests vs Python functions |
 | T-033 | DONE | Whole-exchange deadline from ACTION_SERVER_REQUEST_TIMEOUT; null/null on transport failure; no retry; OK set; tests |
+| T-033b | DONE | Transport errors now 503/408/500 with Python error text; kit R1 corrected. OPEN [GAP] from gate: any non-2xx must become 500/None; non-JSON 2xx body as text (fix cycle) |

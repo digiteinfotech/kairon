@@ -28,3 +28,8 @@ Build site: context/plans/build-site.md
 - Tier 0 gate: Codex failed on 22k-line diff; ck:inspector running as fallback.
 - Running: w3-python (T-041,042), w3-replay (T-045), w3-status. Deferred: T-054 load test until machine quieter.
 - HUMAN REVIEW items accumulating: key_vault in logs, compose SECRET_KEY must match kairon-api, CORS localhost-pass-through, docker build unverified.
+
+### Iteration 5 (Wave 3 complete; Tier 0 gate) — 2026-10-26T14:26:54Z
+- T-041,042,045 DONE + T-033 follow-up. Merged 9269357a, c594d3ff, cee3461a. Tier 0 32/32, Tier 1 13/13, Tier 2 4/10.
+- Gate (ck:inspector fallback): REVISE — 0 P0, 5 P1 (mask strategy, media download from cloud storage, non-2xx -> 500/None, intent fallback rules, ScheduleAction job-store write), 12 P2, 12 P3. Findings: context/impl/impl-review-findings.md.
+- P1 F-001..F-004 verified against Python (live check: 404 -> (None, 500)); kits corrected (+4 criteria, now 405). F-005 is T-049 (next wave). Fix cycle 1 dispatched next.

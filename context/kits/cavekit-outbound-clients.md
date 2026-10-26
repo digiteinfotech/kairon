@@ -18,6 +18,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] [GAP] The timeout is a wall-clock cap on the whole exchange (connect, redirects, body) equal to `ACTION_SERVER_REQUEST_TIMEOUT` seconds
 - [ ] [GAP] A connection failure (refused, DNS, reset) yields response body `null` and status `503` with no exception, so the action continues and the status counts as non-2xx
 - [ ] [GAP] A timeout yields response body `null` and status `408` with no exception; any other transport error yields body `null` and status `500`
+- [ ] [GAP] Any non-2xx response (4xx or 5xx) yields response body `null` and status `500` regardless of the real status, because the Python client raises on status and the wrapper swallows it; the action continues
+- [ ] [GAP] A 2xx response whose content type is not JSON yields the body as the raw text, not parsed
 - [ ] Exactly one request is sent per call, including for 502/503/504 responses (no retry)
 - [ ] Statuses 200, 201, 202, 204 are treated as OK; a null status (only possible when no request was attempted) is not treated as a failure
 - [ ] A request-timestamp header is added to each request
@@ -86,7 +88,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R8: Media multipart upload
 **Description:** When the request body carries `media_ids`, each media item is fetched and the request is sent as multipart.
 **Acceptance Criteria:**
-- [ ] A body with two `media_ids` produces one multipart request per media id, each carrying a single `file` part plus the form fields, with `media_ids` removed from the body; the results are collected in order
+- [ ] [GAP] A body with two `media_ids` produces one multipart request per media id, each carrying a single `file` part plus the form fields, with `media_ids` removed from the body; the results are collected in order. Each media id resolves through its `user_media_data` record to the stored file fetched from the configured media storage (as Python `UserMedia.get_media_bytes_from_media_id` does), the part filename is the record's download name with extension and a guessed mime type, the combined size is validated against the configured media size limit, and a missing record fails with `One or more media files not found`
 - [ ] [UNVERIFIED] The multipart request matches the recorded Python request in method, URL and part names
 - [ ] [UNVERIFIED] Media fetch, size validation and part naming match the Python source (needs human review)
 **Dependencies:** R1
@@ -117,7 +119,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R8: kairon/shared/actions/utils.py:162-232 (process_media_and_execute_requests, validate_media_sizes)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 23 met, 13 gaps, 3 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 22 met, 16 gaps, 3 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -142,3 +144,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Brownfield gap pass against existing port: 12 [GAP], 3 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R8 c1 corrected to literal Python (one request per media file, utils.py:210-230); gap marker removed.
 - 2026-10-26: Build wave 3: R1 c2/c3/c5 corrected to Python (transport errors set status 503/408/500, rest_client.py:89-101); marked [GAP] (port returns null).
+- 2026-10-26: Tier 0 gate (inspector): R1 gains two criteria from live Python check (404 -> (None, 500); text/plain 200 -> text body).
+- 2026-10-26: Tier 0 gate (inspector): R8 c1 made exact (media bytes come from storage via the media record; size limit; missing-record error).

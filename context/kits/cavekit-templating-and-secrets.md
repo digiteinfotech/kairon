@@ -43,13 +43,14 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] Type `chat_log` returns an object with keys `sender_id`, `session_started`, `conversation`
 - [ ] Type `key_vault` returns the decrypted key-vault value, or `null` with no error when the key is missing
 - [ ] A `value` parameter with `encrypt: true` is Fernet-decrypted before use (R5)
-- [ ] The logged form of an encrypted parameter is masked, leaving the configured number of characters unmasked
+- [ ] [GAP] The logged form of an encrypted parameter is masked per Python `get_masked_value`: values of 4 characters or fewer are fully masked; longer values keep `SECRET_UNMASKED_CHAR_COUNT` characters unmasked at the start when `SECRET_UNMASKED_CHAR_STRATEGY` is `from_left` and at the end when it is `from_right`
 **Dependencies:** R5, cavekit-config-and-deploy.md R1
 
 ### R4: Evaluation context
 **Description:** The context sent to the expression and pyscript evaluators has the Python key set.
 **Acceptance Criteria:**
 - [ ] The context contains `sender_id`, `user_message`, `slot`, `intent`, `chat_log`, `latest_message`, `kairon_user_msg`, `session_started`, and `key_vault` (`{}` unless requested); `bot` is appended by the http, callback, google_search and schedule actions only
+- [ ] [GAP] The context `intent` is the top entry of `latest_message.intent_ranking`, skipping `nlu_fallback` (second entry, or null if none); it is null when `intent_ranking` is absent or empty, even if `intent.name` is present
 - [ ] [GAP] `key_vault` (all decrypted secrets for the bot) is present only when requested by the action config
 - [ ] [UNVERIFIED] The context sent for each recorded fixture equals the recorded outbound evaluator body after normalization
 **Dependencies:** R3
@@ -120,7 +121,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R8: kairon/shared/utils.py:1401 (decrypt_message); kairon/shared/actions/utils.py (sender id handling)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 27 met, 8 gaps, 7 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 26 met, 10 gaps, 7 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -141,3 +142,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Build wave 1: R6 header-order criterion corrected to the pinned PyJWT output (alg before typ).
 - 2026-10-26: Build wave 1: R4 c1 corrected: `bot` is added per caller as in Python; key_vault key always present.
 - 2026-10-26: Build wave 1: R3 c3 corrected (latest_message parameter type falls through to literal value in Python); gap marker removed.
+- 2026-10-26: Tier 0 gate (inspector): R3 masking criterion made exact (short values fully masked; strategy honoured).
+- 2026-10-26: Tier 0 gate (inspector): R4 gains the rasa_sdk intent rule (skip fallback; null without intent_ranking).

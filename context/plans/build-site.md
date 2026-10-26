@@ -447,9 +447,10 @@ graph LR
 | cavekit-dispatch-and-logging.md | R3 | Exactly one new `action_server_logs` document is written by this path | T-062 | COVERED |
 | cavekit-dispatch-and-logging.md | R3 | That document has no `type` field | T-062 | COVERED |
 | cavekit-dispatch-and-logging.md | R3 | That document contains `intent`, `action`, `sender`, `exception` (the  | T-038 | COVERED |
-| cavekit-dispatch-and-logging.md | R3 | `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","t | T-038 | COVERED |
-| cavekit-dispatch-and-logging.md | R3 | One failure mail is attempted (R6) | T-039 | COVERED |
-| cavekit-dispatch-and-logging.md | R3 | No exception propagates to the HTTP layer | T-062 | COVERED |
+| cavekit-dispatch-and-logging.md | R3 | The log `intent` (catch-all and every action) is the top entry of `lat | T-038 | COVERED |
+| cavekit-dispatch-and-logging.md | R3 | `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","t | T-039 | COVERED |
+| cavekit-dispatch-and-logging.md | R3 | One failure mail is attempted (R6) | T-062 | COVERED |
+| cavekit-dispatch-and-logging.md | R3 | No exception propagates to the HTTP layer | T-038 | COVERED |
 | cavekit-dispatch-and-logging.md | R4 | Records are written to the collection named `action_server_logs` | T-063 | COVERED |
 | cavekit-dispatch-and-logging.md | R4 | `intent` is the latest message's intent name, including fallback inten | T-063 | COVERED |
 | cavekit-dispatch-and-logging.md | R4 | `sender` is the tracker sender id | T-063 | COVERED |
@@ -496,10 +497,11 @@ graph LR
 | cavekit-templating-and-secrets.md | R3 | Type `chat_log` returns an object with keys `sender_id`, `session_star | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | Type `key_vault` returns the decrypted key-vault value, or `null` with | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | A `value` parameter with `encrypt: true` is Fernet-decrypted before us | T-068 | COVERED |
-| cavekit-templating-and-secrets.md | R3 | The logged form of an encrypted parameter is masked, leaving the confi | T-068 | COVERED |
+| cavekit-templating-and-secrets.md | R3 | The logged form of an encrypted parameter is masked per Python `get_ma | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R4 | The context contains `sender_id`, `user_message`, `slot`, `intent`, `c | T-010 | COVERED |
-| cavekit-templating-and-secrets.md | R4 | `key_vault` (all decrypted secrets for the bot) is present only when r | T-010 | COVERED |
-| cavekit-templating-and-secrets.md | R4 | The context sent for each recorded fixture equals the recorded outboun | T-069 | COVERED |
+| cavekit-templating-and-secrets.md | R4 | The context `intent` is the top entry of `latest_message.intent_rankin | T-010 | COVERED |
+| cavekit-templating-and-secrets.md | R4 | `key_vault` (all decrypted secrets for the bot) is present only when r | T-069 | COVERED |
+| cavekit-templating-and-secrets.md | R4 | The context sent for each recorded fixture equals the recorded outboun | T-010 | COVERED |
 | cavekit-templating-and-secrets.md | R5 | Every vector in the public Fernet specification decrypts to its expect | T-006 | COVERED |
 | cavekit-templating-and-secrets.md | R5 | A token produced by Python with the configured key decrypts in the por | T-006 | COVERED |
 | cavekit-templating-and-secrets.md | R5 | A token produced by the port decrypts in Python to the same plaintext | T-006 | COVERED |
@@ -523,6 +525,8 @@ graph LR
 | cavekit-outbound-clients.md | R1 | The timeout is a wall-clock cap on the whole exchange (connect, redire | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | A connection failure (refused, DNS, reset) yields response body `null` | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | A timeout yields response body `null` and status `408` with no excepti | T-033 | COVERED |
+| cavekit-outbound-clients.md | R1 | Any non-2xx response (4xx or 5xx) yields response body `null` and stat | T-033 | COVERED |
+| cavekit-outbound-clients.md | R1 | A 2xx response whose content type is not JSON yields the body as the r | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | Exactly one request is sent per call, including for 502/503/504 respon | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | Statuses 200, 201, 202, 204 are treated as OK; a null status (only pos | T-033 | COVERED |
 | cavekit-outbound-clients.md | R1 | A request-timestamp header is added to each request | T-033 | COVERED |
@@ -797,4 +801,4 @@ graph LR
 | cavekit-config-and-deploy.md | R6 | `/healthcheck` answers within 1 second while 50 webhook requests are b | T-054 | COVERED |
 | cavekit-config-and-deploy.md | R6 | Pool sizing supports cavekit-orchestration-actions.md R1 fan-out (need | T-054 | COVERED |
 
-**Coverage: 401/401 criteria (100%)**
+**Coverage: 405/405 criteria (100%)**

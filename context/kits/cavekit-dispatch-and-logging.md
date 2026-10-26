@@ -38,6 +38,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] Exactly one new `action_server_logs` document is written by this path
 - [ ] That document has no `type` field
 - [ ] [GAP] That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bot`, `request_id`, `timestamp`, `status: "Failed"` and `trigger_info`
+- [ ] [GAP] The log `intent` (catch-all and every action) is the top entry of `latest_message.intent_ranking` WITHOUT skipping `nlu_fallback`, and null when `intent_ranking` is absent or empty
 - [ ] [GAP] `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}` when the request carried none
 - [ ] [GAP] One failure mail is attempted (R6)
 - [ ] No exception propagates to the HTTP layer
@@ -147,7 +148,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R7: kairon/actions/definitions/store_page.py:69-71; kairon/actions/handlers/processor.py:34-48
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 25 met, 19 gaps, 0 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 25 met, 20 gaps, 0 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -177,3 +178,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 20 [GAP], 0 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R3 catch-all response criterion corrected to literal Python (handlers/action.py:25-31 keeps dispatcher messages); gap marker removed.
+- 2026-10-26: Tier 0 gate (inspector): R3 gains the log-intent rule (no fallback skip; null without intent_ranking).

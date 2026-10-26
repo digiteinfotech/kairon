@@ -26,7 +26,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] [GAP] `dispatch_type` json parses a string response and sends it as `custom`; on decode error it sends text and logs `Failed to convert http response to json: ...`
 - [ ] A list response sends one message per element: dict elements as `custom`, others as `text`
 - [ ] Failure utterance: `I have failed to process your request`
-- [ ] [GAP] Log: `type: "http_action"`, `action`, `url`, `request_method`, `bot_response`, `fail_reason` (on non-2xx), `exception`, `http_status_code`, `time_elapsed` (sum of the four timings), `events[]` per cavekit-dispatch-and-logging.md R5
+- [ ] [GAP] Log: `type: "http_action"`, `action`, `url`, `request_method`, `bot_response`, `fail_reason` (on non-2xx: `Got non-200 status code:500 http_response:None`, since any upstream non-2xx is seen as 500 with no body), `exception`, `http_status_code` (500 for any upstream non-2xx), `time_elapsed` (sum of the four timings), `events[]` per cavekit-dispatch-and-logging.md R5
 - [ ] [GAP] The `filled_slots` sub-document `time_elapsed` equals the last slot's evaluation time only
 **Dependencies:** cavekit-outbound-clients.md R1, R5, R6, R8; cavekit-templating-and-secrets.md R1-R4; cavekit-dispatch-and-logging.md R5
 
@@ -212,3 +212,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Brownfield gap pass against existing port: 10 [GAP], 2 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R3 website criterion corrected to Python behaviour (website only used on the keyless path); gap marker removed.
+- 2026-10-26: Tier 0 gate (inspector): R1 log criterion clarified: upstream non-2xx is logged as 500 / None.
