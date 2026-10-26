@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T13:46:03Z"
-last_edited: "2026-10-26T14:04:01Z"
+last_edited: "2026-10-26T14:19:26Z"
 ---
 # Implementation Tracking: config-and-deploy
 
@@ -14,3 +14,5 @@ Build site: context/plans/build-site.md
 | T-004 | DONE | @ExecuteOn(BLOCKING) on WebhookController; virtual-thread test |
 | T-016 | DONE | max-request-size + max-request-buffer-size 64MB; Jsons maxStringLength lifted; 20MB test |
 | T-034 | DONE | SecretsValidator @Context bean names missing FERNET_KEY/SECRET_KEY/AES key/IV; repo-scan test vs system.yaml defaults; test secrets in application-test.yml |
+| T-046 | DONE | Dockerfile (temurin 21, installDist), .dockerignore, smoke-test.sh, compose service image/command/env with ${VAR} secret refs; docker daemon unusable here so image build + compose run need a human; local dist smoke test passed |
+| T-055 | DONE | request id echo + gzip tests; compression threshold 500 / level 9 to match Starlette GZipMiddleware defaults (brief said 1000, wrong) |

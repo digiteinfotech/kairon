@@ -21,3 +21,10 @@ Build site: context/plans/build-site.md
 - Python env: /Data/projects/kairon/.venv310 (uv sync --frozen, py3.10). Shared .venv unusable for kairon.
 - BLOCKER for replay tier: no MongoDB -> fixtures not recorded yet.
 - Tier 0 gate: Codex review pending.
+
+### Iteration 4 (Wave 3 part 1) — 2026-10-26T14:19:26Z
+- T-046,055,047,048 DONE + follow-ups (email SMTP config in application.yml/CONFIG.md; full failure mail in Email/Parallel/Razorpay). Merged 40fa2f33, c260b064. Tests P (214).
+- Kit corrected: outbound R1 c2/c3/c5 — Python sets 503/408/500 on transport errors (rest_client.py:89-101); port returns null -> new [GAP], fix dispatched (w3-status).
+- Tier 0 gate: Codex failed on 22k-line diff; ck:inspector running as fallback.
+- Running: w3-python (T-041,042), w3-replay (T-045), w3-status. Deferred: T-054 load test until machine quieter.
+- HUMAN REVIEW items accumulating: key_vault in logs, compose SECRET_KEY must match kairon-api, CORS localhost-pass-through, docker build unverified.
