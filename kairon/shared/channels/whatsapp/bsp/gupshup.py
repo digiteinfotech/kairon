@@ -292,6 +292,16 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
             logger.exception(e)
             raise AppException(str(e))
 
+    @staticmethod
+    def send_waba_message_bsp(payload: dict, config: dict):
+        app_id = config.get("app_id")
+        key = config.get("partner_app_token")
+        if not app_id or not key:
+            raise AppException("app_id and partner_app_token are required to send message via Gupshup!")
+        partner_base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
+        headers = {"Authorization": key, "Content-Type": "application/json"}
+        url = f"{partner_base_url}/partner/app/{app_id}/v3/message"
+        return requests.post(url=url, headers=headers, json=payload).json()
 
     @staticmethod
     async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,

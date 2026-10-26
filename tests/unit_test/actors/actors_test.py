@@ -1732,3 +1732,56 @@ async def test_get_media_content_file_stream_not_found(mock_get_buffer):
     UserMediaData.objects().delete()
     BotSettings.objects().delete()
     Channels.objects().delete()
+
+
+def test_send_waba_message_bsp_routes_via_channel_config():
+    payload = {"to": "12345", "type": "text", "text": {"body": "hello"}}
+    config = {"bsp_type": "gupshup", "app_id": "app1", "partner_app_token": "key"}
+    bsp_class = MagicMock()
+    bsp_class.send_waba_message_bsp.return_value = {"ok": True}
+    with patch("kairon.shared.concurrency.actors.utils.Channels") as mock_channels, \
+            patch("kairon.shared.channels.whatsapp.bsp.factory.BusinessServiceProviderFactory.get_instance",
+                  return_value=bsp_class) as mock_get:
+        mock_channels.objects.return_value.first.return_value = MagicMock(config=config)
+        result = PyscriptUtility.send_waba_message_bsp(payload, "bot123", {})
+    mock_get.assert_called_once_with("gupshup")
+    bsp_class.send_waba_message_bsp.assert_called_once_with(payload, config)
+    assert result == {"ok": True}
+
+
+def test_send_waba_message_bsp_no_channel_config():
+    with patch("kairon.shared.concurrency.actors.utils.Channels") as mock_channels:
+        mock_channels.objects.return_value.first.return_value = None
+        with pytest.raises(AppException, match="BSP channel config not found"):
+            PyscriptUtility.send_waba_message_bsp({}, "bot123", {})
+
+
+def test_bsp_360dialog_send_waba_message_bsp():
+    from kairon.shared.channels.whatsapp.bsp.dialog360 import BSP360Dialog
+    payload = {"to": "12345"}
+    fake_response = MagicMock()
+    fake_response.json.return_value = {"messages": [{"id": "abc"}]}
+    with patch("kairon.shared.channels.whatsapp.bsp.dialog360.requests.post", return_value=fake_response) as mock_post:
+        result = BSP360Dialog.send_waba_message_bsp(payload, {"api_key": "k"})
+    assert result == {"messages": [{"id": "abc"}]}
+    assert mock_post.call_args.kwargs["url"].endswith("/messages")
+    assert mock_post.call_args.kwargs["headers"]["D360-API-KEY"] == "k"
+
+
+def test_bsp_gupshup_send_waba_message_bsp():
+    from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
+    payload = {"to": "12345"}
+    fake_response = MagicMock()
+    fake_response.json.return_value = {"status": "submitted"}
+    with patch("kairon.shared.channels.whatsapp.bsp.gupshup.requests.post", return_value=fake_response) as mock_post:
+        result = BSPGupshup.send_waba_message_bsp(payload, {"app_id": "app1", "partner_app_token": "k"})
+    assert result == {"status": "submitted"}
+    assert mock_post.call_args.kwargs["url"].endswith("/partner/app/app1/v3/message")
+    assert mock_post.call_args.kwargs["headers"]["Authorization"] == "k"
+    assert mock_post.call_args.kwargs["json"] == payload
+
+
+def test_bsp_gupshup_send_waba_message_bsp_missing_config():
+    from kairon.shared.channels.whatsapp.bsp.gupshup import BSPGupshup
+    with pytest.raises(AppException, match="app_id and partner_app_token are required"):
+        BSPGupshup.send_waba_message_bsp({}, {"app_id": "app1"})
