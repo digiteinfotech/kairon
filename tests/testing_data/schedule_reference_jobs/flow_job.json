@@ -1,0 +1,102 @@
+{
+  "fixture_version": 1,
+  "schedule_action_type": "flow",
+  "captured_from": "kairon/actions/definitions/schedule.py ActionSchedule.execute -> add_schedule_job -> __save_job (direct insert into the job store)",
+  "inputs": {
+    "bot": "6697add6b8e47524eb983374",
+    "sender_id": "default",
+    "action_config": {
+      "name": "reference_schedule_flow",
+      "schedule_action_type": "flow",
+      "schedule_action": "reference_flow",
+      "schedule_time": {
+        "parameter_type": "value",
+        "value": "2030-01-15 10:30:00"
+      },
+      "timezone": "Asia/Kolkata",
+      "params_list": [
+        {
+          "key": "user",
+          "parameter_type": "value",
+          "value": "1011"
+        },
+        {
+          "key": "order_id",
+          "parameter_type": "value",
+          "value": "A-77"
+        }
+      ]
+    },
+    "callback_pyscript_code": null,
+    "events_executor_type": "aws_lambda",
+    "fixed_job_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5c"
+  },
+  "equivalent_schedule_request": {
+    "job_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5c",
+    "run_at": "2030-01-15T10:30:00",
+    "timezone": "Asia/Kolkata",
+    "schedule_action_type": "flow",
+    "schedule_action": "reference_flow",
+    "bot": "6697add6b8e47524eb983374",
+    "user": "default",
+    "data": {
+      "user": "1011",
+      "order_id": "A-77",
+      "bot": "6697add6b8e47524eb983374"
+    }
+  },
+  "job_store": {
+    "database": "kairon_events",
+    "collection": "kscheduler"
+  },
+  "document": {
+    "_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5c",
+    "next_run_time": {
+      "$numberDouble": "1894683600.0"
+    },
+    "job_state": {
+      "$binary": {
+        "base64": "gAWVzgIAAAAAAAB9lCiMB3ZlcnNpb26USwGMB3RyaWdnZXKUjBlhcHNjaGVkdWxlci50cmlnZ2Vycy5kYXRllIwLRGF0ZVRyaWdnZXKUk5QpgZR9lChoAUsBjAhydW5fZGF0ZZSMCGRhdGV0aW1llIwIZGF0ZXRpbWWUk5RDCgfuAQ8KHgAAAACUjARweXR6lIwCX3CUk5QojAxBc2lhL0tvbGthdGGUTVhNSwCMA0lTVJR0lFKUhpRSlHVijAhleGVjdXRvcpSMB2RlZmF1bHSUjARmdW5jlIw5a2Fpcm9uLmV2ZW50cy5leGVjdXRvcnMubGFtZGE6TGFtYmRhRXhlY3V0b3IuZXhlY3V0ZV90YXNrlIwEYXJnc5SMHWthaXJvbi5ldmVudHMuZXhlY3V0b3JzLmxhbWRhlIwOTGFtYmRhRXhlY3V0b3KUk5QpgZSMF2thaXJvbi5zaGFyZWQuY29uc3RhbnRzlIwKRXZlbnRDbGFzc5STlIwMYWdlbnRpY19mbG93lIWUUpR9lCiMCXNsb3RfZGF0YZSMR3sidXNlciI6ICIxMDExIiwgIm9yZGVyX2lkIjogIkEtNzciLCAiYm90IjogIjY2OTdhZGQ2YjhlNDc1MjRlYjk4MzM3NCJ9lIwJZmxvd19uYW1llIwOcmVmZXJlbmNlX2Zsb3eUjANib3SUjBg2Njk3YWRkNmI4ZTQ3NTI0ZWI5ODMzNzSUjAR1c2VylGgXdYeUjAZrd2FyZ3OUfZSMCXRhc2tfdHlwZZSMBUV2ZW50lHOMAmlklIwgMDE5M2ExYjJjM2Q0N2U1ZjhhOWIwYzFkMmUzZjRhNWOUjARuYW1llIwMZXhlY3V0ZV90YXNrlIwSbWlzZmlyZV9ncmFjZV90aW1llE0gHIwIY29hbGVzY2WUiIwNbmV4dF9ydW5fdGltZZRoFYwNbWF4X2luc3RhbmNlc5RLAXUu",
+        "subType": "00"
+      }
+    }
+  },
+  "job_state_pickle_base64": "gAWVzgIAAAAAAAB9lCiMB3ZlcnNpb26USwGMB3RyaWdnZXKUjBlhcHNjaGVkdWxlci50cmlnZ2Vycy5kYXRllIwLRGF0ZVRyaWdnZXKUk5QpgZR9lChoAUsBjAhydW5fZGF0ZZSMCGRhdGV0aW1llIwIZGF0ZXRpbWWUk5RDCgfuAQ8KHgAAAACUjARweXR6lIwCX3CUk5QojAxBc2lhL0tvbGthdGGUTVhNSwCMA0lTVJR0lFKUhpRSlHVijAhleGVjdXRvcpSMB2RlZmF1bHSUjARmdW5jlIw5a2Fpcm9uLmV2ZW50cy5leGVjdXRvcnMubGFtZGE6TGFtYmRhRXhlY3V0b3IuZXhlY3V0ZV90YXNrlIwEYXJnc5SMHWthaXJvbi5ldmVudHMuZXhlY3V0b3JzLmxhbWRhlIwOTGFtYmRhRXhlY3V0b3KUk5QpgZSMF2thaXJvbi5zaGFyZWQuY29uc3RhbnRzlIwKRXZlbnRDbGFzc5STlIwMYWdlbnRpY19mbG93lIWUUpR9lCiMCXNsb3RfZGF0YZSMR3sidXNlciI6ICIxMDExIiwgIm9yZGVyX2lkIjogIkEtNzciLCAiYm90IjogIjY2OTdhZGQ2YjhlNDc1MjRlYjk4MzM3NCJ9lIwJZmxvd19uYW1llIwOcmVmZXJlbmNlX2Zsb3eUjANib3SUjBg2Njk3YWRkNmI4ZTQ3NTI0ZWI5ODMzNzSUjAR1c2VylGgXdYeUjAZrd2FyZ3OUfZSMCXRhc2tfdHlwZZSMBUV2ZW50lHOMAmlklIwgMDE5M2ExYjJjM2Q0N2U1ZjhhOWIwYzFkMmUzZjRhNWOUjARuYW1llIwMZXhlY3V0ZV90YXNrlIwSbWlzZmlyZV9ncmFjZV90aW1llE0gHIwIY29hbGVzY2WUiIwNbmV4dF9ydW5fdGltZZRoFYwNbWF4X2luc3RhbmNlc5RLAXUu",
+  "decoded_job_state": {
+    "version": 1,
+    "trigger": {
+      "__trigger__": "apscheduler.triggers.date.DateTrigger",
+      "run_date": "2030-01-15T10:30:00+05:30",
+      "timezone": "Asia/Kolkata"
+    },
+    "executor": "default",
+    "func": "kairon.events.executors.lamda:LambdaExecutor.execute_task",
+    "args": [
+      {
+        "__object__": "kairon.events.executors.lamda.LambdaExecutor",
+        "state": {}
+      },
+      "agentic_flow",
+      {
+        "slot_data": "{\"user\": \"1011\", \"order_id\": \"A-77\", \"bot\": \"6697add6b8e47524eb983374\"}",
+        "flow_name": "reference_flow",
+        "bot": "6697add6b8e47524eb983374",
+        "user": "default"
+      }
+    ],
+    "kwargs": {
+      "task_type": "Event"
+    },
+    "id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5c",
+    "name": "execute_task",
+    "misfire_grace_time": 7200,
+    "coalesce": true,
+    "next_run_time": "2030-01-15T10:30:00+05:30",
+    "max_instances": 1
+  },
+  "dispatch_call": {
+    "method": "GET",
+    "url": "http://localhost:5001/api/events/dispatch/0193a1b2c3d47e5f8a9b0c1d2e3f4a5c",
+    "path": "/api/events/dispatch/0193a1b2c3d47e5f8a9b0c1d2e3f4a5c"
+  }
+}

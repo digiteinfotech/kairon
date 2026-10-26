@@ -1,0 +1,102 @@
+{
+  "fixture_version": 1,
+  "schedule_action_type": "pyscript",
+  "captured_from": "kairon/actions/definitions/schedule.py ActionSchedule.execute -> add_schedule_job -> __save_job (direct insert into the job store)",
+  "inputs": {
+    "bot": "6697add6b8e47524eb983374",
+    "sender_id": "default",
+    "action_config": {
+      "name": "reference_schedule_pyscript",
+      "schedule_action_type": "pyscript",
+      "schedule_action": "reference_callback_script",
+      "schedule_time": {
+        "parameter_type": "value",
+        "value": "2030-01-15 10:30:00"
+      },
+      "timezone": "Asia/Kolkata",
+      "params_list": [
+        {
+          "key": "user",
+          "parameter_type": "value",
+          "value": "1011"
+        },
+        {
+          "key": "order_id",
+          "parameter_type": "value",
+          "value": "A-77"
+        }
+      ]
+    },
+    "callback_pyscript_code": "bot_response = 'hello world'",
+    "events_executor_type": "aws_lambda",
+    "fixed_job_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5b"
+  },
+  "equivalent_schedule_request": {
+    "job_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5b",
+    "run_at": "2030-01-15T10:30:00",
+    "timezone": "Asia/Kolkata",
+    "schedule_action_type": "pyscript",
+    "schedule_action": "reference_callback_script",
+    "bot": "6697add6b8e47524eb983374",
+    "user": "default",
+    "data": {
+      "user": "1011",
+      "order_id": "A-77",
+      "bot": "6697add6b8e47524eb983374"
+    }
+  },
+  "job_store": {
+    "database": "kairon_events",
+    "collection": "kscheduler"
+  },
+  "document": {
+    "_id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5b",
+    "next_run_time": {
+      "$numberDouble": "1894683600.0"
+    },
+    "job_state": {
+      "$binary": {
+        "base64": "gAWVdwIAAAAAAAB9lCiMB3ZlcnNpb26USwGMB3RyaWdnZXKUjBlhcHNjaGVkdWxlci50cmlnZ2Vycy5kYXRllIwLRGF0ZVRyaWdnZXKUk5QpgZR9lChoAUsBjAhydW5fZGF0ZZSMCGRhdGV0aW1llIwIZGF0ZXRpbWWUk5RDCgfuAQ8KHgAAAACUjARweXR6lIwCX3CUk5QojAxBc2lhL0tvbGthdGGUTVhNSwCMA0lTVJR0lFKUhpRSlHVijAhleGVjdXRvcpSMB2RlZmF1bHSUjARmdW5jlIxHa2Fpcm9uLmV2ZW50cy5leGVjdXRvcnMuY2FsbGJhY2tfZXhlY3V0b3I6Q2FsbGJhY2tFeGVjdXRvci5leGVjdXRlX3Rhc2uUjARhcmdzlGgZjBNzY2hlZHVsZXJfZXZhbHVhdG9ylH2UKIwLc291cmNlX2NvZGWUjBxib3RfcmVzcG9uc2UgPSAnaGVsbG8gd29ybGQnlIwScHJlZGVmaW5lZF9vYmplY3RzlH2UKIwEdXNlcpSMBDEwMTGUjAhvcmRlcl9pZJSMBEEtNzeUjANib3SUjBg2Njk3YWRkNmI4ZTQ3NTI0ZWI5ODMzNzSUjAVldmVudJSMIDAxOTNhMWIyYzNkNDdlNWY4YTliMGMxZDJlM2Y0YTVilHV1h5SMBmt3YXJnc5R9lIwJdGFza190eXBllIwGQWN0aW9ulHOMAmlklGgojARuYW1llIwMZXhlY3V0ZV90YXNrlIwSbWlzZmlyZV9ncmFjZV90aW1llE0gHIwIY29hbGVzY2WUiIwNbmV4dF9ydW5fdGltZZRoFYwNbWF4X2luc3RhbmNlc5RLAXUu",
+        "subType": "00"
+      }
+    }
+  },
+  "job_state_pickle_base64": "gAWVdwIAAAAAAAB9lCiMB3ZlcnNpb26USwGMB3RyaWdnZXKUjBlhcHNjaGVkdWxlci50cmlnZ2Vycy5kYXRllIwLRGF0ZVRyaWdnZXKUk5QpgZR9lChoAUsBjAhydW5fZGF0ZZSMCGRhdGV0aW1llIwIZGF0ZXRpbWWUk5RDCgfuAQ8KHgAAAACUjARweXR6lIwCX3CUk5QojAxBc2lhL0tvbGthdGGUTVhNSwCMA0lTVJR0lFKUhpRSlHVijAhleGVjdXRvcpSMB2RlZmF1bHSUjARmdW5jlIxHa2Fpcm9uLmV2ZW50cy5leGVjdXRvcnMuY2FsbGJhY2tfZXhlY3V0b3I6Q2FsbGJhY2tFeGVjdXRvci5leGVjdXRlX3Rhc2uUjARhcmdzlGgZjBNzY2hlZHVsZXJfZXZhbHVhdG9ylH2UKIwLc291cmNlX2NvZGWUjBxib3RfcmVzcG9uc2UgPSAnaGVsbG8gd29ybGQnlIwScHJlZGVmaW5lZF9vYmplY3RzlH2UKIwEdXNlcpSMBDEwMTGUjAhvcmRlcl9pZJSMBEEtNzeUjANib3SUjBg2Njk3YWRkNmI4ZTQ3NTI0ZWI5ODMzNzSUjAVldmVudJSMIDAxOTNhMWIyYzNkNDdlNWY4YTliMGMxZDJlM2Y0YTVilHV1h5SMBmt3YXJnc5R9lIwJdGFza190eXBllIwGQWN0aW9ulHOMAmlklGgojARuYW1llIwMZXhlY3V0ZV90YXNrlIwSbWlzZmlyZV9ncmFjZV90aW1llE0gHIwIY29hbGVzY2WUiIwNbmV4dF9ydW5fdGltZZRoFYwNbWF4X2luc3RhbmNlc5RLAXUu",
+  "decoded_job_state": {
+    "version": 1,
+    "trigger": {
+      "__trigger__": "apscheduler.triggers.date.DateTrigger",
+      "run_date": "2030-01-15T10:30:00+05:30",
+      "timezone": "Asia/Kolkata"
+    },
+    "executor": "default",
+    "func": "kairon.events.executors.callback_executor:CallbackExecutor.execute_task",
+    "args": [
+      "kairon.events.executors.callback_executor:CallbackExecutor.execute_task",
+      "scheduler_evaluator",
+      {
+        "source_code": "bot_response = 'hello world'",
+        "predefined_objects": {
+          "user": "1011",
+          "order_id": "A-77",
+          "bot": "6697add6b8e47524eb983374",
+          "event": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5b"
+        }
+      }
+    ],
+    "kwargs": {
+      "task_type": "Action"
+    },
+    "id": "0193a1b2c3d47e5f8a9b0c1d2e3f4a5b",
+    "name": "execute_task",
+    "misfire_grace_time": 7200,
+    "coalesce": true,
+    "next_run_time": "2030-01-15T10:30:00+05:30",
+    "max_instances": 1
+  },
+  "dispatch_call": {
+    "method": "GET",
+    "url": "http://localhost:5001/api/events/dispatch/0193a1b2c3d47e5f8a9b0c1d2e3f4a5b",
+    "path": "/api/events/dispatch/0193a1b2c3d47e5f8a9b0c1d2e3f4a5b"
+  }
+}

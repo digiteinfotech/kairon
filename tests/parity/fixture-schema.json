@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kairon.digite.com/schemas/parity-fixture/v1.json",
+  "title": "Kairon action-server parity fixture",
+  "description": "One recorded Python action-server test node. See tests/parity/fixture-schema.md for field semantics and placeholder tokens.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "node_id", "normalized", "mongo", "exchanges", "upstream"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "node_id": {"type": "string", "minLength": 1},
+    "normalized": {
+      "type": "boolean",
+      "description": "false: raw recording. true: volatile values replaced by placeholder tokens."
+    },
+    "mongo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "databases", "seed", "written"],
+      "properties": {
+        "available": {"type": "boolean"},
+        "databases": {"type": "array", "items": {"type": "string"}},
+        "seed": {"$ref": "#/$defs/documentsByDatabase"},
+        "written": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {"$ref": "#/$defs/collectionWrites"}
+          }
+        }
+      }
+    },
+    "exchanges": {"type": "array", "items": {"$ref": "#/$defs/exchange"}},
+    "upstream": {"type": "array", "items": {"$ref": "#/$defs/upstreamCall"}}
+  },
+  "$defs": {
+    "document": {
+      "type": "object",
+      "description": "A MongoDB document in canonical extended JSON.",
+      "required": ["_id"]
+    },
+    "documentsByDatabase": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {"type": "array", "items": {"$ref": "#/$defs/document"}}
+      }
+    },
+    "collectionWrites": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inserted", "updated", "deleted"],
+      "properties": {
+        "inserted": {"type": "array", "items": {"$ref": "#/$defs/document"}},
+        "updated": {"type": "array", "items": {"$ref": "#/$defs/document"}},
+        "deleted": {"type": "array", "description": "_id values (canonical extended JSON) of removed documents"}
+      }
+    },
+    "headers": {
+      "type": "array",
+      "description": "Header name/value pairs in send order; duplicates allowed.",
+      "items": {
+        "type": "array",
+        "prefixItems": [{"type": "string"}, {"type": "string"}],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["encoding", "value"],
+      "properties": {
+        "encoding": {"enum": ["empty", "json", "text", "form", "base64"]},
+        "value": true
+      },
+      "allOf": [
+        {"if": {"properties": {"encoding": {"const": "empty"}}}, "then": {"properties": {"value": {"type": "null"}}}},
+        {"if": {"properties": {"encoding": {"enum": ["text", "base64"]}}}, "then": {"properties": {"value": {"type": "string"}}}},
+        {"if": {"properties": {"encoding": {"const": "form"}}}, "then": {"properties": {"value": {"type": "object"}}}}
+      ]
+    },
+    "httpResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "headers", "body"],
+      "properties": {
+        "status": {"type": "integer", "minimum": 100, "maximum": 599},
+        "headers": {"$ref": "#/$defs/headers"},
+        "body": {"$ref": "#/$defs/body"}
+      }
+    },
+    "exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "response"],
+      "properties": {
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "path", "query", "headers", "body"],
+          "properties": {
+            "method": {"type": "string"},
+            "path": {"type": "string", "pattern": "^/"},
+            "query": {"type": "string"},
+            "headers": {"$ref": "#/$defs/headers"},
+            "body": {"$ref": "#/$defs/body"}
+          }
+        },
+        "response": {"$ref": "#/$defs/httpResponse"}
+      }
+    },
+    "upstreamCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seq", "client", "request", "response", "error"],
+      "properties": {
+        "seq": {"type": "integer", "minimum": 0},
+        "client": {"enum": ["requests", "aiohttp"]},
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "url", "headers", "body"],
+          "properties": {
+            "method": {"type": "string"},
+            "url": {"type": "string"},
+            "headers": {"$ref": "#/$defs/headers"},
+            "body": {"$ref": "#/$defs/body"}
+          }
+        },
+        "response": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/httpResponse"}]},
+        "error": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "message"],
+              "properties": {"type": {"type": "string"}, "message": {"type": "string"}}
+            }
+          ]
+        }
+      }
+    },
+    "placeholderToken": {
+      "type": "string",
+      "description": "Placeholder tokens used when normalized is true (see fixture-schema.md).",
+      "pattern": "^\\{\\{(TIMESTAMP|DATETIME|EPOCH|OBJECT_ID|UUID|UUID_HEX|JWT|REQUEST_ID)(:[0-9]+)?\\}\\}$"
+    }
+  }
+}
