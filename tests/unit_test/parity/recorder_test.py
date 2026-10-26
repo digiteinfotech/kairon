@@ -179,7 +179,8 @@ def test_fixture_content(inner):
     fixture = json.loads(node_file(out_dir, "test_inner.py::test_pass").read_text())
 
     assert fixture["schema_version"] == 1
-    assert fixture["normalized"] is False
+    # normalized by default; this node has no run-time values, so content equals the raw recording
+    assert fixture["normalized"] is True
 
     # inbound exchange
     assert len(fixture["exchanges"]) == 1

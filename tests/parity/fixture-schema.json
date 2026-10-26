@@ -145,7 +145,7 @@
     "placeholderToken": {
       "type": "string",
       "description": "Placeholder tokens used when normalized is true (see fixture-schema.md).",
-      "pattern": "^\\{\\{(TIMESTAMP|DATETIME|EPOCH|OBJECT_ID|UUID|UUID_HEX|JWT|REQUEST_ID)(:[0-9]+)?\\}\\}$"
+      "pattern": "^\\{\\{(TIMESTAMP|DATETIME|EPOCH|OBJECT_ID|UUID|UUID_HEX|JWT|REQUEST_ID|BINARY)(:[0-9]+)?\\}\\}$"
     }
   }
 }

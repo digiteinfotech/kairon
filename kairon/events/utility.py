@@ -13,6 +13,32 @@ from loguru import logger
 class EventUtility:
 
     @staticmethod
+    def schedule_action(request) -> Dict:
+        """
+        Writes the scheduler job for a schedule_action request (kairon.events.models.ScheduleActionRequest)
+        with the same job_state schedule_action's direct write produces for the same inputs.
+        """
+        import json
+        import copy
+        from kairon.shared.callback.data_objects import CallbackConfig
+
+        schedule_data = copy.deepcopy(request.data)
+        is_flow = request.schedule_action_type == "flow"
+        if is_flow:
+            data = {
+                'slot_data': json.dumps(schedule_data),
+                'flow_name': request.schedule_action,
+                'bot': request.bot,
+                'user': request.user
+            }
+        else:
+            callback = CallbackConfig.get_entry(name=request.schedule_action, bot=request.bot)
+            data = {'source_code': callback['pyscript_code'], 'predefined_objects': schedule_data}
+        timezone = request.timezone or None
+        KScheduler().add_schedule_action_job(request.job_id, request.run_at_datetime, data, timezone, is_flow)
+        return {"job_id": request.job_id}
+
+    @staticmethod
     def add_job(event_type: Text, request_data: Dict, is_scheduled: bool):
         message = None
         if is_scheduled:

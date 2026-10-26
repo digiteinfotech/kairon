@@ -16,8 +16,10 @@ Per node it captures (see tests/parity/fixture-schema.md):
   * mongo.written  - documents inserted / updated / deleted after the first inbound
                      request until the end of the test body
 
-Values are written raw (no placeholder normalization; that is a separate pass) and
-BSON values are canonical extended JSON (bson.json_util.CANONICAL_JSON_OPTIONS).
+Before writing, volatile values (run-time timestamps, ObjectIds, UUIDs, JWTs, request
+ids) are replaced by placeholder tokens (tests/parity/normalize.py), so recording the same
+suite twice yields byte-identical fixtures; ``--record-raw`` / ``KAIRON_RECORD_RAW=1`` skips
+that and writes raw values (``normalized: false``). BSON values are canonical extended JSON (bson.json_util.CANONICAL_JSON_OPTIONS).
 """
 import base64
 import hashlib
@@ -33,6 +35,7 @@ SCHEMA_VERSION = 1
 ENV_FLAG = "KAIRON_RECORD_FIXTURES"
 ENV_DIR = "KAIRON_RECORD_DIR"
 ENV_DATABASES = "KAIRON_RECORD_DATABASES"
+ENV_RAW = "KAIRON_RECORD_RAW"
 PLUGIN_NAME = "kairon-parity-recorder"
 DEFAULT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 SYSTEM_DATABASES = {"admin", "local", "config"}
@@ -51,6 +54,8 @@ def pytest_addoption(parser):
                     help="record one parity fixture JSON per passing test node")
     group.addoption("--record-fixtures-dir", action="store", default=None,
                     help=f"output directory for recorded fixtures (default {DEFAULT_DIR})")
+    group.addoption("--record-raw", action="store_true", default=False,
+                    help="write raw fixtures (skip placeholder normalization)")
 
 
 def is_enabled(config) -> bool:
@@ -70,7 +75,12 @@ def pytest_configure(config):
     except ValueError:
         out_dir = None
     out_dir = out_dir or os.environ.get(ENV_DIR) or DEFAULT_DIR
-    config.pluginmanager.register(FixtureRecorder(out_dir), PLUGIN_NAME)
+    try:
+        raw = config.getoption("--record-raw")
+    except ValueError:
+        raw = False
+    raw = bool(raw or os.environ.get(ENV_RAW, "").strip().lower() in {"1", "true", "yes", "on"})
+    config.pluginmanager.register(FixtureRecorder(out_dir, normalize=not raw), PLUGIN_NAME)
 
 
 # ----------------------------------------------------------------------- encoding
@@ -309,8 +319,9 @@ def _error_record(exc: BaseException) -> Dict[str, Any]:
 class FixtureRecorder:
     """pytest plugin object; registered only when recording is enabled."""
 
-    def __init__(self, out_dir: str):
+    def __init__(self, out_dir: str, normalize: bool = True):
         self.out_dir = out_dir
+        self.normalize = normalize
         self.current: Optional[NodeCapture] = None
         self._patches: List[Tuple[Any, str, Any]] = []
         self._reports: Dict[str, Dict[str, Any]] = {}
@@ -443,6 +454,9 @@ class FixtureRecorder:
         fixture = self._built.pop(nodeid, None)
         path = os.path.join(self.out_dir, fixture_filename(nodeid))
         if state["ok"] and state["call_passed"] and fixture is not None:
+            if self.normalize:
+                from tests.parity.normalize import normalize_fixture
+                fixture = normalize_fixture(fixture)
             os.makedirs(self.out_dir, exist_ok=True)
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(dump_fixture(fixture))
