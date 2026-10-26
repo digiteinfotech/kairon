@@ -98,7 +98,14 @@ final class ParityKit {
         stub.start();
         events = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         events.createContext("/", exchange -> {
-            byte[] body = "{\"message\":\"Scheduled event dispatch!\",\"data\":null}".getBytes(StandardCharsets.UTF_8);
+            String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            // POST /api/events/schedule/action answers with the scheduling envelope; everything else (dispatch GET)
+            // with the dispatch reply.
+            byte[] body = ("/api/events/schedule/action".equals(exchange.getRequestURI().getPath())
+                    ? "{\"success\":true,\"error_code\":0,\"data\":{\"job_id\":\"" + Jsons.readMap(request).get("job_id")
+                            + "\"},\"message\":\"Scheduled action job created!\"}"
+                    : "{\"message\":\"Scheduled event dispatch!\",\"data\":null}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
             exchange.close();

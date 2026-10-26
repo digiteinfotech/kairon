@@ -66,8 +66,20 @@ class WebhookTest {
             exchange.getResponseBody().write(body);
             exchange.close();
         });
+        events.createContext("/api/events/schedule/action", exchange -> {
+            String job = String.valueOf(Jsons.readMap(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)).get("job_id"));
+            synchronized (EVENT_PATHS) {
+                EVENT_PATHS.add(exchange.getRequestURI().getPath());
+            }
+            byte[] body = ("{\"success\":true,\"error_code\":0,\"data\":{\"job_id\":\"" + job + "\"},\"message\":\"ok\"}")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
         events.start();
-        city = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        city =HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         city.createContext("/city", exchange -> {
             byte[] body = "{\"city\":\"Pune\"}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -570,7 +582,7 @@ class WebhookTest {
     }
 
     @Test
-    void scheduleStoresJsonJob() {
+    void scheduleSubmitsThroughEventsServer() {
         register("later", "schedule_action");
         catalog.put("schedule_action", doc(
                 "bot", BOT, "name", "later", "status", true,
@@ -580,14 +592,11 @@ class WebhookTest {
                 "response_text", "scheduled", "dispatch_bot_response", true));
         Map<String, Object> body = ok(call("later", slots(), latest("hi"), null));
         assertEquals("scheduled", responses(body).get(0).get("text"));
-        Document job = catalog.all("scheduler_jobs").get(0);
-        assertEquals("execute_task", job.get("name"));
-        assertEquals("Event", job.get("task_type"));
-        assertEquals("checkout_flow", map(job.get("data")).get("flow_name"));
+        assertEquals(List.of(), catalog.all("scheduler_jobs"));
         synchronized (EVENT_PATHS) {
-            assertEquals(1, EVENT_PATHS.size());
-            assertTrue(EVENT_PATHS.get(0).startsWith("/api/events/dispatch/"));
-            assertTrue(EVENT_PATHS.get(0).endsWith(String.valueOf(job.get("_id"))));
+            assertEquals(2, EVENT_PATHS.size());
+            assertEquals("/api/events/schedule/action", EVENT_PATHS.get(0));
+            assertTrue(EVENT_PATHS.get(1).matches("/api/events/dispatch/[0-9a-f]{32}"));
         }
         assertEquals(Kairon.SUCCESS, logs("later").get(0).get("status"));
     }
