@@ -97,6 +97,6 @@ public class StorePageAction implements KaironAction {
         if (Maps.truthy(expiry) && expiry instanceof Number number) {
             return number.intValue();
         }
-        return support.settings().getTokenExpire();
+        return com.kairon.action.support.Tokens.STORE_PAGE_DEFAULT_EXPIRY;
     }
 }

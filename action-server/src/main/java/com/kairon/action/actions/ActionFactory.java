@@ -10,16 +10,25 @@ import org.bson.Document;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Singleton
 public class ActionFactory {
+
+    /**
+     * Types deferred to a later cycle. Their classes stay on disk but are never dispatched, so a stored
+     * action of one of these types fails like any other unsupported type.
+     */
+    static final Set<String> DEFERRED = Set.of("prompt_action", "database_action");
 
     private final Map<String, KaironAction> byType = new LinkedHashMap<>();
     private final ActionCatalog catalog;
 
     public ActionFactory(List<KaironAction> actions, ActionCatalog catalog) {
         for (KaironAction action : actions) {
-            byType.put(action.type(), action);
+            if (!DEFERRED.contains(action.type())) {
+                byType.put(action.type(), action);
+            }
         }
         this.catalog = catalog;
     }

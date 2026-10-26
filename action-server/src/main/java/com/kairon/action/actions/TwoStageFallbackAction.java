@@ -64,21 +64,12 @@ public class TwoStageFallbackAction implements KaironAction {
                     }
                 }
             } else {
+                // MongoProcessor.search_training_examples: $text search, ordered by text score, limited to count
                 String query = context.tracker.text();
                 if (query != null && !query.isBlank()) {
-                    String needle = query.toLowerCase();
-                    int found = 0;
-                    for (Document document : support.catalog().findByBot("training_examples", context.bot)) {
-                        if (!active(document.get("status"))) {
-                            continue;
-                        }
-                        String text = Maps.str(document.get("text"));
-                        if (text != null && text.toLowerCase().contains(needle)) {
-                            recommendations.add(Maps.of("text", text, "payload", text));
-                            if (++found >= count) {
-                                break;
-                            }
-                        }
+                    for (Document document : support.catalog().searchText("training_examples", context.bot, query, count)) {
+                        Object text = document.get("text");
+                        recommendations.add(Maps.of("text", text, "payload", text));
                     }
                 }
             }

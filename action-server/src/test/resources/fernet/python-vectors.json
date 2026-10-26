@@ -1,0 +1,40 @@
+{
+  "generator": "python cryptography 50.0.2",
+  "key": "WvNf7igjO89j9xdRtVMrW7bvVy67uV3ZM9yjwDHkC7E=",
+  "wrong_key": "QYDXWupirQh3z2oksz1Rj4mWykw0ZC2fT7pWo6B04Kk=",
+  "cases": [
+    {
+      "plaintext": "hello",
+      "token": "gAAAAABq31XTQFzws1sELAZ1QDduStbM8mby1iYch3tIat3KWb1dXYcvlQ8_2vIGwqeJrW5tSm12fC47QsmKI3sw3Iqj4CMjMQ=="
+    },
+    {
+      "plaintext": "",
+      "token": "gAAAAABq31XT58AB-YQs0LqO0qrjFd7g0GEZKFPoL8L1u5sIXGXvJXrAAMqWfb4iUTUk2FLF2fhZ6gW30A7sdmOrw7rSECRoMw=="
+    },
+    {
+      "plaintext": "AC1234567890abcdef",
+      "token": "gAAAAABq31XTkQDSx5IyZqE7vx6rVhccoU1hlW7EDI9JdvyM8NsulWiraZo__3h2dIlNuJVNGr-B5W3hDPEHZDgpmKRe5EeYvyudxuV3Dohg0kXDcYOelyM="
+    },
+    {
+      "plaintext": "unicode: café नमस्ते 😀",
+      "token": "gAAAAABq31XTQQDrYrD8hhh7fJL7LYx2N0l7OL9zb2G-xAYcTQ_acHCns4TfUUivWwJKuxpzBfGgbY_5xkcEV14ksLPHyJvhQ2moEw69-2kUz2k1WfOL-AdcZeONBNB1zZXUBE6hSSgP"
+    },
+    {
+      "plaintext": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "token": "gAAAAABq31XTXMTou_ZldyAQhJS7aisP-LtTWt84rXm80XiIUoadjbYFZKM6TF6o8iVDcDcmi2PvMV5r2k5lkcN3IzCJwxEgwfFoYfsl3f-UkL_cbLGRtCSwo7yBn62mAbJN-GnyuP1Dl90Bxu_pbGQKgnjJ4IMamNUo5rrg_-7PwiW4OtY-1rIfyCZQABH2bElhaLt7hcR0t7vjTH_WFbEPuwu2NN8aaaJqrF_a4u7Tww2BWWP7xYfZhoNOteI-oXXqdz2akh96oR590MbsViq1eu2nnNeHxCLi8U2WDuTBRMKhXu15vC7gwGjpc2ix2EgfLzKlrEkraScxeiHF6owfrRWPASx4ywtFQ-9AzhCl5l7wTKVPY7s69BPH2_Bau-9247_XP_YYkE7XOjuS4wrGfluwnlkXqp_7CCYBv10Ubb3RyyX-uIpRldDSkOVbUMVIU0v1uN0P6WlrsOaR8BdLhYxh1ofuWAN22Yegu_VcI5FRDDxOp1rcUg4KD7i6r1QTkbeqHrCnG1FS3HO6HxyORFaF8YZRb0ls94HisrVcUbbjQp-96YcTKqL1k_RwJ_la9l-tII3P8CnvB95po2AuJDGVmL87CpxBFY0haNk7bf4CbdH5g95O3IvSa-tIvSgHuHK-9SKMxajkIH5-jP6Zi1y_qsZRc86g3aiKozLwBC6s4VFS4Ni9r06GU3E4oHF9ZKrCDiLefbfDs8kkMulEowOsbnAku2xrnlZhW17y84SkC7mkTERg1eeRaQ_kBh3eABBg1Q30PIJOpKanxmbHvvgJlTwfwx2dMY2LBAHiVD-y_SI96iKdRm1lP7I59srKpGypSsCfEzdUrG3AuCG0nX8P-0b7akSIRBAU2Av_6lCPVyMB7zur47U8jCjIkI7DtqdizpkNW8TSnYeapv5G4I4xT3a3sHIG1sogJVeclTelBfuNMqUC6OJaZOzJnrNSddJhvsaqCKDcbZ4hPJxkoQhKaXVPQ_vvgS7GDwd-1Oq_QSCqfESNbr6K7lkyPgGnV-UFMXuJ7sYSA-c6IZt3AAk53U-Syb12JiC-t0CJcMc16W20lHO_ixKIjf2-rD-w7iDlh9wI919KD3fTbRYclWhSbgBnevr92OzcgJW6jg9kYVCH_a08ZTU5p1FIGhR2gfcRa8LnsKAu2HLySeTl0BMG7pPCOiws5GYeFH_AoZsWzdqI1meLcruJLymj61Xgpo_SDi20OlFtinBHhbEOHIeEFBQmErGmFJI0sqtmuCPHsSYVBGSqm7enHAYXd4lXdxwOGT_szkS7QCGy1O2WJEhfLORojZdgCPhzSp9Co9Cpd2i8zzMnjwwmBfUSEAzuJHnD5rE-yjdyPolPfD7URROmISy0Ys1at0c9yYIJjBd25XLNTShMW0dP9wx1bGWJ_oVjEPDq"
+    },
+    {
+      "plaintext": "{\"sub\": \"default\", \"bot\": \"6697add6b8e47524eb983373\", \"exp\": 1761475200, \"iat\": 1761474300, \"jti\": \"019a1f6e-7c3b-7a2d-8e4f-0123456789ab\", \"access-limit\": [\"/api/bot/.+/customer_data/.*\", \"/api/bot/.+/store_page/metadata\", \"/api/bot/.+/data/collection/.*\", \"/api/bot/.+/store_page/exec/flow\"], \"type\": \"store_page\"}",
+      "token": "gAAAAABq31XTN6fzzyq23pGsYXBzcpYP3Wbi59VTUdtUtF1z75S4t6iFnF_xMmeIKeXbuJYqpJHpvPeM3JYsAD-gpOlmmbEp92fbWmruZCjvMq103O83XAChRy7D_lScd-hF1JkG04jW8axGzt0Ne9hBadxbsDMzZjQuAL_LDYcdowiL6QarPwF8hmaiJMHJ6kFzxv8EGRM6JbIs0Nw9q6cYNZi1wotYtd26sKP3HVJWHmhQ9ySOupqXv5J-nBvDi7bd-gr54DfijMCNKsigZHMyEl9KFB9IPQQM0mzn0uDJe02XcbmHFhGSdAR5hxjmbL1D1HPKcU7is6PJ6NtDTnfVhmKEEgewzQRS7pUOdDEISouUmGIOjzmTkXWdu7qol3pUQXagIpaM-g534HV3O62yuMMv2-W5yDW44REhurttoCvwgTDhXOJmVXyXNUN4JYxR70E6as2nuVhXSAr0TcYdU-WuHUYJuKCxg6tSKBGDhsQmMgtIRsw="
+    },
+    {
+      "plaintext": "{\"sub\": \"default\", \"bot\": \"6697add6b8e47524eb983373\", \"type\": \"integration\"}",
+      "token": "gAAAAABq31XTGlrILeKuehX0YGoZ1VOPvGxx0yr1H6CEOnp1GQlgb66WBJp9D-IUPk2_FWvoIKvE5F5qRRrJcuwpnMOI86qDuYnIPMXXPt1hdvK0h9I2QqtbFANFQvWfAHBlDDBWIhGcaCk0a7DW0fYj3PDks3bbt9fi4SClH_A0wD4_10Ey3Lw="
+    }
+  ],
+  "old_token": {
+    "plaintext": "minted a year ago",
+    "issued_at": 1761485395,
+    "token": "gAAAAABo_iJTkhvYgkfsLc6g1r0BpNjcfeH26T20Kq9T1BY_m8zV0Uscwh7xGBWtB2soghCDpmz9LBtwVs7ftndTjOEzbwHYtYrtMU7kxpSf77EL67X2zMw="
+  }
+}
