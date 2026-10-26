@@ -73,7 +73,7 @@ class HttpCallerExchangeTest {
         long start = System.nanoTime();
         HttpCaller.Exchange exchange = caller.exchange("GET", "http://127.0.0.1:" + slow.getAddress().getPort() + "/a", Map.of(), null, "json");
         long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-        assertNull(exchange.statusCode());
+        assertTimedOut(exchange);
         assertNull(exchange.body());
         assertTrue(elapsedMs < 1500, "exchange ran " + elapsedMs + " ms, past the 1 s wall-clock budget");
         assertTrue(hits.get() <= 2, "the third hop is never reached");
@@ -97,23 +97,90 @@ class HttpCallerExchangeTest {
         long start = System.nanoTime();
         HttpCaller.Exchange exchange = caller.exchange("GET", "http://127.0.0.1:" + slow.getAddress().getPort() + "/drip", Map.of(), null, "json");
         long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-        assertNull(exchange.statusCode());
+        assertTimedOut(exchange);
         assertNull(exchange.body());
         assertTrue(elapsedMs < 1500, "exchange ran " + elapsedMs + " ms, past the 1 s wall-clock budget");
     }
 
-    /** c2. */
+    /** c2: Python rest_client.py:89-93 sets 503 on ClientConnectionError; execute_request_async swallows it. */
     @Test
-    void connectionRefusedYieldsNullBodyAndNullStatus() throws Exception {
+    void connectionRefusedYields503() throws Exception {
         int port;
         try (ServerSocket socket = new ServerSocket(0)) {
             port = socket.getLocalPort();
         }
         HttpCaller.Exchange exchange = caller.exchange("POST", "http://127.0.0.1:" + port + "/x", Map.of(), Map.of("a", 1), "json");
+        assertConnectFailed(exchange, "127.0.0.1");
+    }
+
+    /** c2: the peer accepts then drops the connection without a response (aiohttp ServerDisconnectedError). */
+    @Test
+    void connectionResetYields503() throws Exception {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            Thread acceptor = new Thread(() -> {
+                try {
+                    while (true) {
+                        socket.accept().close();
+                    }
+                } catch (Exception ignored) {
+                    // socket closed by the test
+                }
+            });
+            acceptor.setDaemon(true);
+            acceptor.start();
+            HttpCaller.Exchange exchange = caller.exchange("GET", "http://127.0.0.1:" + socket.getLocalPort() + "/x", Map.of(), null, "json");
+            assertConnectFailed(exchange, "127.0.0.1");
+        }
+    }
+
+    /** c2/c3: classification of every transport error kind, as rest_client.py:89-101 does. */
+    @Test
+    void transportErrorsMapToPythonStatuses() {
+        String url = "http://api.example.test:8080/p?q=1";
+        assertConnectFailed(HttpCaller.transportFailure(url, new java.net.ConnectException()), "api.example.test");
+        assertConnectFailed(HttpCaller.transportFailure(url, new java.net.UnknownHostException("api.example.test")), "api.example.test");
+        assertConnectFailed(HttpCaller.transportFailure(url, new java.io.IOException("Connection reset")), "api.example.test");
+        assertConnectFailed(HttpCaller.transportFailure(url, new javax.net.ssl.SSLHandshakeException("PKIX")), "api.example.test");
+        assertTimedOut(HttpCaller.transportFailure(url, new java.net.http.HttpTimeoutException("request timed out")));
+        assertTimedOut(HttpCaller.transportFailure(url, new java.net.http.HttpConnectTimeoutException("connect timed out")));
+        HttpCaller.Exchange other = HttpCaller.transportFailure(url, new IllegalArgumentException("Invalid request method!"));
+        assertEquals(500, other.status());
+        assertEquals(500, other.statusCode());
+        assertNull(other.body());
+        assertNull(other.headers());
+        assertEquals("Failed to execute the url: Invalid request method!", other.error());
+        assertEquals("Got non-200 status code:500 http_response:None", HttpCaller.failReason(other.body(), other.status()));
+    }
+
+    /** c3: any other transport error, here an unsupported method, yields 500 without throwing. */
+    @Test
+    void otherTransportErrorYields500() {
+        HttpCaller.Exchange exchange = caller.exchange("PATCH", stub.url("/m"), Map.of(), null, "json");
+        assertEquals(500, exchange.statusCode());
         assertNull(exchange.body());
-        assertNull(exchange.statusCode());
+        assertNull(exchange.headers());
         assertTrue(exchange.transportFailed());
-        assertNull(HttpCaller.failReason(exchange.body(), exchange.status()), "null status is not a failure");
+        assertEquals("Failed to execute the url: Invalid request method!", exchange.error());
+        assertTrue(stub.at("/m").isEmpty());
+    }
+
+    private static void assertConnectFailed(HttpCaller.Exchange exchange, String host) {
+        assertEquals(503, exchange.status());
+        assertEquals(503, exchange.statusCode());
+        assertNull(exchange.body());
+        assertNull(exchange.headers());
+        assertTrue(exchange.transportFailed());
+        assertEquals("Failed to connect to service: " + host, exchange.error());
+        assertEquals("Got non-200 status code:503 http_response:None", HttpCaller.failReason(exchange.body(), exchange.status()));
+    }
+
+    private static void assertTimedOut(HttpCaller.Exchange exchange) {
+        assertEquals(408, exchange.status());
+        assertEquals(408, exchange.statusCode());
+        assertNull(exchange.headers());
+        assertTrue(exchange.transportFailed());
+        assertEquals("Request timed out: ", exchange.error());
+        assertEquals("Got non-200 status code:408 http_response:None", HttpCaller.failReason(exchange.body(), exchange.status()));
     }
 
     /** c4: one request per call, even for gateway errors. */
@@ -134,6 +201,7 @@ class HttpCallerExchangeTest {
         for (int status : List.of(200, 201, 202, 204)) {
             assertNull(HttpCaller.failReason("x", status), String.valueOf(status));
         }
+        assertNull(HttpCaller.failReason(null, 0), "a null status (no request attempted) is not a failure");
         for (int status : List.of(203, 205, 206, 299, 301, 400, 404, 500)) {
             assertEquals("Got non-200 status code:" + status + " http_response:x", HttpCaller.failReason("x", status));
         }

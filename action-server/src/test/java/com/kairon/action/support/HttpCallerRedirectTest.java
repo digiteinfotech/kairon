@@ -71,7 +71,8 @@ class HttpCallerRedirectTest {
     void eleventhRedirectFailsTheExchange() {
         chain(11);
         HttpCaller.Exchange exchange = caller.exchange("GET", origin.url("/hop/0"), Map.of(), null, "json");
-        assertEquals(0, exchange.status());
+        assertEquals(500, exchange.status());
+        assertEquals("Failed to execute the url: Too many redirects: exceeded 10 redirects at " + origin.url("/hop/10"), exchange.error());
         assertNull(exchange.body());
         assertEquals(11, origin.requests.size(), "the 11th redirect target is never requested");
         ActionFailure failure = assertThrows(ActionFailure.class,
@@ -178,7 +179,8 @@ class HttpCallerRedirectTest {
         try {
             String url = "https://127.0.0.1:" + server.getAddress().getPort() + "/secure";
             HttpCaller.Exchange exchange = caller.exchange("GET", url, Map.of(), null, "json");
-            assertEquals(0, exchange.status());
+            assertEquals(503, exchange.status());
+            assertEquals("Failed to connect to service: 127.0.0.1", exchange.error());
             ActionFailure failure = assertThrows(ActionFailure.class, () -> caller.executeStrict("GET", url, Map.of(), null, "json"));
             assertTrue(failure.getMessage().startsWith("Failed to execute the url:"), failure.getMessage());
             assertEquals(0, hits[0], "no request is served over an untrusted certificate");

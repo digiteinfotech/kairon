@@ -245,6 +245,38 @@ class ActionLogEventsTest {
                 keys.subList(keys.size() - 5, keys.size()));
     }
 
+    /** outbound-clients R1 c2 via integration-actions R1: a refused connection surfaces as status 503 like Python. */
+    @Test
+    void httpActionConnectionRefusedReports503() throws Exception {
+        int port;
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            port = socket.getLocalPort();
+        }
+        kit.register("offline", "http_action");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "offline", "status", true,
+                "http_url", "http://127.0.0.1:" + port + "/x", "request_method", "GET", "content_type", "json",
+                "params_list", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text",
+                        "value", "${data.city}", "evaluation_type", "expression")));
+        Map<String, Object> body = kit.ok("offline");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        assertEquals(503, kit.slotValue(body, "http_status_code"));
+        Document log = kit.log("offline");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Got non-200 status code:503 http_response:None", log.get("fail_reason"));
+        assertEquals(503, log.get("http_status_code"));
+        Map<String, Object> apiCall = events(log).get(1);
+        assertEquals("api_call", apiCall.get("type"));
+        assertEquals(503, apiCall.get("status_code"));
+        assertEquals(null, apiCall.get("response"));
+        assertTrue(apiCall.containsKey("response_headers") && apiCall.get("response_headers") == null, String.valueOf(apiCall));
+        assertEquals(0, apiCall.get("time_elapsed"));
+        // compose_response validates against the response context, so its repr follows http_response:
+        assertTrue(String.valueOf(apiCall.get("exception")).startsWith("Got non-200 status code:503 http_response:{'data': None, "), String.valueOf(apiCall.get("exception")));
+        assertEquals(log.get("exception"), apiCall.get("exception"));
+    }
+
     @Test
     void pyscriptJsonDispatchOfTextLogsConversionMessage() {
         kit.register("py_json", "pyscript_action");

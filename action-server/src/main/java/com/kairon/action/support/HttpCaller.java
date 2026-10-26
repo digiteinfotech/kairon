@@ -61,25 +61,37 @@ public class HttpCaller {
         this.settings = settings;
     }
 
+    /** Python rest_client status for a connection failure (aiohttp ClientConnectionError). */
+    public static final int CONNECT_FAILED = 503;
+    /** Python rest_client status for a deadline timeout (asyncio.TimeoutError). */
+    public static final int TIMED_OUT = 408;
+    /** Python rest_client status for any other transport error. */
+    public static final int TRANSPORT_ERROR = 500;
+
     /**
-     * Result of {@link #exchange}. A transport failure (refused, reset, timeout, TLS, too many redirects)
-     * is reported as {@code status == 0} with a null body; {@link #statusCode()} gives Python's view of it.
+     * Result of {@link #exchange}. A transport failure is reported like Python AioRestClient: status 503
+     * (refused, unknown host, reset, TLS), 408 (deadline timeout) or 500 (anything else, e.g. too many
+     * redirects), a null body, null headers, and {@code error} holding Python's AppException text.
      */
-    public record Exchange(int status, Object body, Map<String, String> headers) {
-        /** Python execute_request_async status_code: None when no response was received. */
+    public record Exchange(int status, Object body, Map<String, String> headers, String error) {
+        public Exchange(int status, Object body, Map<String, String> headers) {
+            this(status, body, headers, null);
+        }
+
+        /** Python execute_request_async status_code: the response status, or the transport-error code. */
         public Integer statusCode() {
             return status == 0 ? null : status;
         }
 
         public boolean transportFailed() {
-            return status == 0;
+            return error != null;
         }
     }
 
     /**
      * Python execute_request_async: exactly one attempt (no retry, including on 502/503/504), bounded by one
      * wall-clock deadline of ACTION_SERVER_REQUEST_TIMEOUT seconds covering connect, every redirect hop and
-     * the response body. Transport errors come back as status 0 (Python None) and a null body.
+     * the response body. Transport errors never throw: they come back as 503/408/500 with a null body.
      */
     public Exchange exchange(String method, String url, Map<String, ?> headers, Object body, String contentType) {
         try {
@@ -88,7 +100,39 @@ public class HttpCaller {
             HttpResponse<String> response = send(method, url, headers, payload, contentType, false);
             return new Exchange(response.statusCode(), parse(response.body()), headerMap(response));
         } catch (Exception e) {
-            return new Exchange(0, null, Map.of());
+            return transportFailure(url, e);
+        }
+    }
+
+    /** Python AioRestClient.__trigger_request except-chain (rest_client.py:89-101). */
+    static Exchange transportFailure(String url, Exception e) {
+        Exception error = e instanceof ActionFailure && e.getCause() instanceof Exception cause ? cause : e;
+        if (error instanceof HttpTimeoutException) {
+            // ClientTimeout(total=...) expiring in any phase, connect included, raises a bare asyncio.TimeoutError,
+            // whose str() is empty.
+            return new Exchange(TIMED_OUT, null, null, "Request timed out: ");
+        }
+        if (error instanceof IOException && !(error instanceof TooManyRedirects)) {
+            // ConnectException, unresolved host, reset, EOF and SSLException: aiohttp ClientConnectionError.
+            return new Exchange(CONNECT_FAILED, null, null, "Failed to connect to service: " + host(url));
+        }
+        return new Exchange(TRANSPORT_ERROR, null, null, "Failed to execute the url: " + message(error));
+    }
+
+    /** urllib3 parse_url(url).host. */
+    private static String host(String url) {
+        try {
+            String host = URI.create(requote(url)).getHost();
+            return host == null ? "None" : host;
+        } catch (RuntimeException ex) {
+            return String.valueOf(url);
+        }
+    }
+
+    /** aiohttp TooManyRedirects is a ClientResponseError, not a connection error, so it maps to 500. */
+    private static final class TooManyRedirects extends IOException {
+        TooManyRedirects(String message) {
+            super(message);
         }
     }
 
@@ -173,7 +217,7 @@ public class HttpCaller {
                 return response;
             }
             if (hop >= MAX_REDIRECTS) {
-                throw new IOException("Too many redirects: exceeded " + MAX_REDIRECTS + " redirects at " + current);
+                throw new TooManyRedirects("Too many redirects: exceeded " + MAX_REDIRECTS + " redirects at " + current);
             }
             String next = resolve(current, requote(location));
             if ((status == 303 && !"HEAD".equals(verb)) || ((status == 301 || status == 302) && "POST".equals(verb))) {
