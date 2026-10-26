@@ -301,7 +301,9 @@ class BSPGupshup(WhatsappBusinessServiceProviderBase):
         partner_base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["gupshup"]["partner_base_url"]
         headers = {"Authorization": key, "Content-Type": "application/json"}
         url = f"{partner_base_url}/partner/app/{app_id}/v3/message"
-        return requests.post(url=url, headers=headers, json=payload).json()
+        return Utility.execute_http_request(request_method="POST", http_url=url, request_body=payload,
+                                            headers=headers, validate_status=True,
+                                            err_msg="Failed to send gupshup message: ")
 
     @staticmethod
     async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
