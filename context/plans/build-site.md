@@ -420,7 +420,7 @@ graph LR
 | cavekit-webhook-contract.md | R3 | `next_action` that is missing, empty or whitespace-only returns HTTP 2 | T-013 | COVERED |
 | cavekit-webhook-contract.md | R3 | A body that is a JSON object without a `tracker` key (and with a non-b | T-012, T-013 | COVERED |
 | cavekit-webhook-contract.md | R3 | A body that is not a JSON object, or is empty, returns HTTP 200 with b | T-012, T-013 | COVERED |
-| cavekit-webhook-contract.md | R3 | Any failure raised while executing an action returns HTTP 200 with bod | T-012, T-013 | COVERED |
+| cavekit-webhook-contract.md | R3 | Any failure raised while executing an action returns HTTP 200 with `ev | T-012, T-013 | COVERED |
 | cavekit-webhook-contract.md | R3 | No request to `/webhook` returns HTTP 422 as the status code | T-012, T-013 | COVERED |
 | cavekit-webhook-contract.md | R4 | A request with header `X-Kairon-Request-ID: abc` gets a response with  | T-014, T-055 | COVERED |
 | cavekit-webhook-contract.md | R4 | A request without `X-Kairon-Request-ID` gets a response with an `X-Kai | T-014 | COVERED |
@@ -443,7 +443,7 @@ graph LR
 | cavekit-dispatch-and-logging.md | R1 | Both failures above follow the catch-all path in R3 | T-061 | COVERED |
 | cavekit-dispatch-and-logging.md | R2 | A tracker whose `bot` slot is missing, null or empty fails with `Bot i | T-061 | COVERED |
 | cavekit-dispatch-and-logging.md | R2 | That failure follows the catch-all path in R3 | T-061 | COVERED |
-| cavekit-dispatch-and-logging.md | R3 | The response is HTTP 200 `{"events":[],"responses":[]}` | T-012 | COVERED |
+| cavekit-dispatch-and-logging.md | R3 | The response is HTTP 200 with `events: []` and `responses` = the messa | T-012 | COVERED |
 | cavekit-dispatch-and-logging.md | R3 | Exactly one new `action_server_logs` document is written by this path | T-062 | COVERED |
 | cavekit-dispatch-and-logging.md | R3 | That document has no `type` field | T-062 | COVERED |
 | cavekit-dispatch-and-logging.md | R3 | That document contains `intent`, `action`, `sender`, `exception` (the  | T-038 | COVERED |
@@ -477,7 +477,7 @@ graph LR
 | cavekit-dispatch-and-logging.md | R7 | A store_page_action request with an empty identifier slot writes exact | T-065 | COVERED |
 | cavekit-dispatch-and-logging.md | R7 | One has `type: "store_page_action"` and `status: "Failed"` | T-065 | COVERED |
 | cavekit-dispatch-and-logging.md | R7 | The other has no `type` field and `status: "Failed"` | T-065 | COVERED |
-| cavekit-dispatch-and-logging.md | R7 | The response is `{"events":[],"responses":[]}` | T-065 | COVERED |
+| cavekit-dispatch-and-logging.md | R7 | The response is HTTP 200 with `events: []` and `responses: []` (store_ | T-065 | COVERED |
 | cavekit-templating-and-secrets.md | R1 | Replacement order is `$SENDER_ID`, then `$INTENT`, then `$USER_MESSAGE | T-066 | COVERED |
 | cavekit-templating-and-secrets.md | R1 | `$INTENT` becomes an empty string when the latest message has no inten | T-066 | COVERED |
 | cavekit-templating-and-secrets.md | R1 | `$USER_MESSAGE` uses the `kairon_user_msg` entity value when the lates | T-066 | COVERED |
@@ -492,7 +492,7 @@ graph LR
 | cavekit-templating-and-secrets.md | R2 | An empty template returns the raw body unchanged | T-067 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | Type `value` returns the configured value | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | Type `slot` returns the named slot's value | T-068 | COVERED |
-| cavekit-templating-and-secrets.md | R3 | Types `sender_id`, `user_message`, `intent` and `latest_message` retur | T-009 | COVERED |
+| cavekit-templating-and-secrets.md | R3 | Types `sender_id`, `user_message` and `intent` return the correspondin | T-009 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | Type `chat_log` returns an object with keys `sender_id`, `session_star | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | Type `key_vault` returns the decrypted key-vault value, or `null` with | T-068 | COVERED |
 | cavekit-templating-and-secrets.md | R3 | A `value` parameter with `encrypt: true` is Fernet-decrypted before us | T-068 | COVERED |
@@ -506,7 +506,7 @@ graph LR
 | cavekit-templating-and-secrets.md | R5 | A token with a timestamp older than 60 seconds still decrypts (no TTL  | T-006 | COVERED |
 | cavekit-templating-and-secrets.md | R5 | A token with a tampered byte or wrong key fails with an error | T-006 | COVERED |
 | cavekit-templating-and-secrets.md | R6 | Tokens use algorithm `HS256` and the configured secret | T-007 | COVERED |
-| cavekit-templating-and-secrets.md | R6 | The decoded header has keys in order `typ`, `alg` | T-007 | COVERED |
+| cavekit-templating-and-secrets.md | R6 | The decoded header is exactly `{"alg":"HS256","typ":"JWT"}` in that ke | T-007 | COVERED |
 | cavekit-templating-and-secrets.md | R6 | The store-page JWT payload has exactly `sub`, `version: "2.0"`, `exp`, | T-007 | COVERED |
 | cavekit-templating-and-secrets.md | R6 | The agent integration JWT payload has exactly `sub` and `version: "2.0 | T-007 | COVERED |
 | cavekit-templating-and-secrets.md | R6 | Tokens are not byte-comparable (random Fernet IV, `jti`, `iat`); parit | T-007 | COVERED |
@@ -556,7 +556,7 @@ graph LR
 | cavekit-outbound-clients.md | R7 | One message is sent per recipient | T-022 | COVERED |
 | cavekit-outbound-clients.md | R7 | The subject is `{sender_id} {subject}` | T-022 | COVERED |
 | cavekit-outbound-clients.md | R7 | The body is HTML, either the chat-log template or the custom text | T-023 | COVERED |
-| cavekit-outbound-clients.md | R8 | A body with two `media_ids` produces one multipart request containing  | T-019 | COVERED |
+| cavekit-outbound-clients.md | R8 | A body with two `media_ids` produces one multipart request per media i | T-019 | COVERED |
 | cavekit-outbound-clients.md | R8 | The multipart request matches the recorded Python request in method, U | T-071 | COVERED |
 | cavekit-outbound-clients.md | R8 | Media fetch, size validation and part naming match the Python source ( | T-071 | COVERED |
 | cavekit-core-actions.md | R1 | Config is read from collection `slot_set_action` by `bot`, `name`, `st | T-072 | COVERED |
@@ -640,7 +640,7 @@ graph LR
 | cavekit-integration-actions.md | R2 | Log: `type: "email_action"`, `action`, `bot_response`, `exception` | T-079 | COVERED |
 | cavekit-integration-actions.md | R3 | Config is read from `google_search_action`; `api_key` and `search_term | T-080 | COVERED |
 | cavekit-integration-actions.md | R3 | The search term is the latest message text, or the `kairon_user_msg` e | T-080 | COVERED |
-| cavekit-integration-actions.md | R3 | The outbound request carries `search_engine_id`, `num_results` and `we | T-030 | COVERED |
+| cavekit-integration-actions.md | R3 | With an API key, the outbound request carries exactly `key`, `cx` (= ` | T-030 | COVERED |
 | cavekit-integration-actions.md | R3 | When `dispatch_response` is true (default), an utterance is sent: form | T-080 | COVERED |
 | cavekit-integration-actions.md | R3 | Slots: `kairon_action_response`, plus `set_slot` = results when config | T-080 | COVERED |
 | cavekit-integration-actions.md | R3 | Log: `type: "google_search_action"`, `action`, `google_response`, `bot | T-080 | COVERED |

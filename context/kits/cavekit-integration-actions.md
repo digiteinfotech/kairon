@@ -47,7 +47,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Acceptance Criteria:**
 - [ ] Config is read from `google_search_action`; `api_key` and `search_term` via parameter resolution
 - [ ] The search term is the latest message text, or the `kairon_user_msg` entity when the text starts with `/`
-- [ ] [GAP] The outbound request carries `search_engine_id`, `num_results` and `website` as recorded
+- [ ] With an API key, the outbound request carries exactly `key`, `cx` (= `search_engine_id`), `q` and `num` (= `num_results`); `website` is not sent. Without an API key, the search term becomes `<term> site: <website>` when `website` is set
 - [ ] When `dispatch_response` is true (default), an utterance is sent: formatted results on success, else the configured `failure_response` (the failure utterance); when false nothing is uttered
 - [ ] Slots: `kairon_action_response`, plus `set_slot` = results when configured
 - [ ] Log: `type: "google_search_action"`, `action`, `google_response`, `bot_response`, `exception`
@@ -193,7 +193,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R13: kairon/actions/definitions/pyscript.py; kairon/shared/actions/utils.py:759-785
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 73 met, 10 gaps, 2 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 74 met, 9 gaps, 2 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -204,7 +204,6 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 | R1 | `dispatch_type` json parses a string response and sends it as `custom`; on decode error it | support/ActionSupport.java:483-501 — json dispatch parses and sends custom, falls back to text on decode error, but never logs 'Failed to convert http response to json: ...'. |
 | R2 | One SMTP message per recipient with subject `{sender_id} {subject}` and body = chat-log HT | actions/EmailAction.java:47-51 — Subject and body are built per recipient but no SMTP message is sent; it only logs 'smtp is not configured; email not sent'. |
 | R2 | `from_email` and `to_email` resolve as value or slot; SMTP credentials via parameter resol | actions/EmailAction.java:43-44,103-109 — from/to resolve as value or slot, but SMTP credentials (smtp_url, smtp_userid, smtp_password, port, tls) are never resolved. |
-| R3 | The outbound request carries `search_engine_id`, `num_results` and `website` as recorded | actions/GoogleSearchAction.java:82-90 — Query carries key, cx (search_engine_id), q and num, but the configured website is never sent (no siteSearch). |
 | R10 | Log: `type: "live_agent_action"`, `bot_response`, `messages[]`, `exception` | actions/LiveAgentAction.java:89 — save passes no extra fields; messages[] is not logged. |
 | R12 | `to_phone_number` resolves as slot or value; the provider's initiate-call request carries  | actions/VoiceCallAction.java:58,72-78 — to_phone_number resolves slot/value, but the request goes to a generic settings voiceCallUrl, not the provider's (Twilio) initiate-call API; call_url/status_url are only body fields. |
 | R13 | Log: `type: "pyscript_action"`, `config` (full config), `bot_response`, `messages[]`, `exc | actions/PyscriptAction.java:64-66 — Log includes config but no messages[] field. |
@@ -212,3 +211,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 ## Changelog
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Brownfield gap pass against existing port: 10 [GAP], 2 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 1: R3 website criterion corrected to Python behaviour (website only used on the keyless path); gap marker removed.

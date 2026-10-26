@@ -34,7 +34,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R3: Catch-all failure path
 **Description:** Any exception escaping an action is absorbed: a typeless Failed log is written, the failure mail fires, and the webhook returns empty events.
 **Acceptance Criteria:**
-- [ ] [GAP] The response is HTTP 200 `{"events":[],"responses":[]}`
+- [ ] The response is HTTP 200 with `events: []` and `responses` = the messages uttered before the failure (usually `[]`, since actions catch their own errors before uttering)
 - [ ] Exactly one new `action_server_logs` document is written by this path
 - [ ] That document has no `type` field
 - [ ] [GAP] That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bot`, `request_id`, `timestamp`, `status: "Failed"` and `trigger_info`
@@ -116,7 +116,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] A store_page_action request with an empty identifier slot writes exactly two `action_server_logs` documents
 - [ ] One has `type: "store_page_action"` and `status: "Failed"`
 - [ ] The other has no `type` field and `status: "Failed"`
-- [ ] The response is `{"events":[],"responses":[]}`
+- [ ] The response is HTTP 200 with `events: []` and `responses: []` (store_page utters nothing before re-raising)
 **Dependencies:** R3 (the action-side record is specified in cavekit-core-actions.md R6)
 
 ## Out of Scope
@@ -147,7 +147,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R7: kairon/actions/definitions/store_page.py:69-71; kairon/actions/handlers/processor.py:34-48
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 24 met, 20 gaps, 0 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 25 met, 19 gaps, 0 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -156,7 +156,6 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 | R1 | `next_action` is stripped of surrounding whitespace but never lowercased: `My_Action` does | action-server/src/main/java/com/kairon/action/server/ActionProcessor.java:35 — next_action is never stripped (Maps.str only); case is preserved, but ' my_action ' will not match. |
 | R3 | One failure mail is attempted (R6) | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:97-103 — failureMail is a stub that only logs 'mail suppressed'; no SMTP send is attempted. |
 | R3 | That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bo | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:85-94 — trigger_info is never written on the catch-all document (timestamp is added by MongoActionCatalog.insert). |
-| R3 | The response is HTTP 200 `{"events":[],"responses":[]}` | action-server/src/main/java/com/kairon/action/server/ActionProcessor.java:70 — Status 200 and events [], but responses carries any messages already uttered rather than []. |
 | R3 | `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}` when | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:85-94 — trigger_info is absent, so the implicit default is not written. |
 | R4 | Declared fields appear in the order `type, intent, action, sender, headers, url, request_m | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:62-82 — Order written is type,intent,action,sender,exception,bot_response,bot,status,user_msg,request_id,trigger_info,extras, then timestamp appended last on insert; headers/url/request_method/etc. are not placed in declared order. |
 | R4 | `request_id` equals the response `X-Kairon-Request-ID` value | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:73 — request_id comes from the incoming header only; with no header it is null and no UUID is generated or echoed. |
@@ -177,3 +176,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 20 [GAP], 0 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 1: R3 catch-all response criterion corrected to literal Python (handlers/action.py:25-31 keeps dispatcher messages); gap marker removed.

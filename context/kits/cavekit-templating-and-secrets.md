@@ -39,7 +39,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Acceptance Criteria:**
 - [ ] Type `value` returns the configured value
 - [ ] Type `slot` returns the named slot's value
-- [ ] [GAP] Types `sender_id`, `user_message`, `intent` and `latest_message` return the corresponding tracker values
+- [ ] Types `sender_id`, `user_message` and `intent` return the corresponding tracker values; type `latest_message` has no branch in Python and falls through to the literal `value`
 - [ ] Type `chat_log` returns an object with keys `sender_id`, `session_started`, `conversation`
 - [ ] Type `key_vault` returns the decrypted key-vault value, or `null` with no error when the key is missing
 - [ ] A `value` parameter with `encrypt: true` is Fernet-decrypted before use (R5)
@@ -49,7 +49,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R4: Evaluation context
 **Description:** The context sent to the expression and pyscript evaluators has the Python key set.
 **Acceptance Criteria:**
-- [ ] [GAP] The context contains `sender_id`, `user_message`, `slot`, `intent`, `chat_log`, `latest_message`, `kairon_user_msg`, `session_started` and `bot`
+- [ ] The context contains `sender_id`, `user_message`, `slot`, `intent`, `chat_log`, `latest_message`, `kairon_user_msg`, `session_started`, and `key_vault` (`{}` unless requested); `bot` is appended by the http, callback, google_search and schedule actions only
 - [ ] [GAP] `key_vault` (all decrypted secrets for the bot) is present only when requested by the action config
 - [ ] [UNVERIFIED] The context sent for each recorded fixture equals the recorded outbound evaluator body after normalization
 **Dependencies:** R3
@@ -68,7 +68,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Store-page and agent-integration tokens match the tokens the Python server mints.
 **Acceptance Criteria:**
 - [ ] Tokens use algorithm `HS256` and the configured secret
-- [ ] The decoded header has keys in order `typ`, `alg`
+- [ ] The decoded header is exactly `{"alg":"HS256","typ":"JWT"}` in that key order (the pinned PyJWT sorts header keys)
 - [ ] [UNVERIFIED] The store-page JWT payload has exactly `sub`, `version: "2.0"`, `exp`, `iat`; `sub` is a Fernet token (R5) of the Python `json.dumps` of the claims `{sub: <sender id>, bot, exp: <int>, iat: <int>, jti: <uuid7 string>, access-limit: ["/api/bot/.+/customer_data/.*", "/api/bot/.+/store_page/metadata", "/api/bot/.+/data/collection/.*", "/api/bot/.+/store_page/exec/flow"], type: "store_page"}`; `exp` is `iat` plus the bot's `store_page_token_expiry` minutes, or 15 when unset
 - [ ] The agent integration JWT payload has exactly `sub` and `version: "2.0"` (no `exp`, no `iat`); `sub` is a Fernet token of the Python `json.dumps` of `{sub: <sender id>, bot, type: "integration"}`
 - [ ] [UNVERIFIED] Tokens are not byte-comparable (random Fernet IV, `jti`, `iat`); parity is verified by decrypting the port's `sub` with the Python Fernet key and comparing the claim set to Python's ignoring `jti`, `iat` and `exp` values, and by the Python server accepting a port-minted token (needs human review)
@@ -120,13 +120,12 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R8: kairon/shared/utils.py:1401 (decrypt_message); kairon/shared/actions/utils.py (sender id handling)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 25 met, 10 gaps, 7 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 27 met, 8 gaps, 7 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
 |---|---|---|
 | R2 | A resolved dict value is rendered as R7 `json.dumps`; any other value is rendered as Pytho | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:401-415 — Dicts render via Jsons.write (Jackson compact ',' ':' separators), not json.dumps; floats use Java toString (1.0E16). |
-| R3 | Types `sender_id`, `user_message`, `intent` and `latest_message` return the corresponding  | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:127-151 — sender_id, user_message and intent are handled, but latest_message has no branch and falls through to the configured value. |
 | R4 | The context contains `sender_id`, `user_message`, `slot`, `intent`, `chat_log`, `latest_me | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:105-117 — context() has every key except 'bot'; only HttpAction adds bot afterwards (HttpAction.java:54), so pyscript/callback/etc. contexts lack it. |
 | R4 | `key_vault` (all decrypted secrets for the bot) is present only when requested by the acti | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:113 — key_vault is always present (empty map when not requested), and callers hard-code keyVault=true instead of reading the action config. |
 | R7 | Output equals strings captured from Python for every repr field in the recorded fixtures ( | action-server/src/main/java/com/kairon/action/actions/BotResponseAction.java:62 — bot_response is stored via String.valueOf(Map) -> '{response=utter_x}' (ActionSupport.java:69), and two_stage uses json.dumps not repr (TwoStageFallbackAction.java:112); no fixture test. |
@@ -139,3 +138,6 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 ## Changelog
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Brownfield gap pass against existing port: 10 [GAP], 7 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 1: R6 header-order criterion corrected to the pinned PyJWT output (alg before typ).
+- 2026-10-26: Build wave 1: R4 c1 corrected: `bot` is added per caller as in Python; key_vault key always present.
+- 2026-10-26: Build wave 1: R3 c3 corrected (latest_message parameter type falls through to literal value in Python); gap marker removed.

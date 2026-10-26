@@ -86,7 +86,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R8: Media multipart upload
 **Description:** When the request body carries `media_ids`, each media item is fetched and the request is sent as multipart.
 **Acceptance Criteria:**
-- [ ] [GAP] A body with two `media_ids` produces one multipart request containing two file parts
+- [ ] A body with two `media_ids` produces one multipart request per media id, each carrying a single `file` part plus the form fields, with `media_ids` removed from the body; the results are collected in order
 - [ ] [UNVERIFIED] The multipart request matches the recorded Python request in method, URL and part names
 - [ ] [UNVERIFIED] Media fetch, size validation and part naming match the Python source (needs human review)
 **Dependencies:** R1
@@ -117,7 +117,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R8: kairon/shared/actions/utils.py:162-232 (process_media_and_execute_requests, validate_media_sizes)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 24 met, 12 gaps, 3 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 25 met, 11 gaps, 3 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -133,9 +133,9 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 | R7 | One message is sent per recipient | action-server/src/main/java/com/kairon/action/actions/EmailAction.java:47-51 — Loops per recipient but only logs; nothing is sent. |
 | R7 | The body is HTML, either the chat-log template or the custom text | action-server/src/main/java/com/kairon/action/actions/EmailAction.java:67-75 — HTML is built, but the chat-log body is an ad-hoc template (ActionSupport.java:557-569), not Python's, and is never sent. |
 | R7 | The subject is `{sender_id} {subject}` | action-server/src/main/java/com/kairon/action/actions/EmailAction.java:46 — The subject string is built correctly as '{sender_id} {subject}' but never sent. |
-| R8 | A body with two `media_ids` produces one multipart request containing two file parts | action-server/src/main/java/com/kairon/action/support/HttpCaller.java:187-210 — multipart() sends one request per media file, each with a single 'file' part, rather than one request with two parts. |
 
 ## Changelog
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 12 [GAP], 3 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 1: R8 c1 corrected to literal Python (one request per media file, utils.py:210-230); gap marker removed.

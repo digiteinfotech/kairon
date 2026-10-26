@@ -50,7 +50,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] `next_action` that is missing, empty or whitespace-only returns HTTP 200 with body `null`
 - [ ] [GAP] A body that is a JSON object without a `tracker` key (and with a non-blank `next_action`) returns HTTP 500
 - [ ] [GAP] A body that is not a JSON object, or is empty, returns HTTP 200 with body `{"success":false,"error_code":422,"message":[...],"data":null}` where `message` is a list
-- [ ] [GAP] Any failure raised while executing an action returns HTTP 200 with body `{"events":[],"responses":[]}`
+- [ ] Any failure raised while executing an action returns HTTP 200 with `events: []` and `responses` = the messages uttered before the failure (`[]` when nothing was uttered)
 - [ ] [GAP] No request to `/webhook` returns HTTP 422 as the status code
 **Dependencies:** none
 
@@ -106,7 +106,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R6: docker/docker-compose.yml:77-95 (uvicorn launch, no body limit)
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 20 met, 16 gaps, 3 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 21 met, 15 gaps, 3 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
@@ -119,7 +119,6 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 | R1 | A tracker without both `active_loop` and `active_form` uses `{}` as the active loop | action-server/src/main/java/com/kairon/action/runtime/TrackerState.java:31-41 — active_loop is not modelled, so no {} default is applied. |
 | R3 | A body that is a JSON object without a `tracker` key (and with a non-blank `next_action`)  | action-server/src/main/java/com/kairon/action/server/ActionProcessor.java:39-41 — Missing tracker throws IllegalArgumentException mapped to HTTP 422 envelope at WebhookController.java:61-63; test missingTrackerIs422 asserts 422 (WebhookTest.java:180-188). |
 | R3 | A body that is not a JSON object, or is empty, returns HTTP 200 with body `{"success":fals | action-server/src/main/java/com/kairon/action/server/WebhookController.java:48-50 — Empty body returns status 422 with message as a string; non-object JSON also 422 (Jsons.readMap throws), and a literal 'null' body becomes {} and returns 200 null; test emptyBodyIs422 asserts 422. |
-| R3 | Any failure raised while executing an action returns HTTP 200 with body `{"events":[],"res | action-server/src/main/java/com/kairon/action/server/ActionProcessor.java:70 — Catch-all returns events [] but responses = dispatcher.messages, so messages uttered before the failure are kept instead of []. |
 | R3 | No request to `/webhook` returns HTTP 422 as the status code | action-server/src/main/java/com/kairon/action/server/WebhookController.java:49,62,72-79 — error() sets HttpStatus 422 as the real status code for empty body, bad JSON and missing tracker. |
 | R4 | A request without `X-Kairon-Request-ID` gets a response with an `X-Kairon-Request-ID` valu | action-server/src/main/java/com/kairon/action/server/SecurityFilter.java:26-28 — No UUID is generated when the header is absent; the response has no X-Kairon-Request-ID. |
 | R4 | CORS allows credentials, all methods and all headers | action-server/src/main/resources/application.yml:13-16 — allowed-methods restricted to GET/POST/OPTIONS; allow-credentials not configured explicitly. |
@@ -132,3 +131,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 16 [GAP], 3 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 1: R3 c5 corrected to literal Python (prior utterances are kept on action failure); gap marker removed.
