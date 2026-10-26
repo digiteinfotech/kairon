@@ -60,7 +60,7 @@ public class HubspotAction implements KaironAction {
             exception = ActionFlags.message(e);
             status = Kairon.FAIL;
             botResponse = Kairon.FAILED;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("request_params", request);

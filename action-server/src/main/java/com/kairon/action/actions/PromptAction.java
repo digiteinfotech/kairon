@@ -82,7 +82,7 @@ public class PromptAction implements KaironAction {
             } else {
                 Object failure = config.get("failure_message");
                 botResponse = Maps.isEmpty(failure) ? Kairon.DEFAULT_FALLBACK : failure;
-                support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+                support.failureMail(context, e);
             }
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();

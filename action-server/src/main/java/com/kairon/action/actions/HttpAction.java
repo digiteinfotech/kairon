@@ -94,7 +94,7 @@ public class HttpAction implements KaironAction {
             if (botResponse == null) {
                 botResponse = Kairon.FAILED;
             }
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 botResponse = support.utter(context.dispatcher, dispatchType, botResponse);

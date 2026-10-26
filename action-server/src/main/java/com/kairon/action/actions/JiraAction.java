@@ -58,7 +58,7 @@ public class JiraAction implements KaironAction {
             exception = ActionFlags.message(e);
             status = Kairon.FAIL;
             botResponse = Kairon.JIRA_FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             support.save(context, type(), status, exception, botResponse, null);
         }

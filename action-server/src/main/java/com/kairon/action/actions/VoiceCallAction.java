@@ -93,7 +93,7 @@ public class VoiceCallAction implements KaironAction {
             LOG.error("voice call action failed", e);
             status = Kairon.FAIL;
             botResponse = Kairon.CALL_FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 context.dispatcher.text(botResponse == null ? null : String.valueOf(botResponse));

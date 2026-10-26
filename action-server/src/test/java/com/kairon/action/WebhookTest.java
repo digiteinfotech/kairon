@@ -93,6 +93,7 @@ class WebhookTest {
     void reset() {
         catalog.clear();
         probe.reset();
+        RecordingFailureMail.CALLS.clear();
         synchronized (EVENT_PATHS) {
             EVENT_PATHS.clear();
         }
@@ -300,6 +301,81 @@ class WebhookTest {
         assertNull(failed.get(0).get("type"));
         assertEquals("probe failure", failed.get(0).get("exception"));
         assertEquals(reply.header(Kairon.REQUEST_ID), failed.get(0).get("request_id"));
+    }
+
+    /** T-038/T-039: dispatch-and-logging R3 c4-c6, R4 c5-c6, c10, R6 c1, c4-c5. */
+    @Test
+    void catchAllLogFieldsOrderTriggerInfoAndOneMail() throws Exception {
+        register("probe", ProbeAction.TYPE);
+        Map<String, Object> values = slots();
+        values.put("probe_fail", true);
+        Reply reply = post(call("probe", values, latest("hi there"), null));
+        assertEquals(200, reply.status());
+        Document log = logs("probe").get(0);
+        List<String> keys = new ArrayList<>(log.keySet());
+        keys.remove("_id");
+        assertEquals(List.of("intent", "action", "sender", "exception", "bot", "timestamp", "status", "trigger_info", "request_id"), keys);
+        assertEquals(new Document("trigger_name", "").append("trigger_type", "implicit").append("trigger_id", ""), log.get("trigger_info"));
+        assertEquals(reply.header(Kairon.REQUEST_ID), log.get("request_id"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(1, RecordingFailureMail.CALLS.size(), "one failure mail");
+        RecordingFailureMail.Call mail = RecordingFailureMail.CALLS.get(0);
+        assertEquals(BOT, mail.bot());
+        assertEquals("probe", mail.action());
+        assertEquals("hi there", mail.userText());
+        assertEquals(true, mail.slots().get("probe_fail"));
+        assertTrue(mail.stackTrace().contains("java.lang.IllegalStateException: probe failure"), mail.stackTrace());
+        assertTrue(mail.stackTrace().contains("ProbeAction.execute"), mail.stackTrace());
+    }
+
+    /** T-038: dispatch-and-logging R4 c5-c6, c10; core-actions R6 c8 style null omission. */
+    @Test
+    void actionLogKeepsRequestTriggerInfoAndDeclaredOrder() throws Exception {
+        register("set_place", "slot_set_action");
+        catalog.put("slot_set_action", doc(
+                "bot", BOT, "name", "set_place", "status", true,
+                "set_slots", List.of(new Document("name", "city").append("type", "from_value").append("value", "Pune"))));
+        Map<String, Object> body = Jsons.readMap(call("set_place", slots(), latest("hi"), null));
+        body.put("trigger_info", Map.of("trigger_type", "agentic_flow", "trigger_id", "flow-7"));
+        Reply reply = post(Jsons.write(body));
+        assertEquals(200, reply.status());
+        Document log = logs("set_place").get(0);
+        Document trigger = (Document) log.get("trigger_info");
+        assertEquals(List.of("trigger_name", "trigger_type", "trigger_id"), new ArrayList<>(trigger.keySet()));
+        assertEquals("", trigger.get("trigger_name"));
+        assertEquals("agentic_flow", trigger.get("trigger_type"));
+        assertEquals("flow-7", trigger.get("trigger_id"));
+        assertEquals(reply.header(Kairon.REQUEST_ID), log.get("request_id"));
+        List<String> keys = new ArrayList<>(log.keySet());
+        keys.remove("_id");
+        List<String> declared = keys.stream().filter(com.kairon.action.support.ActionSupport.LOG_FIELDS::contains).toList();
+        assertEquals(declared, keys.subList(0, declared.size()), "declared fields come first: " + keys);
+        assertEquals(com.kairon.action.support.ActionSupport.LOG_FIELDS.stream().filter(declared::contains).toList(), declared);
+        assertTrue(log.values().stream().noneMatch(java.util.Objects::isNull), "null fields omitted: " + log);
+        assertTrue(RecordingFailureMail.CALLS.isEmpty(), "slot_set sends no mail");
+    }
+
+    /** T-039/T-037: an in-action failure handler mails once; bot_response logged as Python repr. */
+    @Test
+    void inActionFailureMailsOnceAndLogsRepr() {
+        Map<String, Object> domain = Map.of("responses", Map.of("utter_empty", List.of()));
+        Map<String, Object> body = ok(call("utter_empty", slots(), latest("hello"), domain));
+        assertEquals("utter_empty", responses(body).get(0).get("response"));
+        Document log = logs("utter_empty").get(0);
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("{'response': 'utter_empty'}", log.get("bot_response"));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+        RecordingFailureMail.Call mail = RecordingFailureMail.CALLS.get(0);
+        assertEquals("utter_empty", mail.action());
+        assertEquals("hello", mail.userText());
+        assertEquals(BOT, mail.slots().get("bot"));
+        assertTrue(mail.stackTrace().contains("Cannot choose from an empty sequence"), mail.stackTrace());
+    }
+
+    @Test
+    void voiceDisconnectLogsPythonRepr() {
+        ok(call("kairon_voice_disconnect", slots(), latest("bye"), null));
+        assertEquals("{'disconnect': True}", logs("kairon_voice_disconnect").get(0).get("bot_response"));
     }
 
     @Test

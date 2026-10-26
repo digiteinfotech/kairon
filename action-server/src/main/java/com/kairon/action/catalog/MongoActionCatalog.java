@@ -96,6 +96,18 @@ public class MongoActionCatalog implements ActionCatalog {
         return collection(collection).find().into(new ArrayList<>());
     }
 
+    @Override
+    public Optional<Document> findById(String collection, Object id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        String text = String.valueOf(id);
+        Bson filter = ObjectId.isValid(text)
+                ? Filters.or(Filters.eq("_id", new ObjectId(text)), Filters.eq("_id", text))
+                : Filters.eq("_id", id);
+        return Optional.ofNullable(collection(collection).find(filter).first());
+    }
+
     private MongoCollection<Document> collection(String name) {
         return database.getCollection(name);
     }

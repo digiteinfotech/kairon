@@ -4,7 +4,6 @@ import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
-import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
 import jakarta.inject.Singleton;
 import org.bson.Document;
@@ -100,7 +99,7 @@ public class TwoStageFallbackAction implements KaironAction {
         } else {
             context.dispatcher.response(Kairon.UTTER_DEFAULT);
         }
-        support.save(context, type(), Kairon.SUCCESS, exception, Jsons.pythonDumps(recommendations), null);
+        support.save(context, type(), Kairon.SUCCESS, exception, recommendations, null);
         return Map.of();
     }
 

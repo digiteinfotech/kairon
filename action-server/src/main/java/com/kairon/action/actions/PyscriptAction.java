@@ -56,7 +56,7 @@ public class PyscriptAction implements KaironAction {
             LOG.error("pyscript action failed", e);
             status = Kairon.FAIL;
             botResponse = Kairon.FAILED;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 botResponse = support.utter(context.dispatcher, dispatchType, botResponse);
