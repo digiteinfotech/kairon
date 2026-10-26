@@ -114,7 +114,8 @@ public class HttpCaller {
         if (status == 0 || allowed(status)) {
             return null;
         }
-        return "Got non-200 status code:" + status + " http_response:" + body;
+        // Python f-string: str(http_response), i.e. the repr of a dict/list body.
+        return "Got non-200 status code:" + status + " http_response:" + PyRepr.str(body);
     }
 
     public static void validate(Object body, int status) {

@@ -10,7 +10,9 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Singleton
@@ -38,6 +40,7 @@ public class PyscriptAction implements KaironAction {
         boolean dispatch = false;
         String dispatchType = "text";
         Map<String, Object> filled = new LinkedHashMap<>();
+        List<String> messages = new ArrayList<>();
         try {
             config = support.require("pyscript_action_config", context.bot, "name", context.actionName,
                     "No pyscript action found for given action and bot");
@@ -59,10 +62,17 @@ public class PyscriptAction implements KaironAction {
             support.failureMail(context, e);
         } finally {
             if (dispatch) {
-                botResponse = support.utter(context.dispatcher, dispatchType, botResponse);
+                ActionSupport.Utterance uttered = support.utterLogged(context.dispatcher, dispatchType, botResponse);
+                botResponse = uttered.botResponse();
+                if (uttered.message() != null) {
+                    messages.add(uttered.message());
+                }
             }
+            // ActionServerLogs(...) keyword order: config before user_msg.
             Map<String, Object> extra = new LinkedHashMap<>();
+            extra.put("messages", messages);
             extra.put("config", config);
+            extra.put("user_msg", context.tracker.text());
             support.save(context, type(), status, exception, botResponse, extra);
         }
         filled.put(Kairon.ACTION_RESPONSE, botResponse);

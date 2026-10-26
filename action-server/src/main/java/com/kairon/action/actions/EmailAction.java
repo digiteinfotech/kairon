@@ -74,7 +74,7 @@ public class EmailAction implements KaironAction {
             exception = ActionFlags.message(e);
             botResponse = Kairon.FAILED;
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 ActionFlags.utterText(context.dispatcher, botResponse);

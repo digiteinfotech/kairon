@@ -11,6 +11,7 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ public class CallbackAction implements KaironAction {
         Object metadataLog = null;
         String status = Kairon.SUCCESS;
         String exception = null;
+        List<String> messages = new ArrayList<>();
         try {
             Document config = support.require("callback_action_config", context.bot, "name", context.actionName,
                     "No Async Callback action found for given action and bot");
@@ -101,11 +103,14 @@ public class CallbackAction implements KaironAction {
                 if (Maps.truthy(botResponse) && Maps.truthy(callbackUrl)) {
                     botResponse = String.valueOf(botResponse).replace("{callback_url}", callbackUrl);
                 }
-                if (Maps.truthy(botResponse)) {
-                    ActionFlags.utterText(context.dispatcher, botResponse);
+                ActionSupport.Utterance uttered = support.utterLogged(context.dispatcher, "text", botResponse);
+                botResponse = uttered.botResponse();
+                if (uttered.message() != null) {
+                    messages.add(uttered.message());
                 }
             }
             Map<String, Object> extra = new LinkedHashMap<>();
+            extra.put("messages", messages);
             extra.put("callback_url", callbackUrl);
             extra.put("callback_url_slot", slotName);
             extra.put("identifier", identifier);

@@ -91,7 +91,12 @@ public class ActionSupport {
         values.put("trigger_info", triggerInfo(ctx.actionCall.get("trigger_info")));
         values.put("request_id", RequestIds.get());
         if (extra != null) {
-            extra.forEach(values::put);
+            // An extra re-supplying a base key (e.g. user_msg) takes the extra's position: mongoengine orders
+            // dynamic fields by the ActionServerLogs(...) keyword order.
+            extra.forEach((key, value) -> {
+                values.remove(key);
+                values.put(key, value);
+            });
         }
         catalog.insert(Kairon.LOGS, logRecord(values));
     }
@@ -388,11 +393,17 @@ public class ActionSupport {
         return map.get("data");
     }
 
-    /** Pyscript service result: output, log, slot values. */
+    /**
+     * Python ActionUtility.evaluate_pyscript: output, log, slot values and elapsed seconds. Like Python, a truthy
+     * {@code data["context"]} dict is updated in place with data, response_headers and http_status_code.
+     */
     public PyscriptResult evaluatePyscript(String script, Map<String, Object> data) {
+        long start = System.nanoTime();
+        List<String> log = new ArrayList<>(List.of("evaluation_type: script", "script: " + script,
+                "data: " + PyRepr.str(data), "raise_err_on_failure: True"));
         Map<String, Object> context;
-        if (data.get("context") instanceof Map<?, ?>) {
-            context = new LinkedHashMap<>(Maps.map(data.get("context")));
+        if (data.get("context") instanceof Map<?, ?> existing && !existing.isEmpty()) {
+            context = mutableContext(data);
             context.put("data", data.get("data"));
             context.put("response_headers", data.get("response_headers"));
             context.put("http_status_code", data.get("http_status_code"));
@@ -418,7 +429,22 @@ public class ActionSupport {
             copy.put("media_ids", result.get("media_ids"));
             output = copy;
         }
-        return new PyscriptResult(output, List.of(), slots);
+        return new PyscriptResult(output, log, slots, (System.nanoTime() - start) / 1e9);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mutableContext(Map<String, Object> data) {
+        Object context = data.get("context");
+        if (context instanceof LinkedHashMap<?, ?> mutable) {
+            return (Map<String, Object>) mutable;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>(Maps.map(context));
+        try {
+            data.put("context", copy);
+        } catch (UnsupportedOperationException e) {
+            // read-only caller map: evaluate on the copy only
+        }
+        return copy;
     }
 
     public Map<String, Object> runPyscript(String source, Map<String, Object> context) {
@@ -471,34 +497,69 @@ public class ActionSupport {
     }
 
     public Object compose(Map<String, Object> responseConfig, Map<String, Object> httpResponse) {
+        return composeLogged(responseConfig, httpResponse).result();
+    }
+
+    /** Python ActionUtility.compose_response: result, evaluation log and time taken (int 0 unless a script ran). */
+    public Composed composeLogged(Map<String, Object> responseConfig, Map<String, Object> httpResponse) {
         Object template = responseConfig.get("value");
+        Object evaluationLog = responseConfig.containsKey("evaluation_type") ? responseConfig.get("evaluation_type") : "expression";
         String evaluation = Maps.str(responseConfig.get("evaluation_type"));
         if (evaluation == null || evaluation.isBlank()) {
             evaluation = "expression";
         }
+        List<String> log = new ArrayList<>();
         if (Maps.isEmpty(template)) {
-            return null;
+            log.add("evaluation_type: " + PyRepr.str(evaluationLog));
+            log.add("data: " + PyRepr.str(httpResponse));
+            log.add("Skipping evaluation as value is empty");
+            return new Composed(null, log, 0);
         }
         if ("script".equals(evaluation)) {
-            return evaluatePyscript(String.valueOf(template), httpResponse).output();
+            PyscriptResult script = evaluatePyscript(String.valueOf(template), httpResponse);
+            return new Composed(script.output(), script.log(), script.elapsed());
         }
         Object status = httpResponse.get("http_status_code");
         int code = status instanceof Number number ? number.intValue() : 0;
         HttpCaller.validate(httpResponse, code);
-        return prepareResponse(String.valueOf(template), httpResponse);
+        Object result = prepareResponse(String.valueOf(template), httpResponse);
+        log.add("evaluation_type: " + PyRepr.str(evaluationLog));
+        log.add("expression: " + template);
+        log.add("data: " + PyRepr.str(httpResponse));
+        log.add("response: " + PyRepr.str(result));
+        return new Composed(result, log, 0);
     }
 
     public Map<String, Object> fillSlots(Object setSlots, Map<String, Object> httpResponse) {
+        return fillSlotsLogged(setSlots, httpResponse).values();
+    }
+
+    /**
+     * Python ActionUtility.fill_slots_from_response: slot values, slot_eval_log and the time taken of the last
+     * successfully composed slot (Python overwrites it per slot).
+     */
+    public SlotFill fillSlotsLogged(Object setSlots, Map<String, Object> httpResponse) {
         Map<String, Object> values = new LinkedHashMap<>();
+        List<String> log = new ArrayList<>(List.of("initiating slot evaluation"));
+        Number timeTaken = 0;
         for (Map<String, Object> slot : Maps.mapList(setSlots)) {
             String name = Maps.str(slot.get("name"));
+            Object value;
             try {
-                values.put(name, compose(slot, httpResponse));
+                log.add("Slot: " + name);
+                Composed composed = composeLogged(slot, httpResponse);
+                value = composed.result();
+                timeTaken = composed.elapsed();
+                log.addAll(composed.log());
             } catch (RuntimeException e) {
-                values.put(name, null);
+                LOG.error("slot evaluation failed", e);
+                value = null;
+                log.add("Evaluation error for " + name + ": " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+                log.add("Slot " + name + " eventually set to None.");
             }
+            values.put(name, value);
         }
-        return values;
+        return new SlotFill(values, log, timeTaken);
     }
 
     public Object prepareResponse(String template, Object httpResponse) {
@@ -564,20 +625,29 @@ public class ActionSupport {
     }
 
     public Object utter(Dispatcher dispatcher, String dispatchType, Object botResponse) {
+        return utterLogged(dispatcher, dispatchType, botResponse).botResponse();
+    }
+
+    /**
+     * Python ActionUtility.handle_utter_bot_response: the (possibly parsed) bot response plus the log message
+     * {@code Failed to convert http response to json: <JSONDecodeError>} when a json dispatch gets non-JSON text.
+     */
+    public Utterance utterLogged(Dispatcher dispatcher, String dispatchType, Object botResponse) {
         if (!Maps.truthy(botResponse)) {
-            return botResponse;
+            return new Utterance(botResponse, null);
         }
         if ("json".equals(dispatchType)) {
             Object parsed = botResponse;
             if (botResponse instanceof String text) {
-                try {
-                    parsed = Jsons.readAny(text);
-                    if (parsed instanceof String) {
-                        throw new IllegalArgumentException("not json");
-                    }
-                } catch (RuntimeException e) {
-                    dispatcher.text(String.valueOf(botResponse));
-                    return botResponse;
+                String error = pythonJsonError(text);
+                if (error != null) {
+                    dispatcher.text(text);
+                    return new Utterance(botResponse, "Failed to convert http response to json: " + error);
+                }
+                parsed = Jsons.readAny(text);
+                if (parsed instanceof String) {
+                    dispatcher.text(text);
+                    return new Utterance(botResponse, null);
                 }
             }
             if (parsed instanceof Map<?, ?> map) {
@@ -585,7 +655,7 @@ public class ActionSupport {
             } else {
                 dispatcher.text(String.valueOf(parsed));
             }
-            return parsed;
+            return new Utterance(parsed, null);
         }
         if (botResponse instanceof List<?> list) {
             for (Object message : list) {
@@ -598,7 +668,59 @@ public class ActionSupport {
         } else {
             dispatcher.text(String.valueOf(botResponse));
         }
-        return botResponse;
+        return new Utterance(botResponse, null);
+    }
+
+    /**
+     * str(json.JSONDecodeError) for Python json.loads(text), or null when Python would parse it. Exact for
+     * non-JSON text ("Expecting value") and trailing data ("Extra data"); a malformed document that starts
+     * like JSON is reported as "Expecting value" at the parser's error offset (best effort).
+     */
+    static String pythonJsonError(String text) {
+        int start = skipWhitespace(text, 0);
+        if (start >= text.length()) {
+            return jsonError("Expecting value", text, start);
+        }
+        try (com.fasterxml.jackson.core.JsonParser parser = Jsons.MAPPER.getFactory().createParser(text)) {
+            int end;
+            try {
+                parser.nextToken();
+                parser.skipChildren();
+                parser.finishToken();
+                end = (int) parser.currentLocation().getCharOffset();
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                char first = text.charAt(start);
+                if ("{[\"-0123456789tfnNI".indexOf(first) < 0) {
+                    return jsonError("Expecting value", text, start);
+                }
+                long offset = e.getLocation() == null ? start : e.getLocation().getCharOffset();
+                return jsonError("Expecting value", text, (int) Math.max(start, Math.min(offset, text.length())));
+            }
+            int rest = skipWhitespace(text, end);
+            return rest < text.length() ? jsonError("Extra data", text, rest) : null;
+        } catch (java.io.IOException e) {
+            return jsonError("Expecting value", text, start);
+        }
+    }
+
+    private static int skipWhitespace(String text, int from) {
+        int pos = from;
+        while (pos < text.length() && " \t\n\r".indexOf(text.charAt(pos)) >= 0) {
+            pos++;
+        }
+        return pos;
+    }
+
+    private static String jsonError(String message, String text, int pos) {
+        int line = 1;
+        int lastNewline = -1;
+        for (int i = 0; i < pos; i++) {
+            if (text.charAt(i) == '\n') {
+                line++;
+                lastNewline = i;
+            }
+        }
+        return message + ": line " + line + " column " + (pos - lastNewline) + " (char " + pos + ")";
     }
 
     public String formatSearch(List<Map<String, Object>> results) {
@@ -772,5 +894,11 @@ public class ActionSupport {
 
     public record Trail(String started, List<Map<String, Object>> messages) {}
 
-    public record PyscriptResult(Object output, List<String> log, Map<String, Object> slots) {}
+    public record PyscriptResult(Object output, List<String> log, Map<String, Object> slots, double elapsed) {}
+
+    public record Composed(Object result, List<String> log, Number elapsed) {}
+
+    public record SlotFill(Map<String, Object> values, List<String> log, Number elapsed) {}
+
+    public record Utterance(Object botResponse, String message) {}
 }

@@ -42,7 +42,6 @@ public class RazorpayAction implements KaironAction {
         Object amountRaw = null;
         String status = Kairon.SUCCESS;
         String exception = null;
-        boolean mail = false;
         try {
             Map<String, Object> trackerData = support.context(context.tracker, false);
             Object apiKey = support.one(trackerData, config.get("api_key"), context.bot);
@@ -84,11 +83,8 @@ public class RazorpayAction implements KaironAction {
                     : ActionFlags.message(e);
             status = Kairon.FAIL;
             botResponse = Kairon.FAILED;
-            mail = true;
+            support.failureMail(context, e);
         } finally {
-            if (mail) {
-                support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
-            }
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("api_response", httpResponse == null ? null : String.valueOf(httpResponse));
             extra.put("request", body);
