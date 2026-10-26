@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "node_id": "synthetic/parity_replay_test.py::test_http_action_https_get_query",
+  "normalized": true,
+  "mongo": {
+    "available": true,
+    "databases": ["test_conversations"],
+    "seed": {
+      "test_conversations": {
+        "actions": [
+          {
+            "_id": {"$oid": "65a1f0c2e4b0a1b2c3d4e701"},
+            "name": "weather",
+            "type": "http_action",
+            "bot": "5f50fd0a56b698ca10d35d2e",
+            "timestamp": {"$date": {"$numberLong": "1704067200000"}},
+            "status": true
+          }
+        ],
+        "http_action_config": [
+          {
+            "_id": {"$oid": "65a1f0c2e4b0a1b2c3d4e702"},
+            "action_name": "weather",
+            "http_url": "https://api.weather.test/v1/forecast?city=Pune",
+            "request_method": "GET",
+            "content_type": "json",
+            "response": {"value": "${data.forecast.summary}", "dispatch": true, "evaluation_type": "expression", "dispatch_type": "text"},
+            "bot": "5f50fd0a56b698ca10d35d2e",
+            "timestamp": {"$date": {"$numberLong": "1704067200000"}},
+            "status": true
+          }
+        ]
+      }
+    },
+    "written": {
+      "test_conversations": {
+        "action_server_logs": {
+          "inserted": [
+            {
+              "_id": {"$oid": "65a1f0c2e4b0a1b2c3d4e7ff"},
+              "type": "http_action",
+              "intent": "ask_weather",
+              "action": "weather",
+              "sender": "default",
+              "url": "https://api.weather.test/v1/forecast?city=Pune",
+              "request_method": "GET",
+              "bot_response": "Sunny",
+              "bot": "5f50fd0a56b698ca10d35d2e",
+              "timestamp": {"$date": {"$numberLong": "1704067260000"}},
+              "status": "Success",
+              "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
+              "request_id": "{{REQUEST_ID}}",
+              "user_msg": "weather?",
+              "http_status_code": {"$numberInt": "200"}
+            }
+          ],
+          "updated": [],
+          "deleted": []
+        }
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/webhook",
+        "query": "",
+        "headers": [["content-type", "application/json"]],
+        "body": {
+          "encoding": "json",
+          "value": {
+            "next_action": "weather",
+            "tracker": {
+              "sender_id": "default",
+              "slots": {"bot": "5f50fd0a56b698ca10d35d2e"},
+              "latest_message": {"text": "weather?", "intent": {"name": "ask_weather"}, "entities": []},
+              "events": [],
+              "followup_action": "weather",
+              "latest_input_channel": "rest"
+            },
+            "domain": {}
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": [["content-type", "application/json"]],
+        "body": {
+          "encoding": "json",
+          "value": {
+            "events": [
+              {"event": "slot", "timestamp": null, "name": "kairon_action_response", "value": "Sunny"},
+              {"event": "slot", "timestamp": null, "name": "http_status_code", "value": 200}
+            ],
+            "responses": [
+              {"text": "Sunny", "buttons": [], "elements": [], "custom": {}, "template": null, "response": null, "image": null, "attachment": null}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "upstream": [
+    {
+      "seq": 0,
+      "client": "requests",
+      "request": {
+        "method": "GET",
+        "url": "https://api.weather.test/v1/forecast?city=Pune",
+        "headers": [["User-Agent", "python-requests/2.32.3"], ["Accept", "*/*"]],
+        "body": {"encoding": "empty", "value": null}
+      },
+      "response": {
+        "status": 200,
+        "headers": [["Content-Type", "application/json"]],
+        "body": {"encoding": "json", "value": {"forecast": {"summary": "Sunny", "max": 31.5}}}
+      },
+      "error": null
+    }
+  ]
+}
