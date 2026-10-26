@@ -75,26 +75,23 @@ services:
       - 7999:8000
 
   kairon-action-server:
-    image: kairon
+    # Java port: docker build -t kairon-action-server-java action-server (see action-server/CONFIG.md)
+    image: kairon-action-server-java
     container_name: kairon-action-server
     hostname: kairon-action-server
     command:
-      - uvicorn
-      - kairon.actions.server:action
-      - --host
-      - 0.0.0.0
-      - --port
-      - "5055"
-      - --no-server-header
-      - --no-access-log
-      - --log-level
-      - info
-      - --timeout-keep-alive
-      - "120"
+      - /app/bin/kairon-action
     ports:
       - 5055:5055
     environment:
       DATABASE_URL: "mongodb://mongo:27017/kairon"
+      # Secrets come from the host environment or the compose .env file; no value is written here.
+      # If one is unset the action server refuses to start and names it (SecretsValidator).
+      # SECRET_KEY must match the one kairon-api uses. (needs human review)
+      FERNET_KEY: "${FERNET_KEY}"
+      SECRET_KEY: "${SECRET_KEY}"
+      ASYNC_CALLBACK_AES_KEY: "${ASYNC_CALLBACK_AES_KEY}"
+      ASYNC_CALLBACK_AES_IV: "${ASYNC_CALLBACK_AES_IV}"
     networks:
       - chatbotnetwork
 

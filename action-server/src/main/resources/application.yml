@@ -12,6 +12,11 @@ micronaut:
     # CORSMiddleware(allow_origins=cors.origin, allow_credentials=True, allow_methods=["*"], allow_headers=["*"]).
     # localhost-pass-through: Micronaut otherwise answers 403 to a cross-origin request whose Host is localhost
     # even with CORS disabled; the Python server has no such check.
+    # Starlette GZipMiddleware() defaults (kairon/actions/server.py, starlette 0.41.3): minimum_size=500,
+    # compresslevel=9. Micronaut defaults are 1024 and 6.
+    netty:
+      compression-threshold: 500
+      compression-level: 9
     cors:
       enabled: false
       localhost-pass-through: true
@@ -52,6 +57,20 @@ kairon:
     token-expire: 15
     unmasked-char-count: ${SECRET_UNMASKED_CHAR_COUNT:2}
     unmasked-char-strategy: ${SECRET_UNMASKED_CHAR_STRATEGY:from_right}
+
+# Failure mail SMTP settings, read by support/FailureMail. Env var names and defaults mirror the Python
+# email.yaml keys (see CONFIG.md). EMAIL_SENDER_PASSWORD deliberately has no default here.
+email:
+  sender:
+    service: ${EMAIL_SENDER_SERVICE:changeit}
+    port: ${EMAIL_SENDER_PORT:587}
+    email: ${EMAIL_SENDER_EMAIL:changeit@changeit.com}
+    password: ${EMAIL_SENDER_PASSWORD:}
+    userid: ${EMAIL_SENDER_USERID:}
+  templates:
+    action:
+      # Python key email.templates.action_failure_subject
+      failure: ${EMAIL_TEMPLATES_ACTION_FAILURE:kAIron Action Failure - BOT_NAME}
 
 mongodb:
   # database.url / DATABASE_URL. A URL without a database name uses `kairon` (MongoFactory).

@@ -25,6 +25,8 @@ class ConfigMappingTest {
 
     private static final Path PORT = Path.of("").toAbsolutePath();
     private static final Path SYSTEM_YAML = PORT.resolve("../system.yaml").normalize();
+    /** Python reads the SMTP sender and subject keys from email.yaml (Utility.email_conf). */
+    private static final Path EMAIL_YAML = PORT.resolve("../email.yaml").normalize();
     private static final Path APPLICATION_YML = PORT.resolve("src/main/resources/application.yml");
     private static final Path CONFIG_MD = PORT.resolve("CONFIG.md");
 
@@ -51,6 +53,12 @@ class ConfigMappingTest {
         REQUIRED.put("ASYNC_CALLBACK_AES_IV", null);
         REQUIRED.put("SECRET_UNMASKED_CHAR_COUNT", "2");
         REQUIRED.put("FRONTEND_URL", "http://localhost:3000");
+        REQUIRED.put("EMAIL_SENDER_SERVICE", "changeit");
+        REQUIRED.put("EMAIL_SENDER_PORT", "587");
+        REQUIRED.put("EMAIL_SENDER_EMAIL", "changeit@changeit.com");
+        REQUIRED.put("EMAIL_SENDER_PASSWORD", null);
+        REQUIRED.put("EMAIL_SENDER_USERID", null);
+        REQUIRED.put("EMAIL_TEMPLATES_ACTION_FAILURE", "kAIron Action Failure - BOT_NAME");
     }
 
     record Row(String pythonKey, String env, String property, String defaultCell) {
@@ -58,7 +66,7 @@ class ConfigMappingTest {
 
     @Test
     void everyMappedEnvVarMatchesSystemYamlAndApplicationYml() throws IOException {
-        String system = read(SYSTEM_YAML);
+        String system = pythonYaml();
         String application = read(APPLICATION_YML);
         List<Row> rows = table();
         assertFalse(rows.isEmpty());
@@ -67,7 +75,7 @@ class ConfigMappingTest {
                 continue;
             }
             String pythonDefault = placeholderDefault(system, row.env());
-            assertTrue(pythonDefault != null, row.env() + " is not a system.yaml env var");
+            assertTrue(pythonDefault != null, row.env() + " is not a system.yaml or email.yaml env var");
             String portDefault = placeholderDefault(application, row.env());
             assertTrue(portDefault != null, row.env() + " is not bound in application.yml");
             String cell = row.defaultCell();
@@ -93,7 +101,7 @@ class ConfigMappingTest {
         for (Row row : table()) {
             byEnv.put(row.env(), row);
         }
-        String system = read(SYSTEM_YAML);
+        String system = pythonYaml();
         for (Map.Entry<String, String> required : REQUIRED.entrySet()) {
             assertTrue(byEnv.containsKey(required.getKey()), required.getKey() + " missing from CONFIG.md");
             if (required.getValue() != null) {
@@ -134,6 +142,22 @@ class ConfigMappingTest {
             if (System.getenv("EXPRESSION_EVALUATOR_ENDPOINT") == null) {
                 assertEquals("http://192.168.100.109:8085/evaluate", settings.getEvaluatorUrl());
             }
+            if (System.getenv("EMAIL_SENDER_PORT") == null) {
+                assertEquals(587, context.getProperty("email.sender.port", Integer.class).orElseThrow());
+            }
+            if (System.getenv("EMAIL_SENDER_SERVICE") == null) {
+                assertEquals("changeit", context.getProperty("email.sender.service", String.class).orElseThrow());
+            }
+            if (System.getenv("EMAIL_SENDER_EMAIL") == null) {
+                assertEquals("changeit@changeit.com", context.getProperty("email.sender.email", String.class).orElseThrow());
+            }
+            if (System.getenv("EMAIL_SENDER_PASSWORD") == null) {
+                assertEquals("", context.getProperty("email.sender.password", String.class).orElse(""));
+            }
+            if (System.getenv("EMAIL_TEMPLATES_ACTION_FAILURE") == null) {
+                assertEquals("kAIron Action Failure - BOT_NAME",
+                        context.getProperty("email.templates.action.failure", String.class).orElseThrow());
+            }
             if (System.getenv("DATABASE_URL") == null) {
                 assertEquals("mongodb://localhost:27017/conversations", context.getProperty("mongodb.uri", String.class).orElseThrow());
             }
@@ -164,6 +188,12 @@ class ConfigMappingTest {
         env.put("SECRET_UNMASKED_CHAR_STRATEGY", "from_left");
         env.put("ACTION_SERVER_URL", "http://self.test/webhook");
         env.put("FRONTEND_URL", "http://front.test");
+        env.put("EMAIL_SENDER_SERVICE", "smtp.test");
+        env.put("EMAIL_SENDER_PORT", "2525");
+        env.put("EMAIL_SENDER_EMAIL", "bot@test");
+        env.put("EMAIL_SENDER_PASSWORD", "smtp-password-from-env");
+        env.put("EMAIL_SENDER_USERID", "smtp-user");
+        env.put("EMAIL_TEMPLATES_ACTION_FAILURE", "Failure in BOT_NAME");
         try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).properties(env).start()) {
             ActionSettings settings = context.getBean(ActionSettings.class);
             assertEquals(33, settings.getRequestTimeout());
@@ -186,6 +216,12 @@ class ConfigMappingTest {
             assertEquals("from_left", settings.getUnmaskedCharStrategy());
             assertEquals("http://self.test/webhook", settings.getActionServerUrl());
             assertEquals("http://front.test", settings.getFrontendUrl());
+            assertEquals("smtp.test", context.getProperty("email.sender.service", String.class).orElseThrow());
+            assertEquals(2525, context.getProperty("email.sender.port", Integer.class).orElseThrow());
+            assertEquals("bot@test", context.getProperty("email.sender.email", String.class).orElseThrow());
+            assertEquals("smtp-password-from-env", context.getProperty("email.sender.password", String.class).orElseThrow());
+            assertEquals("smtp-user", context.getProperty("email.sender.userid", String.class).orElseThrow());
+            assertEquals("Failure in BOT_NAME", context.getProperty("email.templates.action.failure", String.class).orElseThrow());
             String uri = context.getProperty("mongodb.uri", String.class).orElseThrow();
             assertEquals("mongodb://db.test:27017", uri);
             assertEquals("kairon", MongoFactory.databaseName(uri));
@@ -205,6 +241,11 @@ class ConfigMappingTest {
         ActionSettings settings = new ActionSettings();
         settings.setCorsOrigin("https://a.test, https://b.test");
         assertEquals(List.of("https://a.test", "https://b.test"), settings.corsOrigins());
+    }
+
+    /** system.yaml followed by email.yaml; env var names are unique across both. */
+    private static String pythonYaml() throws IOException {
+        return read(SYSTEM_YAML) + "\n" + read(EMAIL_YAML);
     }
 
     private static List<Row> table() throws IOException {
