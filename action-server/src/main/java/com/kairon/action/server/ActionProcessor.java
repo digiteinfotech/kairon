@@ -30,16 +30,35 @@ public class ActionProcessor {
         this.support = support;
     }
 
-    /** Blank next_action returns null. Failures return 200 with empty events and any messages already uttered. */
+    /**
+     * kairon/actions/handlers/action.py process_actions. A missing, empty or whitespace-only next_action
+     * returns null. A missing tracker, a non-object tracker or a tracker without sender_id raises
+     * {@link MalformedCall}, which the controller maps to HTTP 500 (Python KeyError/TypeError) with no
+     * action executed. Any failure while executing the action is absorbed and returns empty events plus
+     * the messages uttered before the failure (action.py:25-31 builds the response from dispatcher.messages).
+     */
     public Object handle(Map<String, Object> call) {
-        String actionName = Maps.str(call.get("next_action"));
-        if (actionName == null || actionName.isBlank()) {
+        Object rawName = call.get("next_action");
+        if (!Maps.truthy(rawName)) {
+            return null;
+        }
+        if (!(rawName instanceof String name)) {
+            throw new MalformedCall("next_action is not a string");
+        }
+        String actionName = name.strip();
+        if (actionName.isEmpty()) {
             return null;
         }
         if (!call.containsKey("tracker")) {
-            throw new IllegalArgumentException("tracker");
+            throw new MalformedCall("tracker");
         }
-        TrackerState tracker = TrackerState.from(Maps.map(call.get("tracker")));
+        if (!(call.get("tracker") instanceof Map<?, ?> rawTracker)) {
+            throw new MalformedCall("tracker is not an object");
+        }
+        if (!rawTracker.containsKey("sender_id")) {
+            throw new MalformedCall("sender_id");
+        }
+        TrackerState tracker = TrackerState.from(Maps.map(rawTracker), support.tokens()::decrypt);
         Dispatcher dispatcher = new Dispatcher();
         String bot = Maps.str(tracker.slotValue("bot"));
         try {
@@ -61,21 +80,28 @@ public class ActionProcessor {
                 event.put("value", entry.getValue());
                 events.add(event);
             }
-            return response(validate(events), dispatcher);
+            return response(validate(events), dispatcher.messages);
         } catch (Exception e) {
             LOG.error("action failed: {}", actionName, e);
             String message = e.getMessage() == null ? e.toString() : e.getMessage();
             support.saveProcessorFailure(tracker, actionName, message);
             support.failureMail(bot, actionName, tracker.text(), message);
-            return response(List.of(), dispatcher);
+            return response(List.of(), dispatcher.messages);
         }
     }
 
-    private static Map<String, Object> response(List<Object> events, Dispatcher dispatcher) {
+    private static Map<String, Object> response(List<Object> events, List<?> responses) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("events", events);
-        body.put("responses", dispatcher.messages);
+        body.put("responses", responses);
         return body;
+    }
+
+    /** A request the Python server rejects with an unhandled exception (HTTP 500). */
+    public static final class MalformedCall extends RuntimeException {
+        public MalformedCall(String message) {
+            super(message);
+        }
     }
 
     private static List<Object> validate(List<Object> events) {
