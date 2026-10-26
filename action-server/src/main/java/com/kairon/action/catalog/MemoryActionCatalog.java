@@ -18,7 +18,7 @@ public class MemoryActionCatalog implements ActionCatalog {
     private final ConcurrentHashMap<String, List<Document>> data = new ConcurrentHashMap<>();
 
     public void put(String collection, Document document) {
-        bucket(collection).add(deepCopy(document));
+        add(collection, deepCopy(document));
     }
 
     public void clear() {
@@ -156,8 +156,15 @@ public class MemoryActionCatalog implements ActionCatalog {
         if (copy.get("timestamp") == null) {
             copy.put("timestamp", new Date());
         }
-        bucket(collection).add(copy);
+        add(collection, copy);
         return deepCopy(copy);
+    }
+
+    @Override
+    public Object insertEmpty(String collection) {
+        ObjectId id = new ObjectId();
+        add(collection, new Document("_id", id));
+        return id;
     }
 
     @Override
@@ -183,6 +190,14 @@ public class MemoryActionCatalog implements ActionCatalog {
             copy.add(deepCopy(document));
         }
         return copy;
+    }
+
+    /** Children of a parallel_action write logs concurrently; the bucket is a plain ArrayList. */
+    private void add(String collection, Document document) {
+        List<Document> list = bucket(collection);
+        synchronized (list) {
+            list.add(document);
+        }
     }
 
     private List<Document> bucket(String collection) {
