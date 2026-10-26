@@ -281,12 +281,19 @@ class WebhookTest {
 
     @Test
     void catchAllReturnsEmptyEventsAndResponses() throws Exception {
+        Reply silent = post(call("nothing_uttered", slots(), latest("hi"), null));
+        assertEquals(200, silent.status());
+        assertEquals("{\"events\":[],\"responses\":[]}", silent.body().trim());
+
         register("probe", ProbeAction.TYPE);
         Map<String, Object> values = slots();
         values.put("probe_fail", true);
         Reply reply = post(call("probe", values, latest("hi"), null));
         assertEquals(200, reply.status());
-        assertEquals("{\"events\":[],\"responses\":[]}", reply.body().trim());
+        Map<String, Object> body = Jsons.readMap(reply.body());
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(1, responses(body).size());
+        assertEquals("uttered before failure", responses(body).get(0).get("text"));
         assertEquals(1, probe.executions);
         List<Document> failed = logs("probe");
         assertEquals(1, failed.size());

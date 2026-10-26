@@ -34,8 +34,8 @@ public class ActionProcessor {
      * kairon/actions/handlers/action.py process_actions. A missing, empty or whitespace-only next_action
      * returns null. A missing tracker, a non-object tracker or a tracker without sender_id raises
      * {@link MalformedCall}, which the controller maps to HTTP 500 (Python KeyError/TypeError) with no
-     * action executed. Any failure while executing the action is absorbed and returns empty events and
-     * empty responses.
+     * action executed. Any failure while executing the action is absorbed and returns empty events plus
+     * the messages uttered before the failure (action.py:25-31 builds the response from dispatcher.messages).
      */
     public Object handle(Map<String, Object> call) {
         Object rawName = call.get("next_action");
@@ -86,7 +86,7 @@ public class ActionProcessor {
             String message = e.getMessage() == null ? e.toString() : e.getMessage();
             support.saveProcessorFailure(tracker, actionName, message);
             support.failureMail(bot, actionName, tracker.text(), message);
-            return response(List.of(), List.of());
+            return response(List.of(), dispatcher.messages);
         }
     }
 
