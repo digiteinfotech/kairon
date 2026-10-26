@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "node_id": "synthetic/parity_replay_test.py::test_slot_set_action_from_value",
+  "normalized": true,
+  "mongo": {
+    "available": true,
+    "databases": ["test_conversations", "kairon_events"],
+    "seed": {
+      "test_conversations": {
+        "actions": [
+          {
+            "_id": {"$oid": "65a1f0c2e4b0a1b2c3d4e5f1"},
+            "name": "set_location",
+            "type": "slot_set_action",
+            "bot": "5f50fd0a56b698ca10d35d2e",
+            "user": "user@kairon.ai",
+            "timestamp": {"$date": {"$numberLong": "1704067200000"}},
+            "status": true
+          }
+        ],
+        "slot_set_action": [
+          {
+            "_id": {"$oid": "65a1f0c2e4b0a1b2c3d4e5f2"},
+            "name": "set_location",
+            "set_slots": [
+              {"name": "location", "type": "from_value", "value": "Bengaluru"},
+              {"name": "age", "type": "reset_slot"}
+            ],
+            "bot": "5f50fd0a56b698ca10d35d2e",
+            "user": "user@kairon.ai",
+            "timestamp": {"$date": {"$numberLong": "1704067200000"}},
+            "status": true
+          }
+        ]
+      }
+    },
+    "written": {
+      "test_conversations": {
+        "action_server_logs": {
+          "inserted": [
+            {
+              "_id": "{{OBJECT_ID:1}}",
+              "type": "slot_set_action",
+              "intent": "greet",
+              "action": "set_location",
+              "sender": "default",
+              "messages": ["Setting slot 'location' to 'Bengaluru'.", "Resetting slot 'age' value to None."],
+              "bot": "5f50fd0a56b698ca10d35d2e",
+              "timestamp": "{{TIMESTAMP}}",
+              "status": "Success",
+              "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
+              "request_id": "{{REQUEST_ID}}",
+              "user_msg": "hello"
+            }
+          ],
+          "updated": [],
+          "deleted": []
+        }
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/webhook",
+        "query": "",
+        "headers": [
+          ["host", "testserver"],
+          ["accept", "*/*"],
+          ["accept-encoding", "gzip, deflate"],
+          ["connection", "keep-alive"],
+          ["user-agent", "testclient"],
+          ["content-length", "250"],
+          ["content-type", "application/json"]
+        ],
+        "body": {
+          "encoding": "json",
+          "value": {
+            "next_action": "set_location",
+            "tracker": {
+              "sender_id": "default",
+              "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": null, "age": 30},
+              "latest_message": {"text": "hello", "intent": {"name": "greet"}, "entities": []},
+              "events": [],
+              "followup_action": "set_location",
+              "latest_input_channel": "rest"
+            },
+            "domain": {"slots": {}, "responses": {}}
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["content-length", "141"],
+          ["content-type", "application/json"]
+        ],
+        "body": {
+          "encoding": "json",
+          "value": {
+            "events": [
+              {"event": "slot", "timestamp": null, "name": "location", "value": "Bengaluru"},
+              {"event": "slot", "timestamp": null, "name": "age", "value": null}
+            ],
+            "responses": []
+          }
+        }
+      }
+    }
+  ],
+  "upstream": []
+}
