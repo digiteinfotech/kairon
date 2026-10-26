@@ -1,0 +1,47 @@
+micronaut:
+  application:
+    name: kairon-action
+  server:
+    port: 5055
+    cors:
+      enabled: true
+      configurations:
+        all:
+          allowed-origins:
+            - "*"
+          allowed-methods:
+            - GET
+            - POST
+            - OPTIONS
+          allowed-headers:
+            - "*"
+
+jackson:
+  serialization-inclusion: ALWAYS
+
+kairon:
+  action:
+    catalog: ${KAIRON_ACTION_CATALOG:mongo}
+    rasa-sdk-version: "3.6.21"
+    request-timeout: ${KAIRON_ACTION_TIMEOUT:5}
+    callback-base-url: ${KAIRON_CALLBACK_URL:}
+    events-server-url: ${KAIRON_EVENTS_URL:}
+    web-search-url: ${KAIRON_WEB_SEARCH_URL:}
+    evaluator-url: ${KAIRON_EVALUATOR_URL:}
+    pyscript-url: ${KAIRON_PYSCRIPT_URL:}
+    live-agent-url: ${KAIRON_LIVE_AGENT_URL:}
+    live-agent-token: ${KAIRON_LIVE_AGENT_TOKEN:}
+    live-agent-enabled: ${KAIRON_LIVE_AGENT_ENABLED:false}
+    vector-url: ${KAIRON_VECTOR_URL:}
+    llm-url: ${KAIRON_LLM_URL:}
+    simple-agent-url: ${KAIRON_SIMPLE_AGENT_URL:}
+    voice-call-url: ${KAIRON_VOICE_CALL_URL:}
+    frontend-url: ${KAIRON_FRONTEND_URL:}
+    fernet-key: ${KAIRON_FERNET_KEY:}
+    jwt-secret: ${KAIRON_JWT_SECRET:}
+    jwt-algorithm: ${KAIRON_JWT_ALGORITHM:HS256}
+    token-expire: ${KAIRON_TOKEN_EXPIRE:15}
+    unmasked-char-count: ${KAIRON_UNMASKED_CHARS:4}
+
+mongodb:
+  uri: ${MONGODB_URI:mongodb://localhost:27017/conversations}

@@ -1,0 +1,25 @@
+micronaut:
+  server:
+    port: -1
+
+kairon:
+  action:
+    catalog: memory
+    fernet-key: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+    jwt-secret: "test-secret-test-secret-test-secret"
+    jwt-algorithm: HS256
+    live-agent-enabled: false
+    request-timeout: 5
+    callback-base-url: "http://callback.test"
+    events-server-url: "http://127.0.0.1:18771"
+    web-search-url: "http://127.0.0.1:18780/websearch"
+    evaluator-url: "http://127.0.0.1:18780/eval"
+    pyscript-url: "http://127.0.0.1:18780/pyscript"
+    live-agent-url: "http://127.0.0.1:18780/live"
+    live-agent-token: "live-token"
+    vector-url: "http://127.0.0.1:18780/vector"
+    llm-url: "http://127.0.0.1:18780/llm"
+    simple-agent-url: "http://127.0.0.1:18780/agent"
+    voice-call-url: "http://127.0.0.1:18780/voice"
+    frontend-url: "http://front.test"
+    https-stub-base: "http://127.0.0.1:18780"

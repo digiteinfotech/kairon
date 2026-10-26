@@ -1,0 +1,48 @@
+package com.kairon.action.actions;
+
+import com.kairon.action.catalog.ActionCatalog;
+import com.kairon.action.runtime.ActionFailure;
+import com.kairon.action.runtime.KaironAction;
+import com.kairon.action.support.Maps;
+import jakarta.inject.Singleton;
+import org.bson.Document;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@Singleton
+public class ActionFactory {
+
+    private final Map<String, KaironAction> byType = new LinkedHashMap<>();
+    private final ActionCatalog catalog;
+
+    public ActionFactory(List<KaironAction> actions, ActionCatalog catalog) {
+        for (KaironAction action : actions) {
+            byType.put(action.type(), action);
+        }
+        this.catalog = catalog;
+    }
+
+    public KaironAction get(String bot, String name) {
+        String type = typeOf(bot, name);
+        KaironAction action = byType.get(type);
+        if (action == null) {
+            throw new ActionFailure(type + " type action is not supported with action server");
+        }
+        return action;
+    }
+
+    public String typeOf(String bot, String name) {
+        if ("kairon_voice_disconnect".equals(name)) {
+            return "kairon_voice_disconnect";
+        }
+        if (name != null && name.startsWith("utter_")) {
+            return "kairon_bot_response";
+        }
+        Document document = catalog.findActive("actions", bot, "name", name)
+                .orElseThrow(() -> new ActionFailure("No action found for given bot and name"));
+        String type = Maps.str(document.get("type"));
+        return type == null ? "None" : type;
+    }
+}
