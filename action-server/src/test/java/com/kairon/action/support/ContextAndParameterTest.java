@@ -14,7 +14,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-/** templating-and-secrets R3 c3 (latest_message parameter) and R4 c1-c2 (evaluation context). */
+/** templating-and-secrets R3 c3 (latest_message falls through like Python) and R4 c1-c2 (evaluation context). */
 class ContextAndParameterTest {
 
     private static final String BOT = "ctx-bot";
@@ -77,18 +77,19 @@ class ContextAndParameterTest {
         assertEquals(BOT, noVault.get("bot"));
     }
 
+    /** Python get_parameter_value has no latest_message branch: it falls through to param['value']. */
     @Test
-    void latestMessageParameterReturnsTrackerLatestMessage() {
+    void latestMessageParameterFallsThroughToConfiguredValue() {
         Map<String, Object> context = support.context(tracker, false);
         Map<String, Object> param = new LinkedHashMap<>();
         param.put("key", "msg");
         param.put("parameter_type", "latest_message");
-        param.put("value", "ignored");
-        assertEquals(latest, support.parameter(context, param, BOT));
+        param.put("value", "literal");
+        assertEquals("literal", support.parameter(context, param, BOT));
 
         ActionSupport.Prepared prepared = support.prepareRequest(context, List.of(param), BOT);
-        assertEquals(latest, prepared.body().get("msg"));
-        assertEquals(latest, prepared.log().get("msg"));
+        assertEquals("literal", prepared.body().get("msg"));
+        assertEquals("literal", prepared.log().get("msg"));
     }
 
     @Test

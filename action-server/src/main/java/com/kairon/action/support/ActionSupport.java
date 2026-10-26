@@ -152,8 +152,6 @@ public class ActionSupport {
             }
         } else if ("intent".equals(type)) {
             value = trackerData.get("intent");
-        } else if ("latest_message".equals(type)) {
-            value = trackerData.get("latest_message");
         } else if ("chat_log".equals(type)) {
             Map<String, Object> log = new LinkedHashMap<>();
             log.put("sender_id", trackerData.get("sender_id"));
