@@ -31,9 +31,9 @@ public class VoiceDisconnectAction implements KaironAction {
         } catch (Exception e) {
             exception = e.getMessage();
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
-            support.save(context, type(), status, exception, "{'disconnect': True}", null);
+            support.save(context, type(), status, exception, Map.of("disconnect", true), null);
         }
         return Map.of();
     }

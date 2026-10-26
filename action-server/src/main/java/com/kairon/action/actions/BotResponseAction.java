@@ -47,7 +47,7 @@ public class BotResponseAction implements KaironAction {
         } catch (RuntimeException e) {
             exception = e.getMessage();
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         }
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("enable_rephrasing", enableRephrasing);

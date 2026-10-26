@@ -71,7 +71,7 @@ public class AgentAction implements KaironAction {
             LOG.error("agent action failed", e);
             status = Kairon.FAIL;
             botResponse = Kairon.FAILED_DOT;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch && Maps.truthy(botResponse)) {
                 ActionFlags.utterText(context.dispatcher, botResponse);

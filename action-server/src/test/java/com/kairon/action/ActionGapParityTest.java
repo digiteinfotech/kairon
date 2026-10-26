@@ -103,7 +103,7 @@ class ActionGapParityTest {
         assertEquals(Kairon.SUCCESS, log.get("status"));
         assertEquals(true, log.get("enable_rephrasing"));
         assertEquals(false, log.get("is_rephrased"));
-        assertTrue(log.containsKey("raw_gpt_response"));
+        assertFalse(log.containsKey("raw_gpt_response"), "mongoengine omits the None raw_gpt_response");
         assertNull(log.get("raw_gpt_response"));
     }
 

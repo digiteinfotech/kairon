@@ -85,7 +85,7 @@ public class ActionProcessor {
             LOG.error("action failed: {}", actionName, e);
             String message = e.getMessage() == null ? e.toString() : e.getMessage();
             support.saveProcessorFailure(tracker, actionName, message);
-            support.failureMail(bot, actionName, tracker.text(), message);
+            support.failureMail(bot, actionName, tracker, e);
             return response(List.of(), dispatcher.messages);
         }
     }

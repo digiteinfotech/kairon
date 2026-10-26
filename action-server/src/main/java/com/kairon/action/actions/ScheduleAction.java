@@ -110,7 +110,7 @@ public class ScheduleAction implements KaironAction {
             LOG.error("schedule action failed", e);
             status = Kairon.FAIL;
             botResponse = Kairon.SORRY;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 context.dispatcher.text(botResponse == null ? null : String.valueOf(botResponse));

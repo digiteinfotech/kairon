@@ -67,7 +67,7 @@ public class LiveAgentAction implements KaironAction {
             if (!Maps.truthy(botResponse)) {
                 botResponse = Kairon.SORRY;
             }
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 if (web) {

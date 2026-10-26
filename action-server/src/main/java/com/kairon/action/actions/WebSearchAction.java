@@ -56,7 +56,7 @@ public class WebSearchAction implements KaironAction {
             LOG.error("web search failed", e);
             exception = ActionFlags.message(e);
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("public_search_action_response", results);

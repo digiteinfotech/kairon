@@ -27,4 +27,22 @@ public interface ActionCatalog {
     void replace(String collection, Object id, Document document);
 
     List<Document> all(String collection);
+
+    /**
+     * The document of {@code collection} whose {@code _id} is {@code id} (mongoengine objects(id=...)):
+     * an ObjectId-shaped id matches either the ObjectId or the plain string.
+     */
+    default Optional<Document> findById(String collection, Object id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        String wanted = String.valueOf(id);
+        for (Document document : all(collection)) {
+            Object key = document.get("_id");
+            if (key != null && wanted.equals(String.valueOf(key))) {
+                return Optional.of(document);
+            }
+        }
+        return Optional.empty();
+    }
 }

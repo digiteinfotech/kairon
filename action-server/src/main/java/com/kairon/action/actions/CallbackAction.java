@@ -95,7 +95,7 @@ public class CallbackAction implements KaironAction {
             if (!Maps.truthy(botResponse)) {
                 botResponse = Kairon.SORRY;
             }
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 if (Maps.truthy(botResponse) && Maps.truthy(callbackUrl)) {

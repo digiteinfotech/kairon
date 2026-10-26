@@ -82,7 +82,7 @@ public class DatabaseAction implements KaironAction {
             LOG.error("database action failed", e);
             status = Kairon.FAIL;
             botResponse = failure;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             if (dispatch) {
                 ActionFlags.utterText(context.dispatcher, botResponse);

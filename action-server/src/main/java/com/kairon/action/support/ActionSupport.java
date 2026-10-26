@@ -8,6 +8,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.Dispatcher;
 import com.kairon.action.runtime.RequestIds;
 import com.kairon.action.runtime.TrackerState;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +40,19 @@ public class ActionSupport {
     private final ActionSettings settings;
     private final Tokens tokens;
     private final HttpCaller http;
+    private final FailureMail mail;
 
     public ActionSupport(ActionCatalog catalog, ActionSettings settings, Tokens tokens, HttpCaller http) {
+        this(catalog, settings, tokens, http, null);
+    }
+
+    @Inject
+    public ActionSupport(ActionCatalog catalog, ActionSettings settings, Tokens tokens, HttpCaller http, FailureMail mail) {
         this.catalog = catalog;
         this.settings = settings;
         this.tokens = tokens;
         this.http = http;
+        this.mail = mail;
     }
 
     public ActionCatalog catalog() { return catalog; }
@@ -59,46 +68,127 @@ public class ActionSupport {
         return catalog.findBotSettings(bot);
     }
 
+    /**
+     * ActionServerLogs declared fields in declaration order (kairon/shared/actions/data_objects.py).
+     * mongoengine writes these first, then dynamic fields in the order they were passed, and omits None values.
+     */
+    public static final List<String> LOG_FIELDS = List.of(
+            "type", "intent", "action", "sender", "headers", "url", "request_method", "request_params",
+            "api_response", "bot_response", "exception", "messages", "bot", "timestamp", "status",
+            "trigger_info", "request_id");
+
     public void save(ActionContext ctx, String type, String status, String exception, Object botResponse, Map<String, Object> extra) {
-        Document document = new Document();
-        document.put("type", type);
-        document.put("intent", ctx.tracker.intent());
-        document.put("action", ctx.actionName);
-        document.put("sender", ctx.tracker.senderId);
-        document.put("exception", exception);
-        document.put("bot_response", botResponse == null ? null : String.valueOf(botResponse));
-        document.put("bot", ctx.bot);
-        document.put("status", status);
-        document.put("user_msg", ctx.tracker.text());
-        document.put("request_id", RequestIds.get());
-        Document trigger = new Document();
-        trigger.put("trigger_name", ctx.trigger("trigger_name", ""));
-        trigger.put("trigger_type", ctx.trigger("trigger_type", "implicit"));
-        trigger.put("trigger_id", ctx.trigger("trigger_id", ""));
-        document.put("trigger_info", trigger);
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("type", type);
+        values.put("intent", ctx.tracker.intent());
+        values.put("action", ctx.actionName);
+        values.put("sender", ctx.tracker.senderId);
+        values.put("exception", exception);
+        values.put("bot_response", logText(botResponse));
+        values.put("bot", ctx.bot);
+        values.put("status", status);
+        values.put("user_msg", ctx.tracker.text());
+        values.put("trigger_info", triggerInfo(ctx.actionCall.get("trigger_info")));
+        values.put("request_id", RequestIds.get());
         if (extra != null) {
-            extra.forEach(document::put);
+            extra.forEach(values::put);
         }
-        catalog.insert(Kairon.LOGS, document);
+        catalog.insert(Kairon.LOGS, logRecord(values));
     }
 
+    /** Python catch-all ActionServerLogs(...) in kairon/actions/handlers/processor.py: no type, default trigger_info. */
     public void saveProcessorFailure(TrackerState tracker, String action, String exception) {
-        Document document = new Document();
-        document.put("intent", tracker.intent());
-        document.put("action", action);
-        document.put("sender", tracker.senderId);
-        document.put("exception", exception);
-        document.put("bot", tracker.slotValue("bot"));
-        document.put("status", Kairon.FAIL);
-        document.put("request_id", RequestIds.get());
-        catalog.insert(Kairon.LOGS, document);
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("intent", tracker.intent());
+        values.put("action", action);
+        values.put("sender", tracker.senderId);
+        values.put("exception", exception);
+        values.put("bot", tracker.slotValue("bot"));
+        values.put("status", Kairon.FAIL);
+        values.put("request_id", RequestIds.get());
+        catalog.insert(Kairon.LOGS, logRecord(values));
     }
 
+    /**
+     * mongoengine to_mongo for ActionServerLogs: declared fields in {@link #LOG_FIELDS} order, then dynamic
+     * fields in insertion order, None values omitted. Defaults: timestamp = now (BSON millisecond precision),
+     * status = Success, trigger_info = TriggerInfo().
+     */
+    public static Document logRecord(Map<String, Object> values) {
+        Map<String, Object> all = new LinkedHashMap<>(values);
+        if (all.get("timestamp") == null) {
+            all.put("timestamp", new Date());
+        }
+        if (all.get("status") == null) {
+            all.put("status", Kairon.SUCCESS);
+        }
+        if (all.get("trigger_info") == null) {
+            all.put("trigger_info", triggerInfo(null));
+        }
+        Document document = new Document();
+        for (String field : LOG_FIELDS) {
+            Object value = all.get(field);
+            if (value != null) {
+                document.put(field, value);
+            }
+        }
+        all.forEach((key, value) -> {
+            if (value != null && !LOG_FIELDS.contains(key)) {
+                document.put(key, value);
+            }
+        });
+        return document;
+    }
+
+    /**
+     * TriggerInfo(**(action_call.get('trigger_info') or {})): the request values in declared order, a missing or
+     * None member taking its default ("", "implicit", "").
+     */
+    public static Document triggerInfo(Object requested) {
+        Map<?, ?> info = requested instanceof Map<?, ?> map ? map : Map.of();
+        Document trigger = new Document();
+        trigger.put("trigger_name", info.get("trigger_name") == null ? "" : info.get("trigger_name"));
+        trigger.put("trigger_type", info.get("trigger_type") == null ? "implicit" : info.get("trigger_type"));
+        trigger.put("trigger_id", info.get("trigger_id") == null ? "" : info.get("trigger_id"));
+        return trigger;
+    }
+
+    /** {@code str(bot_response)} as the Python actions log it: strings as-is, dicts and lists as Python repr. */
+    public static String logText(Object botResponse) {
+        return botResponse == null ? null : PyRepr.str(botResponse);
+    }
+
+    /**
+     * Python ActionUtility.trigger_action_failure_mail from an action's exception handler: bot, action name,
+     * stack trace of {@code error}, current slot values and latest user text. Fire-and-forget.
+     */
+    public void failureMail(ActionContext ctx, Throwable error) {
+        failureMail(ctx.bot, ctx.actionName, ctx.tracker, error);
+    }
+
+    /** trigger_action_failure_mail for the catch-all in kairon/actions/handlers/processor.py. */
+    public void failureMail(String bot, String action, TrackerState tracker, Throwable error) {
+        try {
+            if (mail != null) {
+                mail.trigger(bot, action, tracker == null ? Map.of() : tracker.copySlots(),
+                        tracker == null ? null : tracker.text(), FailureMail.stackTrace(error));
+            }
+        } catch (Exception e) {
+            LOG.error("action failure mail not triggered", e);
+        }
+    }
+
+    /**
+     * Legacy call shape without the tracker or exception object: slot values are unknown ({}) and the
+     * exception text stands in for the stack trace. Prefer {@link #failureMail(ActionContext, Throwable)}.
+     */
     public void failureMail(String bot, String action, String userText, String error) {
         try {
-            LOG.info("action failure mail suppressed bot={} action={} user={} error={}", bot, action, userText, error);
-        } catch (Exception ignored) {
-            // Python swallows mailer errors.
+            if (mail != null) {
+                mail.trigger(bot, action, Map.of(), userText, error);
+            }
+        } catch (Exception e) {
+            LOG.error("action failure mail not triggered", e);
         }
     }
 
@@ -434,52 +524,12 @@ public class ActionSupport {
         return parsed;
     }
 
-    /** Python str() for lists, None, and bools. Maps stay compact JSON. */
-    private static String placeholder(Object value) {
-        if (value == null) {
-            return "None";
-        }
-        if (value instanceof Boolean flag) {
-            return flag ? "True" : "False";
-        }
+    /** prepare_response: a dict value is rendered with json.dumps, anything else with Python str(). */
+    static String placeholder(Object value) {
         if (value instanceof Map<?, ?>) {
-            return Jsons.write(value);
+            return Jsons.pythonDumps(value);
         }
-        if (value instanceof List<?> list) {
-            return pythonList(list);
-        }
-        return String.valueOf(value);
-    }
-
-    private static String pythonList(List<?> list) {
-        StringBuilder out = new StringBuilder("[");
-        for (int i = 0; i < list.size(); i++) {
-            if (i > 0) {
-                out.append(", ");
-            }
-            out.append(pythonItem(list.get(i)));
-        }
-        out.append(']');
-        return out.toString();
-    }
-
-    private static String pythonItem(Object value) {
-        if (value == null) {
-            return "None";
-        }
-        if (value instanceof Boolean flag) {
-            return flag ? "True" : "False";
-        }
-        if (value instanceof String text) {
-            return "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'";
-        }
-        if (value instanceof List<?> list) {
-            return pythonList(list);
-        }
-        if (value instanceof Map<?, ?>) {
-            return Jsons.write(value);
-        }
-        return String.valueOf(value);
+        return PyRepr.str(value);
     }
 
     /**
@@ -656,10 +706,37 @@ public class ActionSupport {
         info.put("validation_secret", Maps.isEmpty(secret) ? secret : decryptMaybe(String.valueOf(secret)));
         info.put("expire_in", config.get("expire_in"));
         String token = tokens.encrypt(Jsons.pythonDumps(info));
-        if (Boolean.TRUE.equals(config.get("shorten_token")) && config.get("token_hash") != null) {
-            return String.valueOf(config.get("token_hash"));
+        if (Maps.truthy(config.get("shorten_token"))) {
+            // entry.token_value = token; entry.save(); return xor_encrypt_secret(entry.token_hash)
+            config.put("token_value", token);
+            if (config.get("_id") != null) {
+                catalog.replace("callback_config", config.get("_id"), config);
+            }
+            Object hash = config.get("token_hash");
+            if (hash == null) {
+                throw new ActionFailure("'NoneType' object has no attribute 'encode'");
+            }
+            return shortSecret(String.valueOf(hash), settings.getAsyncCallbackAesKey(), settings.getAsyncCallbackAesIv());
         }
         return token;
+    }
+
+    /**
+     * Python xor_encrypt_secret (kairon/shared/callback/data_objects.py): AES-CTR over the UTF-8 secret with
+     * the hex key and hex IV (initial counter block), urlsafe base64 with the '=' padding stripped.
+     */
+    public static String shortSecret(String secret, String hexKey, String hexIv) {
+        try {
+            byte[] key = java.util.HexFormat.of().parseHex(hexKey == null ? "" : hexKey);
+            byte[] iv = java.util.HexFormat.of().parseHex(hexIv == null ? "" : hexIv);
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(key, "AES"),
+                    new javax.crypto.spec.IvParameterSpec(iv));
+            byte[] encrypted = cipher.doFinal(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(encrypted);
+        } catch (java.security.GeneralSecurityException | IllegalArgumentException e) {
+            throw new ActionFailure("Short callback token encryption failed: " + e.getMessage(), e);
+        }
     }
 
     private static String attachResponse(String template, Object httpResponse) {

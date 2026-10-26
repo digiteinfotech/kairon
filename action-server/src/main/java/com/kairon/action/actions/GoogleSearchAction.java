@@ -67,7 +67,7 @@ public class GoogleSearchAction implements KaironAction {
             LOG.error("google search failed", e);
             exception = ActionFlags.message(e);
             status = Kairon.FAIL;
-            support.failureMail(context.bot, context.actionName, context.tracker.text(), exception);
+            support.failureMail(context, e);
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("google_response", results);
