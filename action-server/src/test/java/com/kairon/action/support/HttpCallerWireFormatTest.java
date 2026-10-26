@@ -108,7 +108,7 @@ class HttpCallerWireFormatTest {
     }
 
     @Test
-    void mediaIdsProduceOneMultipartRequestWithOneFilePartEach() {
+    void mediaIdsProduceOneMultipartRequestPerFileLikePython() {
         Map<String, Object> fields = new LinkedHashMap<>();
         fields.put("caption", "two files");
         fields.put("media_ids", List.of("m1", "m2"));
@@ -118,23 +118,28 @@ class HttpCallerWireFormatTest {
 
         List<Object> responses = caller.multipart("post", stub.url("/echo"), Map.of("Authorization", "Bearer t"), fields, files);
 
-        assertEquals(List.of(Map.of("ok", true)), responses);
-        assertEquals(1, stub.requests.size(), "exactly one multipart request");
-        StubServer.Captured request = stub.requests.get(0);
-        assertEquals("POST", request.method());
-        assertEquals("Bearer t", request.header("Authorization"));
-        assertTrue(request.header("X-TimeStamp") != null);
-        String type = request.header("Content-Type");
-        assertTrue(type.startsWith("multipart/form-data; boundary="), type);
-        String boundary = type.substring(type.indexOf('=') + 1);
-        String body = new String(request.body(), StandardCharsets.ISO_8859_1);
-        assertEquals(2, count(body, "Content-Disposition: form-data; name=\"file\";"));
-        assertTrue(body.contains("name=\"file\"; filename=\"one.png\"\r\nContent-Type: image/png\r\n\r\n\u0001\u0002\u0003\r\n"));
-        assertTrue(body.contains("name=\"file\"; filename=\"two.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF\r\n"));
-        assertTrue(body.contains("name=\"caption\"\r\n\r\ntwo files\r\n"));
-        assertFalse(body.contains("media_ids"));
-        assertTrue(body.endsWith("--" + boundary + "--\r\n"));
-        assertEquals(3, count(body, "--" + boundary + "\r\n"));
+        assertEquals(List.of(Map.of("ok", true), Map.of("ok", true)), responses, "one response per media file");
+        assertEquals(2, stub.requests.size(), "one multipart request per media file");
+        String[] parts = {
+                "name=\"file\"; filename=\"one.png\"\r\nContent-Type: image/png\r\n\r\n\u0001\u0002\u0003\r\n",
+                "name=\"file\"; filename=\"two.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF\r\n"
+        };
+        for (int i = 0; i < 2; i++) {
+            StubServer.Captured request = stub.requests.get(i);
+            assertEquals("POST", request.method());
+            assertEquals("Bearer t", request.header("Authorization"));
+            assertTrue(request.header("X-TimeStamp") != null);
+            String type = request.header("Content-Type");
+            assertTrue(type.startsWith("multipart/form-data; boundary="), type);
+            String boundary = type.substring(type.indexOf('=') + 1);
+            String body = new String(request.body(), StandardCharsets.ISO_8859_1);
+            assertEquals(1, count(body, "Content-Disposition: form-data; name=\"file\";"));
+            assertTrue(body.contains(parts[i]), body);
+            assertTrue(body.contains("name=\"caption\"\r\n\r\ntwo files\r\n"));
+            assertFalse(body.contains("media_ids"));
+            assertTrue(body.endsWith("--" + boundary + "--\r\n"));
+            assertEquals(2, count(body, "--" + boundary + "\r\n"));
+        }
     }
 
     @Test

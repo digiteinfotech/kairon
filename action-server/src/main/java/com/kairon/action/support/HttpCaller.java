@@ -451,36 +451,38 @@ public class HttpCaller {
     }
 
     /**
-     * One multipart request carrying one `file` part per media item, mirroring
-     * requests.request(..., files=[("file", (name, bytes, mime)), ...]). requests drops a `json`
-     * body when files are present, so fields are only sent for content type `data`.
-     * Returns a single-element list holding the parsed response.
+     * Python process_media_and_execute_requests: one request per media item, each built like
+     * requests.request(..., files=[("file", (name, bytes, mime))]) with the form fields
+     * (`media_ids` removed). requests drops a `json` body when files are present, so fields are
+     * only sent for content type `data`. Returns one parsed response per media item, in order.
      */
     public List<Object> multipart(String method, String url, Map<String, ?> headers, Map<String, Object> fields, List<MediaFile> files, String contentType) {
-        try {
-            String verb = method == null ? "POST" : method.toUpperCase(Locale.ROOT);
-            String boundary = UUID.randomUUID().toString().replace("-", "");
-            byte[] payload = multipartBody(boundary, "json".equals(contentType) ? null : fields, files);
-            Map<String, String> outbound = new LinkedHashMap<>();
-            if (headers != null) {
-                headers.forEach((key, value) -> {
-                    if (key != null && value != null && !key.equalsIgnoreCase("Content-Type")) {
-                        outbound.put(key, String.valueOf(value));
-                    }
-                });
+        List<Object> responses = new ArrayList<>();
+        for (MediaFile file : files) {
+            try {
+                String verb = method == null ? "POST" : method.toUpperCase(Locale.ROOT);
+                String boundary = UUID.randomUUID().toString().replace("-", "");
+                byte[] payload = multipartBody(boundary, "json".equals(contentType) ? null : fields, List.of(file));
+                Map<String, String> outbound = new LinkedHashMap<>();
+                if (headers != null) {
+                    headers.forEach((key, value) -> {
+                        if (key != null && value != null && !key.equalsIgnoreCase("Content-Type")) {
+                            outbound.put(key, String.valueOf(value));
+                        }
+                    });
+                }
+                outbound.putIfAbsent(Kairon.TIMESTAMP, STAMP.format(Instant.now()));
+                outbound.put("Content-Type", "multipart/form-data; boundary=" + boundary);
+                HttpResponse<String> response = execute(verb, requote(url), outbound, payload);
+                if (!allowed(response.statusCode())) {
+                    throw new ActionFailure("Got non-200 status code: " + response.statusCode() + " " + response.body());
+                }
+                responses.add(parse(response.body()));
+            } catch (Exception e) {
+                throw new ActionFailure("Failed to execute the url: " + message(e), e);
             }
-            outbound.putIfAbsent(Kairon.TIMESTAMP, STAMP.format(Instant.now()));
-            outbound.put("Content-Type", "multipart/form-data; boundary=" + boundary);
-            HttpResponse<String> response = execute(verb, requote(url), outbound, payload);
-            if (!allowed(response.statusCode())) {
-                throw new ActionFailure("Got non-200 status code: " + response.statusCode() + " " + response.body());
-            }
-            List<Object> responses = new ArrayList<>();
-            responses.add(parse(response.body()));
-            return responses;
-        } catch (Exception e) {
-            throw new ActionFailure("Failed to execute the url: " + message(e), e);
         }
+        return responses;
     }
 
     /** Production leaves this empty. Tests point https provider hosts at a local stub. */
