@@ -169,7 +169,7 @@ public class ParallelAction implements KaironAction {
                 headers.put(Kairon.REQUEST_ID, requestId);
             }
             HttpCaller.Exchange exchange = support.http().exchange("POST", url, headers, body, "json");
-            if (exchange.status() == 0) {
+            if (exchange.transportFailed()) {
                 LOG.warn("parallel_action child {} could not reach {}", name, url);
             }
             return exchange.body();
