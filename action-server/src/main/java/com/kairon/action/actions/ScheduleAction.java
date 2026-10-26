@@ -62,8 +62,7 @@ public class ScheduleAction implements KaironAction {
             }
             scheduleAction = config.get("schedule_action");
             timezone = config.get("timezone");
-            Map<String, Object> trackerData = support.context(context.tracker, true);
-            trackerData.put("bot", context.bot);
+            Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             Object resolved = support.one(trackerData, config.get("schedule_time"), context.bot);
             scheduleTime = resolved;
             ActionSupport.Prepared prepared = support.prepareRequestWithBot(trackerData, config.get("params_list"), context.bot);

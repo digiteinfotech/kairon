@@ -71,7 +71,7 @@ public class EmailAction implements KaironAction {
             Object text = support.one(trackerData, custom, bot);
             return "<html><body><h3>" + subject + "</h3><p>" + (text == null ? "" : text) + "</p><p>" + mail + "</p></body></html>";
         }
-        return support.emailBody(Maps.mapList(trackerData.get("chat_log")), subject);
+        return support.emailBody(Maps.mapList(trackerData.get("chat_log")), subject, mail);
     }
 
     private String address(Object spec, ActionContext context, boolean from) {
