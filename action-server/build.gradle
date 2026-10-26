@@ -17,8 +17,11 @@ dependencies {
     runtimeOnly("ch.qos.logback:logback-classic")
     runtimeOnly("org.yaml:snakeyaml")
     implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("org.eclipse.angus:angus-mail")
     testAnnotationProcessor("io.micronaut:micronaut-inject-java")
     testImplementation("io.micronaut.test:micronaut-test-junit5")
+    testImplementation("com.icegreen:greenmail:2.1.5")
+    testImplementation("org.junit.jupiter:junit-jupiter-params")
     constraints {
         // GHSA-q6gh-6v2r-hjv3: micronaut-http-client 4.x < 4.10.24 forwards credentials across origins on
         // redirect. Not shipped today (outbound calls use java.net.http); floor it in case it is pulled in.
