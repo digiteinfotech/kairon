@@ -59,8 +59,7 @@ public class CallbackAction implements KaironAction {
             String channel = channelKey != null && CHANNELS.containsKey(channelKey)
                     ? CHANNELS.get(channelKey)
                     : "unsupported (" + channelKey + ")";
-            Map<String, Object> trackerData = support.context(context.tracker, true);
-            trackerData.put("bot", context.bot);
+            Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             Object metadataList = config.get("metadata_list") == null ? List.of() : config.get("metadata_list");
             ActionSupport.Prepared prepared = support.prepareRequestWithBot(trackerData, metadataList, context.bot);
             metadataLog = prepared.log();

@@ -50,8 +50,7 @@ public class HttpAction implements KaironAction {
             if (dispatchType == null) {
                 dispatchType = "text";
             }
-            Map<String, Object> trackerData = support.context(context.tracker, true);
-            trackerData.put("bot", context.bot);
+            Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             ActionSupport.Prepared headers = support.prepareRequest(trackerData, config.get("headers"), context.bot);
             Map<String, Object> body;
             Object dynamic = config.get("dynamic_params");

@@ -102,6 +102,10 @@ public class ActionSupport {
         }
     }
 
+    /**
+     * Python build_context(tracker, extract_keyvault). {@code key_vault} holds every decrypted
+     * bot secret only when {@code keyVault} is requested, else an empty dict.
+     */
     public Map<String, Object> context(TrackerState tracker, boolean keyVault) {
         Trail trail = messageTrail(tracker.events);
         Map<String, Object> context = new LinkedHashMap<>();
@@ -110,10 +114,20 @@ public class ActionSupport {
         context.put("slot", tracker.copySlots());
         context.put("intent", tracker.intent());
         context.put("chat_log", trail.messages());
-        context.put("key_vault", keyVault ? secrets(Maps.str(tracker.slotValue("bot"))) : Map.of());
+        context.put("key_vault", keyVault ? secrets(Maps.str(tracker.slotValue("bot"))) : new LinkedHashMap<String, Object>());
         context.put("latest_message", tracker.latestMessage);
         context.put(Kairon.USER_MSG, tracker.entity(Kairon.USER_MSG));
         context.put("session_started", trail.started());
+        return context;
+    }
+
+    /**
+     * build_context followed by {@code tracker_data.update({'bot': bot})}, as the Python
+     * http, callback, google_search and schedule actions do. {@code bot} is the last key.
+     */
+    public Map<String, Object> context(TrackerState tracker, boolean keyVault, String bot) {
+        Map<String, Object> context = context(tracker, keyVault);
+        context.put("bot", bot);
         return context;
     }
 
@@ -138,6 +152,8 @@ public class ActionSupport {
             }
         } else if ("intent".equals(type)) {
             value = trackerData.get("intent");
+        } else if ("latest_message".equals(type)) {
+            value = trackerData.get("latest_message");
         } else if ("chat_log".equals(type)) {
             Map<String, Object> log = new LinkedHashMap<>();
             log.put("sender_id", trackerData.get("sender_id"));
@@ -300,12 +316,16 @@ public class ActionSupport {
         Object output;
         if (Maps.truthy(result.get("bot_response"))) {
             output = result.get("bot_response");
-        } else if (result.get("body") != null) {
+        } else if (Maps.truthy(result.get("body"))) {
             output = result.get("body");
         } else {
-            output = Map.of();
+            output = new LinkedHashMap<String, Object>();
         }
-        if (result.get("media_ids") != null && output instanceof Map<?, ?> existing) {
+        if (Maps.truthy(result.get("media_ids"))) {
+            if (!(output instanceof Map<?, ?> existing)) {
+                // Python: output.update(...) on a non-dict raises AttributeError.
+                throw new ActionFailure("'" + pyTypeName(output) + "' object has no attribute 'update'");
+            }
             Map<String, Object> copy = new LinkedHashMap<>(Maps.map(existing));
             copy.put("media_ids", result.get("media_ids"));
             output = copy;
@@ -323,7 +343,7 @@ public class ActionSupport {
         Object response = http.executeStrict("POST", settings.getPyscriptUrl(), Map.of("Content-Type", "application/json"), body, "json");
         Map<String, Object> map = Maps.map(response);
         Object code = map.get("statusCode");
-        if (!(code instanceof Number number) || number.intValue() != 200) {
+        if (!(code instanceof Number number) || number.doubleValue() != 200.0) {
             throw new ActionFailure("Pyscript evaluation failed: " + response);
         }
         Object payload = map.get("body");
@@ -331,6 +351,25 @@ public class ActionSupport {
             payload = Jsons.readAny(text);
         }
         return payload instanceof Map<?, ?> ? Maps.map(payload) : Maps.of("body", payload);
+    }
+
+    private static String pyTypeName(Object value) {
+        if (value instanceof String) {
+            return "str";
+        }
+        if (value instanceof List<?>) {
+            return "list";
+        }
+        if (value instanceof Boolean) {
+            return "bool";
+        }
+        if (value instanceof Double || value instanceof Float) {
+            return "float";
+        }
+        if (value instanceof Number) {
+            return "int";
+        }
+        return value == null ? "NoneType" : "object";
     }
 
     public Map<String, Object> filterSlots(Object slots) {
@@ -554,18 +593,14 @@ public class ActionSupport {
         return text.toString();
     }
 
+    /** Python prepare_email_body(chat_log, subject) with no recipient: USER_EMAIL stays as-is. */
     public String emailBody(List<Map<String, Object>> conversation, String subject) {
-        StringBuilder html = new StringBuilder();
-        html.append("<html><body><h3>").append(subject == null ? "" : subject).append("</h3>");
-        for (Map<String, Object> event : conversation) {
-            if (event.containsKey("user")) {
-                html.append("<p>user: ").append(event.get("user")).append("</p>");
-            } else if (event.get("bot") instanceof Map<?, ?> bot) {
-                html.append("<p>bot: ").append(Maps.map(bot).get("text")).append("</p>");
-            }
-        }
-        html.append("</body></html>");
-        return html.toString();
+        return emailBody(conversation, subject, null);
+    }
+
+    /** Port of Python ActionUtility.prepare_email_body over template/emails/conversation.html. */
+    public String emailBody(List<Map<String, Object>> conversation, String subject, String userEmail) {
+        return EmailTemplates.conversation(conversation, subject, userEmail, Maps.text(settings.getFrontendUrl()));
     }
 
     public List<HttpCaller.MediaFile> media(String bot, List<Object> mediaIds) {

@@ -47,7 +47,10 @@ public final class Jsons {
         }
     }
 
-    /** Python json.dumps defaults: ", " and ": " separators, ensure_ascii. */
+    /**
+     * Python json.dumps defaults: ", " and ": " separators, ensure_ascii, float repr
+     * (NaN/Infinity allowed), insertion order.
+     */
     public static String pythonDumps(Object value) {
         StringBuilder out = new StringBuilder();
         writePython(out, value);
@@ -61,6 +64,8 @@ public final class Jsons {
             out.append(quote(text));
         } else if (value instanceof Boolean || value instanceof Integer || value instanceof Long) {
             out.append(value);
+        } else if (value instanceof Double || value instanceof Float) {
+            out.append(pythonFloat(((Number) value).doubleValue()));
         } else if (value instanceof Number number) {
             out.append(number);
         } else if (value instanceof Map<?, ?> map) {
@@ -71,7 +76,7 @@ public final class Jsons {
                     out.append(", ");
                 }
                 first = false;
-                out.append(quote(String.valueOf(entry.getKey()))).append(": ");
+                out.append(quote(key(entry.getKey()))).append(": ");
                 writePython(out, entry.getValue());
             }
             out.append('}');
@@ -86,9 +91,33 @@ public final class Jsons {
                 writePython(out, item);
             }
             out.append(']');
+        } else if (value instanceof Object[] array) {
+            writePython(out, java.util.Arrays.asList(array));
         } else {
             out.append(quote(String.valueOf(value)));
         }
+    }
+
+    /** json.dumps float: repr, with NaN/Infinity/-Infinity for the non-finite values. */
+    private static String pythonFloat(double value) {
+        if (Double.isNaN(value)) {
+            return "NaN";
+        }
+        if (Double.isInfinite(value)) {
+            return value > 0 ? "Infinity" : "-Infinity";
+        }
+        return PyRepr.floatRepr(value);
+    }
+
+    /** json.dumps key coercion: str as-is, True/False/None as JSON literals, floats via repr. */
+    private static String key(Object key) {
+        if (key == null) {
+            return "null";
+        }
+        if (key instanceof Double || key instanceof Float) {
+            return pythonFloat(((Number) key).doubleValue());
+        }
+        return String.valueOf(key);
     }
 
     public static String quote(String text) {

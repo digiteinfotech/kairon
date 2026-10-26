@@ -44,8 +44,7 @@ public class GoogleSearchAction implements KaironAction {
         String exception = null;
         try {
             String latest = context.tracker.userText();
-            Map<String, Object> trackerData = support.context(context.tracker, true);
-            trackerData.put("bot", context.bot);
+            Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             Object searchTerm = Maps.truthy(config.get("search_term"))
                     ? support.one(trackerData, config.get("search_term"), context.bot)
                     : latest;
