@@ -26,7 +26,8 @@ import java.util.function.UnaryOperator;
  * Inserted and updated documents are matched as multisets (insertion order is not asserted), ignoring
  * {@code _id} and the timestamp-type fields listed in fixture-schema.md, and treating any two BSON dates as equal.
  * Every other field, including {@code request_id}, is compared with placeholder awareness through the shared
- * bindings.
+ * bindings, except the run-time measurements of {@link JsonMatcher#ignoringVolatile()}: {@code time_elapsed} numbers
+ * at any depth (the http_action log and its {@code events[]} sub-documents) and {@code response_headers.date}.
  */
 final class WrittenDocs {
 
@@ -104,7 +105,7 @@ final class WrittenDocs {
      */
     static List<String> diff(Map<String, Fixture.Writes> expected, Map<String, Fixture.Writes> actual,
                              JsonMatcher matcher, UnaryOperator<String> rewrite) {
-        JsonMatcher docs = matcher.ignoringTopLevel(IGNORED).ignoringDates();
+        JsonMatcher docs = matcher.ignoringTopLevel(IGNORED).ignoringDates().ignoringVolatile();
         List<String> out = new ArrayList<>();
         Set<String> names = new LinkedHashSet<>(expected.keySet());
         names.addAll(actual.keySet());

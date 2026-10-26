@@ -21,6 +21,10 @@ import java.util.TreeSet;
  *   {@code $numberDouble}, {@code $numberDecimal}), so {@code 1}, {@code 1.0} and {@code {"$numberLong":"1"}}
  *   are equal.</li>
  *   <li>Optionally, named top-level keys are skipped and any pair of {@code $date} values is treated as equal.</li>
+ *   <li>Optionally ({@link #ignoringVolatile()}), run-time measurements that no recording can reproduce are
+ *   skipped: a field named {@code time_elapsed} at any depth whose recorded and actual values are both numbers
+ *   (its presence is still asserted), and a {@code date} key of any {@code response_headers} object, whether
+ *   present on either side or both (the replay stubs always send a {@code Date} header; Python mocks never do).</li>
  * </ul>
  * Mismatches are reported as {@code path: detail} strings; bindings are only kept for a comparison that passes.
  */
@@ -29,23 +33,36 @@ final class JsonMatcher {
     private final Placeholders.Bindings bindings;
     private final Set<String> ignoredTopLevel;
     private final boolean ignoreDates;
+    private final boolean ignoreVolatile;
+
+    /** Numeric duration fields, at any depth, whose values differ on every run. */
+    static final String DURATION_FIELD = "time_elapsed";
+    /** Object holding upstream reply headers in action logs; its {@code date} entry is volatile. */
+    static final String RESPONSE_HEADERS = "response_headers";
 
     JsonMatcher(Placeholders.Bindings bindings) {
-        this(bindings, Set.of(), false);
+        this(bindings, Set.of(), false, false);
     }
 
-    private JsonMatcher(Placeholders.Bindings bindings, Set<String> ignoredTopLevel, boolean ignoreDates) {
+    private JsonMatcher(Placeholders.Bindings bindings, Set<String> ignoredTopLevel, boolean ignoreDates,
+                        boolean ignoreVolatile) {
         this.bindings = bindings;
         this.ignoredTopLevel = ignoredTopLevel;
         this.ignoreDates = ignoreDates;
+        this.ignoreVolatile = ignoreVolatile;
     }
 
     JsonMatcher ignoringTopLevel(Set<String> keys) {
-        return new JsonMatcher(bindings, Set.copyOf(keys), ignoreDates);
+        return new JsonMatcher(bindings, Set.copyOf(keys), ignoreDates, ignoreVolatile);
     }
 
     JsonMatcher ignoringDates() {
-        return new JsonMatcher(bindings, ignoredTopLevel, true);
+        return new JsonMatcher(bindings, ignoredTopLevel, true, ignoreVolatile);
+    }
+
+    /** Skips {@code time_elapsed} numbers and {@code response_headers.date}; see the class comment. */
+    JsonMatcher ignoringVolatile() {
+        return new JsonMatcher(bindings, ignoredTopLevel, ignoreDates, true);
     }
 
     Placeholders.Bindings bindings() {
@@ -119,6 +136,9 @@ final class JsonMatcher {
                 String child = path + "." + key;
                 JsonNode e = expected.get(key);
                 JsonNode a = actual.get(key);
+                if (ignoreVolatile && isVolatile(path, key, e, a)) {
+                    continue;
+                }
                 if (e == null) {
                     out.add(child + ": unexpected field with value " + a);
                 } else if (a == null) {
@@ -149,6 +169,13 @@ final class JsonMatcher {
         if (!expected.equals(actual)) {
             out.add(path + ": expected " + expected + " but was " + actual);
         }
+    }
+
+    private static boolean isVolatile(String parentPath, String key, JsonNode expected, JsonNode actual) {
+        if (DURATION_FIELD.equals(key)) {
+            return expected != null && actual != null && number(expected) != null && number(actual) != null;
+        }
+        return "date".equalsIgnoreCase(key) && parentPath.endsWith("." + RESPONSE_HEADERS);
     }
 
     private static String bound(Placeholders.Token token, Placeholders.Bindings b) {

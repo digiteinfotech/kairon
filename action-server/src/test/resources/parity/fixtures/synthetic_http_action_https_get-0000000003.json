@@ -51,7 +51,14 @@
               "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
               "request_id": "{{REQUEST_ID}}",
               "user_msg": "weather?",
-              "http_status_code": {"$numberInt": "200"}
+              "http_status_code": {"$numberInt": "200"},
+              "events": [
+                {"type": "response", "dispatch_bot_response": true, "dispatch_type": "text", "data": "${data.forecast.summary}", "evaluation_type": "expression", "response": "Sunny", "bot_response_log": ["evaluation_type: expression", "expression: ${data.forecast.summary}", "data: {'data': {'forecast': {'summary': 'Sunny', 'max': 31.5}}, 'context': {'sender_id': 'default', 'user_message': 'weather?', 'slot': {'bot': '5f50fd0a56b698ca10d35d2e'}, 'intent': 'ask_weather', 'chat_log': [], 'key_vault': {}, 'latest_message': {'text': 'weather?', 'intent': {'name': 'ask_weather'}, 'entities': []}, 'kairon_user_msg': None, 'session_started': None, 'bot': '5f50fd0a56b698ca10d35d2e'}, 'http_status_code': 200, 'response_headers': {'content-length': '43', 'content-type': 'application/json', 'date': '{{TIMESTAMP}}'}}", "response: Sunny"], "time_elapsed": {"$numberInt": "0"}},
+                {"type": "api_call", "headers": {}, "method": "GET", "url": "https://api.weather.test/v1/forecast?city=Pune", "payload": {}, "response": {"forecast": {"summary": "Sunny", "max": {"$numberDouble": "31.5"}}}, "status_code": {"$numberInt": "200"}, "time_elapsed": {"$numberDouble": "12.5"}, "response_headers": {"content-length": "43", "content-type": "application/json"}},
+                {"type": "params_list", "request_body": {}, "request_params": {}},
+                {"type": "filled_slots", "data": {}, "slot_eval_log": ["initiating slot evaluation"], "time_elapsed": {"$numberInt": "0"}}
+              ],
+              "time_elapsed": {"$numberDouble": "12.5"}
             }
           ],
           "updated": [],

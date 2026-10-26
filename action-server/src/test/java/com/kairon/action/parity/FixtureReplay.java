@@ -19,8 +19,9 @@ import java.util.Set;
  * Replays one fixture against the embedded server with the in-memory catalog: seeds the catalog, starts the
  * upstream stubs, sends every recorded inbound request, then compares the responses, the upstream calls and the
  * written documents. All comparisons share one {@link Placeholders.Bindings}, so an indexed placeholder must stand
- * for the same value across response, outbound calls and Mongo writes. The runner that turns each fixture into a
- * reported test (T-053) builds on {@link #run}.
+ * for the same value across response, outbound calls and Mongo writes. Settings-driven endpoints point at the
+ * stubs for the duration of the replay ({@link ReplayEndpoints}). Written documents are compared only when the
+ * fixture was recorded with Mongo available. {@link ParityReplayTest} turns each fixture into a reported test.
  */
 final class FixtureReplay {
 
@@ -51,29 +52,42 @@ final class FixtureReplay {
         RequestIds.clear();
         try (UpstreamStubs stubs = UpstreamStubs.start(fixture)) {
             settings.setHttpsStubBase(stubs.httpsBase());
-            CatalogSeeder.seed(fixture, catalog::put, stubs.seedRewrite());
-            var names = WrittenDocs.collections(fixture);
-            WrittenDocs.Snapshot before = WrittenDocs.snapshot(catalog::all, names);
-            JsonMatcher matcher = new JsonMatcher(new Placeholders.Bindings());
-            int i = 0;
-            for (Fixture.Exchange exchange : fixture.exchanges()) {
-                String label = "exchanges[" + i++ + "]";
-                HttpResponse<byte[]> response = send(serverPort, exchange.request());
-                for (String problem : compareResponse(exchange.response(), response, matcher, stubs)) {
-                    mismatches.add(label + ": " + problem);
-                }
+            ReplayEndpoints.Saved endpoints = ReplayEndpoints.apply(settings, stubs);
+            try {
+                return replay(fixture, serverPort, catalog, stubs, mismatches);
+            } finally {
+                endpoints.restore();
             }
-            mismatches.addAll(stubs.verify(matcher));
+        } finally {
+            settings.setHttpsStubBase(previousHttpsBase);
+            RequestIds.clear();
+        }
+    }
+
+    private static Result replay(Fixture fixture, int serverPort, MemoryActionCatalog catalog, UpstreamStubs stubs,
+                                 List<String> mismatches) {
+        CatalogSeeder.seed(fixture, catalog::put, stubs.seedRewrite());
+        var names = WrittenDocs.collections(fixture);
+        WrittenDocs.Snapshot before = WrittenDocs.snapshot(catalog::all, names);
+        JsonMatcher matcher = new JsonMatcher(new Placeholders.Bindings());
+        int i = 0;
+        for (Fixture.Exchange exchange : fixture.exchanges()) {
+            String label = "exchanges[" + i++ + "]";
+            HttpResponse<byte[]> response = send(serverPort, exchange.request());
+            for (String problem : compareResponse(exchange.response(), response, matcher, stubs)) {
+                mismatches.add(label + ": " + problem);
+            }
+        }
+        mismatches.addAll(stubs.verify(matcher));
+        // Without Mongo at recording time nothing was captured, so there is nothing to compare writes with.
+        if (fixture.mongo().available()) {
             WrittenDocs.Snapshot after = WrittenDocs.snapshot(catalog::all, names);
             for (String problem : WrittenDocs.diff(fixture.mongo().writtenByCollection(),
                     WrittenDocs.actualWrites(before, after), matcher, stubs.outputRewrite())) {
                 mismatches.add("written " + problem);
             }
-            return new Result(fixture.nodeId(), List.copyOf(mismatches), stubs.hits());
-        } finally {
-            settings.setHttpsStubBase(previousHttpsBase);
-            RequestIds.clear();
         }
+        return new Result(fixture.nodeId(), List.copyOf(mismatches), stubs.hits());
     }
 
     static HttpResponse<byte[]> send(int port, Fixture.Request request) {

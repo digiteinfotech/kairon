@@ -107,6 +107,8 @@ Both exit with status 1 and list each violation (`/json/path: message`) when any
 | Upstream request | `X-TIMESTAMP`/`timestamp` headers, `Authorization: Bearer <JWT>` (callback and kairon tokens), uuid/uuid7 ids in URLs and bodies (callback ids, schedule job ids, `/api/events/dispatch/{id}`) |
 | Bodies (any) | ISO-8601 date-times, epoch seconds/milliseconds near "now", ObjectId hex strings minted during the test, JWTs |
 
+Some volatile values are not normalized because no token fits them. The replay comparator ignores them in written Mongo documents instead. Numeric `time_elapsed` fields at any depth (the `http_action` log and its `events[]` sub-documents) are compared only for presence. The `date` key of any `response_headers` object is skipped whether it is present on one side or both, because the replay stubs always send a `Date` header and the Python mocks never do.
+
 ## Placeholder tokens
 
 Placeholders appear only when `normalized` is `true`. Each token is a whole JSON string value. Inside a URL or a header value, the token replaces just the matching substring. When a token carries an index `:n`, the same original value maps to the same index everywhere in that fixture. This lets replay check that values are consistent, for example that the id written to Mongo matches the id in the dispatch URL.

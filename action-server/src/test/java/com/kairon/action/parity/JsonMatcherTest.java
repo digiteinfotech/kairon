@@ -101,4 +101,21 @@ class JsonMatcherTest {
         // Only top-level keys are ignored.
         assertFalse(m.matches(json("{\"inner\": {\"_id\": 1}}"), json("{\"inner\": {\"_id\": 2}}")));
     }
+
+    @Test
+    void volatileDurationsAndReplyDatesAreSkippedWhenAsked() {
+        JsonMatcher m = matcher().ignoringVolatile();
+        assertTrue(m.matches(
+                json("{\"time_elapsed\": 1.5, \"events\": [{\"time_elapsed\": {\"$numberInt\": \"0\"},"
+                        + " \"response_headers\": {\"content-type\": \"application/json\"}}]}"),
+                json("{\"time_elapsed\": {\"$numberDouble\": \"92.6\"}, \"events\": [{\"time_elapsed\": 7,"
+                        + " \"response_headers\": {\"content-type\": \"application/json\", \"date\": \"Mon, 26 Oct 2026 14:29:55 GMT\"}}]}")));
+        // Presence of time_elapsed is still asserted, and a non-numeric value is compared normally.
+        assertFalse(m.matches(json("{\"time_elapsed\": 1}"), json("{}")));
+        assertFalse(m.matches(json("{\"time_elapsed\": 1}"), json("{\"time_elapsed\": \"slow\"}")));
+        // A date key outside response_headers is not volatile.
+        assertFalse(m.matches(json("{\"headers\": {\"date\": \"a\"}}"), json("{\"headers\": {\"date\": \"b\"}}")));
+        // Without the option the rules do not apply.
+        assertFalse(matcher().matches(json("{\"time_elapsed\": 1}"), json("{\"time_elapsed\": 2}")));
+    }
 }
