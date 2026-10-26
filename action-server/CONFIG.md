@@ -1,10 +1,10 @@
 # Action server configuration
 
 The Java port reads the same environment variables, with the same defaults, as the Python action
-server's `system.yaml` (repo root). Bindings live in `src/main/resources/application.yml`; the bound
+server's `system.yaml` and, for the failure-mail SMTP settings, `email.yaml` (both at the repo root). Bindings live in `src/main/resources/application.yml`; the bound
 properties are fields of `com.kairon.action.ActionSettings` (prefix `kairon.action`) and `mongodb.uri`.
 
-`ConfigMappingTest` parses the table below and checks each row against `system.yaml` and
+`ConfigMappingTest` parses the table below and checks each row against `system.yaml`/`email.yaml` and
 `application.yml`, so keep the table format (backticked cells) when editing it.
 
 Default column conventions:
@@ -32,7 +32,13 @@ Default column conventions:
 | `live_agent.enable` | - | `kairon.action.live-agent-enabled` | `true` | Literal in Python (no env var). |
 | `simple_agent.url` | `SIMPLE_AGENT_URL` | `kairon.action.simple-agent-url` | none | Simple agent server. |
 | `support_mail` | `KAIRON_SUPPORT_MAIL` | `kairon.action.support-mail` | `kairon@digite.com` | Failure mail recipient. |
-| `cors.origin` | `ALLOWED_ORIGIN` | `kairon.action.cors-origin` | `["*"]` | JSON list (as Python json-decodes it) or comma-separated; parsed by `ActionSettings.corsOrigins()`. Wiring into the CORS filter is T-035. |
+| `email.sender.service` | `EMAIL_SENDER_SERVICE` | `email.sender.service` | `changeit` | email.yaml. SMTP host for the failure mail (`support/FailureMail`); STARTTLS always on, as `MailUtility.trigger_smtp`. |
+| `email.sender.port` | `EMAIL_SENDER_PORT` | `email.sender.port` | `587` | email.yaml. SMTP port. |
+| `email.sender.email` | `EMAIL_SENDER_EMAIL` | `email.sender.email` | `changeit@changeit.com` | email.yaml. From address; also the SMTP login when the user id is blank. |
+| `email.sender.password` | `EMAIL_SENDER_PASSWORD` | `email.sender.password` | secret | email.yaml. SMTP password. |
+| `email.sender.userid` | `EMAIL_SENDER_USERID` | `email.sender.userid` | none | email.yaml. SMTP login. |
+| `email.templates.action_failure_subject` | `EMAIL_TEMPLATES_ACTION_FAILURE` | `email.templates.action.failure` | `kAIron Action Failure - BOT_NAME` | email.yaml. Failure mail subject; `BOT_NAME` is replaced. |
+| `cors.origin` | `ALLOWED_ORIGIN` | `kairon.action.cors-origin` | `["*"]` | JSON list (as Python json-decodes it) or comma-separated; parsed by `ActionSettings.corsOrigins()`. CORS is handled in `server/SecurityFilter` from this value (see below). |
 | `security.fernet_key` | `FERNET_KEY` | `kairon.action.fernet-key` | secret | Fernet key. |
 | `security.secret_key` | `SECRET_KEY` | `kairon.action.jwt-secret` | secret | JWT secret. |
 | `security.algorithm` | - | `kairon.action.jwt-algorithm` | `HS256` | Literal in Python (no env var). |
@@ -41,6 +47,38 @@ Default column conventions:
 | `app.frontend_url` | `FRONTEND_URL` | `kairon.action.frontend-url` | `http://localhost:3000` | `BASE_URL` in email templates. |
 | `llm.url` | `LLM_SERVER_URL` | `kairon.action.llm-url` | deviation: empty (Python `http://localhost`) | Only read by prompt_action and LLM rephrase, both deferred; an empty value keeps them off. |
 | `vector.db` | `VECTOR_DB` | `kairon.action.vector-url` | deviation: empty (Python `http://localhost:6333`) | Only read by database_action, deferred; an empty value keeps it off. |
+
+## Required secrets
+
+`FERNET_KEY`, `SECRET_KEY`, `ASYNC_CALLBACK_AES_KEY` and `ASYNC_CALLBACK_AES_IV` have no default in the port
+(cavekit-config-and-deploy.md R2). `SecretsValidator` refuses to start the server when any of the four is
+unset or blank, naming the missing variable. `SECRET_KEY` must equal the value used by kairon-api, which
+mints the tokens the action server verifies. `LIVE_AGENT_AUTH_TOKEN` and `EMAIL_SENDER_PASSWORD` also ship
+no default but are optional at startup.
+
+## CORS, request id and compression
+
+- CORS: Micronaut's CORS support is disabled (`micronaut.server.cors.enabled: false`). `server/SecurityFilter`
+  implements Starlette's `CORSMiddleware(allow_origins=cors.origin, allow_credentials=True, allow_methods=["*"],
+  allow_headers=["*"])` from `ALLOWED_ORIGIN`, and then sets `Access-Control-Allow-Origin` to the request
+  `Origin` (else the first configured origin) as `add_secure_headers` does.
+- Request id: `SecurityFilter` echoes `X-Kairon-Request-ID`, or generates a UUID4 when absent.
+- Compression: `micronaut.server.netty.compression-threshold: 500` and `compression-level: 9` match
+  Starlette `GZipMiddleware()` defaults (`minimum_size=500`, `compresslevel=9`). `RequestIdAndGzipTest` covers both.
+
+## Docker and compose
+
+`Dockerfile` builds the distribution with Gradle `installDist` (JDK 21) and runs it on a JRE 21 image on port 5055:
+
+```
+docker build -t kairon-action-server-java action-server
+```
+
+`docker/docker-compose.yml` runs that image as `kairon-action-server`. The four required secrets are
+read from the host environment or the compose `.env` file (`FERNET_KEY: "${FERNET_KEY}"`); when one is unset
+compose passes it empty and `SecretsValidator` stops the service with the missing name (other services are unaffected). No secret value is written in the compose file (needs human review).
+Smoke test after `docker compose up -d kairon-action-server`: `action-server/smoke-test.sh`
+(default `http://localhost:5055`; pass another base URL as the first argument).
 
 ## Python keys not mapped (out of scope)
 
