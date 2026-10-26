@@ -704,7 +704,7 @@ graph LR
 | cavekit-integration-actions.md | R13 | Failure utterance: `I have failed to process your request` | T-090 | COVERED |
 | cavekit-integration-actions.md | R13 | Log: `type: "pyscript_action"`, `config` (full config), `bot_response` | T-047 | COVERED |
 | cavekit-orchestration-actions.md | R1 | Config is read from `parallel_action_config` by `bot`, `name`, `status | T-091 | COVERED |
-| cavekit-orchestration-actions.md | R1 | An empty `action_server_logs` record is created before any child reque | T-044 | COVERED |
+| cavekit-orchestration-actions.md | R1 | A pre-record is saved to `action_server_logs` before any child request | T-044 | COVERED |
 | cavekit-orchestration-actions.md | R1 | One POST per configured child action goes to the server's own webhook  | T-044 | COVERED |
 | cavekit-orchestration-actions.md | R1 | Each child body equals the original request with `next_action` = the c | T-091 | COVERED |
 | cavekit-orchestration-actions.md | R1 | Each child request carries the parent's request id header | T-044 | COVERED |

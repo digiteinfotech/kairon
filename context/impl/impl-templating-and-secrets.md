@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T13:46:03Z"
-last_edited: "2026-10-26T13:46:03Z"
+last_edited: "2026-10-26T14:04:01Z"
 ---
 # Implementation Tracking: templating-and-secrets
 
@@ -14,3 +14,4 @@ Build site: context/plans/build-site.md
 | T-008 | DONE | sender_id Fernet decrypt when valid token |
 | T-009 | DONE | latest_message param falls through to literal value (kit corrected) |
 | T-010 | DONE | context key order; key_vault {} unless requested; bot added per caller (kit corrected) |
+| T-036 | DONE | ${a.b} dict -> Python json.dumps, scalars -> str(); verified vs venv prepare_response |

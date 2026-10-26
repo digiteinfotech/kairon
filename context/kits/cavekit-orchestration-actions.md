@@ -16,7 +16,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Runs several actions concurrently through the server's own webhook and merges their slots.
 **Acceptance Criteria:**
 - [ ] Config is read from `parallel_action_config` by `bot`, `name`, `status: true`
-- [ ] [GAP] An empty `action_server_logs` record is created before any child request; its `_id` is the `trigger_id`
+- [ ] [GAP] A pre-record is saved to `action_server_logs` before any child request holding only `request_id`, `timestamp` (creation time), `status: "Success"` and the default `trigger_info`; its `_id` is the `trigger_id`, and the later fill keeps that `timestamp`
 - [ ] [GAP] One POST per configured child action goes to the server's own webhook URL (default `http://localhost:5055/webhook`)
 - [ ] Each child body equals the original request with `next_action` = the child name and `trigger_info` = `{"trigger_name": <parent name>, "trigger_type": "parallel_action", "trigger_id": <parent log id>}`
 - [ ] [GAP] Each child request carries the parent's request id header
@@ -70,7 +70,7 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 
 | Req | Gap | Evidence |
 |---|---|---|
-| R1 | An empty `action_server_logs` record is created before any child request; its `_id` is the | action-server/src/main/java/com/kairon/action/actions/ParallelAction.java:66,109-113 — The stub is inserted before the children run and its _id becomes the trigger_id, but it is not empty: it holds request_id plus an auto timestamp (MongoActionCatalog.java:58-60). |
+| R1 | A pre-record is saved to `action_server_logs` before any child request holding only `reque | action-server/src/main/java/com/kairon/action/actions/ParallelAction.java:66,109-113 — Stub holds request_id and timestamp but not the default status and trigger_info Python's model adds. |
 | R1 | Each child request carries the parent's request id header | action-server/src/main/java/com/kairon/action/actions/ParallelAction.java:116,136 — There is no HTTP request, so no header is sent; the parent request id is only carried in-process through the RequestIds thread-local. |
 | R1 | One POST per configured child action goes to the server's own webhook URL (default `http:/ | action-server/src/main/java/com/kairon/action/actions/ParallelAction.java:26-28,145 — Children run in-process through ActionProcessor.handle on virtual threads, so no HTTP POST goes to the own webhook URL and no webhook URL is configurable. |
 | R2 | Log: `type: "schedule_action"`, `schedule_action`, `schedule_time`, `timezone`, `execution | action-server/src/main/java/com/kairon/action/actions/ScheduleAction.java:119-125 — The log has type, schedule_action, schedule_time, timezone, execution_info, data, bot_response and exception, but no messages field. |
@@ -83,3 +83,4 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Review iteration 2 fixes (scheduling rejection semantics, callback token derivation, AES IV, cross-references, tiering).
 - 2026-10-26: Brownfield gap pass against existing port: 7 [GAP], 3 [UNVERIFIED] markers added.
+- 2026-10-26: Build wave 2: R1 c2 corrected to Python (pre-record = request_id + model defaults, custom_parallel_actions.py:76-77).

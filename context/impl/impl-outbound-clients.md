@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T13:46:03Z"
-last_edited: "2026-10-26T13:46:03Z"
+last_edited: "2026-10-26T14:04:01Z"
 ---
 # Implementation Tracking: outbound-clients
 
@@ -15,3 +15,4 @@ Build site: context/plans/build-site.md
 | T-021 | DONE | Pyscript client stub tests |
 | T-022 | DONE | SmtpMailer (angus-mail), GreenMail tests, STARTTLS semantics |
 | T-023 | DONE | Email HTML templates copied from template/emails; golden tests vs Python functions |
+| T-033 | DONE | Whole-exchange deadline from ACTION_SERVER_REQUEST_TIMEOUT; null/null on transport failure; no retry; OK set; tests |
