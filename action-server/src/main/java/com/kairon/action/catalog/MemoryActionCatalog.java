@@ -64,6 +64,89 @@ public class MemoryActionCatalog implements ActionCatalog {
         return matches;
     }
 
+    /**
+     * In-memory stand-in for the Mongo {@code $text} search (indexed field: {@code text}).
+     * Approximation: lowercase tokens split on non-letter/digit characters, a small English stop-word list,
+     * crude suffix stemming (ing/ed/es/s) instead of Snowball, {@code -term} negation, no phrase matching and
+     * no diacritic folding. Score is the number of query-term occurrences in the text divided by the text's
+     * token count (Mongo also favours dense matches); ties keep insertion order. Only documents with at least
+     * one matching term are returned, best first, limited to {@code limit}.
+     */
+    @Override
+    public List<Document> searchText(String collection, String bot, String search, int limit) {
+        List<String> wanted = new ArrayList<>();
+        List<String> negated = new ArrayList<>();
+        for (String raw : search == null ? new String[0] : search.trim().split("\\s+")) {
+            boolean negate = raw.startsWith("-") && raw.length() > 1;
+            for (String term : terms(negate ? raw.substring(1) : raw)) {
+                (negate ? negated : wanted).add(term);
+            }
+        }
+        if (limit <= 0 || wanted.isEmpty()) {
+            return new ArrayList<>();
+        }
+        record Scored(Document document, double score, int order) {}
+        List<Scored> scored = new ArrayList<>();
+        int order = 0;
+        for (Document document : snapshot(collection)) {
+            order++;
+            if (!bot.equals(str(document.get("bot"))) || !truthyStatus(document.get("status"))) {
+                continue;
+            }
+            List<String> tokens = terms(str(document.get("text")));
+            if (tokens.isEmpty() || negated.stream().anyMatch(tokens::contains)) {
+                continue;
+            }
+            int hits = 0;
+            for (String term : new java.util.LinkedHashSet<>(wanted)) {
+                for (String token : tokens) {
+                    if (token.equals(term)) {
+                        hits++;
+                    }
+                }
+            }
+            if (hits > 0) {
+                scored.add(new Scored(document, hits / (double) tokens.size(), order));
+            }
+        }
+        scored.sort(java.util.Comparator.comparingDouble(Scored::score).reversed().thenComparingInt(Scored::order));
+        List<Document> out = new ArrayList<>();
+        for (Scored item : scored.subList(0, Math.min(limit, scored.size()))) {
+            Document copy = deepCopy(item.document());
+            copy.put("_text_score", item.score());
+            out.add(copy);
+        }
+        return out;
+    }
+
+    private static final java.util.Set<String> STOP_WORDS = java.util.Set.of(
+            "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in", "into", "is", "it",
+            "no", "not", "of", "on", "or", "such", "that", "the", "their", "then", "there", "these", "they",
+            "this", "to", "was", "will", "with", "i", "me", "my", "we", "you", "your", "do", "does", "what", "how");
+
+    static List<String> terms(String text) {
+        List<String> out = new ArrayList<>();
+        if (text == null) {
+            return out;
+        }
+        for (String word : text.toLowerCase(java.util.Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (word.isEmpty() || STOP_WORDS.contains(word)) {
+                continue;
+            }
+            out.add(stem(word));
+        }
+        return out;
+    }
+
+    private static String stem(String word) {
+        for (String suffix : new String[]{"ing", "ed", "es", "s"}) {
+            if (word.endsWith(suffix) && word.length() - suffix.length() >= 3 && !word.endsWith("ss")) {
+                return word.substring(0, word.length() - suffix.length());
+            }
+        }
+        return word;
+    }
+
     @Override
     public Document insert(String collection, Document document) {
         Document copy = deepCopy(document);

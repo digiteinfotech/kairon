@@ -52,7 +52,9 @@ public class GoogleSearchAction implements KaironAction {
             Object apiKey = support.one(trackerData, config.get("api_key"), context.bot);
             if (!Maps.isEmpty(latest)) {
                 if (Maps.isEmpty(apiKey)) {
-                    throw new ActionFailure("Google search requires an api key");
+                    // Python falls back to googlesearch scraping with "<term> site: <website>"; the port fails closed.
+                    throw new ActionFailure("Google search requires an api key; global search for '"
+                            + globalSearchTerm(Maps.text(searchTerm), config.get("website")) + "' is not supported");
                 }
                 results = search(Maps.text(apiKey), Maps.text(config.get("search_engine_id")), Maps.text(searchTerm), config.get("num_results"));
                 if (results instanceof List<?> list && !list.isEmpty()) {
@@ -79,15 +81,33 @@ public class GoogleSearchAction implements KaironAction {
         return slots;
     }
 
-    private Object search(String apiKey, String engine, String term, Object num) {
+    static final String CSE_URL = "https://customsearch.googleapis.com/customsearch/v1";
+
+    /**
+     * The request googleapiclient sends for service.cse().list(q=, cx=, num=) (utils.py:560-561):
+     * q, cx, num (dropped when None), key, alt=json. Python pops `website` before this call
+     * (utils.py:550), so the API-key path never sends siteSearch.
+     */
+    static Map<String, Object> cseQuery(String apiKey, String engine, String term, Object num) {
         Map<String, Object> query = new LinkedHashMap<>();
-        query.put("key", apiKey);
-        query.put("cx", engine);
         query.put("q", term);
+        query.put("cx", engine);
         if (num != null) {
             query.put("num", num);
         }
-        Object response = support.http().executeStrict("GET", "https://www.googleapis.com/customsearch/v1", Map.of(), query, "json");
+        query.put("key", apiKey);
+        query.put("alt", "json");
+        return query;
+    }
+
+    /** utils.py:555: the keyless global-search term, f"{search_term} site: {website}" when website is set. */
+    static String globalSearchTerm(String term, Object website) {
+        return Maps.truthy(website) ? term + " site: " + website : term;
+    }
+
+    private Object search(String apiKey, String engine, String term, Object num) {
+        Map<String, Object> query = cseQuery(apiKey, engine, term, num);
+        Object response = support.http().executeStrict("GET", CSE_URL, Map.of(), query, "json");
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> item : Maps.mapList(Maps.map(response).get("items"))) {
             Map<String, Object> row = new LinkedHashMap<>();

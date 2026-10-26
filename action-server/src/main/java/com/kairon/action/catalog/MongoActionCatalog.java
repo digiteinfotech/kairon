@@ -4,6 +4,8 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.bson.Document;
@@ -18,6 +20,9 @@ import java.util.Optional;
 @Singleton
 @Requires(property = "kairon.action.catalog", value = "mongo")
 public class MongoActionCatalog implements ActionCatalog {
+
+    /** Field mongoengine projects the text score into. */
+    static final String TEXT_SCORE = "_text_score";
 
     private final MongoDatabase database;
 
@@ -48,6 +53,24 @@ public class MongoActionCatalog implements ActionCatalog {
     @Override
     public List<Document> findByBot(String collection, String bot) {
         return collection(collection).find(Filters.eq("bot", bot)).into(new ArrayList<>());
+    }
+
+    /** mongoengine search_text(search).order_by("$text_score").limit(limit) over the {"$text"} index. */
+    @Override
+    public List<Document> searchText(String collection, String bot, String search, int limit) {
+        if (limit <= 0) {
+            return new ArrayList<>();
+        }
+        return collection(collection)
+                .find(textQuery(bot, search))
+                .projection(Projections.metaTextScore(TEXT_SCORE))
+                .sort(Sorts.metaTextScore(TEXT_SCORE))
+                .limit(limit)
+                .into(new ArrayList<>());
+    }
+
+    static Bson textQuery(String bot, String search) {
+        return Filters.and(Filters.eq("bot", bot), Filters.eq("status", true), Filters.text(search == null ? "" : search));
     }
 
     @Override

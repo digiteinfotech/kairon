@@ -15,6 +15,13 @@ public interface ActionCatalog {
 
     List<Document> findByBot(String collection, String bot);
 
+    /**
+     * MongoProcessor.search_training_examples: documents of {@code collection} with {@code bot} and
+     * {@code status: true} matching a {@code $text} search for {@code search}, ordered by text score
+     * (best first) and limited to {@code limit}.
+     */
+    List<Document> searchText(String collection, String bot, String search, int limit);
+
     Document insert(String collection, Document document);
 
     void replace(String collection, Object id, Document document);
