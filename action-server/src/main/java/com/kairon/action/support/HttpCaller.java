@@ -61,9 +61,26 @@ public class HttpCaller {
         this.settings = settings;
     }
 
-    public record Exchange(int status, Object body, Map<String, String> headers) {}
+    /**
+     * Result of {@link #exchange}. A transport failure (refused, reset, timeout, TLS, too many redirects)
+     * is reported as {@code status == 0} with a null body; {@link #statusCode()} gives Python's view of it.
+     */
+    public record Exchange(int status, Object body, Map<String, String> headers) {
+        /** Python execute_request_async status_code: None when no response was received. */
+        public Integer statusCode() {
+            return status == 0 ? null : status;
+        }
 
-    /** Python execute_request_async: transport errors come back as status 0 and a null body. */
+        public boolean transportFailed() {
+            return status == 0;
+        }
+    }
+
+    /**
+     * Python execute_request_async: exactly one attempt (no retry, including on 502/503/504), bounded by one
+     * wall-clock deadline of ACTION_SERVER_REQUEST_TIMEOUT seconds covering connect, every redirect hop and
+     * the response body. Transport errors come back as status 0 (Python None) and a null body.
+     */
     public Exchange exchange(String method, String url, Map<String, ?> headers, Object body, String contentType) {
         try {
             // aiohttp client: `request_body if request_body else {}`

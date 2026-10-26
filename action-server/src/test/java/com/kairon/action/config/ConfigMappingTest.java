@@ -106,7 +106,10 @@ class ConfigMappingTest {
 
     @Test
     void defaultsResolveWithoutEnv() {
-        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).start()) {
+        // Secrets have no default and SecretsValidator refuses to start without them (T-034).
+        Map<String, Object> secrets = Map.of("FERNET_KEY", "f", "SECRET_KEY", "s",
+                "ASYNC_CALLBACK_AES_KEY", "k", "ASYNC_CALLBACK_AES_IV", "i");
+        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).properties(secrets).start()) {
             ActionSettings settings = context.getBean(ActionSettings.class);
             if (System.getenv("ACTION_SERVER_REQUEST_TIMEOUT") == null) {
                 assertEquals(60, settings.getRequestTimeout());

@@ -8,18 +8,13 @@ micronaut:
     max-request-size: 64MB
     # Micronaut >= 4.5 buffers @Body String up to this separate limit (default 10 MB); keep it equal.
     max-request-buffer-size: 64MB
+    # CORS is handled by SecurityFilter from kairon.action.cors-origin (ALLOWED_ORIGIN), mirroring Starlette's
+    # CORSMiddleware(allow_origins=cors.origin, allow_credentials=True, allow_methods=["*"], allow_headers=["*"]).
+    # localhost-pass-through: Micronaut otherwise answers 403 to a cross-origin request whose Host is localhost
+    # even with CORS disabled; the Python server has no such check.
     cors:
-      enabled: true
-      configurations:
-        all:
-          allowed-origins:
-            - "*"
-          allowed-methods:
-            - GET
-            - POST
-            - OPTIONS
-          allowed-headers:
-            - "*"
+      enabled: false
+      localhost-pass-through: true
 
 jackson:
   serialization-inclusion: ALWAYS
