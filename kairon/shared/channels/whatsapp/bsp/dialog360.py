@@ -328,7 +328,6 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             media_doc.save()
             raise e
 
-
     @staticmethod
     async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,
                            filesize: int = 0) -> str:
