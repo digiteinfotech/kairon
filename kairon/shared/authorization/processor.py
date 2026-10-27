@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Text
 
 from mongoengine.errors import DoesNotExist
@@ -79,11 +79,13 @@ class IntegrationProcessor:
             integration = Integration.objects(
                 name="agent-action", bot=bot,
                 status=INTEGRATION_STATUS.ACTIVE.value
-            ).get()
+            ).first()
         data = {
             "sub": user, "bot": bot, "name": "agent-action",
             "role": integration.role, "iat": integration.iat.replace(tzinfo=timezone.utc),
             "account": AccountProcessor.get_bot(bot)["account"],
+            "exp": datetime.utcnow() + timedelta(minutes=token_expire),
+            "access-limit": [f"/api/agents/{bot}/.+/run/.+"],
         }
         return Authentication.create_access_token(
             data=data, token_type=TOKEN_TYPE.INTEGRATION.value, token_expire=token_expire

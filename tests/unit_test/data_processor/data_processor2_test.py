@@ -1713,3 +1713,43 @@ class TestAgentActionIntegrationToken:
                 IntegrationProcessor.create_agent_action_token(bot, "sender")
 
         assert Integration.objects(bot=bot, name="agent-action").count() == 0
+
+    def test_create_agent_action_token_expires_in_15_minutes(self):
+        bot = "agent_token_bot_7"
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender")
+
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+        remaining = (exp - datetime.now(tz=timezone.utc)).total_seconds()
+        assert 14 * 60 < remaining <= 15 * 60
+        assert self._decode(token)["exp"] == payload["exp"]
+
+    def test_create_agent_action_token_expired_token_rejected(self):
+        bot = "agent_token_bot_8"
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender", token_expire=-1)
+
+        with pytest.raises(jwt.ExpiredSignatureError):
+            jwt.decode(token, secret_key, algorithms=[algorithm])
+
+    def test_create_agent_action_token_access_limit(self):
+        bot = "agent_token_bot_9"
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender")
+
+        patterns = self._decode(token)["access-limit"]
+        assert len(patterns) == 1
+        assert re.match(patterns[0], f"/api/agents/{bot}/agent-uuid/run/sender/simple")
+        assert not re.match(patterns[0], "/api/agents/other_bot/agent-uuid/run/sender/simple")
+        assert not re.match(patterns[0], f"/api/bot/{bot}/chat/client/config")
