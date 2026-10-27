@@ -12,7 +12,7 @@ from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import KaironSystemSlots, KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import STATUSES, TOKEN_TYPE, INTEGRATION_STATUS
+from kairon.shared.data.constant import STATUSES
 from kairon.shared.request_context import get_request_id
 from kairon.shared.utils import Utility
 
