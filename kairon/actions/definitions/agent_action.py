@@ -10,9 +10,9 @@ from kairon.shared.actions.data_objects import ActionServerLogs, AgentActionConf
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
-from kairon.shared.auth import Authentication
+from kairon.shared.authorization.processor import IntegrationProcessor
 from kairon.shared.constants import KaironSystemSlots, KAIRON_USER_MSG_ENTITY
-from kairon.shared.data.constant import STATUSES, TOKEN_TYPE
+from kairon.shared.data.constant import STATUSES, TOKEN_TYPE, INTEGRATION_STATUS
 from kairon.shared.request_context import get_request_id
 from kairon.shared.utils import Utility
 
@@ -62,11 +62,7 @@ class ActionAgent(ActionsBase):
             base_url = Utility.environment.get('simple_agent', {}).get('url', '').rstrip('/')
             http_url = f"{base_url}/agents/{self.bot}/{agent_id}/run/{sender_id}/simple"
 
-            bearer_token = Authentication.create_access_token(
-                data={"sub": sender_id, "bot": self.bot},
-                token_type=TOKEN_TYPE.INTEGRATION.value,
-                token_expire=15,
-            )
+            bearer_token = IntegrationProcessor.create_agent_action_token(self.bot, sender_id)
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",

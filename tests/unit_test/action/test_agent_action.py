@@ -100,7 +100,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=(mock_response, 200, None, None)) as mock_http, \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save") as mock_log:
@@ -124,7 +124,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=("plain string response", 200, None, None)), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
             result = await ActionAgent("bot_str_resp", "exec_str_resp").execute(
@@ -139,7 +139,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=({"result": "something"}, 200, None, None)), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
             result = await ActionAgent("bot_no_output", "exec_no_output").execute(
@@ -154,7 +154,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    side_effect=Exception("connection refused")), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs") as mock_log_cls:
@@ -174,7 +174,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=({"error": "internal server error"}, 500, None, None)), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs") as mock_log_cls:
@@ -195,7 +195,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=({"output": "answer"}, 200, None, None)), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="mock_token"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
             result = await ActionAgent("bot_no_dispatch_agent", "exec_no_dispatch_agent").execute(
@@ -225,13 +225,14 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    side_effect=capture_request), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
-                   return_value="test_bearer_token"), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="test_bearer_token") as mock_token, \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
             await ActionAgent("bot_auth_check", "exec_auth_check").execute(
                 dispatcher, tracker, {}, action_call={}
             )
 
+        mock_token.assert_called_once_with("bot_auth_check", "auth_sender")
         assert captured_headers.get("Authorization") == "Bearer test_bearer_token"
 
     # ─── properties ───────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ class TestActionAgent:
 
         with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
                    return_value=({"output": "yes"}, 200, None, None)), \
-             patch("kairon.actions.definitions.agent_action.Authentication.create_access_token",
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
                    return_value="tok"), \
              patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
             action = ActionAgent("bot_prop_ok", "exec_prop_ok")
