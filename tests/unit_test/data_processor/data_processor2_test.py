@@ -1,11 +1,13 @@
+import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException
 from unittest.mock import patch, MagicMock
 
+import jwt
 import pytest
-from mongoengine import ValidationError
+from mongoengine import ValidationError, connect
 from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 import shutil
@@ -14,7 +16,9 @@ from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
-from kairon.shared.data.constant import EVENT_STATUS, STATUSES
+from kairon.shared.authorization.data_objects import Integration
+from kairon.shared.authorization.processor import IntegrationProcessor
+from kairon.shared.data.constant import EVENT_STATUS, STATUSES, ACCESS_ROLES, INTEGRATION_STATUS, TOKEN_TYPE
 from kairon.shared.utils import Utility
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
 Utility.load_environment()
@@ -1596,3 +1600,156 @@ def test_clean_trims_and_lowercases():
     obj.clean()
 
     assert obj.collection_name == "reports"
+
+
+class TestAgentActionIntegrationToken:
+
+    @pytest.fixture(autouse=True, scope='class')
+    def init_connection(self):
+        os.environ["system_file"] = "./tests/testing_data/system.yaml"
+        Utility.load_environment()
+        connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+
+    @pytest.fixture(autouse=True)
+    def cleanup(self):
+        Integration.objects(bot__startswith="agent_token_bot").delete()
+        yield
+        Integration.objects(bot__startswith="agent_token_bot").delete()
+
+    @staticmethod
+    def _decode(token):
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        return json.loads(Utility.decrypt_message(payload['sub']))
+
+    def test_create_agent_action_token_creates_integration(self):
+        bot, user = "agent_token_bot_1", "sender_1"
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, user)
+
+        integrations = list(Integration.objects(bot=bot))
+        assert len(integrations) == 1
+        integration = integrations[0]
+        assert integration.name == "agent-action"
+        assert integration.user == user
+        assert integration.role == ACCESS_ROLES.ADMIN.value
+        assert integration.status == INTEGRATION_STATUS.ACTIVE.value
+
+        claims = self._decode(token)
+        assert claims["sub"] == user
+        assert claims["bot"] == bot
+        assert claims["name"] == "agent-action"
+        assert claims["role"] == ACCESS_ROLES.ADMIN.value
+        assert claims["account"] == 1000
+        assert claims["type"] == TOKEN_TYPE.INTEGRATION.value
+
+    def test_create_agent_action_token_claims_pass_integration_verification(self):
+        bot, user = "agent_token_bot_2", "sender_2"
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, user)
+
+        claims = self._decode(token)
+        IntegrationProcessor.verify_integration_token(
+            claims["name"], claims["bot"], claims["sub"], claims["iat"], claims["role"]
+        )
+
+    def test_create_agent_action_token_reuses_existing_integration(self):
+        bot = "agent_token_bot_3"
+        iat = datetime.now(tz=timezone.utc).replace(microsecond=0)
+        IntegrationProcessor.add_integration("agent-action", bot, "first_user", ACCESS_ROLES.ADMIN.value, iat)
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}), \
+             patch("kairon.shared.authorization.processor.IntegrationProcessor.add_integration") as mock_add:
+            token = IntegrationProcessor.create_agent_action_token(bot, "second_user")
+
+        mock_add.assert_not_called()
+        assert Integration.objects(bot=bot).count() == 1
+        claims = self._decode(token)
+        assert claims["sub"] == "second_user"
+        assert claims["iat"] == int(iat.timestamp())
+
+    def test_create_agent_action_token_second_call_does_not_duplicate(self):
+        bot = "agent_token_bot_4"
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            IntegrationProcessor.create_agent_action_token(bot, "sender_a")
+            IntegrationProcessor.create_agent_action_token(bot, "sender_b")
+
+        assert Integration.objects(bot=bot, name="agent-action").count() == 1
+
+    def test_create_agent_action_token_ignores_deleted_integration(self):
+        bot = "agent_token_bot_5"
+        IntegrationProcessor.add_integration(
+            "agent-action", bot, "old_user", ACCESS_ROLES.ADMIN.value,
+            datetime.now(tz=timezone.utc).replace(microsecond=0)
+        )
+        IntegrationProcessor.update_integration("agent-action", bot, "old_user", INTEGRATION_STATUS.DELETED)
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            IntegrationProcessor.create_agent_action_token(bot, "new_user")
+
+        active = Integration.objects(bot=bot, name="agent-action", status=INTEGRATION_STATUS.ACTIVE.value)
+        assert active.count() == 1
+        assert active.first().user == "new_user"
+        assert Integration.objects(bot=bot, status=INTEGRATION_STATUS.DELETED.value).count() == 1
+
+    def test_create_agent_action_token_limit_reached(self):
+        bot = "agent_token_bot_6"
+        iat = datetime.now(tz=timezone.utc).replace(microsecond=0)
+        for i in range(3):
+            IntegrationProcessor.add_integration(f"other_{i}", bot, "user", ACCESS_ROLES.CHAT.value, iat)
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            with pytest.raises(AppException, match="Integrations limit reached!"):
+                IntegrationProcessor.create_agent_action_token(bot, "sender")
+
+        assert Integration.objects(bot=bot, name="agent-action").count() == 0
+
+    def test_create_agent_action_token_expires_in_15_minutes(self):
+        bot = "agent_token_bot_7"
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender")
+
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+        remaining = (exp - datetime.now(tz=timezone.utc)).total_seconds()
+        assert 14 * 60 < remaining <= 15 * 60
+        assert self._decode(token)["exp"] == payload["exp"]
+
+    def test_create_agent_action_token_expired_token_rejected(self):
+        bot = "agent_token_bot_8"
+        secret_key = Utility.environment['security']["secret_key"]
+        algorithm = Utility.environment['security']["algorithm"]
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender", token_expire=-1)
+
+        with pytest.raises(jwt.ExpiredSignatureError):
+            jwt.decode(token, secret_key, algorithms=[algorithm])
+
+    def test_create_agent_action_token_access_limit(self):
+        bot = "agent_token_bot_9"
+
+        with patch("kairon.shared.authorization.processor.AccountProcessor.get_bot",
+                   return_value={"account": 1000}):
+            token = IntegrationProcessor.create_agent_action_token(bot, "sender")
+
+        patterns = self._decode(token)["access-limit"]
+        assert len(patterns) == 1
+        assert re.match(patterns[0], f"/api/agents/{bot}/agent-uuid/run/sender/simple")
+        assert not re.match(patterns[0], "/api/agents/other_bot/agent-uuid/run/sender/simple")
+        assert not re.match(patterns[0], f"/api/bot/{bot}/chat/client/config")

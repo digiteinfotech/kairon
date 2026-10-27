@@ -1,10 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Text
 
 from mongoengine.errors import DoesNotExist
 from kairon.exceptions import AppException
+from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.authorization.data_objects import Integration
-from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
+from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES, TOKEN_TYPE
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
 
@@ -62,3 +63,30 @@ class IntegrationProcessor:
             integration.save()
         except DoesNotExist:
             raise AppException("Integration does not exists")
+
+    @staticmethod
+    def create_agent_action_token(bot: Text, user: Text, token_expire: int = 15):
+        from kairon.shared.auth import Authentication
+        integration = Integration.objects(
+            name="agent-action", bot=bot,
+            status=INTEGRATION_STATUS.ACTIVE.value
+        ).first()
+        if not integration:
+            iat = datetime.now(tz=timezone.utc).replace(microsecond=0)
+            IntegrationProcessor.add_integration(
+                "agent-action", bot, user, ACCESS_ROLES.ADMIN.value, iat
+            )
+            integration = Integration.objects(
+                name="agent-action", bot=bot,
+                status=INTEGRATION_STATUS.ACTIVE.value
+            ).first()
+        data = {
+            "sub": user, "bot": bot, "name": "agent-action",
+            "role": integration.role, "iat": integration.iat.replace(tzinfo=timezone.utc),
+            "account": AccountProcessor.get_bot(bot)["account"],
+            "exp": datetime.utcnow() + timedelta(minutes=token_expire),
+            "access-limit": [f"/api/agents/{bot}/.+/run/.+"],
+        }
+        return Authentication.create_access_token(
+            data=data, token_type=TOKEN_TYPE.INTEGRATION.value, token_expire=token_expire
+        )
