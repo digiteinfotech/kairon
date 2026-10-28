@@ -782,6 +782,38 @@ class TestGenerateStorePageUrl:
         token = url.split("/")[-1]
         assert token.count(".") == 2
 
+    def _generate(self, *args):
+        with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
+            mock_bs.objects.return_value.get.return_value = self._MOCK_BS
+            return CustomerOrderProcessor._generate_store_page_url(*args)
+
+    def test_url_with_identifier_ends_with_id_query(self):
+        url = self._generate("url_gen_bot4", "url_user4", "catalog", "abc123")
+        assert url.endswith("?id=abc123")
+
+    def test_url_identifier_special_chars_round_trip(self):
+        from urllib.parse import urlparse, parse_qs
+        identifier = "a b&c=d+e"
+        url = self._generate("url_gen_bot5", "url_user5", "catalog", identifier)
+        assert parse_qs(urlparse(url).query) == {"id": [identifier]}
+
+    def test_url_with_identifier_keeps_path_token_and_sender(self):
+        url = self._generate("url_gen_bot6", "url_user6", "shop", "abc123")
+        catalog_base = Utility.environment.get("store_page", {}).get("url", "")
+        path = url.split("?")[0]
+        prefix = f"{catalog_base}/shop/url_gen_bot6/"
+        assert path.startswith(prefix)
+        encrypted_id, token = path[len(prefix):].split("/")
+        assert Utility.decrypt_message(encrypted_id) == "url_user6"
+        parts = token.split(".")
+        assert len(parts) == 3 and all(parts)
+
+    @pytest.mark.parametrize("args", [(), (None,), ("",)])
+    def test_url_without_identifier_has_no_query_string(self, args):
+        url = self._generate("url_gen_bot7", "url_user7", "catalog", *args)
+        assert "?" not in url
+        assert len(url.split("/")[-1].split(".")) == 3
+
 
 class TestCreateRazorpayPaymentLink:
 
@@ -954,6 +986,28 @@ class TestCreateOrderPaymentEnabled:
         call_payload = mock_post.call_args[1]["json"]
         assert call_payload["notes"]["kairon_id"] == "cb_001"
         assert call_payload["notes"]["kairon_order_id"] == result["order_id"]
+
+    @pytest.mark.parametrize("identifier,expected_query", [("cb_001", "id=cb_001"), ("", "")])
+    def test_payment_callback_url_carries_identifier(self, identifier, expected_query):
+        from urllib.parse import urlparse
+        self._save_store_metadata(payment_enabled=True)
+        self._save_store_page_action(page_name="shop")
+        self._save_razorpay_action()
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"id": "pay_cb", "short_url": "https://rzp.io/cb"}
+        with patch("kairon.shared.data.customer_order_processor.http_requests.post") as mock_post:
+            mock_post.return_value = mock_resp
+            with patch("kairon.shared.data.data_objects.BotSettings") as mock_bs:
+                mock_bs.objects.return_value.get.return_value = MagicMock(store_page_token_expiry=15)
+                CustomerOrderProcessor.create_order(
+                    bot=self.bot, sender_id=self.enc,
+                    persona_type="fnb",
+                    order_payload={"item": "Burger", "amount": 150},
+                    callback_identifier=identifier,
+                )
+        callback_url = mock_post.call_args[1]["json"]["callback_url"]
+        assert urlparse(callback_url).query == expected_query
 
     def test_payment_enabled_razorpay_app_exception_reraises(self):
         self._save_store_metadata(payment_enabled=True)
