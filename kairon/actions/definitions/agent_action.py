@@ -16,6 +16,8 @@ from kairon.shared.data.constant import STATUSES
 from kairon.shared.request_context import get_request_id
 from kairon.shared.utils import Utility
 
+CHAT_HISTORY_SIZE = 5
+
 
 class ActionAgent(ActionsBase):
 
@@ -42,6 +44,22 @@ class ActionAgent(ActionsBase):
             if not ActionUtility.is_empty(entity_msg):
                 return entity_msg
         return user_msg or ""
+
+    @staticmethod
+    def _get_chat_history(tracker: Tracker) -> list:
+        """Last CHAT_HISTORY_SIZE messages of the current session, excluding the current user message."""
+        history = ActionUtility.prepare_bot_responses(tracker, CHAT_HISTORY_SIZE)
+        if history and history[-1]["role"] == "user":
+            history.pop()
+        return history[-CHAT_HISTORY_SIZE:]
+
+    @staticmethod
+    def _build_message(user_message: str, history: list) -> str:
+        """Prefix the current user message with the chat history, if any."""
+        if not history:
+            return user_message
+        transcript = "\n".join(f"{msg['role']}: {msg['content']}" for msg in history)
+        return f"Conversation history:\n{transcript}\n\nCurrent message: {user_message}"
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         action_call = kwargs.get('action_call', {})
@@ -72,7 +90,7 @@ class ActionAgent(ActionsBase):
 
             user_message = self._get_user_message(tracker)
             request_body = {
-                "message": user_message,
+                "message": self._build_message(user_message, self._get_chat_history(tracker)),
                 "session_id": None,
                 "metadata": {},
                 "max_iterations": 1,
