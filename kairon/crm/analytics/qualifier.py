@@ -110,12 +110,50 @@ def _cfg() -> Dict[Text, Any]:
     return (Utility.environment.get("crm") or {}).get("lead_analysis") or {}
 
 
+REDACTED = "[REDACTED]"
+_JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\b")
+_BEARER_RE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=\-]{12,}")
+_KEY_PREFIX_RE = re.compile(r"\b(?:sk|pk|rk)[-_][A-Za-z0-9_\-]{16,}|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{20,}|\bxox[abprs]-[A-Za-z0-9\-]{10,}")
+_SECRET_ASSIGN_RE = re.compile(
+    r"(?i)\b(password|passwd|pwd|passcode|secret|api[ _-]?key|access[ _-]?token|auth[ _-]?token|token|otp|cvv|cvc|pin)\b"
+    r"(\s*(?:[:=]|is)\s*)\S+")
+_CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
+
+
+def _luhn_ok(digits: Text) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        n = int(ch)
+        if i % 2:
+            n = n * 2 - 9 if n > 4 else n * 2
+        total += n
+    return total % 10 == 0
+
+
+def redact_sensitive(text: Text) -> Text:
+    """
+    Masks credentials and payment card numbers before text leaves Kairon (LLM server, lead webhook). Email addresses and
+    phone numbers are deliberately kept: they are the lead details being qualified, and `verify_against_transcript`
+    checks them against what the user wrote. This is a best-effort pattern filter, not a guarantee that no personal
+    data is present.
+    """
+    text = _JWT_RE.sub(REDACTED, text)
+    text = _BEARER_RE.sub(f"Bearer {REDACTED}", text)
+    text = _KEY_PREFIX_RE.sub(REDACTED, text)
+    text = _SECRET_ASSIGN_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", text)
+
+    def _card(m):
+        digits = re.sub(r"\D", "", m.group(0))
+        return REDACTED if 13 <= len(digits) <= 19 and _luhn_ok(digits) else m.group(0)
+    return _CARD_RE.sub(_card, text)
+
+
 def format_transcript(turns: List[Dict[Text, Any]], max_chars: int) -> Text:
-    """Newest turns win when the budget is exceeded (the latest messages carry the intent)."""
+    """Newest turns win when the budget is exceeded (the latest messages carry the intent). Output is redacted."""
     lines: List[Text] = []
     for turn in turns:
-        user_text = (turn.get("user") or "").strip()
-        bot_text = (turn.get("bot") or "").strip()
+        user_text = redact_sensitive((turn.get("user") or "").strip())
+        bot_text = redact_sensitive((turn.get("bot") or "").strip())
         if user_text:
             lines.append(f"USER: {user_text}")
         if bot_text:

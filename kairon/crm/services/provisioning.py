@@ -318,7 +318,12 @@ class ProvisioningService:
                 logger.info(f"[{self.provisioning_id}] Rotating user password for login verification...")
                 client.login(admin_password)
                 url = f"{client.base_url}/api/resource/User/{current_user_email}"
-                client.session.put(url, json={"new_password": temp_password}, timeout=15)
+                resp = client.session.put(url, json={"new_password": temp_password}, timeout=15)
+                if resp.status_code != 200:
+                    raise AppException(f"Password rotation for login verification failed: HTTP {resp.status_code}")
+                # Other code reads the stored credential, so it must follow the rotation.
+                doc.erpnext_password = Utility.encrypt_message(temp_password)
+                doc.save()
 
             if not verifier.verify_provisioning_state(
                 admin_password=admin_password,

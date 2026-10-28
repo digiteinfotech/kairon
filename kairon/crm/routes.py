@@ -262,6 +262,7 @@ def invite_erpnext_user(
 @router.post("/webhook/invitation-accepted", response_model=Response)
 async def handle_invitation_webhook(
     request: Request,
+    bot: str,
     x_kairon_site: str = Header(..., alias="X-Kairon-Site"),
     x_frappe_webhook_signature: str = Header(..., alias="X-Frappe-Webhook-Signature"),
 ):
@@ -282,6 +283,7 @@ async def handle_invitation_webhook(
         raw_body=raw_body,
         signature_header=x_frappe_webhook_signature,
         payload=payload,
+        bot=bot,
     )
     return Response(data=result, message="Webhook processed successfully")
 

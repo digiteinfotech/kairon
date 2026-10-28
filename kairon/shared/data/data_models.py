@@ -10,7 +10,6 @@ from fastapi.param_functions import Form
 from fastapi.security import OAuth2PasswordRequestForm
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 
-from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import ScheduleActionType, Actions
 from kairon.shared.data.constant import (
