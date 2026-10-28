@@ -80,11 +80,14 @@ class TestERPNextCRMLeadAction:
         action = ActionERPNextCRMLeadQualified(bot, "erpnext_crm_lead_qualified")
 
         with mock.patch("kairon.actions.definitions.erpnext_crm_lead.KaironEventPublisher.publish_webhook") as mock_publish:
-            result = await action.execute(dispatcher, tracker, {})
+            await action.execute(dispatcher, tracker, {})
 
         mock_publish.assert_not_called()
         log = ActionServerLogs.objects(bot=bot, sender=tracker.sender_id).order_by("-timestamp").first()
         assert log.messages.get("skipped_reason", "").startswith("missing_required_fields")
+        # Nothing was sent, so the reply must not claim the details reached sales.
+        assert log.bot_response is None
+        assert not dispatcher.messages
 
     @pytest.mark.asyncio
     async def test_publishes_once_then_idempotently_skips_duplicate_within_same_conversation(self):

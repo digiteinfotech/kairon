@@ -16,11 +16,11 @@ from mongoengine import connect, disconnect
 
 from kairon.crm.analytics import qualifier
 from kairon.crm.analytics.models import (
-    CRMLeadAnalysisRecord, CRMLeadAnalysisState, CRMLeadQualificationConfig, LeadRecordStatus,
+    CRMLeadAnalysisRecord, CRMLeadAnalysisState, CRMLeadQualificationConfig,
 )
 from kairon.crm.analytics.pipeline import LeadAnalysisPipeline, lead_event_id
 from kairon.crm.analytics.processor import LeadQualificationProcessor
-from kairon.crm.models import CRMAdminInvitationStatus as Inv, CRMClientDetails, CRMInvitation, CRMOnboardingStatus
+from kairon.crm.models import CRMClientDetails, CRMInvitation, CRMOnboardingStatus
 from kairon.crm.processor import CRMProcessor
 from kairon.crm.schemas import CRMOnboardRequest, CRMManagedUserInviteRequest
 from kairon.crm.services.admin_invitation import CRMAdminInvitationService, MAX_ATTEMPTS
@@ -710,7 +710,7 @@ def test_prompt_requires_crm_enabled():
 
 def test_prompt_test_is_read_only_and_never_dispatches():
     enable_leads()
-    with llm() as m, dispatch_ok() as pub:
+    with llm(), dispatch_ok() as pub:
         out = LeadQualificationProcessor.test_prompt(BOT, "u", None, [{"user": "mail asha@example.com, I want a ring", "bot": "sure"}])
     assert out["dispatched"] is False and out["lead_fields"]["email"] == "asha@example.com"
     pub.assert_not_called()
@@ -1001,7 +1001,6 @@ def test_pipeline_failures_are_visible_in_the_existing_analytics_event_log(event
     """[mock] AnalyticsRunner: a failing script is recorded as a FAIL log with the reason (nothing swallowed)."""
     from kairon.events.definitions.analytic_pipeline_handler import AnalyticsPipelineEvent
     from kairon.shared.chat.broadcast.data_objects import AnalyticsPipelineLogs
-    from kairon.shared.analytics.analytics_pipeline_processor import AnalyticsPipelineProcessor
     from kairon.shared.actions.data_objects import AnalyticsPipelineConfig, SchedulerConfiguration
     from kairon.shared.callback.data_objects import CallbackConfig
     for model in (AnalyticsPipelineConfig, CallbackConfig, AnalyticsPipelineLogs):
@@ -1024,7 +1023,7 @@ def test_run_stops_starting_analyses_at_the_time_budget_and_resumes_without_skip
         tracker.add(BOT, f"slow{i}", NOW - 900 + i, "buy ring asha@example.com")
     Utility.environment["crm"].setdefault("lead_analysis", {})["time_budget_seconds"] = 0
     try:
-        with llm() as m, dispatch_ok():
+        with llm(), dispatch_ok():
             pipeline().run_bot(BOT)                       # budget 0: at most the first analysis starts
             first = CRMLeadAnalysisRecord.objects(bot=BOT).count()
             mark = CRMLeadAnalysisState.objects(bot=BOT).first().watermark
@@ -1074,3 +1073,270 @@ def test_model_must_be_enabled_on_the_platform_llm_before_any_call_is_made():
         pi.assert_not_called()
     finally:
         lead_cfg.pop("model")
+
+
+# --------------------------------------------------------------------------- review regressions
+
+def test_fresh_provisioning_lock_is_not_bypassed_by_a_terminal_status():
+    # A run that just took the lock still reads PENDING; a second request must not acquire it as well.
+    make_tenant(status="PENDING", lock=True, lock_timestamp=datetime.utcnow())
+    with patch("kairon.crm.services.provisioning.ProvisioningService.execute_onboarding_workflow") as run:
+        with pytest.raises(AppException, match="already in progress"):
+            CRMProcessor().onboard_company("Acme Co", "AC", "INR", "India", BOT, MagicMock(email="s@x.com"),
+                                           crm_admin_email="boss@acme.com")
+    run.assert_not_called()
+
+
+def test_stale_provisioning_lock_is_still_recoverable():
+    make_tenant(status="FAILED_BENCH", lock=True, lock_timestamp=datetime.utcnow() - timedelta(hours=3))
+    with patch("kairon.crm.services.provisioning.ProvisioningService.execute_onboarding_workflow",
+               side_effect=RuntimeError("boom")) as run:
+        with pytest.raises(RuntimeError):
+            CRMProcessor().onboard_company("Acme Co", "AC", "INR", "India", BOT, MagicMock(email="s@x.com"),
+                                           crm_admin_email="boss@acme.com")
+    run.assert_called_once()
+
+
+def test_workspace_visibility_skips_container_fallback_when_rest_succeeds():
+    from kairon.crm.services.erpnext_client import ERPNextClient
+    client = ERPNextClient("http://localhost:8080", "acme.localhost")
+    client.session = MagicMock()
+    client.session.put.return_value = MagicMock(status_code=200)
+    with patch("kairon.crm.services.erpnext_client.subprocess.run") as run:
+        assert client.hide_workspace("Selling") is True
+    run.assert_not_called()
+
+
+def test_workspace_visibility_falls_back_to_container_when_rest_fails():
+    from kairon.crm.services.erpnext_client import ERPNextClient
+    client = ERPNextClient("http://localhost:8080", "acme.localhost")
+    client.session = MagicMock()
+    client.session.put.return_value = MagicMock(status_code=500, text="err")
+    with patch("kairon.crm.services.bench_executor.BenchExecutor._resolve_container_name", return_value="bench"), \
+            patch("kairon.crm.services.erpnext_client.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+        assert client.hide_workspace("Selling") is True
+    run.assert_called_once()
+
+
+def _verification_fixture(put_status):
+    from kairon.crm.services.provisioning import ProvisioningService
+    doc = make_tenant(status="FAILED_VERIFICATION")
+    client = MagicMock(base_url="http://x")
+    client.session.put.return_value = MagicMock(status_code=put_status)
+    verifier = MagicMock()
+    verifier.verify_provisioning_state.return_value = True
+    service = ProvisioningService(BOT, "Acme Co", "run-1")
+    return service, doc, client, verifier
+
+
+def test_rotated_temp_password_is_persisted():
+    service, doc, client, verifier = _verification_fixture(200)
+    service._phase_verification(doc, client, verifier, "admin-pw", None, False, "boss@acme.com")
+    stored = CRMClientDetails.objects(bot=BOT).first().erpnext_password
+    assert Utility.decrypt_message(stored) == verifier.verify_provisioning_state.call_args.kwargs["temp_password"]
+
+
+def test_failed_password_rotation_is_reported_as_such_not_as_verification_failure():
+    service, doc, client, verifier = _verification_fixture(500)
+    with pytest.raises(AppException, match="Password rotation"):
+        service._phase_verification(doc, client, verifier, "admin-pw", None, False, "boss@acme.com")
+    verifier.verify_provisioning_state.assert_not_called()
+
+
+def test_provisioner_loads_the_tenant_of_its_own_bot_when_company_names_collide():
+    from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
+    make_tenant(OTHER_BOT, "other.localhost")
+    mine = make_tenant(BOT, "mine.localhost")
+    assert BaseProvisioner._load_client_doc("acme co", BOT).id == mine.id
+    CRMClientDetails.objects(bot=BOT).delete()
+    with pytest.raises(AppException, match="not found"):
+        BaseProvisioner._load_client_doc("Acme Co", BOT)
+
+
+
+# --------------------------------------------------------------------------- create_crm_user state transitions
+
+def _create_user(bot=BOT, **kw):
+    with patch("kairon.crm.processor.BenchExecutor") as bench:
+        bench.return_value.create_crm_user.return_value = {"status": "success", "email": "n@acme.com", "role": "Sales User"}
+        if kw.get("error"):
+            bench.return_value.create_crm_user.side_effect = kw["error"]
+        return CRMProcessor.create_crm_user(bot, "staff", "n@acme.com", "Sales User")
+
+
+def test_creating_a_user_does_not_demote_a_completed_tenant():
+    make_tenant(status="COMPLETED")
+    _create_user()
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "COMPLETED"
+
+
+def test_creating_a_user_is_idempotent_on_a_completed_tenant():
+    make_tenant(status="COMPLETED")
+    _create_user()
+    _create_user()
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "COMPLETED"
+
+
+def test_creating_a_user_on_a_provisioning_tenant_still_advances_to_user_created():
+    make_tenant(status="COMPANY_CREATED")
+    _create_user()
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "USER_CREATED"
+
+
+@pytest.mark.parametrize("status", ["COMPLETED", "COMPANY_CREATED"])
+def test_failed_user_creation_leaves_status_unchanged(status):
+    make_tenant(status=status)
+    with pytest.raises(AppException):
+        _create_user(error=AppException("bench down"))
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == status
+
+
+# --------------------------------------------------------------------------- Tier 1 -> Tier 2 upgrade provisioner
+
+def _upgrader():
+    from kairon.crm.services.provisioners.upgrade_provisioner import AppUpgradeProvisioner
+    from kairon.crm.services.provisioning_models import ProvisioningPlan
+    return AppUpgradeProvisioner(ProvisioningPlan(strategy_key="in_place_upgrade", tier=2, apps=["erpnext"]), {})
+
+
+def _upgrade(bot=BOT, returncodes=(0, 0)):
+    """Runs the upgrade with bench mocked out; returncodes are for (backup, install-app)."""
+    runs = [MagicMock(returncode=rc, stdout=b"backup.sql.gz", stderr=b"err") for rc in returncodes] + [MagicMock(returncode=0)] * 3
+    up = _upgrader()             # built first: the constructor itself probes docker
+    with patch("kairon.crm.services.provisioners.upgrade_provisioner.PreFlightValidator.validate_infrastructure"), \
+            patch("kairon.crm.services.provisioners.upgrade_provisioner.subprocess.run", side_effect=runs) as run, \
+            patch.object(up.__class__, "set_homepage"), patch.object(up.__class__, "reload_gunicorn_workers"):
+        try:
+            return up.provision("Acme Co", "AC", "INR", "India", "pw", bot), run
+        except AppException as e:
+            return e, run
+
+
+def test_upgrade_installs_erpnext_marks_tier_2_and_releases_lock():
+    make_tenant(status="COMPLETED", tier=1, installed_apps=["crm"])
+    result, run = _upgrade()
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert result["tier"] == 2 and doc.tier == 2 and "erpnext" in doc.installed_apps
+    assert doc.lock is False
+    assert any("install-app" in c.args[0] for c in run.call_args_list)
+
+
+def test_failed_upgrade_is_recorded_and_lock_released_so_it_can_be_retried():
+    make_tenant(status="COMPLETED", tier=1, installed_apps=["crm"])
+    err, _ = _upgrade(returncodes=(0, 1))
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert isinstance(err, AppException)
+    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False and doc.tier != 2
+    result, _ = _upgrade()           # retry after a partial failure reaches the install step again
+    assert result["tier"] == 2
+
+
+def test_concurrent_upgrade_is_refused_while_the_site_is_locked():
+    make_tenant(status="UPGRADING_TO_TIER_2", lock=True, lock_timestamp=datetime.utcnow())
+    err, run = _upgrade()
+    assert isinstance(err, AppException) and "already in progress" in str(err)
+    run.assert_not_called()
+
+
+def test_upgrade_only_touches_the_tenant_of_its_own_bot():
+    other = make_tenant(OTHER_BOT, "other.localhost", status="COMPLETED", tier=1)
+    make_tenant(BOT, "mine.localhost", status="COMPLETED", tier=1, installed_apps=["crm"])
+    _upgrade()
+    assert CRMClientDetails.objects(id=other.id).first().tier == 1
+    assert CRMClientDetails.objects(bot=BOT).first().tier == 2
+
+
+def test_upgrade_is_refused_in_runner_mode_and_leaves_a_terminal_state():
+    make_tenant(status="COMPLETED", tier=1)
+    up = _upgrader()
+    up.runner = object()
+    with patch("kairon.crm.services.provisioners.upgrade_provisioner.subprocess.run") as run:
+        with pytest.raises(AppException, match="not supported"):
+            up.provision("Acme Co", "AC", "INR", "India", "pw", BOT)
+    run.assert_not_called()
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False
+
+
+# --------------------------------------------------------------------------- transcript redaction
+
+def test_redaction_masks_credentials_and_cards_but_keeps_lead_contact_details():
+    from kairon.crm.analytics.qualifier import redact_sensitive, REDACTED
+    raw = ("my password is hunter2 and api_key=abc123, card 4111 1111 1111 1111, "
+           "Authorization: Bearer abcdefghijklmnop1234, token sk-abcdefghijklmnopqrstuv. "
+           "Reach me at jane@acme.com or +91 98765 43210")
+    out = redact_sensitive(raw)
+    for secret in ("hunter2", "abc123", "4111 1111 1111 1111", "abcdefghijklmnop1234", "sk-abcdefghijklmnopqrstuv"):
+        assert secret not in out
+    assert REDACTED in out
+    assert "jane@acme.com" in out and "+91 98765 43210" in out
+
+
+def test_redaction_leaves_ordinary_numbers_and_text_alone():
+    from kairon.crm.analytics.qualifier import redact_sensitive
+    text = "We need 250 licences by 2026-11-30, order 1234567890123 budget 50,000"
+    assert redact_sensitive(text) == text          # 13 digits that fail the Luhn check are not a card
+
+
+def test_format_transcript_is_redacted_and_bounded():
+    from kairon.crm.analytics.qualifier import format_transcript
+    turns = [{"user": "password: s3cret!", "bot": "ok"}] + [{"user": f"msg {i} " + "x" * 200, "bot": ""} for i in range(50)]
+    out = format_transcript(turns, 1000)
+    assert len(out) <= 1000 and "s3cret" not in out
+    assert "s3cret" not in format_transcript(turns[:1], 1000)
+
+
+def test_qualified_event_transcript_is_redacted_and_bounded():
+    import asyncio
+    from kairon.actions.definitions.erpnext_crm_lead import ActionERPNextCRMLeadQualified
+    make_tenant(status="COMPLETED")
+    long_trail = "USER: my password is hunter2\n" + "BOT: " + "y" * 20000
+    tracker = MagicMock(sender_id="c1", events=[], latest_message={"text": "hi"})
+    tracker.get_slot.side_effect = lambda k: {"email": "a@acme.com", "name": "A"}.get(k)
+    tracker.get_intent_of_latest_message.return_value = "greet"
+    sent = {}
+    with patch("kairon.actions.definitions.erpnext_crm_lead.ActionUtility.prepare_message_trail_as_str",
+               return_value=([], long_trail)), \
+            patch("kairon.actions.definitions.erpnext_crm_lead.resolve_lead_target", return_value=("https://t/x", "s")), \
+            patch("kairon.actions.definitions.erpnext_crm_lead.KaironEventPublisher.publish_webhook",
+                  side_effect=lambda url, secret, event: sent.update(event.payload) or {"success": True, "status_code": 200}):
+        asyncio.run(ActionERPNextCRMLeadQualified(BOT, "erpnext_crm_lead_qualified").execute(MagicMock(), tracker, {}))
+    assert sent and len(sent["transcript"]) <= 6000 and "hunter2" not in sent["transcript"]
+
+
+# --------------------------------------------------------------------------- invitation webhook
+
+def _signed_webhook(secret="hook-secret", payload=None):
+    import base64, hashlib, hmac as _hmac, json
+    body = json.dumps(payload or {"status": "Pending", "email": "x@acme.com"}).encode()
+    sig = base64.b64encode(_hmac.new(secret.encode(), body, hashlib.sha256).digest()).decode()
+    return body, sig, json.loads(body)
+
+
+def _webhook_tenant(bot=BOT, site=SITE):
+    return make_tenant(bot, site, webhook_secret=Utility.encrypt_message("hook-secret"))
+
+
+def test_webhook_for_a_site_of_another_bot_is_rejected_like_a_bad_signature():
+    _webhook_tenant(OTHER_BOT, "other.localhost")
+    body, sig, payload = _signed_webhook()
+    with pytest.raises(AppException, match="Invalid webhook signature"):
+        CRMProcessor.handle_invitation_webhook("other.localhost", body, sig, payload, bot=BOT)
+
+
+def test_webhook_unknown_site_and_bad_signature_are_indistinguishable():
+    _webhook_tenant()
+    body, sig, payload = _signed_webhook()
+    errors = []
+    for site, signature in (("nosuch.localhost", sig), (SITE, "bad")):
+        with pytest.raises(AppException) as e:
+            CRMProcessor.handle_invitation_webhook(site, body, signature, payload, bot=BOT)
+        errors.append(str(e.value))
+    assert errors[0] == errors[1] == "Invalid webhook signature."
+
+
+def test_webhook_valid_signature_for_own_bot_is_processed():
+    _webhook_tenant()
+    body, sig, payload = _signed_webhook()          # status Pending => verified, then ignored
+    result = CRMProcessor.handle_invitation_webhook(SITE, body, sig, payload, bot=BOT)
+    assert result["action"] == "ignored"

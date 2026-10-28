@@ -41,8 +41,9 @@ class BaseProvisioner(ABC):
         return clean_name, f"{clean_name}.localhost"
 
     @staticmethod
-    def _load_client_doc(company_name: str) -> CRMClientDetails:
-        doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
+    def _load_client_doc(company_name: str, bot: str) -> CRMClientDetails:
+        # Company names are only unique per bot, so the lookup must be scoped to the bot.
+        doc = CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).first()
         if not doc:
             raise AppException(f"CRMClientDetails record not found for company: {company_name}")
         return doc

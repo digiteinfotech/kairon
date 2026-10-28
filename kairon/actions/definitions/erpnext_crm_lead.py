@@ -1,3 +1,4 @@
+import asyncio
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -12,7 +13,9 @@ from kairon.shared.data.constant import STATUSES
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.request_context import get_request_id
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
+from kairon.crm.analytics.qualifier import redact_sensitive
 from kairon.crm.lead_dispatch import resolve_lead_target
+from kairon.shared.utils import Utility
 from kairon.events.publisher import KaironEvent, KaironEventPublisher
 
 
@@ -101,6 +104,9 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
                         skip_reason = f"missing_required_fields:{'|'.join(self.REQUIRED_LEAD_FIELDS)}"
                     else:
                         _, transcript = ActionUtility.prepare_message_trail_as_str(tracker.events)
+                        # Same bound and redaction as the analytics pipeline's transcript (newest text wins).
+                        max_chars = int(((Utility.environment.get("crm") or {}).get("lead_analysis") or {}).get("max_transcript_chars", 6000))
+                        transcript = redact_sensitive(transcript)[-max_chars:]
                         event = KaironEvent(
                             event_type="lead.qualified",
                             payload={
@@ -118,7 +124,8 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
 
                         target_url, secret = resolve_lead_target(self.bot, doc.site_name)
 
-                        publish_result = KaironEventPublisher.publish_webhook(target_url, secret, event)
+                        # publish_webhook is a blocking requests call; keep it off the action server's event loop
+                        publish_result = await asyncio.to_thread(KaironEventPublisher.publish_webhook, target_url, secret, event)
                         result_payload = {
                             "event_id": event.event_id,
                             "correlation_id": event.correlation_id,
@@ -132,7 +139,8 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
 
             if skip_reason:
                 result_payload = {"skipped_reason": skip_reason}
-                if skip_reason == "crm_disabled":
+                # Nothing was sent to sales, so the default "passed your details on" reply would be untrue.
+                if skip_reason != "already_qualified":
                     bot_response = None
                 logger.debug(f"[ActionERPNextCRMLeadQualified] Skipped publish for bot '{self.bot}', conversation '{tracker.sender_id}': {skip_reason}")
 

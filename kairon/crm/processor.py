@@ -439,7 +439,9 @@ class CRMProcessor:
         )
         result = BenchExecutor().create_crm_user(bot, email, role)
         record = CRMClientDetails.objects(bot=bot).first()
-        if record:
+        # COMPLETED gates lead creation, invitations and the public "Ready" status, so adding a user to a tenant that
+        # is already provisioned must not push it back into the provisioning state machine.
+        if record and record.onboarding_status != CRMOnboardingStatus.COMPLETED.value:
             CRMProcessor.update_onboarding_status(
                 bot, record.company_name, CRMOnboardingStatus.USER_CREATED
             )
@@ -496,20 +498,8 @@ class CRMProcessor:
         # We allow acquisition if lock=False or if the lock is older than 2 hours (stale lock recovery)
         stale_threshold = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
         
-        # Terminal states where we can definitely start
-        terminal_states = [
-            CRMOnboardingStatus.PENDING.value,
-            CRMOnboardingStatus.COMPLETED.value,
-            CRMOnboardingStatus.FAILED_PROJECT.value,
-            CRMOnboardingStatus.FAILED_BENCH.value,
-            CRMOnboardingStatus.FAILED_HEALTH.value,
-            CRMOnboardingStatus.FAILED_COMPANY.value,
-            CRMOnboardingStatus.FAILED_USER.value,
-            CRMOnboardingStatus.FAILED_VERIFICATION.value
-        ]
-
         query = (Q(bot=bot) & Q(company_name__iexact=company_name.strip()))
-        lock_condition = Q(lock=False) | Q(lock_timestamp__lt=stale_threshold) | Q(onboarding_status__in=terminal_states)
+        lock_condition = Q(lock=False) | Q(lock_timestamp__lt=stale_threshold)
         
         provisioning_id = str(uuid.uuid4())
         
@@ -702,6 +692,7 @@ class CRMProcessor:
         raw_body: bytes,
         signature_header: str,
         payload: dict,
+        bot: str = None,
     ) -> dict:
         """
         Processes an incoming ERPNext webhook for a UserInvitation acceptance.
@@ -712,14 +703,17 @@ class CRMProcessor:
 
         Returns a summary dict of actions taken.
         """
+        # An unknown site, a site that belongs to another bot and a bad signature all answer the same way, so the
+        # public endpoint cannot be used to discover which tenant sites exist. The reason is logged, not returned.
         doc = CRMClientDetails.objects(site_name=site_name).first()
-        if not doc:
-            logger.warning(f"[CRMProcessor] Webhook received for unknown site: '{site_name}'")
-            raise AppException(f"Unknown site: {site_name}")
+        if not doc or (bot is not None and doc.bot != bot):
+            logger.warning(f"[CRMProcessor] Webhook rejected: site '{site_name}' is unknown or not owned by the requested bot")
+            raise AppException("Invalid webhook signature.")
 
         # Verify HMAC-SHA256 signature
         if not doc.webhook_secret:
-            raise AppException("Webhook secret not configured for this site.")
+            logger.warning(f"[CRMProcessor] Webhook rejected: no webhook secret configured for site '{site_name}'")
+            raise AppException("Invalid webhook signature.")
 
         secret = Utility.decrypt_message(doc.webhook_secret)
         expected_sig = base64.b64encode(

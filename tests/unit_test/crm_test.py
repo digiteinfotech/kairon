@@ -279,8 +279,10 @@ def test_create_crm_user(mock_sub_run):
     assert res["email"] == "crmuser@company.com"
     assert res["role"] == "Sales User"
 
+    # Adding a user to a tenant that is already provisioned must keep it COMPLETED: lead creation, invitations and
+    # the public "Ready" status all require COMPLETED (see test_creating_a_user_* in crm_redesign_test.py).
     details = CRMProcessor.get_crm_details("test_crm_bot")
-    assert details["onboarding_status"] == CRMOnboardingStatus.USER_CREATED.value
+    assert details["onboarding_status"] == CRMOnboardingStatus.COMPLETED.value
 
 
 # FastAPI endpoints tests
@@ -489,7 +491,7 @@ from kairon.crm.models import CRMInvitation, CRMInvitationStatus
 from kairon.crm.services.erpnext_client import ERPNextClient
 from kairon.crm.services.provision_verifier import ProvisionVerifier
 import base64
-import json
+
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 import hmac
 import hashlib
@@ -1238,9 +1240,9 @@ def test_metering_resync_after_delivery_is_idempotent_unless_the_payload_changed
 def test_metering_retry_after_failed_delivery_keeps_the_same_event_id(metering_configured):
     _seed_record(CRMOnboardingStatus.COMPLETED.value)
     down = {"success": False, "status_code": 503, "response_text": ""}
-    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=down) as publish:
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=down):
         first = CRMProcessor.sync_metering_metadata("test_crm_bot")
-    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()) as publish2:
+    with patch("kairon.crm.metering_sync.KaironEventPublisher.publish_webhook", return_value=_ok()):
         second = CRMProcessor.sync_metering_metadata("test_crm_bot")
     assert first["synced"] is False and second["synced"] is True
     assert first["event_id"] == second["event_id"] == "evt_run-1_crm.tenant.provisioned"

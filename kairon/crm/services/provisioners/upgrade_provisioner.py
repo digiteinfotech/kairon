@@ -22,9 +22,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
     def provision(
         self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str
     ) -> Dict[str, Any]:
-        doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
-        if not doc:
-            raise AppException(f"CRMClientDetails record not found for company: {company_name}")
+        doc = self._load_client_doc(company_name, bot)
 
         site_name = doc.site_name
         if not site_name:
@@ -34,7 +32,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
         # followed by a separate `doc.save()`) let two concurrent upgrade calls both
         # pass the check and run `bench install-app` against the same site.
         updated_count = CRMClientDetails.objects(
-            company_name__iexact=company_name.strip(), lock=False
+            bot=bot, company_name__iexact=company_name.strip(), lock=False
         ).update_one(
             set__lock=True,
             set__lock_timestamp=datetime.utcnow(),
@@ -42,7 +40,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
         )
         if updated_count == 0:
             raise AppException(f"Upgrade operation already in progress for site '{site_name}'. Please wait or retry.")
-        doc = CRMClientDetails.objects(company_name__iexact=company_name.strip()).first()
+        doc = self._load_client_doc(company_name, bot)
 
         try:
             if self.runner:

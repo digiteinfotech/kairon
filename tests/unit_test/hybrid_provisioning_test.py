@@ -1,6 +1,5 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from kairon.exceptions import AppException
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 from kairon.crm.services.feature_resolver import FeatureAppResolver
 from kairon.crm.services.preflight_validator import PreFlightValidator

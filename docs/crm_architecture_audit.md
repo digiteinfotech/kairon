@@ -25,8 +25,8 @@ Branch `crm_integration`. This replaces an earlier draft that proposed moving le
 
 ## Deferred (documented, not changed)
 - Streamlit CRM app: **moved** to the ERPNext/bench repo (`apps/kairon_connector/streamlit_apps/crm/`), where it runs as a thin client of Kairon's REST API. Removed from Kairon together with its `.gitignore` allow-rule. `tests/integration_test/test_crm_e2e.py` no longer imports it (it calls Kairon's own provisioning classes directly); the health/logs/tenant-helper tests moved with the re-homed services.
-- `/crm/tables*` (raw tenant DB rows to bot admins) and `/crm/create-user` (shells out via docker): not used by Admin. The migrated Streamlit app has client wrappers for them in `services/crm.py` but no page calls them; candidates for removal/infra.
-- `POST /crm/onboard` returns `erpnext_user` and `temporary_password`; Streamlit and the E2E suite read them.
+- `/crm/tables*` (raw tenant DB rows to bot admins): **removed**; `tests/unit_test/crm_surface_test.py` asserts that no `tables` route exists. `/crm/create-user` (shells out via docker) is not used by Admin; candidate for removal/infra.
+- `POST /crm/onboard` returns `erpnext_user`. `temporary_password` is omitted by default and returned only when `BENCH_ONBOARD_RETURN_TEMP_PASSWORD=true` (legacy clients); creators sign in with the one-click login link.
 - `bench new-site` passes the DB root and Administrator passwords as command-line arguments.
 - `crm/manager.py`, `crm/services/crm_client.py`, `base_frappe_client.py`: no production caller.
 - `CRMProcessor.reconcile_invitations` is documented as scheduled but nothing schedules it.
@@ -35,7 +35,7 @@ Branch `crm_integration`. This replaces an earlier draft that proposed moving le
 ## Pending team decisions
 1. Admin (staff console) to Kairon authentication for acting on a customer's bot. Per-bot Kairon sign-in stays until decided.
 2. Metering's own user authentication (its JWT login is on the unmerged `admin_authentication` branch). The CRM API does not depend on it: it is service-to-service HMAC.
-3. Whether `/onboard` should stop returning the temporary password.
+3. ~~Whether `/onboard` should stop returning the temporary password.~~ Resolved: it is omitted unless `BENCH_ONBOARD_RETURN_TEMP_PASSWORD=true`.
 4. Destination and interface for provisioning (infra/Terraform).
 
 ## Kairon to Metering handoff

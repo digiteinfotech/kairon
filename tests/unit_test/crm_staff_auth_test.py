@@ -13,7 +13,6 @@ from mongoengine import connect, disconnect
 
 from kairon.api.app.main import app
 from kairon.crm import auth as crm_auth
-from kairon.shared.account.data_objects import Bot
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 

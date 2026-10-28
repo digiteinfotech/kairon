@@ -535,7 +535,7 @@ class TestCRMInvitation:
         payload = {"name": f"INV-{live.test_user_email}", "email": live.test_user_email,
                    "status": "Accepted", "app_name": "frappe"}
         signature = sign_webhook(payload, secret)
-        webhook_url = f"{KAIRON_API_URL}/api/bot/{live.site_name}/crm/webhook/invitation-accepted"
+        webhook_url = f"{KAIRON_API_URL}/api/bot/{live.bot_id}/crm/webhook/invitation-accepted"
         webhook_headers = {"Content-Type": "application/json", "X-Kairon-Site": live.site_name,
                            "X-Frappe-Webhook-Signature": signature}
 

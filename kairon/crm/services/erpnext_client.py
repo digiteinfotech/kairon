@@ -534,6 +534,9 @@ print(json.dumps(keys))
         url = f"{self.base_url}/api/resource/Workspace/{workspace_name}"
         resp = self.session.put(url, json={"is_hidden": is_hidden, "public": public}, timeout=15)
         success = resp.status_code == 200
+        if success:
+            self._log_api_op(label, workspace_name, True, 200)
+            return True
         try:
             from kairon.crm.services.bench_executor import BenchExecutor
             crm_config = Utility.environment.get("crm", {})
