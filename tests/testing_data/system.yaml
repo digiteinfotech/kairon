@@ -283,10 +283,6 @@ pos:
     odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
 
 crm:
-  supabase:
-    api_url: ${SUPABASE_API_URL:"https://api.supabase.com"}
-    access_token: ${SUPABASE_ACCESS_TOKEN:"sbp_test_access_token_placeholder"}
-    organization_id: ${SUPABASE_ORGANIZATION_ID:"tbnggzpbfsotztipohrd"}
   metering:
     # Kairon Metering CRM metadata API. Both unset => handoff is skipped (best-effort, never blocks CRM).
     url: ${CRM_METERING_URL}
