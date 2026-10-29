@@ -572,7 +572,7 @@ async def test_process_async_callback_request_async_triggers_callback(
         mock_run_pyscript_async.side_effect = fake_run_pyscript_async
 
         from kairon.async_callback.processor import CallbackProcessor
-        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url, trace_id = await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -618,7 +618,7 @@ async def test_process_async_callback_request_sync(
 
         mock_parse_pyscript_data.return_value = ("Test Bot", {"state": "updated"}, False, True)
 
-        data, message, error_code, response_type, redirect_url = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url, trace_id = await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -940,7 +940,7 @@ async def test_process_async_callback_request_sync_failure_generic_message_and_f
     callback = {"execution_mode": "sync", "pyscript_code": "x", "name": "cb"}
     mock_validate.return_value = (entry, callback)
 
-    data, message, error_code, _, redirect_url = await CallbackProcessor.process_async_callback_request(
+    data, message, error_code, _, redirect_url, trace_id= await CallbackProcessor.process_async_callback_request(
         "token", "i", {"body": {}}, "src")
 
     assert data is None

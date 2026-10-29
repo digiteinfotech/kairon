@@ -1,9 +1,7 @@
 from datetime import datetime, date
 from blacksheep import JSONContent, TextContent, Response as BSResponse
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import ActionServerLogs
-from kairon.shared.actions.models import ActionParameterType, ActionType
-from kairon.shared.data.constant import STATUSES
+from kairon.shared.actions.models import ActionParameterType
 from requests import Response
 from functools import partial
 from types import ModuleType
@@ -157,15 +155,14 @@ class CallbackUtility:
             output["body"] = response
         except Exception as e:
             logger.exception(e)
-            CallbackUtility._log_main_pyscript_failure(data, str(e), context)
             output["statusCode"] = 422
-            output["body"] = "Script execution failed. Check server logs for details."
+            output["body"] = str(e)
 
         logger.info(output)
         return output
 
     @staticmethod
-    def return_response(data: any, message : str, error_code: int, response_type: str):
+    def return_response(data: any, message : str, error_code: int, response_type: str, trace_id: str):
         resp_status_code = 200 if error_code == 0 else 422
         if response_type == CallbackResponseType.KAIRON_JSON.value:
             return BSResponse(
@@ -175,6 +172,7 @@ class CallbackUtility:
                     "data": data,
                     "error_code": error_code,
                     "success": error_code == 0,
+                    "trace_id": trace_id
                 })
             )
         elif response_type == CallbackResponseType.JSON.value:
@@ -240,20 +238,3 @@ class CallbackUtility:
             ]
 
         )
-
-    @staticmethod
-    def _log_main_pyscript_failure(data: dict, error: str, context: dict = None):
-        try:
-            objs = data.get('predefined_objects') or {}
-            ActionServerLogs(
-                type=ActionType.pyscript_action.value,
-                action="main_pyscript",
-                intent=objs.get('intent'),
-                sender=objs.get('sender_id'),
-                bot=(objs.get('slot') or {}).get('bot'),
-                exception=error,
-                status=STATUSES.FAIL.value,
-                request_id=(context or {}).get('request_id'),
-            ).save()
-        except Exception as log_err:
-            logger.exception(log_err)

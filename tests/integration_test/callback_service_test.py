@@ -373,7 +373,7 @@ async def test_request_fallback_to_text():
     mock_request.query = QueryParams({})
     mock_request.scope = {"client": ["127.0.0.1"]}
     with patch("kairon.async_callback.processor.CallbackProcessor.process_async_callback_request",
-               new=AsyncMock(return_value=({}, "Success", 0, 'kairon_json', None))):
+               new=AsyncMock(return_value=({}, "Success", 0, 'kairon_json', None, None))):
         response = await process_router_message("valid_token", "test_name", "GET", request=mock_request)
     response_json = await response.json()
     assert response_json["success"] is True
@@ -396,7 +396,7 @@ async def test_async_callback(mock_dispatch_message, mock_run_pyscript_async):
     assert json_response["data"] == {"message": "Request Acknowledged"}
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": {"message": "Request Acknowledged"}, "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": {"message": "Request Acknowledged"}, "error_code": 0, "success": True, "trace_id": None}
     assert mock_run_pyscript_async.called_once()
     assert mock_dispatch_message.called_once()
 
@@ -418,8 +418,9 @@ async def test_pyscript_failure(mock_dispatch_message, mock_run_pyscript):
     assert not json_response["data"]
     assert json_response["message"] == "Callback script execution failed. Check callback logs for details."
     assert json_response["error_code"] == 400
+    trace_id = json_response["trace_id"]
     assert json_response == {"message": "Callback script execution failed. Check callback logs for details.",
-                             "error_code": 400, "success": False, "data": None}
+                             "error_code": 400, "success": False, "data": None, 'trace_id': trace_id}
     assert mock_run_pyscript.called_once()
     assert mock_dispatch_message.called_once()
 
@@ -591,7 +592,7 @@ async def test_post_callback_standalone_url_shorten(mock_dispatch_message):
     assert json_response["data"] == "state -> 1"
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
-    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True, 'trace_id': None}
 
 
 @pytest.mark.asyncio
@@ -635,7 +636,7 @@ async def test_post_callback_statechange(mock_dispatch_message):
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert json_response["data"] == 'state -> 1'
-    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": "state -> 1", "error_code": 0, "success": True, 'trace_id': None}
 
     response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                                  content=JSONContent(req_body))
@@ -645,7 +646,7 @@ async def test_post_callback_statechange(mock_dispatch_message):
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert json_response["data"] == 'state -> 2'
-    assert json_response == {"message": "success", "data": "state -> 2", "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": "state -> 2", "error_code": 0, "success": True, 'trace_id': None}
 
     response = await client.post('/callback/s/98bxWFcdoyN30eO5APd2Fb_ocqmBE_f7ZqinBXgElg8',
                                  content=JSONContent(req_body))
@@ -655,7 +656,7 @@ async def test_post_callback_statechange(mock_dispatch_message):
     assert json_response["message"] == "success"
     assert json_response["error_code"] == 0
     assert json_response["data"] == 'state -> 3'
-    assert json_response == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True}
+    assert json_response == {"message": "success", "data": "state -> 3", "error_code": 0, "success": True, 'trace_id': None}
 
 
 @pytest.mark.asyncio

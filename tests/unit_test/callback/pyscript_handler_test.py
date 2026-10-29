@@ -3336,17 +3336,8 @@ def test_delete_schedule_job_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
     print(data)
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 3" in data['body']
 
 @responses.activate
 def test_delete_schedule_job_in_main_pyscript():
@@ -3469,17 +3460,8 @@ def test_pyscript_handler_for_add_data_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 13" in data['body']
 
 
 def test_pyscript_handler_for_crud_metadata_in_main_pyscript():
@@ -3584,17 +3566,8 @@ def test_pyscript_handler_for_crud_metadata_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 16" in data['body']
 
 def test_pyscript_handler_for_crud_metadata_without_collection_name_in_main_pyscript():
     source_code = '''
@@ -3637,17 +3610,9 @@ def test_pyscript_handler_for_crud_metadata_without_collection_name_in_main_pysc
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing collection name' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing collection name" in data['body']
+    assert "Error on Line" in data['body']
+    assert 'get_crud_metadata("", sender_id)' in data['body']
 
 def test_pyscript_handler_for_get_data_in_main_pyscript():
     source_code = '''
@@ -3727,17 +3692,8 @@ def test_pyscript_handler_for_get_data_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 4" in data['body']
 
 def test_pyscript_handler_for_update_data_in_main_pyscript():
     source_code = '''
@@ -3827,17 +3783,8 @@ def test_pyscript_handler_for_update_data_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
-
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 22" in data['body']
 
 
 def test_pyscript_handler_for_get_data_after_update_in_main_pyscript():
@@ -3955,17 +3902,9 @@ def test_pyscript_handler_for_delete_data_without_bot_in_main_pyscript():
     data = CallbackUtility.main_pyscript_handler(event, None)
 
     assert data['statusCode'] == 422
-    assert data['body'] == "Script execution failed. Check server logs for details."
+    assert "Missing bot id" in data['body']
+    assert "Error on Line 13" in data['body']
 
-    log = ActionServerLogs.objects(
-        action="main_pyscript",
-        sender="917506075263"
-    ).order_by('-timestamp').first()
-
-    assert log is not None
-    assert log.status == "Failed"
-    assert 'Script execution error: Missing bot id' in log.exception
-    assert 'Traceback' not in log.exception
 
 def test_pyscript_handler_for_get_data_after_delete_in_main_pyscript():
     source_code = '''
@@ -5164,75 +5103,3 @@ class TestUpdateOrderStatus:
                 PyscriptSharedUtility.update_order_status(
                     order_id="nonexistent", new_status="confirmed", bot="test_bot"
                 )
-
-def test_log_main_pyscript_failure_saves_action_server_log():
-    sender = uuid.uuid4().hex
-    data = {'predefined_objects': {'sender_id': sender, 'intent': 'greet', 'slot': {'bot': 'bot123'}}}
-
-    CallbackUtility._log_main_pyscript_failure(data, "Script execution error: boom", {"request_id": "req-1"})
-
-    log = ActionServerLogs.objects(sender=sender).get()
-    assert log.action == "main_pyscript"
-    assert log.type == "pyscript_action"
-    assert log.intent == "greet"
-    assert log.bot == "bot123"
-    assert log.status == "Failed"
-    assert log.exception == "Script execution error: boom"
-    assert log.request_id == "req-1"
-
-
-def test_log_main_pyscript_failure_without_predefined_objects_or_context():
-    CallbackUtility._log_main_pyscript_failure({}, "boom")
-    CallbackUtility._log_main_pyscript_failure({'predefined_objects': {'slot': None}}, "boom", None)
-
-
-def test_log_main_pyscript_failure_swallows_db_errors():
-    with patch.object(ActionServerLogs, "save", side_effect=Exception("db down")):
-        CallbackUtility._log_main_pyscript_failure({'predefined_objects': {}}, "boom")
-
-
-def test_main_pyscript_handler_failure_logs_formatted_error_and_returns_generic_body():
-    sender = uuid.uuid4().hex
-    event = {'source_code': "a = 1\nb = 2\nbot_response = c",
-             'predefined_objects': {'sender_id': sender, 'user_message': 'hi', 'slot': {'bot': 'bot123'}, 'intent': 'x'}}
-
-    data = CallbackUtility.main_pyscript_handler(event, None)
-
-    assert data == {'statusCode': 422, 'body': "Script execution failed. Check server logs for details."}
-    log = ActionServerLogs.objects(sender=sender).get()
-    assert log.exception == (
-        "Script execution error: name 'c' is not defined\n"
-        "Error on Line 3:\n"
-        "    Code: bot_response = c\n"
-        "    Detail: NameError: name 'c' is not defined"
-    )
-    assert 'Traceback' not in log.exception
-    assert '.py' not in log.exception
-
-
-def test_main_pyscript_handler_syntax_error_logged_and_response_generic():
-    sender = uuid.uuid4().hex
-    event = {'source_code': "a = 1\nfor i in 10", 'predefined_objects': {'sender_id': sender, 'slot': {}}}
-
-    data = CallbackUtility.main_pyscript_handler(event, None)
-
-    assert data['body'] == "Script execution failed. Check server logs for details."
-    assert 'SyntaxError' in ActionServerLogs.objects(sender=sender).get().exception
-
-
-def test_main_pyscript_handler_log_failure_does_not_change_response():
-    event = {'source_code': "bot_response = c", 'predefined_objects': {'sender_id': 'x', 'slot': {}}}
-    with patch.object(ActionServerLogs, "save", side_effect=Exception("db down")):
-        data = CallbackUtility.main_pyscript_handler(event, None)
-    assert data == {'statusCode': 422, 'body': "Script execution failed. Check server logs for details."}
-
-
-def test_main_pyscript_handler_success_does_not_log_failure():
-    sender = uuid.uuid4().hex
-    event = {'source_code': "bot_response = 'ok'", 'predefined_objects': {'sender_id': sender, 'slot': {}}}
-
-    data = CallbackUtility.main_pyscript_handler(event, None)
-
-    assert data['statusCode'] == 200
-    assert data['body']['bot_response'] == 'ok'
-    assert ActionServerLogs.objects(sender=sender).count() == 0
