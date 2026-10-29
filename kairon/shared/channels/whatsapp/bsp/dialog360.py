@@ -248,6 +248,15 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
         return resp.get("url")
 
     @staticmethod
+    def send_waba_message_bsp(payload: dict, config: dict):
+        base_url = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["waba_base_url"]
+        header = Utility.system_metadata["channels"]["whatsapp"]["business_providers"]["360dialog"]["auth_header"]
+        headers = {header: config.get("api_key"), "Content-Type": "application/json"}
+        return Utility.execute_http_request(request_method="POST", http_url=f"{base_url}/messages",
+                                            request_body=payload, headers=headers, validate_status=True,
+                                            err_msg="Failed to send 360dialog message: ")
+
+    @staticmethod
     async def upload_media(bot: str, bsp_type: str, media_id: str) -> str:
         """
         Uploads the PDF to 360dialog and returns the external media ID.
@@ -318,7 +327,6 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             }
             media_doc.save()
             raise e
-
 
     @staticmethod
     async def upload_media_file(bot: str, channel_config: dict, sender_id: str, filename: str, extension: str,

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Text, Dict, List, Optional, Any
+from urllib.parse import urlencode
 
 import requests as http_requests
 from bson import ObjectId
@@ -61,7 +62,8 @@ class CustomerOrderProcessor:
             logger.warning(f"Failed to auto-register customer for bot {bot}: {e}")
 
     @staticmethod
-    def _generate_store_page_url(bot: str, plain_sender_id: str, page_name: str) -> str:
+    def _generate_store_page_url(bot: str, plain_sender_id: str, page_name: str,
+                                 callback_identifier: Optional[str] = None) -> str:
         from kairon.shared.auth import Authentication
         catalog_base = Utility.environment.get("store_page").get("url")
         encrypted_id = Utility.encrypt_message(plain_sender_id)
@@ -74,7 +76,10 @@ class CustomerOrderProcessor:
                 "/api/bot/.+/store_page/exec/flow"
             ],
         )
-        return f"{catalog_base}/{page_name}/{bot}/{encrypted_id}/{token}"
+        url = f"{catalog_base}/{page_name}/{bot}/{encrypted_id}/{token}"
+        if callback_identifier:
+            url = f"{url}?{urlencode({'id': callback_identifier})}"
+        return url
 
     @staticmethod
     def _create_razorpay_payment_link(api_key: str, api_secret: str, order_id: str,
@@ -243,7 +248,9 @@ class CustomerOrderProcessor:
             api_key = CustomerOrderProcessor._resolve_credential(action_dict.get("api_key", {}), bot)
             api_secret = CustomerOrderProcessor._resolve_credential(action_dict.get("api_secret", {}), bot)
 
-            callback_url = CustomerOrderProcessor._generate_store_page_url(bot, plain_id, page_name)
+            callback_url = CustomerOrderProcessor._generate_store_page_url(
+                bot, plain_id, page_name, callback_identifier
+            )
 
             try:
                 razorpay_resp = CustomerOrderProcessor._create_razorpay_payment_link(
