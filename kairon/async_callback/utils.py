@@ -162,7 +162,7 @@ class CallbackUtility:
         return output
 
     @staticmethod
-    def return_response(data: any, message : str, error_code: int, response_type: str):
+    def return_response(data: any, message : str, error_code: int, response_type: str, trace_id: str):
         resp_status_code = 200 if error_code == 0 else 422
         if response_type == CallbackResponseType.KAIRON_JSON.value:
             return BSResponse(
@@ -172,6 +172,7 @@ class CallbackUtility:
                     "data": data,
                     "error_code": error_code,
                     "success": error_code == 0,
+                    "trace_id": trace_id
                 })
             )
         elif response_type == CallbackResponseType.JSON.value:
