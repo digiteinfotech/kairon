@@ -497,12 +497,12 @@ class CRMProcessor:
         # 2. Acquire Atomic Provisioning Lock
         # We allow acquisition if lock=False or if the lock is older than 2 hours (stale lock recovery)
         stale_threshold = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
-        
+
         query = (Q(bot=bot) & Q(company_name__iexact=company_name.strip()))
         lock_condition = Q(lock=False) | Q(lock_timestamp__lt=stale_threshold)
-        
+
         provisioning_id = str(uuid.uuid4())
-        
+
         # Find and Update atomically
         updated_count = CRMClientDetails.objects(query & lock_condition).update_one(
             set__lock=True,
@@ -511,7 +511,7 @@ class CRMProcessor:
             set__workflow_started_at=datetime.datetime.utcnow(),
             inc__attempt_number=1
         )
-        
+
         if updated_count == 0:
             raise AppException("Provisioning workflow is already in progress for this company.")
 
@@ -529,13 +529,14 @@ class CRMProcessor:
 
             # The lock is released inside execute_onboarding_workflow (via update_onboarding_status)
             CRMProcessor._notify_metering(bot, company_name)
-            if result.status == CRMOnboardingStatus.COMPLETED.value:
+            if result.status == CRMOnboardingStatus.COMPLETED.value and not service.admin_already_active:
                 # Readiness is verified at this point; delivery is attempted off the request path and retried by the
-                # scheduled job, and its outcome never changes the provisioning status.
+                # scheduled job, and its outcome never changes the provisioning status. An administrator who has
+                # already signed in (nothing to set up) is not sent a setup link.
                 if CRMAdminInvitationService.mark_pending(bot, company_name, provisioning_id):
                     CRMAdminInvitationService.send_in_background(bot)
             return result.dict()
-            
+
         except Exception as e:
             logger.exception(f"[{provisioning_id}] Unhandled exception in ProvisioningService: {e}")
             # Ensure lock is released on catastrophic unhandled exception. Do NOT
@@ -772,6 +773,33 @@ class CRMProcessor:
         return {"action": "company_permission_assigned", "email": email, "site": site_name}
 
     @staticmethod
+    def _reconcile_invitation(client, site_doc, company: str, inv, app_name: str, summary: dict) -> None:
+        """Brings one PENDING invitation in line with its ERPNext state, updating `summary`. Raises on any failure."""
+        erpnext_inv = client.get_invitation_status(inv.email, app_name)
+        if not erpnext_inv:
+            return
+        erpnext_status = erpnext_inv.get("status")
+        if erpnext_status == "Accepted":
+            if not client.check_user_exists(inv.email):
+                return
+            if site_doc.tier == 2:  # Tier 1 sites have no Company doctype
+                client.assign_company_permission(inv.email, company)
+            now = dt.utcnow()
+            inv.update(
+                set__invitation_status=CRMInvitationStatus.COMPANY_ASSIGNED.value,
+                set__accepted_at=now,
+                set__company_assigned_at=now,
+            )
+            summary["assigned"] += 1
+            logger.info(f"[reconcile] Assigned company permission: email={inv.email}, site={site_doc.site_name}")
+        elif erpnext_status == "Expired":
+            inv.update(set__invitation_status=CRMInvitationStatus.EXPIRED.value)
+            summary["expired"] += 1
+        elif erpnext_status == "Cancelled":
+            inv.update(set__invitation_status=CRMInvitationStatus.CANCELLED.value)
+            summary["cancelled"] += 1
+
+    @staticmethod
     def reconcile_invitations(bot: str = None) -> dict:
         """
         Fallback safety-net for missed webhooks.
@@ -810,31 +838,7 @@ class CRMProcessor:
 
             for inv in invitations:
                 try:
-                    erpnext_inv = client.get_invitation_status(inv.email, app_name)
-                    if not erpnext_inv:
-                        continue
-
-                    erpnext_status = erpnext_inv.get("status")
-                    now = dt.utcnow()
-
-                    if erpnext_status == "Accepted":
-                        if client.check_user_exists(inv.email):
-                            if site_doc.tier == 2:  # Tier 1 sites have no Company doctype
-                                client.assign_company_permission(inv.email, company)
-                            inv.update(
-                                set__invitation_status=CRMInvitationStatus.COMPANY_ASSIGNED.value,
-                                set__accepted_at=now,
-                                set__company_assigned_at=now,
-                            )
-                            summary["assigned"] += 1
-                            logger.info(f"[reconcile] Assigned company permission: email={inv.email}, site={site_name}")
-                    elif erpnext_status == "Expired":
-                        inv.update(set__invitation_status=CRMInvitationStatus.EXPIRED.value)
-                        summary["expired"] += 1
-                    elif erpnext_status == "Cancelled":
-                        inv.update(set__invitation_status=CRMInvitationStatus.CANCELLED.value)
-                        summary["cancelled"] += 1
-
+                    CRMProcessor._reconcile_invitation(client, site_doc, company, inv, app_name, summary)
                 except Exception as e:
                     logger.error(f"[reconcile] Error processing invitation for '{inv.email}' on '{site_name}': {e}")
                     summary["errors"] += 1
@@ -958,5 +962,3 @@ class CRMProcessor:
             report = client.verify_module_configuration(selected_mods, profile_name=doc.module_profile_name, user_email=doc.erpnext_owner_email)
 
         return report.dict()
-
-

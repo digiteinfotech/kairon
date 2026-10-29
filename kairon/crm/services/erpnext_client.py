@@ -565,7 +565,6 @@ print(json.dumps(keys))
         """Sets is_hidden = 0 and public = 1 on Workspace document."""
         return self._set_workspace_visibility(workspace_name, 0, 1, "show_workspace")
 
-
     def clear_cache(self) -> bool:
         """
         Clears ERPNext site cache via container Python / Bench command to update bootinfo/Redis.
@@ -804,7 +803,6 @@ frappe.db.commit()
             self._log_api_op("create_role_profile", profile_name, True, post_resp.status_code)
             return profile_name
 
-
     # ─────────────────────────────────────────────────────────────
     # Company, User Management & Role Assignment
     # ─────────────────────────────────────────────────────────────
@@ -892,6 +890,33 @@ frappe.db.commit()
             else:
                 self._log_api_op("send_welcome_email", email, True, reset_resp.status_code)
 
+    def get_user_activity(self, email: str) -> Optional[Dict[str, bool]]:
+        """
+        None when the user does not exist, else {"enabled", "active"}. "Active" is the rule kairon_connector already uses
+        for the user list (enabled and has signed in at least once, i.e. `last_login` is set); it is read here with the
+        Administrator session so provisioning can tell a live account from a new or never-used one.
+
+        The two fields are requested explicitly, and an answer that does not carry them (or any status other than 200)
+        raises: a "never signed in" verdict must come from an explicit null, never from a missing field, because the
+        wrong guess would reset a live administrator's password.
+        """
+        params = {"filters": json.dumps([["User", "name", "=", email]]),
+                  "fields": json.dumps(["name", "enabled", "last_login"]), "limit_page_length": 1}
+        response = self.session.get(f"{self.base_url}/api/resource/User", params=params, timeout=15)
+        if response.status_code != 200:
+            self._log_api_op("get_user_activity", email, False, response.status_code)
+            raise AppException(f"Could not read User {email}: HTTP {response.status_code}")
+        rows = response.json().get("data")
+        if not isinstance(rows, list):
+            raise AppException(f"Could not read User {email}: unexpected response.")
+        if not rows:
+            return None
+        row = rows[0]
+        if "enabled" not in row or "last_login" not in row:
+            raise AppException(f"Could not determine whether User {email} has signed in.")
+        enabled = bool(row["enabled"])
+        return {"enabled": enabled, "active": enabled and bool(row["last_login"])}
+
     def set_user_password(self, email: str, password: str):
         """Sets a user's password through the REST API (verification credentials only; never persisted by callers)."""
         response = self.session.put(f"{self.base_url}/api/resource/User/{email}", json={"new_password": password}, timeout=15)
@@ -899,7 +924,8 @@ frappe.db.commit()
             self._log_api_op("set_user_password", email, False, response.status_code)
             raise AppException(f"Failed to set password for User {email}: HTTP {response.status_code}")
 
-    def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None, default_workspace: Optional[str] = None, role_profile: Optional[str] = None):
+    def assign_roles_and_company(self, email: str, roles: list, company: str, module_profile: Optional[str] = None,
+                                 default_workspace: Optional[str] = None, role_profile: Optional[str] = None):
         """
         Assigns roles (or a role_profile), a default company, optionally a module_profile, and default_workspace to an existing user.
         """
@@ -922,12 +948,10 @@ frappe.db.commit()
                     new_roles.append({"role": r})
             payload["roles"] = new_roles
 
-
         if module_profile:
             payload["module_profile"] = module_profile
         if default_workspace:
             payload["default_workspace"] = default_workspace
-
 
         update_response = self.session.put(url, json=payload, timeout=15)
         if update_response.status_code != 200:

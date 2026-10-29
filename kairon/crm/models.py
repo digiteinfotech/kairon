@@ -123,7 +123,6 @@ class CRMClientDetails(Auditlog):
         ]
     }
 
-
     def validate(self, clean=True):
         if Utility.check_empty_string(self.company_name):
             raise ValidationError("Company Name is required")

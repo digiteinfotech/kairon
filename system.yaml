@@ -315,6 +315,7 @@ crm:
   bench:
     docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
+    frontend_container_name: ${BENCH_FRONTEND_CONTAINER_NAME}   # optional: unset => derived from container_name (backend -> frontend, same Compose project)
     db_host: ${BENCH_DB_HOST:"db"}
     db_port: ${BENCH_DB_PORT:5432}
     db_user: ${BENCH_DB_USER:"postgres"}

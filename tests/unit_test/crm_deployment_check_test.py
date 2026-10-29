@@ -77,3 +77,49 @@ def test_ready_depends_only_on_required_checks():
                         {"name": "b", "ok": False, "required": False, "detail": ""}])
     assert report["ready"] is True
     assert summarize([{"name": "a", "ok": False, "required": True, "detail": ""}])["ready"] is False
+
+
+def test_shared_secret_checks_report_names_never_values():
+    crm = Utility.environment.setdefault("crm", {})
+    saved = (crm.get("staff_auth"), crm.get("staff_allowlist"), crm.get("metering"))
+    try:
+        crm["staff_auth"] = {"jwt_secret": "short-staff-secret"}
+        crm["staff_allowlist"] = None
+        crm["metering"] = {"url": "http://metering.internal", "event_secret": "short-event-secret"}
+        checks = by_name(run_checks())
+        for name in ("staff_jwt_secret_strength", "staff_allowlist", "metering_event_secret", "metering_url_https"):
+            assert not checks[name]["ok"] and checks[name]["required"] is False
+        assert "short-staff-secret" not in str(checks) and "short-event-secret" not in str(checks)
+
+        crm["staff_auth"] = {"jwt_secret": "s" * 40}
+        crm["staff_allowlist"] = "@digite.com"
+        crm["metering"] = {"url": "https://metering.example.com", "event_secret": "e" * 40}
+        checks = by_name(run_checks())
+        assert all(checks[n]["ok"] for n in ("staff_jwt_secret_strength", "staff_allowlist",
+                                             "metering_event_secret", "metering_url_https"))
+    finally:
+        crm["staff_auth"], crm["staff_allowlist"], crm["metering"] = saved
+
+
+def test_shared_secret_checks_are_skipped_when_the_features_are_not_configured():
+    crm = Utility.environment.setdefault("crm", {})
+    saved = (crm.get("staff_auth"), crm.get("metering"))
+    try:
+        crm["staff_auth"], crm["metering"] = {"jwt_secret": None}, {"url": None, "event_secret": None}
+        names = by_name(run_checks())
+        assert "staff_jwt_secret_strength" not in names and "metering_event_secret" not in names
+    finally:
+        crm["staff_auth"], crm["metering"] = saved
+
+
+@pytest.mark.parametrize("url,ok", [("https://llm.example.com", True), ("http://llm.example.com", False),
+                                   ("http://localhost", False), ("https://127.0.0.1:8443", False), ("", False)])
+def test_llm_server_url_must_be_remote_and_https(url, ok):
+    llm = Utility.environment.setdefault("llm", {})
+    saved = llm.get("url")
+    try:
+        llm["url"] = url
+        check = by_name(run_checks())["llm_server_url"]
+        assert check["ok"] is ok and check["required"] is False
+    finally:
+        llm["url"] = saved

@@ -37,7 +37,7 @@ class ProductIsolationService:
                     explicit_workspaces.extend(config["workspaces"])
                 if "role_profile_name" in config and not role_profile_to_assign:
                     role_profile_to_assign = config["role_profile_name"]
-            
+
             # Add mapped frappe module from catalog if present
             if mod in catalog:
                 allowed_frappe_modules.add(catalog[mod]["frappe_module"])
@@ -59,7 +59,6 @@ class ProductIsolationService:
         # 3. Apply Workspace Visibility
         workspaces_to_allow = explicit_workspaces if explicit_workspaces else selected_modules
         client.configure_workspace_visibility(workspaces_to_allow, catalog=catalog)
-
 
         # 4. Create/Update Module Profile
         profile_name = f"Kairon Profile ({company_name})"

@@ -16350,7 +16350,7 @@ class TestMongoProcessor:
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': []
+            'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [], 'erpnext_crm_lead_qualified_action': []
         }
 
     def test_add_complex_story_with_action(self):
@@ -16374,7 +16374,7 @@ class TestMongoProcessor:
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'voice_call_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'parallel_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': []
+            'parallel_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [], 'erpnext_crm_lead_qualified_action': []
         }
 
     def test_add_complex_story(self):
@@ -16401,7 +16401,7 @@ class TestMongoProcessor:
                                       'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
                                       'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
                                       'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-                                      'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [],
+                                      'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [], 'erpnext_crm_lead_qualified_action': [],
                                       'utterances': ['utter_greet',
                                                      'utter_cheer_up',
                                                      'utter_did_that_help',
@@ -18293,7 +18293,7 @@ class TestMongoProcessor:
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
-            'voice_call_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [],
+            'voice_call_action': [], 'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [], 'erpnext_crm_lead_qualified_action': [],
             'utterances': ['utter_offer_help', 'utter_query', 'utter_goodbye', 'utter_feedback', 'utter_default',
                            'utter_please_rephrase'], 'parallel_action': []}, ignore_order=True)
 
@@ -18404,7 +18404,7 @@ class TestMongoProcessor:
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
             'callback_action': [], 'schedule_action': [], 'voice_call_action': [], 'parallel_action': [],
-            'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [],
+            'kairon_voice_disconnect': [], 'store_page_action': [], 'agent_action': [], 'erpnext_crm_lead_qualified_action': [],
             'utterances': ['utter_greet',
                            'utter_cheer_up',
                            'utter_did_that_help',

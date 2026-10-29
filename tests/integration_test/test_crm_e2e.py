@@ -61,7 +61,10 @@ pytestmark = pytest.mark.skipif(
 KAIRON_API_URL = os.getenv("KAIRON_E2E_API_URL", "http://localhost:5000")
 ERPNEXT_BASE_URL = os.getenv("KAIRON_E2E_ERPNEXT_URL", "http://localhost:8080")
 MAILPIT_URL = os.getenv("KAIRON_E2E_MAILPIT_URL", "http://localhost:8025")
-BENCH_CONTAINER = "frappe-backend-1"
+# Defaults target the shared local bench. The suite provisions AND DROPS sites in this container, so to run it against a
+# disposable stack set KAIRON_E2E_BENCH_CONTAINER (and KAIRON_E2E_SITE_PORT) to that stack's backend container and port.
+BENCH_CONTAINER = os.getenv("KAIRON_E2E_BENCH_CONTAINER", "frappe-backend-1")
+SITE_PORT = os.getenv("KAIRON_E2E_SITE_PORT", "8080")
 E2E_KAIRON_USER = os.getenv("KAIRON_E2E_USER", "")
 E2E_KAIRON_PASSWORD = os.getenv("KAIRON_E2E_PASSWORD", "")
 BENCH_DB_PASSWORD = os.getenv("BENCH_DB_PASSWORD", "")
@@ -115,7 +118,7 @@ def frappe_count(site_name: str, doctype: str, filters: dict) -> int:
 
 
 def site_url(site_name: str) -> str:
-    return f"http://{site_name}:8080"
+    return f"http://{site_name}:{SITE_PORT}"
 
 
 def frappe_login(email: str, password: str, site_name: str) -> requests.Session:

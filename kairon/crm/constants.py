@@ -21,7 +21,7 @@ and, if API paths change, the relevant methods in ERPNextClient. No other files 
 
 REQUIRED_INTEGRATION_USER_ROLES = [
     "System Manager",    # Module Def write, Module Profile CRUD, User write
-    "Workspace Manager", # Workspace DocType read/write + is_workspace_manager() app check
+    "Workspace Manager",  # Workspace DocType read/write + is_workspace_manager() app check
 ]
 
 

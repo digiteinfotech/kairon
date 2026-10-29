@@ -112,12 +112,20 @@ def _cfg() -> Dict[Text, Any]:
 
 REDACTED = "[REDACTED]"
 _JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\b")
-_BEARER_RE = re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=\-]{12,}")
+_BEARER_RE = re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=\-]{12,}")
+_PRIVATE_KEY_RE = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.DOTALL)
 _KEY_PREFIX_RE = re.compile(r"\b(?:sk|pk|rk)[-_][A-Za-z0-9_\-]{16,}|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{20,}|\bxox[abprs]-[A-Za-z0-9\-]{10,}")
+# A secret-looking word, optionally prefixed (client_secret, x-api-key), then ':' / '=' / 'is', then the value
+# (quoted values may contain spaces; a closing quote after the key covers JSON like {"password":"x"}).
 _SECRET_ASSIGN_RE = re.compile(
-    r"(?i)\b(password|passwd|pwd|passcode|secret|api[ _-]?key|access[ _-]?token|auth[ _-]?token|token|otp|cvv|cvc|pin)\b"
-    r"(\s*(?:[:=]|is)\s*)\S+")
-_CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
+    r"(?i)\b((?:[a-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|api[ _-]?key|access[ _-]?token|auth[ _-]?token|token|otp|cvv|cvc|pin))\b"
+    r"""(["']?\s*(?:[:=]|\bis\b)\s*)("[^"\n]*"|'[^'\n]*'|\S+)""")
+_SHORT_SECRET_RE = re.compile(r"(?i)\b(otp|pin|cvv2?|cvc)\b([\s:=\-]*(?:is\s+)?)\d{3,8}\b")
+_URL_CREDENTIALS_RE = re.compile(r"(\b[a-z][a-z0-9+.\-]*://[^\s:/@]+:)[^\s@/]+(@)", re.IGNORECASE)
+_OPAQUE_TOKEN_RE = re.compile(r"\b(?=[A-Za-z0-9_\-]*[A-Za-z])(?=[A-Za-z0-9_\-]*\d)[A-Za-z0-9_\-]{32,}\b")
+_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+_AADHAAR_RE = re.compile(r"\b\d{4}\s\d{4}\s\d{4}\b")
+_CARD_RE = re.compile(r"\b(?:\d[ .\-]?){13,19}\b")
 
 
 def _luhn_ok(digits: Text) -> bool:
@@ -137,10 +145,16 @@ def redact_sensitive(text: Text) -> Text:
     checks them against what the user wrote. This is a best-effort pattern filter, not a guarantee that no personal
     data is present.
     """
+    text = _PRIVATE_KEY_RE.sub(REDACTED, text)
     text = _JWT_RE.sub(REDACTED, text)
-    text = _BEARER_RE.sub(f"Bearer {REDACTED}", text)
+    text = _BEARER_RE.sub(lambda m: f"{m.group(1)} {REDACTED}", text)
     text = _KEY_PREFIX_RE.sub(REDACTED, text)
+    text = _URL_CREDENTIALS_RE.sub(lambda m: f"{m.group(1)}{REDACTED}{m.group(2)}", text)
     text = _SECRET_ASSIGN_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", text)
+    text = _SHORT_SECRET_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", text)
+    text = _OPAQUE_TOKEN_RE.sub(REDACTED, text)
+    text = _SSN_RE.sub(REDACTED, text)
+    text = _AADHAAR_RE.sub(REDACTED, text)
 
     def _card(m):
         digits = re.sub(r"\D", "", m.group(0))

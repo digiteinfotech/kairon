@@ -29,11 +29,18 @@ class FeatureAppResolver:
         cls._matrix_cache = matrix
         return cls._matrix_cache
 
+    @staticmethod
+    def _append_unique(target: List[str], items) -> None:
+        """Appends the items not already in `target`, keeping their order."""
+        for item in items:
+            if item not in target:
+                target.append(item)
+
     @classmethod
     def resolve(cls, selected_features: List[str]) -> ProvisioningPlan:
         """
         Resolves a list of requested feature keys into a single ProvisioningPlan.
-        
+
         Rules:
         1. If no features specified, defaults to Tier 1 'crm'.
         2. If any requested feature requires Tier 2 (e.g., HR, Selling, Accounts), plan tier becomes 2.
@@ -82,17 +89,9 @@ class FeatureAppResolver:
             if not primary_home_page:
                 primary_home_page = config.get("home_page")
 
-            for app in config.get("required_apps", []):
-                if app not in resolved_apps:
-                    resolved_apps.append(app)
-
-            for role in config.get("default_roles", []):
-                if role not in resolved_roles:
-                    resolved_roles.append(role)
-
-            for dep in config.get("dependencies", []):
-                if dep not in resolved_deps:
-                    resolved_deps.append(dep)
+            cls._append_unique(resolved_apps, config.get("required_apps", []))
+            cls._append_unique(resolved_roles, config.get("default_roles", []))
+            cls._append_unique(resolved_deps, config.get("dependencies", []))
 
         if not resolved_apps:
             resolved_apps = ["crm"]

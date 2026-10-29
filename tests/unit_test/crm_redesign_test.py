@@ -1123,17 +1123,19 @@ def _verification_fixture(put_status):
     doc = make_tenant(status="FAILED_VERIFICATION")
     client = MagicMock(base_url="http://x")
     client.session.put.return_value = MagicMock(status_code=put_status)
+    client.get_user_activity.return_value = {"enabled": True, "active": False}      # exists, never signed in
     verifier = MagicMock()
     verifier.verify_provisioning_state.return_value = True
     service = ProvisioningService(BOT, "Acme Co", "run-1")
     return service, doc, client, verifier
 
 
-def test_rotated_temp_password_is_persisted():
+def test_verification_password_is_used_to_verify_but_never_stored():
+    # It is rotated away right after verification, and `erpnext_password` is a different credential read elsewhere.
     service, doc, client, verifier = _verification_fixture(200)
     service._phase_verification(doc, client, verifier, "admin-pw", None, False, "boss@acme.com")
-    stored = CRMClientDetails.objects(bot=BOT).first().erpnext_password
-    assert Utility.decrypt_message(stored) == verifier.verify_provisioning_state.call_args.kwargs["temp_password"]
+    assert verifier.verify_provisioning_state.call_args.kwargs["temp_password"]
+    assert not CRMClientDetails.objects(bot=BOT).first().erpnext_password
 
 
 def test_failed_password_rotation_is_reported_as_such_not_as_verification_failure():
@@ -1151,7 +1153,6 @@ def test_provisioner_loads_the_tenant_of_its_own_bot_when_company_names_collide(
     CRMClientDetails.objects(bot=BOT).delete()
     with pytest.raises(AppException, match="not found"):
         BaseProvisioner._load_client_doc("Acme Co", BOT)
-
 
 
 # --------------------------------------------------------------------------- create_crm_user state transitions
@@ -1191,7 +1192,10 @@ def test_failed_user_creation_leaves_status_unchanged(status):
     assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == status
 
 
-# --------------------------------------------------------------------------- Tier 1 -> Tier 2 upgrade provisioner
+# --------------------------------------------------------------------------- Tier 1 -> Tier 2 upgrade
+
+UPG = "kairon.crm.services.provisioners.upgrade_provisioner"
+
 
 def _upgrader():
     from kairon.crm.services.provisioners.upgrade_provisioner import AppUpgradeProvisioner
@@ -1199,63 +1203,202 @@ def _upgrader():
     return AppUpgradeProvisioner(ProvisioningPlan(strategy_key="in_place_upgrade", tier=2, apps=["erpnext"]), {})
 
 
-def _upgrade(bot=BOT, returncodes=(0, 0)):
-    """Runs the upgrade with bench mocked out; returncodes are for (backup, install-app)."""
-    runs = [MagicMock(returncode=rc, stdout=b"backup.sql.gz", stderr=b"err") for rc in returncodes] + [MagicMock(returncode=0)] * 3
+class FakeBench:
+    """Routes the docker/bench commands the upgrade issues; each verb can be made to fail or report erpnext as installed."""
+
+    def __init__(self, fail=(), installed=False):
+        self.fail, self.installed, self.calls = set(fail), installed, []
+
+    def __call__(self, cmd, **kw):
+        verb = "backup" if "backup" in cmd else "list-apps" if "list-apps" in cmd else \
+            "install-app" if "install-app" in cmd else "migrate" if "migrate" in cmd else "other"
+        self.calls.append(verb)
+        if verb == "list-apps":
+            return MagicMock(returncode=0, stdout="frappe 15.0\ncrm 1.0\n" + ("erpnext 15.0\n" if self.installed else ""), stderr="")
+        rc = 1 if verb in self.fail else 0
+        return MagicMock(returncode=rc, stdout="backup.sql.gz" if rc == 0 else "", stderr="boom" if rc else "")
+
+
+def _upgrade(bot=BOT, bench=None, runner=None):
+    bench = bench or FakeBench()
     up = _upgrader()             # built first: the constructor itself probes docker
-    with patch("kairon.crm.services.provisioners.upgrade_provisioner.PreFlightValidator.validate_infrastructure"), \
-            patch("kairon.crm.services.provisioners.upgrade_provisioner.subprocess.run", side_effect=runs) as run, \
+    up.runner = runner
+    with patch(f"{UPG}.PreFlightValidator.validate_infrastructure"), patch(f"{UPG}.subprocess.run", side_effect=bench), \
             patch.object(up.__class__, "set_homepage"), patch.object(up.__class__, "reload_gunicorn_workers"):
         try:
-            return up.provision("Acme Co", "AC", "INR", "India", "pw", bot), run
+            return up.provision("Acme Co", "AC", "INR", "India", "pw", bot), bench
         except AppException as e:
-            return e, run
+            return e, bench
 
 
-def test_upgrade_installs_erpnext_marks_tier_2_and_releases_lock():
-    make_tenant(status="COMPLETED", tier=1, installed_apps=["crm"])
-    result, run = _upgrade()
+def _tier1(status="COMPLETED", **kw):
+    return make_tenant(status=status, tier=1, installed_apps=["crm"], **kw)
+
+
+def test_upgrade_installs_erpnext_but_never_marks_the_tenant_completed():
+    _tier1()
+    result, bench = _upgrade()
     doc = CRMClientDetails.objects(bot=BOT).first()
     assert result["tier"] == 2 and doc.tier == 2 and "erpnext" in doc.installed_apps
-    assert doc.lock is False
-    assert any("install-app" in c.args[0] for c in run.call_args_list)
+    assert doc.onboarding_status == "SITE_CREATED"      # Company / owner roles / verification still pending
+    assert doc.lock is False and bench.calls[:3] == ["backup", "list-apps", "install-app"]
 
 
-def test_failed_upgrade_is_recorded_and_lock_released_so_it_can_be_retried():
-    make_tenant(status="COMPLETED", tier=1, installed_apps=["crm"])
-    err, _ = _upgrade(returncodes=(0, 1))
+def test_upgraded_tenant_is_not_ready_until_the_normal_phases_complete():
+    _tier1()
+    _upgrade()
+    status = CRMProcessor.get_provisioning_status(BOT)
+    assert status["ready"] is False and status["status"] != "Ready"
+
+
+def test_upgrade_is_refused_when_the_backup_fails_and_nothing_is_installed():
+    _tier1()
+    err, bench = _upgrade(bench=FakeBench(fail={"backup"}))
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert isinstance(err, AppException) and "backup" in str(err).lower()
+    assert "install-app" not in bench.calls
+    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.tier == 1 and doc.lock is False
+
+
+def test_failed_install_is_recorded_repaired_and_retry_succeeds():
+    _tier1()
+    err, bench = _upgrade(bench=FakeBench(fail={"install-app"}))
     doc = CRMClientDetails.objects(bot=BOT).first()
     assert isinstance(err, AppException)
-    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False and doc.tier != 2
-    result, _ = _upgrade()           # retry after a partial failure reaches the install step again
-    assert result["tier"] == 2
+    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False and doc.tier == 1
+    assert "migrate" in bench.calls                       # partial schema repaired
+    result, _ = _upgrade()                                # retry after the partial failure
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert result["tier"] == 2 and doc.onboarding_status == "SITE_CREATED"
+
+
+def test_retry_after_install_succeeded_but_was_not_recorded_skips_install_app():
+    _tier1(status="FAILED_UPGRADE")
+    result, bench = _upgrade(bench=FakeBench(installed=True))
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert result["tier"] == 2 and doc.tier == 2 and doc.onboarding_status == "SITE_CREATED"
+    assert "install-app" not in bench.calls
+
+
+def test_repeated_upgrade_request_is_a_no_op_and_never_downgrades_a_completed_tier_2_tenant():
+    make_tenant(status="COMPLETED", tier=2, installed_apps=["crm", "erpnext"])
+    result, bench = _upgrade()
+    assert result["status"] == "already_upgraded" and bench.calls == []
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "COMPLETED"
+
+
+def test_repeated_upgrade_after_a_successful_one_does_not_reinstall():
+    _tier1()
+    _upgrade()
+    result, bench = _upgrade()
+    assert result["status"] == "already_upgraded" and bench.calls == []
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "SITE_CREATED"
 
 
 def test_concurrent_upgrade_is_refused_while_the_site_is_locked():
-    make_tenant(status="UPGRADING_TO_TIER_2", lock=True, lock_timestamp=datetime.utcnow())
-    err, run = _upgrade()
+    make_tenant(status="UPGRADING_TO_TIER_2", tier=1, lock=True, lock_timestamp=datetime.utcnow())
+    err, bench = _upgrade()
     assert isinstance(err, AppException) and "already in progress" in str(err)
-    run.assert_not_called()
+    assert bench.calls == []
+
+
+def test_stale_upgrade_lock_from_a_crashed_run_is_recovered():
+    make_tenant(status="UPGRADING_TO_TIER_2", tier=1, installed_apps=["crm"], lock=True,
+                lock_timestamp=datetime.utcnow() - timedelta(hours=3))
+    result, _ = _upgrade()
+    assert result["tier"] == 2
 
 
 def test_upgrade_only_touches_the_tenant_of_its_own_bot():
     other = make_tenant(OTHER_BOT, "other.localhost", status="COMPLETED", tier=1)
-    make_tenant(BOT, "mine.localhost", status="COMPLETED", tier=1, installed_apps=["crm"])
+    _tier1()
     _upgrade()
-    assert CRMClientDetails.objects(id=other.id).first().tier == 1
+    untouched = CRMClientDetails.objects(id=other.id).first()
+    assert untouched.tier == 1 and untouched.onboarding_status == "COMPLETED"
     assert CRMClientDetails.objects(bot=BOT).first().tier == 2
 
 
 def test_upgrade_is_refused_in_runner_mode_and_leaves_a_terminal_state():
-    make_tenant(status="COMPLETED", tier=1)
-    up = _upgrader()
-    up.runner = object()
-    with patch("kairon.crm.services.provisioners.upgrade_provisioner.subprocess.run") as run:
-        with pytest.raises(AppException, match="not supported"):
-            up.provision("Acme Co", "AC", "INR", "India", "pw", BOT)
-    run.assert_not_called()
+    _tier1()
+    err, bench = _upgrade(runner=object())
     doc = CRMClientDetails.objects(bot=BOT).first()
-    assert doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False
+    assert isinstance(err, AppException) and "not supported" in str(err)
+    assert bench.calls == [] and doc.onboarding_status == "FAILED_UPGRADE" and doc.lock is False
+
+
+@pytest.mark.parametrize("current,target,allowed", [
+    ("SITE_CREATED", "COMPLETED", False),            # an upgrade can never jump to COMPLETED
+    ("FAILED_UPGRADE", "COMPLETED", False),
+    ("UPGRADING_TO_TIER_2", "COMPLETED", False),
+    ("COMPANY_CREATED", "COMPLETED", False),
+    ("USER_CREATED", "COMPLETED", True),             # only after the user phase ...
+    ("FAILED_VERIFICATION", "COMPLETED", True),      # ... or a verification retry
+])
+def test_completed_is_reachable_only_through_the_verification_phase(current, target, allowed):
+    from kairon.crm.services.provisioning import ProvisioningService
+    make_tenant(status=current, tier=2, lock=True)
+    ProvisioningService(BOT, "Acme Co", "run-1").update_onboarding_status(CRMOnboardingStatus(target))
+    assert (CRMClientDetails.objects(bot=BOT).first().onboarding_status == "COMPLETED") is allowed
+
+
+def _resume_workflow(company_error=None, user_error=None, verify=True, user_state=None):
+    """Runs the normal onboarding workflow on an upgraded tenant with ERPNext/Bench stubbed."""
+    from kairon.crm.services.provisioning import ProvisioningService
+    P = "kairon.crm.services.provisioning"
+    client = MagicMock()
+    client.generate_keys_for_user.return_value = {"api_key": "k", "api_secret": "s"}
+    client.get_user_activity.return_value = user_state          # None => the owner account does not exist yet
+    if company_error:
+        client.create_company.side_effect = company_error
+    if user_error:
+        client.create_erpnext_user.side_effect = user_error
+    verifier = MagicMock()
+    verifier.verify_health.return_value = True
+    verifier.verify_provisioning_state.return_value = verify
+    with patch(f"{P}.ERPNextClient", return_value=client), patch(f"{P}.ProvisionVerifier", return_value=verifier), \
+            patch(f"{P}.BenchExecutor") as bench, \
+            patch("kairon.crm.services.isolation_service.ProductIsolationService.apply_isolation",
+                  return_value={"module_profile": "mp"}):
+        result = ProvisioningService(BOT, "Acme Co", "run-1").execute_onboarding_workflow("boss@acme.com", "Boss", "Admin")
+    return result, client, bench
+
+
+def _upgraded_tenant():
+    return make_tenant(status="SITE_CREATED", tier=2, installed_apps=["crm", "erpnext"], selected_modules=["CRM"])
+
+
+def test_upgraded_tenant_resumes_through_every_phase_to_completed_without_rerunning_bench():
+    _upgraded_tenant()
+    result, client, bench = _resume_workflow()
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert result.status == "COMPLETED" and doc.onboarding_status == "COMPLETED" and doc.lock is False
+    client.create_company.assert_called_once()           # the Tier 2 Company the upgrade itself does not create
+    client.assign_roles_and_company.assert_called_once()
+    bench.return_value.provision_site.assert_not_called()  # the site already exists: nothing is re-provisioned
+
+
+@pytest.mark.parametrize("fail,expected", [("company", "FAILED_COMPANY"), ("user", "FAILED_USER")])
+def test_failure_in_a_required_phase_leaves_an_accurate_failed_state_never_completed(fail, expected):
+    _upgraded_tenant()
+    kw = {"company_error": AppException("erp down")} if fail == "company" else {"user_error": AppException("erp down")}
+    result, _, _ = _resume_workflow(**kw)
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert result.status == expected and doc.onboarding_status == expected and doc.lock is False
+
+
+def test_failed_verification_leaves_failed_verification_never_completed():
+    _upgraded_tenant()
+    result, _, _ = _resume_workflow(verify=False)
+    assert result.status == "FAILED_VERIFICATION"
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "FAILED_VERIFICATION"
+
+
+def test_retry_after_company_failure_resumes_at_the_company_phase_and_does_not_redo_earlier_work():
+    _upgraded_tenant()
+    _resume_workflow(company_error=AppException("erp down"))
+    result, client, _ = _resume_workflow()                # same tenant, now healthy
+    assert result.status == "COMPLETED"
+    client.create_company.assert_called_once()            # idempotent create runs again only because it never succeeded
 
 
 # --------------------------------------------------------------------------- transcript redaction
@@ -1340,3 +1483,430 @@ def test_webhook_valid_signature_for_own_bot_is_processed():
     body, sig, payload = _signed_webhook()          # status Pending => verified, then ignored
     result = CRMProcessor.handle_invitation_webhook(SITE, body, sig, payload, bot=BOT)
     assert result["action"] == "ignored"
+
+
+@pytest.mark.parametrize("raw,secret", [
+    ("PASSWORD: Hunter2!", "Hunter2"), ("pwd=Hunter2", "Hunter2"), ("the password   is   hunter2", "hunter2"),
+    ('{"password":"hunter2"}', "hunter2"), ('{"api_key": "abcd1234efgh"}', "abcd1234efgh"),
+    ("X-API-Key: abcd1234efgh5678", "abcd1234efgh5678"), ("client_secret=abcd1234efgh", "abcd1234efgh"),
+    ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA"), ("bearer abcdefghijklmnop12", "abcdefghijklmnop12"),
+    ("4111-1111-1111-1111", "4111"), ("4111.1111.1111.1111", "4111"), ("4111111111111111", "4111"), ("3782 822463 10005", "3782"),
+    ("cvv 123", "123"), ("my pin is 1234", "1234"), ("otp 482913", "482913"), ("aadhaar 1234 5678 9012", "1234 5678"),
+    ("ssn 123-45-6789", "123-45-6789"), ("postgres://admin:s3cr3tpw@db.host:5432/x", "s3cr3tpw"),
+    ("https://x.com/cb?access_token=abcdef123456&x=1", "abcdef123456"), ("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4", "a1b2c3d4e5f6"),
+    ("-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END PRIVATE KEY-----", "MIIEvQ"),
+])
+def test_redaction_covers_common_secret_formats(raw, secret):
+    from kairon.crm.analytics.qualifier import redact_sensitive, REDACTED
+    out = redact_sensitive(raw)
+    assert secret not in out and REDACTED in out
+
+
+@pytest.mark.parametrize("text", [
+    "jane@acme.com", "+91 98765 43210", "Reach me at jane@acme.com or 9876543210, company Acme Pvt Ltd",
+    "I am shopping for a new phone", "please reset my password", "The password reset page is broken",
+    "What is the token of appreciation?", "my budget is 5000 and my pin code is 560001", "https://acme.com/pricing/enterprise",
+])
+def test_redaction_does_not_damage_lead_details_or_ordinary_text(text):
+    from kairon.crm.analytics.qualifier import redact_sensitive
+    assert redact_sensitive(text) == text
+
+
+def test_llm_prompt_never_contains_the_secret():
+    from kairon.crm.analytics import qualifier
+    turns = [{"user": "my password is hunter2, mail jane@acme.com", "bot": "noted"}]
+    sent = {}
+    def fake_invoke(bot, user, messages):
+        sent["content"] = " ".join(m["content"] for m in messages)
+        return {"qualifies_as_lead": True, "confidence": 0.9, "reason": "ok", "lead_fields": {"email": "jane@acme.com"}}
+    with patch.object(qualifier, "invoke_llm", side_effect=fake_invoke):
+        result, fields = qualifier.qualify(BOT, "u", "criteria", turns)
+    assert "hunter2" not in sent["content"] and "jane@acme.com" in sent["content"]
+    assert fields.email == "jane@acme.com"            # redaction did not break verified lead extraction
+
+
+# --------------------------------------------------------------------------- bench credentials
+
+def test_docker_new_site_failure_never_puts_credentials_in_the_error():
+    from kairon.crm.services.provisioners.crm_provisioner import CRMProvisioner
+    from kairon.crm.services.provisioning_models import ProvisioningPlan
+    prov = CRMProvisioner(ProvisioningPlan(strategy_key="crm", tier=1, apps=["crm"]), {"db_password": "RootPw-1234"})
+    prov.runner = None
+    boom = MagicMock(returncode=1, stdout="", stderr="FATAL: password authentication failed (RootPw-1234 / AdminPw-9876)")
+    with patch("kairon.crm.services.provisioners.base_provisioner.subprocess.run", return_value=boom), \
+            patch.object(prov, "_rollback_partial_site"):
+        with pytest.raises(AppException) as e:
+            prov._bench_new_site("acme.localhost", "db", "AdminPw-9876", "crm", "T")
+    assert "RootPw-1234" not in str(e.value) and "AdminPw-9876" not in str(e.value) and "[REDACTED]" in str(e.value)
+
+
+# --------------------------------------------------------------------------- lifecycle chain (Kairon side)
+
+def test_crm_lifecycle_upgrade_to_lead_with_isolation_between_bots():
+    """
+    One tenant end to end, all on isolated state: post-upgrade resume -> COMPLETED -> extra user keeps COMPLETED ->
+    signed invitation webhook (own bot accepted, other bot refused) -> qualified lead is redacted, signed with THIS
+    tenant's secret, sent once, and a second turn of the same conversation sends nothing.
+    """
+    import asyncio, base64, hashlib, hmac as _hmac
+    from kairon.actions.definitions.erpnext_crm_lead import ActionERPNextCRMLeadQualified
+    # tenant A (BOT) is mid-upgrade; tenant B (OTHER_BOT) is an unrelated, finished tenant with its own secrets
+    make_tenant(BOT, SITE, status="SITE_CREATED", tier=2, installed_apps=["crm", "erpnext"], selected_modules=["CRM"],
+                webhook_secret=Utility.encrypt_message("hook-secret-A"))
+    CRMClientDetails.objects(bot=OTHER_BOT).delete()
+    CRMClientDetails(company_name="Other Co", abbr="OC", default_currency="INR", country="India", bot=OTHER_BOT, user="u",
+                     onboarding_status="COMPLETED", site_name="other.localhost", crm_admin_email="o@other.com",
+                     lead_webhook_secret=Utility.encrypt_message("lead-secret-B")).save()
+
+    # 1. the normal workflow finishes the upgraded tenant
+    result, _, _ = _resume_workflow()
+    assert result.status == "COMPLETED"
+    tenant = CRMClientDetails.objects(bot=BOT).first()
+    assert tenant.onboarding_status == "COMPLETED" and tenant.tier == 2
+
+    # 2. adding a user afterwards does not demote it
+    _create_user()
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "COMPLETED"
+
+    # 3. invitation webhook: own bot is verified; the same signed request addressed to the other bot is refused
+    body = b'{"status": "Pending", "email": "x@acme.com"}'
+    hook_secret = Utility.decrypt_message(tenant.webhook_secret)                    # (re)issued by the workflow
+    sig = base64.b64encode(_hmac.new(hook_secret.encode(), body, hashlib.sha256).digest()).decode()
+    assert CRMProcessor.handle_invitation_webhook(SITE, body, sig, {"status": "Pending"}, bot=BOT)["action"] == "ignored"
+    with pytest.raises(AppException, match="Invalid webhook signature"):
+        CRMProcessor.handle_invitation_webhook(SITE, body, sig, {"status": "Pending"}, bot=OTHER_BOT)
+
+    # 4. qualified lead: redacted, signed with tenant A's secret only, delivered once
+    sent = []
+    def capture(url, secret, event):
+        sent.append((url, secret, event.payload))
+        return {"success": True, "status_code": 200}
+    slots = {"email": "jane@acme.com", "name": "Jane"}
+    tracker = MagicMock(sender_id="conv-1", events=[], latest_message={"text": "hi"})
+    tracker.get_slot.side_effect = lambda k: slots.get(k)
+    tracker.get_intent_of_latest_message.return_value = "buy"
+    trail = "USER: my password is hunter2 and my email is jane@acme.com\nBOT: thanks"
+    with patch("kairon.actions.definitions.erpnext_crm_lead.ActionUtility.prepare_message_trail_as_str", return_value=([], trail)), \
+            patch("kairon.actions.definitions.erpnext_crm_lead.KaironEventPublisher.publish_webhook", side_effect=capture):
+        action = ActionERPNextCRMLeadQualified(BOT, "erpnext_crm_lead_qualified")
+        out = asyncio.run(action.execute(MagicMock(), tracker, {}))
+        assert out[ActionERPNextCRMLeadQualified.ALREADY_QUALIFIED_SLOT] is True
+        slots[ActionERPNextCRMLeadQualified.ALREADY_QUALIFIED_SLOT] = True          # the next turn of the same conversation
+        asyncio.run(action.execute(MagicMock(), tracker, {}))
+    assert len(sent) == 1                                                             # duplicate turn sends nothing
+    url, secret, payload = sent[0]
+    assert secret == Utility.decrypt_message(tenant.lead_webhook_secret)             # tenant A's own secret, exactly
+    assert secret != "lead-secret-B" and "other.localhost" not in url
+    assert payload["bot_id"] == BOT and "hunter2" not in payload["transcript"] and "jane@acme.com" in payload["transcript"]
+
+
+def test_container_script_quotes_the_site_name_so_it_cannot_break_out_of_the_python_literal():
+    from kairon.crm.services.provisioners.crm_provisioner import CRMProvisioner
+    from kairon.crm.services.provisioning_models import ProvisioningPlan
+    prov = CRMProvisioner(ProvisioningPlan(strategy_key="crm", tier=1, apps=["crm"]), {})
+    prov.runner = None
+    captured = {}
+    def fake_run(cmd, **kw):
+        captured["script"] = cmd[-1] if cmd and "-c" in cmd else captured.get("script")
+        return MagicMock(returncode=0, stdout="OK", stderr="")
+    hostile = "x');import os;os.system('id');('.localhost"
+    with patch("kairon.crm.services.provisioners.base_provisioner.subprocess.run", side_effect=fake_run):
+        try:
+            prov.setup_user_and_migrate(hostile, "a@b.com", "pw", company_name="Co", abbr="C",
+                                        default_currency="INR", country="India")
+        except Exception:
+            pass
+    script = captured.get("script") or ""
+    assert script, "the container script was not generated"
+    compile(script, "<container-script>", "exec")                       # still valid Python
+    assert "frappe.init(site=" + __import__("json").dumps(hostile) in script
+    assert "frappe.init(site='x');import os" not in script
+
+
+# --------------------------------------------------------------------------- credentials of an existing administrator
+
+OWNER = "boss@acme.com"
+
+
+class FakeERP:
+    """
+    A small stateful stand-in for the tenant's ERPNext user store: it keeps each user's password and sign-in history,
+    answers the calls the provisioning phases make, and lets a test check what happened to real credentials.
+    """
+
+    def __init__(self, users=None):
+        self.users = users if users is not None else {}
+        self.password_writes = []          # (email, kind) for every password change, kind = "temp" | "random"
+        self.client, self.verifier = MagicMock(base_url="http://x"), MagicMock()
+        c, v = self.client, self.verifier
+        c.generate_keys_for_user.return_value = {"api_key": "k", "api_secret": "s"}
+        c.get_user_activity.side_effect = self._activity
+        c.create_erpnext_user.side_effect = self._create
+        c.set_user_password.side_effect = self._set_password
+        c.session.put.side_effect = self._put
+        v.verify_health.return_value = True
+        v.verify_provisioning_state.side_effect = self._verify
+        self.verified_with_password = []
+
+    def _activity(self, email):
+        u = self.users.get(email)
+        return None if u is None else {"enabled": u["enabled"], "active": u["enabled"] and bool(u["last_login"])}
+
+    def _create(self, email, first_name, last_name, send_welcome_email, password):
+        self.users.setdefault(email, {"enabled": True, "last_login": None, "password": password})
+
+    def _set_password(self, email, password):
+        self.users[email]["password"] = password
+        self.password_writes.append((email, "random" if len(password) > 16 else "temp"))
+
+    def _put(self, url, json=None, timeout=None):
+        email = url.rsplit("/", 1)[-1]
+        self.users[email]["password"] = json["new_password"]
+        self.password_writes.append((email, "temp"))
+        return MagicMock(status_code=200)
+
+    def _verify(self, admin_password, company, email, required_roles, temp_password=None):
+        self.verified_with_password.append(temp_password)
+        if email not in self.users:
+            return False
+        return temp_password is None or self.users[email]["password"] == temp_password     # a user login, when attempted
+
+
+def _run_workflow(erp, fail_company=False):
+    from kairon.crm.services.provisioning import ProvisioningService
+    P = "kairon.crm.services.provisioning"
+    if fail_company:
+        erp.client.create_company.side_effect = AppException("erp down")
+    else:
+        erp.client.create_company.side_effect = None
+    service = ProvisioningService(BOT, "Acme Co", "run-1")
+    with patch(f"{P}.ERPNextClient", return_value=erp.client), patch(f"{P}.ProvisionVerifier", return_value=erp.verifier), \
+            patch(f"{P}.BenchExecutor"), \
+            patch("kairon.crm.services.isolation_service.ProductIsolationService.apply_isolation", return_value={"module_profile": "mp"}):
+        return service.execute_onboarding_workflow(OWNER, "Boss", "Admin"), service
+
+
+def _owner_tenant(status="SITE_CREATED"):
+    return make_tenant(status=status, tier=2, installed_apps=["crm", "erpnext"], selected_modules=["CRM"], admin=OWNER)
+
+
+def test_upgrade_preserves_the_password_and_access_of_an_active_administrator():
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01 10:00:00", "password": "their-own-password"}})
+    _owner_tenant()
+    result, service = _run_workflow(erp)
+    assert result.status == "COMPLETED"
+    assert erp.users[OWNER]["password"] == "their-own-password"             # still works: nothing set or rotated it
+    assert erp.password_writes == [] and erp.client.create_erpnext_user.call_count == 0
+    assert erp.verified_with_password == [None]                              # verified through Administrator, no user login
+    erp.client.assign_roles_and_company.assert_called_once()                 # the Tier 2 role/company setup still happens
+    assert service.admin_already_active is True
+
+
+def test_new_administrator_gets_the_established_verification_flow_then_a_random_password():
+    erp = FakeERP()
+    _owner_tenant()
+    result, service = _run_workflow(erp)
+    assert result.status == "COMPLETED" and service.admin_already_active is False
+    assert erp.client.create_erpnext_user.call_count == 1
+    assert [k for _, k in erp.password_writes] == ["temp", "random"]         # verify with a temp password, then nobody holds it
+    assert erp.verified_with_password[0] is not None                         # a real login with the temp password was verified
+    assert erp.users[OWNER]["password"] not in (erp.verified_with_password[0],)
+
+
+@pytest.mark.parametrize("user", [
+    {"enabled": True, "last_login": None, "password": "invited-but-unused"},        # never signed in (Invited / Not signed in)
+    {"enabled": False, "last_login": "2026-09-01 09:00:00", "password": "old"},      # disabled: not an active account
+])
+def test_inactive_or_incomplete_administrator_follows_the_existing_flow_unchanged(user):
+    erp = FakeERP({OWNER: dict(user)})
+    _owner_tenant()
+    result, service = _run_workflow(erp)
+    assert result.status == "COMPLETED" and service.admin_already_active is False
+    assert [k for _, k in erp.password_writes] == ["temp", "random"]
+
+
+def test_unreadable_account_state_fails_safe_without_touching_any_password():
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01", "password": "theirs"}})
+    erp.client.get_user_activity.side_effect = AppException("Could not read User: HTTP 500")
+    _owner_tenant()
+    result, _ = _run_workflow(erp)
+    assert result.status == "FAILED_USER" and erp.password_writes == []
+    assert erp.users[OWNER]["password"] == "theirs"
+    assert CRMClientDetails.objects(bot=BOT).first().onboarding_status == "FAILED_USER"
+
+
+def test_failed_upgrade_retry_never_resets_an_active_administrator():
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01", "password": "theirs"}})
+    _owner_tenant()
+    first, _ = _run_workflow(erp, fail_company=True)                         # company phase fails, user phase never reached
+    assert first.status == "FAILED_COMPANY" and erp.password_writes == []
+    second, _ = _run_workflow(erp)                                           # retry resumes and completes
+    assert second.status == "COMPLETED" and erp.password_writes == []
+    assert erp.users[OWNER]["password"] == "theirs"
+
+
+def test_verification_retry_for_an_active_administrator_still_does_not_rotate_the_password():
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01", "password": "theirs"}})
+    _owner_tenant()
+    erp.verifier.verify_provisioning_state.side_effect = lambda **kw: False
+    first, _ = _run_workflow(erp)
+    assert first.status == "FAILED_VERIFICATION" and erp.password_writes == []
+    erp.verifier.verify_provisioning_state.side_effect = erp._verify
+    second, _ = _run_workflow(erp)                                           # resumes at verification, user phase skipped
+    assert second.status == "COMPLETED" and erp.password_writes == []
+    assert erp.users[OWNER]["password"] == "theirs"
+
+
+def test_repeated_workflow_runs_on_a_completed_tenant_change_no_credentials():
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01", "password": "theirs"}})
+    _owner_tenant()
+    _run_workflow(erp)
+    again, _ = _run_workflow(erp)                                            # status COMPLETED: every phase is skipped
+    assert again.status == "COMPLETED" and erp.password_writes == [] and erp.users[OWNER]["password"] == "theirs"
+
+
+@pytest.mark.parametrize("active,invitation", [(True, "NOT_SENT"), (False, "PENDING")])
+def test_setup_link_is_armed_only_for_an_administrator_who_has_not_signed_in(active, invitation):
+    from kairon.crm.services.admin_invitation import CRMAdminInvitationService
+    erp = FakeERP({OWNER: {"enabled": True, "last_login": "2026-10-01" if active else None, "password": "p"}})
+    _owner_tenant()
+    P = "kairon.crm.services.provisioning"
+    with patch(f"{P}.ERPNextClient", return_value=erp.client), patch(f"{P}.ProvisionVerifier", return_value=erp.verifier), \
+            patch(f"{P}.BenchExecutor"), patch.object(CRMAdminInvitationService, "send_in_background"), \
+            patch("kairon.crm.services.isolation_service.ProductIsolationService.apply_isolation", return_value={"module_profile": "mp"}):
+        CRMProcessor().onboard_company("Acme Co", "AC", "INR", "India", BOT, MagicMock(email="s@x.com"), crm_admin_email=OWNER)
+    doc = CRMClientDetails.objects(bot=BOT).first()
+    assert doc.onboarding_status == "COMPLETED" and doc.invitation_status == invitation
+
+
+def test_get_user_activity_follows_the_connectors_active_rule_and_never_guesses():
+    from kairon.crm.services.erpnext_client import ERPNextClient
+    client = ERPNextClient("http://localhost:8080", "acme.localhost")
+    client.session = MagicMock()
+    def answer(status, rows=None):
+        client.session.get.return_value = MagicMock(status_code=status, json=lambda: {"data": rows} if rows is not None else {})
+    answer(200, [])
+    assert client.get_user_activity("a@b.com") is None                       # the user does not exist
+    answer(200, [{"name": "a@b.com", "enabled": 1, "last_login": "2026-10-01 10:00:00"}])
+    assert client.get_user_activity("a@b.com") == {"enabled": True, "active": True}
+    answer(200, [{"name": "a@b.com", "enabled": 1, "last_login": None}])
+    assert client.get_user_activity("a@b.com") == {"enabled": True, "active": False}
+    answer(200, [{"name": "a@b.com", "enabled": 0, "last_login": "2026-10-01 10:00:00"}])
+    assert client.get_user_activity("a@b.com") == {"enabled": False, "active": False}
+    # the fields are asked for explicitly
+    assert "last_login" in client.session.get.call_args.kwargs["params"]["fields"]
+    # anything that is not an explicit answer raises instead of guessing "never signed in"
+    for status in (401, 403, 404, 500):
+        answer(status)
+        with pytest.raises(AppException, match="Could not read User"):
+            client.get_user_activity("a@b.com")
+    answer(200, [{"name": "a@b.com", "enabled": 1}])                           # last_login key missing
+    with pytest.raises(AppException, match="Could not determine"):
+        client.get_user_activity("a@b.com")
+    answer(200, {"unexpected": "shape"})
+    with pytest.raises(AppException, match="unexpected response"):
+        client.get_user_activity("a@b.com")
+
+
+# --------------------------------------------------------------------------- invitation reconciliation (all outcomes)
+
+def test_reconcile_applies_every_outcome_and_isolates_failures():
+    from kairon.crm.models import CRMInvitationStatus as InvStatus
+    make_tenant(status="COMPLETED", tier=2)
+    emails = {"acc": "accepted@acme.com", "nouser": "nouser@acme.com", "exp": "expired@acme.com",
+              "can": "cancelled@acme.com", "pend": "pending@acme.com", "boom": "boom@acme.com", "none": "none@acme.com"}
+    for e in emails.values():
+        CRMInvitation(bot=BOT, user="s", site_name=SITE, company="Acme Co", email=e, invitation_status=InvStatus.PENDING.value).save()
+    states = {emails["acc"]: "Accepted", emails["nouser"]: "Accepted", emails["exp"]: "Expired",
+              emails["can"]: "Cancelled", emails["pend"]: "Pending", emails["none"]: None}
+    client = MagicMock()
+    def status(email, app):
+        if email == emails["boom"]:
+            raise RuntimeError("erp down")
+        return {"status": states[email]} if states[email] else None
+    client.get_invitation_status.side_effect = status
+    client.check_user_exists.side_effect = lambda e: e != emails["nouser"]      # accepted, but the user is not visible yet
+    with patch.object(CRMProcessor, "_get_integration_client", return_value=client):
+        summary = CRMProcessor.reconcile_invitations(BOT)
+    assert summary == {"checked": 7, "assigned": 1, "expired": 1, "cancelled": 1, "errors": 1}
+    client.assign_company_permission.assert_called_once_with(emails["acc"], "Acme Co")      # Tier 2 only, once
+    final = {i.email: i.invitation_status for i in CRMInvitation.objects(bot=BOT)}
+    assert final[emails["acc"]] == InvStatus.COMPANY_ASSIGNED.value and final[emails["exp"]] == InvStatus.EXPIRED.value
+    assert final[emails["can"]] == InvStatus.CANCELLED.value
+    assert {final[emails[k]] for k in ("nouser", "pend", "boom", "none")} == {InvStatus.PENDING.value}     # unchanged; retried next cycle
+
+
+def test_reconcile_skips_company_permission_on_tier_1_sites():
+    from kairon.crm.models import CRMInvitationStatus as InvStatus
+    make_tenant(status="COMPLETED", tier=1)
+    CRMInvitation(bot=BOT, user="s", site_name=SITE, company="Acme Co", email="a@acme.com", invitation_status=InvStatus.PENDING.value).save()
+    client = MagicMock()
+    client.get_invitation_status.return_value = {"status": "Accepted"}
+    client.check_user_exists.return_value = True
+    with patch.object(CRMProcessor, "_get_integration_client", return_value=client):
+        summary = CRMProcessor.reconcile_invitations(BOT)
+    assert summary["assigned"] == 1
+    client.assign_company_permission.assert_not_called()
+
+
+def test_invitation_webhook_route_runs_blocking_work_off_the_event_loop_and_passes_the_path_bot():
+    import asyncio, threading
+    from kairon.crm import routes
+    seen = {}
+    def fake(**kw):
+        seen["thread"], seen["kw"] = threading.current_thread().name, kw
+        return {"action": "ignored"}
+    request = MagicMock()
+    async def body(): return b'{"status":"Pending"}'
+    async def js(): return {"status": "Pending"}
+    request.body, request.json = body, js
+    async def run():
+        main = threading.current_thread().name
+        with patch.object(CRMProcessor, "handle_invitation_webhook", side_effect=fake):
+            await routes.handle_invitation_webhook(request, BOT, "site.localhost", "sig")
+        return main
+    main = asyncio.run(run())
+    assert seen["thread"] != main                                   # not executed on the event-loop thread
+    assert seen["kw"]["bot"] == BOT and seen["kw"]["site_name"] == "site.localhost"
+
+
+# --------------------------------------------------------------------------- frontend container selection (found by the isolated E2E run)
+
+def _asset_sync_targets(bench_config):
+    """Runs setup_user_and_migrate with docker mocked out; returns every container the asset sync tried to exec into."""
+    from kairon.crm.services.provisioners.crm_provisioner import CRMProvisioner
+    from kairon.crm.services.provisioning_models import ProvisioningPlan
+    prov = CRMProvisioner(ProvisioningPlan(strategy_key="crm", tier=1, apps=["crm"]), bench_config)
+    prov.runner = None
+    seen = []
+    def record(cmd, *a, **kw):
+        if cmd and cmd[0] == "docker" and cmd[1] == "exec":
+            rest, i = list(cmd[2:]), 0
+            while rest[i].startswith("-"):                       # skip options (and the value of -w / -u / -e)
+                i += 2 if rest[i] in ("-w", "-u", "-e") else 1
+            seen.append(rest[i])
+        return MagicMock(returncode=0, stdout="OK", stderr="", communicate=MagicMock(return_value=(b"", b"")), stdin=None)
+    with patch("kairon.crm.services.provisioners.base_provisioner.subprocess.run", side_effect=record), \
+            patch("kairon.crm.services.provisioners.base_provisioner.subprocess.Popen", side_effect=record):
+        try:
+            prov.setup_user_and_migrate("acme.localhost", "a@b.com", "pw", company_name="Co", abbr="C",
+                                        default_currency="INR", country="India")
+        except Exception:
+            pass
+    return seen
+
+
+def test_asset_sync_goes_to_the_frontend_of_the_provisioned_stack_not_a_fixed_container():
+    targets = _asset_sync_targets({"container_name": "kairon-e2e-backend-1"})
+    assert "kairon-e2e-frontend-1" in targets
+    assert "frappe-frontend-1" not in targets                       # the live bench's frontend must never be touched
+    assert set(targets) <= {"kairon-e2e-backend-1", "kairon-e2e-frontend-1"}
+
+
+def test_default_backend_name_still_maps_to_the_default_frontend():
+    assert "frappe-frontend-1" in _asset_sync_targets({"container_name": "frappe-backend-1"})
+
+
+def test_explicit_frontend_container_setting_wins():
+    targets = _asset_sync_targets({"container_name": "kairon-e2e-backend-1", "frontend_container_name": "custom-fe"})
+    assert "custom-fe" in targets and "kairon-e2e-frontend-1" not in targets and "frappe-frontend-1" not in targets
