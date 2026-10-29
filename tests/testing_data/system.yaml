@@ -282,13 +282,7 @@ pos:
     odoo_master_password: ${ODOO_MASTER_PASSWORD:"testpassword"}
     odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
 
-store_page:
-  url: ${STORE_PAGE_URL:"http://localhost:8080"}
 crm:
-  supabase:
-    api_url: ${SUPABASE_API_URL:"https://api.supabase.com"}
-    access_token: ${SUPABASE_ACCESS_TOKEN:"placeholder-access-token"}
-    organization_id: ${SUPABASE_ORGANIZATION_ID:"placeholder-organization-id"}
   metering:
     # Kairon Metering CRM metadata API. Both unset => handoff is skipped (best-effort, never blocks CRM).
     url: ${CRM_METERING_URL}
@@ -296,3 +290,6 @@ crm:
   bench:
     docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
+
+store_page:
+  url: ${STORE_PAGE_URL:"http://localhost:8080"}
