@@ -7,10 +7,10 @@ from aiohttp_retry import RetryClient, ExponentialRetry
 from loguru import logger
 from urllib3.util import parse_url
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.models import HttpRequestContentType
-from datetime import datetime
 
 
 class RestClientBase(ABC):
@@ -110,9 +110,9 @@ class AioRestClient(RestClientBase):
         Response object is returned as it is and Streaming response is set into class property.
         """
         is_streaming_resp = kwargs.pop("is_streaming_resp", False)
-        rqst_start_time = datetime.utcnow()
+        rqst_start_time = utc_now()
         async with client.request(*args, **kwargs) as response:
-            self.time_elapsed = datetime.utcnow() - rqst_start_time
+            self.time_elapsed = utc_now() - rqst_start_time
             logger.debug(f"Content-type: {response.headers['content-type']}")
             logger.debug(f"Status code: {str(response.status)}")
             self.status_code = response.status

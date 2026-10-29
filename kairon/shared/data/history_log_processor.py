@@ -1,9 +1,10 @@
 from datetime import date
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.data_objects import ConversationsHistoryDeleteLogs
 from mongoengine import Q, DoesNotExist
-from datetime import datetime, timedelta
+from datetime import timedelta
 from loguru import logger
 
 
@@ -22,7 +23,7 @@ class HistoryDeletionLogProcessor:
             doc = ConversationsHistoryDeleteLogs(
                 bot=bot,
                 user=user,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
                 sender_id=sender_id
             )
         doc.status = status
@@ -31,7 +32,7 @@ class HistoryDeletionLogProcessor:
         if till_date:
             doc.till_date = till_date
         if status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod

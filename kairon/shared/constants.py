@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 
 from kairon.shared.data.constant import ACCESS_ROLES
 
@@ -73,7 +73,8 @@ class UserActivityType(str, Enum):
     model_reload = "model_reload"
 
 
-class EventClass(str, Enum):
+# f-strings must emit the value. On Python 3.12, (str, Enum).__str__ is "EventClass.name".
+class EventClass(StrEnum):
     model_training = "model_training"
     model_testing = "model_testing"
     data_importer = "data_importer"

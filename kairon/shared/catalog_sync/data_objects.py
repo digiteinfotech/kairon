@@ -1,7 +1,7 @@
-from datetime import datetime
 
 from mongoengine import StringField, DateTimeField, DynamicDocument, DictField
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.signals import push_notification, auditlogger
 
@@ -18,7 +18,7 @@ class CatalogSyncLogs(DynamicDocument):
     user = StringField(required=True)
     provider = StringField(required=True)
     sync_type = StringField(required=True)
-    start_timestamp = DateTimeField(default=datetime.utcnow)
+    start_timestamp = DateTimeField(default=utc_now)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     sync_status = StringField(default=EVENT_STATUS.COMPLETED.value)

@@ -27,11 +27,23 @@ os_patch = patch.dict(
     clear=True,
 )
 os_patch.start()
-with patch("pymongo.collection.Collection.create_index"):
-        from kairon.events.server import app
+from kairon.events.server import app
 
-        Utility.load_environment()
-        client = TestClient(app)
+Utility.load_environment()
+client = TestClient(app)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def event_app_lifespan():
+    # Starlette TestClient starts the FastAPI lifespan only inside the context
+    # manager. Executor tests write ExecutorLogs, which needs that mongomock
+    # connection. The lifespan calls KScheduler.start(), which opens the real
+    # job store. This module has no mongod, and that start must not stay running
+    # for later scheduler tests.
+    with patch("kairon.events.server.KScheduler.start"):
+        with client:
+            yield
+
 
 broker = StubBroker()
 
@@ -96,7 +108,7 @@ def test_lambda_executor():
                 }
             }
             response = client.post(
-                f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                 json=request_body,
             )
             response_json = response.json()
@@ -149,7 +161,7 @@ def test_lambda_executor_failed():
                 }
             }
             response = client.post(
-                f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                 json=request_body,
             )
             response_json = response.json()
@@ -178,7 +190,7 @@ def test_dramatiq_executor(mock_mongo_client, mock_database):
                 }
             }
             response = client.post(
-                f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                 json=request_body,
             )
             response_json = response.json()
@@ -212,7 +224,7 @@ def test_dramatiq_executor_failure(mock_mongo_client, mock_database):
             ) as mock_enqueue:
                 mock_enqueue.side_effect = __mock_enqueue_error
                 response = client.post(
-                    f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                    f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                     json=request_body,
                 )
             response_json = response.json()
@@ -246,7 +258,7 @@ def test_standalone_executor():
         ) as event:
             event.side_effect = __mock_execute
             response = client.post(
-                f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                 json=request_body,
             )
             response_json = response.json()
@@ -281,7 +293,7 @@ def test_standalone_executor_failure():
         ) as event:
             event.side_effect = __mock_execute
             response = client.post(
-                f"/api/events/execute/{EventClass.model_training}?is_scheduled=false",
+                f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=false",
                 json=request_body,
             )
             response_json = response.json()
@@ -305,7 +317,7 @@ def test_scheduled_event_request(mock_add_job):
         "cron_exp": "* * * * *",
     }
     response = client.post(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -334,7 +346,7 @@ def test_scheduled_event_request_with_epoch(mock_add_one_time_job):
     }
 
     response = client.post(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
 
@@ -383,7 +395,7 @@ def test_non_scheduled_message_broadcast_request(mock_trigger_lambda):
         }
     }
     response = client.post(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=false",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=false",
         json=request_body,
     )
     response_json = response.json()
@@ -411,7 +423,7 @@ def test_scheduled_event_request_not_allowed():
         "cron_exp": "* * * * *",
     }
     response = client.post(
-        f"/api/events/execute/{EventClass.model_training}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.model_training.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -428,7 +440,7 @@ def test_scheduled_event_request_not_allowed():
 def test_scheduled_event_request_parameters_missing():
     request_body = {"data": {}, "cron_exp": "* * * * *"}
     response = client.post(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -436,9 +448,11 @@ def test_scheduled_event_request_parameters_missing():
     assert response_json == {
         "detail": [
             {
-                "loc": ["body", "data"],
-                "msg": "user and bot are required!",
                 "type": "value_error",
+                "loc": ["body", "data"],
+                "msg": "Value error, user and bot are required!",
+                "input": {},
+                "ctx": {"error": {}},
             }
         ]
     }
@@ -448,7 +462,7 @@ def test_scheduled_event_request_parameters_missing():
         "cron_exp": "* * * * *",
     }
     response = client.post(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -474,7 +488,7 @@ def test_update_scheduled_event_request(mock_update_job):
         "timezone": "Asia/Kolkata",
     }
     response = client.put(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -496,7 +510,7 @@ def test_update_scheduled_event_request_not_allowed():
         "cron_exp": "* * * * *",
     }
     response = client.put(
-        f"/api/events/execute/{EventClass.model_testing}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.model_testing.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -514,7 +528,7 @@ def test_update_scheduled_event_request_not_allowed():
 def test_update_scheduled_event_request_missing_parameters():
     request_body = {"data": {"bot": "test", "user": "test_user"}}
     response = client.put(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()
@@ -535,7 +549,7 @@ def test_update_non_scheduled_event_request():
         }
     }
     response = client.put(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=False",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=False",
         json=request_body,
     )
     response_json = response.json()
@@ -560,7 +574,7 @@ def test_update_scheduled_event_request_with_both_runat_cron_exp(mock_update_job
         "run_at": "1234567"
     }
     response = client.put(
-        f"/api/events/execute/{EventClass.message_broadcast}?is_scheduled=True",
+        f"/api/events/execute/{EventClass.message_broadcast.value}?is_scheduled=True",
         json=request_body,
     )
     response_json = response.json()

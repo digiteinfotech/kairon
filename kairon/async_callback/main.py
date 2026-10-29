@@ -49,7 +49,7 @@ csp = (
     .frame_ancestors("'self'")
     .form_action("'self'")
     .base_uri("'self'")
-    .connect_src("'self' api.spam.com")
+    .connect_src("'self'", "api.spam.com")
     .frame_src("'self'")
     .img_src("'self'", "static.spam.com")
 )
@@ -57,9 +57,15 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer("").autoplay("").camera("").document_domain("").encrypted_media("")
-    .fullscreen("").geolocation("").gyroscope("").magnetometer("").microphone("").midi("").payment("")
-    .picture_in_picture("").sync_xhr("").usb("").geolocation("self", "'spam.com'").vibrate()
+    PermissionsPolicy()
+    .accelerometer()
+    .autoplay()
+    .fullscreen()
+    .gyroscope()
+    .magnetometer()
+    .microphone()
+    .usb()
+    .geolocation("self", "'spam.com'")
 )
 secure_headers = Secure(
     server=server,
@@ -68,7 +74,7 @@ secure_headers = Secure(
     referrer=referrer,
     permissions=permissions_value,
     cache=cache_value,
-    content=content
+    xcto=content,
 )
 
 app.use_cors(

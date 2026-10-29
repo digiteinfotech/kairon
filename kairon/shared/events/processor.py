@@ -19,7 +19,7 @@ class ExecutorProcessor:
             query.update({"event_class": event_class})
         if task_type:
             query.update({"task_type": task_type})
-        for log in ExecutorLogs.objects(**query).order_by("-timestamp").skip(start_idx).limit(page_size):
+        for log in ExecutorLogs.objects(**query).order_by("-timestamp", "-id").skip(start_idx).limit(page_size):
             executor_logs = log.to_mongo().to_dict()
             executor_logs.pop('_id')
             yield executor_logs

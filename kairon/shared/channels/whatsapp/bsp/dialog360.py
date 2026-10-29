@@ -2,13 +2,14 @@ import ast
 import asyncio
 import io
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Text, Dict
 
 import requests
 from loguru import logger
 from mongoengine import DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.account.activity_log import UserActivityLogger
@@ -389,7 +390,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
             raise AppException(response.text)
 
         external_media_id = response.json().get("id")
-        expiration_date = datetime.utcnow() + timedelta(days = 30)
+        expiration_date = utc_now() + timedelta(days = 30)
 
         media_doc.update(
             set__media_id = external_media_id,
@@ -411,7 +412,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     @staticmethod
     def fetch_media_ids(bot: str):
         try:
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot=bot,
                 upload_status=UserMediaUploadStatus.completed.value,
@@ -436,7 +437,7 @@ class BSP360Dialog(WhatsappBusinessServiceProviderBase):
     @staticmethod
     def fetch_broadcast_media_ids(bot: str):
         try:
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot=bot,
                 upload_status=UserMediaUploadStatus.completed.value,

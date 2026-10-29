@@ -28,7 +28,7 @@ async def upsert_customer(
         bot=bot,
         sender_id=request_data.sender_id,
         persona_type=request_data.persona_type,
-        payload=request_data.dict(exclude={"sender_id", "persona_type"}, exclude_none=True),
+        payload=request_data.model_dump(exclude={"sender_id", "persona_type"}, exclude_none=True),
     )
     return Response(data=result)
 
@@ -76,7 +76,7 @@ async def update_address(
     result = CustomerOrderProcessor.update_address(
         bot=bot,
         sender_id=sender_id,
-        address_payload=request_data.dict(),
+        address_payload=request_data.model_dump(),
     )
     return Response(data=result)
 

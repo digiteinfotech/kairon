@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from mongoengine import (
     signals,
@@ -7,6 +6,7 @@ from mongoengine import (
     ListField, DateTimeField, DictField
 )
 
+from kairon.shared.clock import utc_now
 from kairon.idp.constants import IDPConfigType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger
@@ -19,7 +19,7 @@ class IdpConfig(Auditlog):
     account = ListField(required=True)
     organization = StringField(required=True)
     status = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     config_type = StringField()
     config_sub_type = StringField(choices=[config_type.value for config_type in IDPConfigType])
     realm_name = StringField()

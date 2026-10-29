@@ -6,6 +6,7 @@ from kairon import Utility
 from kairon.exceptions import AppException
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
+os.environ["KAIRON_SKIP_SCHEDULER"] = "1"
 Utility.load_environment()
 Utility.load_system_metadata()
 

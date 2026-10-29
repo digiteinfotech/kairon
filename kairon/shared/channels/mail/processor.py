@@ -4,8 +4,7 @@ import time
 from croniter.croniter import CroniterError
 import logging
 from loguru import logger
-from pydantic.schema import timedelta
-from pydantic.validators import datetime
+from datetime import datetime, timedelta
 from imap_tools import MailBox, AND, OR, NOT
 
 from kairon import Utility

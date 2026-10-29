@@ -6,6 +6,7 @@ from unittest import mock
 import mongomock
 import pytest
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.history.processor import HistoryProcessor
 from kairon.shared.data.constant import EVENT_STATUS
@@ -99,7 +100,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_history', autospec=True)
     def test_delete_user_history(self, mock_history):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
         HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
@@ -108,7 +109,7 @@ class TestHistory:
     @mock.patch('kairon.history.processor.HistoryProcessor.archive_user_history', autospec=True)
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_history_with_mock_functions(self, mock_delete_history, mock_archive_user_history):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
         HistoryProcessor.delete_user_history(collection=collection, sender_id=sender_id, till_date=till_date)
@@ -150,7 +151,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.HistoryProcessor.delete_user_conversations', autospec=True)
     def test_delete_user_conversations(self, mock_history):
-        till_date_timestamp = Utility.get_timestamp_from_date(datetime.utcnow().date())
+        till_date_timestamp = Utility.get_timestamp_from_date(utc_now().date())
         collection = '5ebc195d5b04bcbaa45c70cc'
         sender_id = 'fshaikh@digite.com'
         HistoryProcessor.delete_user_conversations(collection=collection, sender_id=sender_id,
@@ -160,7 +161,7 @@ class TestHistory:
 
     @mock.patch('kairon.history.processor.MongoClient', autospec=True)
     def test_delete_bot_history(self, mock_client):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         mock_client.return_value = mongoclient
         collection = '5f1928bda7c0280ca4869da3'
         msg = HistoryProcessor.delete_bot_history(collection=collection, till_date=till_date)
@@ -171,13 +172,13 @@ class TestHistory:
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3')
 
     def test_is_event_in_progress_with_aborted(self, get_connection_delete_history):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
                                             till_date, status=EVENT_STATUS.ABORTED.value)
         assert not HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)
 
     def test_is_event_in_progress_failure(self, get_connection_delete_history):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         HistoryDeletionLogProcessor.add_log('5f1928bda7c0280ca4869da3', 'test_user',
                                             till_date, status=EVENT_STATUS.INPROGRESS.value)
         assert HistoryDeletionLogProcessor.is_event_in_progress('5f1928bda7c0280ca4869da3', False)

@@ -11,6 +11,7 @@ from fastapi import UploadFile
 from unittest.mock import patch
 from mongoengine import connect
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.events.definitions.agentic_flow import AgenticFlowEvent
 from kairon.events.definitions.analytic_pipeline_handler import AnalyticsPipelineEvent
@@ -578,7 +579,7 @@ class TestEventDefinitions:
 
     @responses.activate
     def test_delete_history_enqueue(self):
-        till_date = datetime.utcnow().date()
+        till_date = utc_now().date()
         bot = 'test_definitions'
         user = 'test_user'
         url = f"http://localhost:5001/api/events/execute/{EventClass.delete_history}"

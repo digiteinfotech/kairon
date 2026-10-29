@@ -3,6 +3,7 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.utils import Utility
 from kairon.exceptions import AppException
@@ -47,7 +48,7 @@ class MultilingualLogProcessor:
                 account=account,
                 translate_responses=translate_responses,
                 translate_actions=translate_actions,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
             )
         doc.event_status = event_status
         if exception:
@@ -59,7 +60,7 @@ class MultilingualLogProcessor:
         if s_lang:
             doc.s_lang = s_lang
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod
@@ -82,7 +83,7 @@ class MultilingualLogProcessor:
             doc = BotReplicationLogs(
                 bot=source_bot,
                 user=user,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
             )
 
         doc.destination_bot = destination_bot
@@ -91,7 +92,7 @@ class MultilingualLogProcessor:
         if status:
             doc.status = status
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod

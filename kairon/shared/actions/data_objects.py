@@ -22,6 +22,7 @@ from validators import email
 from validators import url
 from validators.utils import ValidationError as ValidationFailure
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.models import (
     ActionType,
     ActionParameterType,
@@ -133,7 +134,7 @@ class PyscriptActionConfig(Auditlog):
     dispatch_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -165,7 +166,7 @@ class HttpActionConfig(Auditlog):
     set_slots = ListField(EmbeddedDocumentField(SetSlotsFromResponse))
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "status", "action_name")]}]}
@@ -242,7 +243,7 @@ class DatabaseAction(Auditlog):
     failure_response = StringField(default="I have failed to process your request.")
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -274,7 +275,7 @@ class ActionServerLogs(DynamicDocument):
     exception = StringField()
     messages = DynamicField()
     bot = StringField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = StringField(default=STATUSES.SUCCESS.value)
     trigger_info = EmbeddedDocumentField(TriggerInfo, default = TriggerInfo)
     request_id = StringField()
@@ -289,7 +290,7 @@ class Actions(Auditlog):
     type = StringField(choices=[type.value for type in ActionType], default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -338,7 +339,7 @@ class SlotSetAction(Auditlog):
     set_slots = ListField(EmbeddedDocumentField(SetSlots), required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -380,7 +381,7 @@ class FormValidationAction(Auditlog):
     invalid_response = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     slot_set = EmbeddedDocumentField(FormSlotSet, default=FormSlotSet())
 
@@ -457,7 +458,7 @@ class EmailActionConfig(Auditlog):
     tls = BooleanField(default=False)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status")]}]}
@@ -511,7 +512,7 @@ class VoiceCallAction(Auditlog):
     dispatch_bot_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -539,7 +540,7 @@ class StorePageAction(Auditlog):
     callback_identifier = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -569,7 +570,7 @@ class AgentActionConfig(Auditlog):
     dispatch_bot_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -604,7 +605,7 @@ class GoogleSearchAction(Auditlog):
     set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -636,7 +637,7 @@ class WebSearchAction(Auditlog):
     set_slot = StringField()
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -669,7 +670,7 @@ class JiraAction(Auditlog):
     response = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -716,7 +717,7 @@ class ZendeskAction(Auditlog):
     response = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -757,7 +758,7 @@ class PipedriveLeadsAction(Auditlog):
     response = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -797,7 +798,7 @@ class HubspotFormsAction(Auditlog):
     response = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -833,7 +834,7 @@ class KaironTwoStageFallbackAction(Auditlog):
     bot = StringField(required=True)
     fallback_message = StringField(default=FALLBACK_MESSAGE)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -946,7 +947,7 @@ class PromptAction(Auditlog):
     user_question = EmbeddedDocumentField(UserQuestion, default=UserQuestion())
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     llm_type = StringField(default=DEFAULT_LLM, choices=Utility.get_llms())
     hyperparameters = DictField(default=Utility.get_default_llm_hyperparameters)
     llm_prompts = EmbeddedDocumentListField(LlmPrompt, required=True)
@@ -998,7 +999,7 @@ class RazorpayAction(Auditlog):
     )
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
@@ -1051,7 +1052,7 @@ class LiveAgentActionConfig(Auditlog):
     dispatch_agent_not_available_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status")]}]}
@@ -1079,7 +1080,7 @@ class CallbackActionConfig(Auditlog):
     dispatch_bot_response = BooleanField(default=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "action_name", "status"), "callback_name"]}]}
@@ -1117,7 +1118,7 @@ class ScheduleAction(Auditlog):
         EmbeddedDocumentField(CustomActionRequestParameters), required=False
     )
     dispatch_bot_response = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -1142,7 +1143,7 @@ class ParallelActionConfig(Auditlog):
     response_text = StringField(required=False)
     dispatch_response_text = BooleanField(default=False)
     status = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
 
@@ -1195,7 +1196,7 @@ class AnalyticsPipelineConfig(Auditlog):
     scheduler_config = EmbeddedDocumentField(SchedulerConfiguration)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     data_deletion_policy = ListField(DictField(), default=list)
     triggers = ListField(DictField(), default=list)

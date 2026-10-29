@@ -23,6 +23,7 @@ from typing import Text, List, Dict, Union, Any, Optional
 from urllib.parse import unquote_plus
 from urllib.parse import urljoin
 
+import bcrypt
 import bson
 import pandas as pd
 import pytz
@@ -47,7 +48,6 @@ from networkx import (
     recursive_simple_cycles,
     all_simple_paths,
 )
-from passlib.context import CryptContext
 from password_strength import PasswordPolicy
 from password_strength.tests import Special, Uppercase, Numbers, Length
 from pymongo.common import _CaseInsensitiveDictionary
@@ -59,7 +59,8 @@ from pymongo.uri_parser import (
     SRV_SCHEME,
     parse_userinfo,
 )
-from pymongo.uri_parser import _BAD_DB_CHARS, split_options
+from pymongo.uri_parser import split_options
+from pymongo.uri_parser_shared import _BAD_DB_CHARS
 from requests.adapters import HTTPAdapter, Retry
 from smart_config import ConfigLoader
 from starlette import status
@@ -69,6 +70,7 @@ from validators import email as mail_check
 from validators.utils import ValidationError as ValidationFailure
 from websockets import connect
 from pydantic import ValidationError as PValidationError
+from kairon.shared.clock import utc_now
 from .actions.models import ActionParameterType
 from .constants import EventClass, UserActivityType
 from .constants import (
@@ -104,7 +106,6 @@ class Utility:
         numbers=1,  # need min. 1 digits
         special=1,  # need min. 1 special characters
     )
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @staticmethod
     def valid_password(password: Text):
@@ -142,7 +143,10 @@ class Utility:
         :return: hashed password
         """
         if not Utility.check_empty_string(password):
-            return Utility.pwd_context.hash(password)
+            # bcrypt hashes the first 72 bytes. Truncate so bcrypt 5 accepts the
+            # secret and hashes created before that limit still verify.
+            secret = password.encode("utf-8")[:72]
+            return bcrypt.hashpw(secret, bcrypt.gensalt()).decode("ascii")
 
     @staticmethod
     def check_empty_string(value: str):
@@ -548,7 +552,7 @@ class Utility:
 
         for document in documents:
             kwargs["bot"] = bot
-            update = {"set__user": user, "set__timestamp": datetime.utcnow()}
+            update = {"set__user": user, "set__timestamp": utc_now()}
             if "status" in document._db_field_map:
                 kwargs["status"] = True
                 update["set__status"] = False
@@ -729,11 +733,11 @@ class Utility:
         ).get_config()
 
     @staticmethod
-    def convert_date_to_string(date_obj: date = datetime.utcnow().date()):
+    def convert_date_to_string(date_obj: date = utc_now().date()):
         return date_obj.strftime("%Y-%m-%d")
 
     @staticmethod
-    def get_timestamp_from_date(date_obj: date = datetime.utcnow().date()):
+    def get_timestamp_from_date(date_obj: date = utc_now().date()):
         date_time = datetime.now().replace(date_obj.year, date_obj.month, date_obj.day)
         return date_time.timestamp()
 
@@ -747,7 +751,7 @@ class Utility:
     def get_back_date_1month(request: Request):
         key = "from_date"
         if not request.query_params.get(key):
-            return date.today() - timedelta(30)
+            return utc_now().date() - timedelta(30)
         else:
             return date.fromisoformat(request.query_params.get(key))
 
@@ -755,7 +759,7 @@ class Utility:
     def get_back_date_6month(request: Request) -> date:
         key = "from_date"
         if not request.query_params.get(key):
-            return date.today() - timedelta(180)
+            return utc_now().date() - timedelta(180)
         else:
             return date.fromisoformat(request.query_params.get(key))
 
@@ -763,14 +767,16 @@ class Utility:
     def get_to_date(request: Request):
         date_str = request.query_params.get("till_date") or request.query_params.get("to_date")
         if not date_str:
-            return date.today()
+            # Same UTC day as validate_from_date_and_to_date. date.today() is
+            # already the next day between local midnight and UTC midnight.
+            return utc_now().date()
         else:
             return date.fromisoformat(date_str)
 
     @staticmethod
     def validate_from_date_and_to_date(from_date: date, to_date: date):
-        six_months_back_date = (datetime.utcnow() - timedelta(6 * 30)).date()
-        today_date = datetime.utcnow().date()
+        six_months_back_date = (utc_now() - timedelta(6 * 30)).date()
+        today_date = utc_now().date()
         if six_months_back_date > from_date or from_date > today_date:
             logger.info(f"from_date: {from_date}, to_date: {to_date}, six_month_back_date: {six_months_back_date}, today_date: {today_date}")
             raise AppException("from_date should be within six months and today date")
@@ -876,10 +882,10 @@ class Utility:
     @staticmethod
     def __modify_bot_in_domain(bot: Text, model_file: Text, tempdir: Text):
         updated_model = (
-            f"{tempdir}/{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.tar.gz"
+            f"{tempdir}/{utc_now().strftime('%Y%m%d-%H%M%S')}.tar.gz"
         )
         with tarfile.open(model_file, "r:gz") as model:
-            model.extractall(tempdir)
+            model.extractall(tempdir, filter="data")
 
             metadata = json.load(open(f"{tempdir}/metadata.json"))
             metadata["domain"]["slots"]["bot"]["initial_value"] = bot
@@ -1003,7 +1009,7 @@ class Utility:
         :return: the token
         """
 
-        expire = datetime.utcnow() + timedelta(minutes=minutes_to_expire)
+        expire = utc_now() + timedelta(minutes=minutes_to_expire)
         payload.update({"exp": expire})
         encoded_jwt = encode(
             payload,
@@ -1081,6 +1087,25 @@ class Utility:
             return file_path, temp_path
 
     @staticmethod
+    def _accept_mongomock_bulk_sort():
+        """pymongo 4.10+ passes sort into bulk updates. mongomock 4.3 ignores it."""
+        from mongomock.collection import BulkOperationBuilder
+
+        def _wrap(name):
+            original = getattr(BulkOperationBuilder, name)
+            if getattr(original, "_kairon_sort_compat", False):
+                return
+
+            def wrapped(self, *args, sort=None, **kwargs):
+                return original(self, *args, **kwargs)
+
+            wrapped._kairon_sort_compat = True
+            setattr(BulkOperationBuilder, name, wrapped)
+
+        _wrap("add_update")
+        _wrap("add_replace")
+
+    @staticmethod
     def mongoengine_connection(url=None):
         if not url:
             url = Utility.environment["database"]["url"]
@@ -1096,6 +1121,7 @@ class Utility:
         if Utility.environment["env"] == "test":
             from mongomock import MongoClient
 
+            Utility._accept_mongomock_bulk_sort()
             config["db"] = "mongoenginetest"
             config["mongo_client_class"] = MongoClient
         return config
@@ -1286,7 +1312,15 @@ class Utility:
         :param hashed_password: saved password
         :return: boolean
         """
-        return Utility.pwd_context.verify(plain_password, hashed_password)
+        if Utility.check_empty_string(plain_password) or not hashed_password:
+            return False
+        secret = plain_password.encode("utf-8")[:72]
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode("ascii")
+        try:
+            return bcrypt.checkpw(secret, hashed_password)
+        except (ValueError, TypeError):
+            return False
 
     @staticmethod
     async def chat(data: Text, bot: Text, user: Text, email: Text):
@@ -1346,6 +1380,20 @@ class Utility:
                 bot=bot,
                 data={"username": email, "exception": exc, "status": status},
             )
+
+    @staticmethod
+    def reload_model_in_background(bot: Text, email: Text):
+        """Reload after the HTTP response has started.
+
+        ``reload_model`` already logs the failure and writes the activity log.
+        A background ``AppException`` cannot replace a response that Starlette
+        has already sent, so swallow it here and leave the synchronous reload
+        endpoint raising.
+        """
+        try:
+            return Utility.reload_model(bot, email)
+        except AppException:
+            return None
 
     @staticmethod
     def validate_edit_template_request(data: Dict):
