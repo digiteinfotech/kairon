@@ -1,12 +1,12 @@
 import json
 import requests
 import subprocess
-import urllib3
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
 from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
+from kairon.crm.services.bench_http import build_bench_session
 from kairon.crm.constants import (
     REQUIRED_INTEGRATION_USER_ROLES,
     BUSINESS_MODULE_CATALOG,
@@ -58,20 +58,17 @@ class ERPNextClient:
         self.base_url = base_url.rstrip("/")
         self.host_header = host_header
         self.site_name = host_header
-        self.session = requests.Session()
-        # Defaults to verifying certs; only disable when the operator explicitly
-        # opts out via crm.bench.ssl_verify (e.g. a self-signed local bench). A
-        # hardcoded `verify = False` would silently accept any certificate on a
-        # remote HTTPS deployment, exposing credentials to an active attacker.
-        crm_config = Utility.environment.get("crm", {})
-        ssl_verify = crm_config.get("bench", {}).get("ssl_verify", True)
-        self.session.verify = ssl_verify
-        if not ssl_verify:
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        self.session.headers.update({
-            "Host": self.host_header,
-            "Accept": "application/json"
-        })
+        self.session = build_bench_session(host_header)
+
+    @staticmethod
+    def _bench_container() -> str:
+        """The Bench container for the container-side fallbacks; raises in runner mode (no container)."""
+        from kairon.crm.services.bench_executor import BenchExecutor
+        bench_config = Utility.environment.get("crm", {}).get("bench", {})
+        container_name = BenchExecutor()._resolve_container_name(bench_config)
+        if not container_name:   # runner mode: no container; the caller's HTTP path is used
+            raise RuntimeError("no Bench container in runner mode")
+        return container_name
 
     def _log_api_op(self, operation: str, resource: str, success: bool, status_code: Optional[int] = None, error: Optional[str] = None):
         log_msg = f"[ERPNextClient] Site: {self.host_header} | Op: {operation} | Resource: {resource} | Success: {success} | HTTP: {status_code}"
@@ -281,12 +278,7 @@ class ERPNextClient:
 
         # Fallback to Container Python execution
         try:
-            from kairon.crm.services.bench_executor import BenchExecutor
-            crm_config = Utility.environment.get("crm", {})
-            bench_config = crm_config.get("bench", {})
-            container_name = BenchExecutor()._resolve_container_name(bench_config)
-            if not container_name:   # runner mode: no container; the caller's HTTP path is used
-                raise RuntimeError("no Bench container in runner mode")
+            container_name = self._bench_container()
 
             script = f"""
 import frappe, json
@@ -310,6 +302,7 @@ print(json.dumps(keys))
                     data = json.loads(json_part)
                     if data.get("api_key") and data.get("api_secret"):
                         try:
+                            from kairon.crm.services.bench_executor import BenchExecutor
                             BenchExecutor().reload_gunicorn_workers(container_name)
                         except Exception as reload_err:
                             logger.debug(f"[ERPNextClient] Worker reload after key generation failed: {reload_err}")
@@ -538,12 +531,7 @@ print(json.dumps(keys))
             self._log_api_op(label, workspace_name, True, 200)
             return True
         try:
-            from kairon.crm.services.bench_executor import BenchExecutor
-            crm_config = Utility.environment.get("crm", {})
-            bench_config = crm_config.get("bench", {})
-            container_name = BenchExecutor()._resolve_container_name(bench_config)
-            if not container_name:   # runner mode: no container; the caller's HTTP path is used
-                raise RuntimeError("no Bench container in runner mode")
+            container_name = self._bench_container()
             script = (
                 f"import frappe; frappe.init(site={json.dumps(self.site_name)}); frappe.connect(); "
                 f"frappe.db.set_value('Workspace', {json.dumps(workspace_name)}, "
@@ -570,12 +558,7 @@ print(json.dumps(keys))
         Clears ERPNext site cache via container Python / Bench command to update bootinfo/Redis.
         """
         try:
-            from kairon.crm.services.bench_executor import BenchExecutor
-            crm_config = Utility.environment.get("crm", {})
-            bench_config = crm_config.get("bench", {})
-            container_name = BenchExecutor()._resolve_container_name(bench_config)
-            if not container_name:   # runner mode: no container; the caller's HTTP path is used
-                raise RuntimeError("no Bench container in runner mode")
+            container_name = self._bench_container()
 
             cmd = [
                 "docker", "exec", container_name,
@@ -615,12 +598,7 @@ print(json.dumps(keys))
                             self.session.put(put_url, json={"default_workspace": workspace_name}, timeout=10)
                 self._log_api_op("set_default_workspace_all", workspace_name, True, 200)
 
-            from kairon.crm.services.bench_executor import BenchExecutor
-            crm_config = Utility.environment.get("crm", {})
-            bench_config = crm_config.get("bench", {})
-            container_name = BenchExecutor()._resolve_container_name(bench_config)
-            if not container_name:   # runner mode: no container; the caller's HTTP path is used
-                raise RuntimeError("no Bench container in runner mode")
+            container_name = self._bench_container()
 
             script = f"""
 import frappe
@@ -1086,7 +1064,7 @@ frappe.db.commit()
             "use_tls": 0,
             "use_ssl": 0,
             "no_smtp_authentication": 1,
-            "awaiting_password": 0
+            "awaiting_password": 0  # nosec B105 - a flag for ERPNext, not a credential
         }
         res = self.session.post(url, json=payload, timeout=15)
         if res.status_code in (200, 201):

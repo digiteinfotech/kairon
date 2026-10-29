@@ -18,10 +18,7 @@ class ERPNextProvisioner(BaseProvisioner):
     ) -> Dict[str, Any]:
         logger.info(f"[{self.LABEL}] Starting Tier 2 ERPNext Suite Provisioning for company '{company_name}', bot '{bot}'...")
 
-        doc = self._load_client_doc(company_name, bot)
-        clean_name, site_name = self._clean_site_name(company_name)
-        doc.site_name = site_name
-        self.provisioning_id = doc.provisioning_id or ""
+        doc, clean_name, site_name = self._begin_provisioning(company_name, bot)
 
         # Phase 0: Pre-flight validation
         PreFlightValidator.validate_infrastructure(self.container_name, site_name, self.plan, is_upgrade=False)

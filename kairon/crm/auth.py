@@ -23,7 +23,7 @@ from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
-STAFF_TOKEN_TYPE = "metering-staff"
+STAFF_TOKEN_TYPE = "metering-staff"  # nosec B105 - JWT "typ" claim value, not a credential
 STAFF_AUDIENCE = "kairon-metering"
 
 
