@@ -151,6 +151,7 @@ class CallbackProcessor:
         redirect = callback.get("redirect")
         redirect_enabled = callback.get("redirect_enabled", False)
         redirect_url = None
+        trace_id = None
         try:
             if execution_mode == CallbackExecutionMode.ASYNC.value:
                 logger.info(f"Executing async callback. Identifier: {entry.get('identifier')}")
@@ -163,7 +164,7 @@ class CallbackProcessor:
                 CallbackProcessor.run_pyscript_async(script=callback.get("pyscript_code"),
                                                          predefined_objects=predefined_objects,
                                                          callback=callback_function)
-                return {"message": "Request Acknowledged"}, message, error_code, response_type, None
+                return {"message": "Request Acknowledged"}, message, error_code, response_type, None, None
 
             elif execution_mode == CallbackExecutionMode.SYNC.value:
                 logger.info(f"Executing sync callback. Identifier: {entry.get('identifier')}")
@@ -195,7 +196,7 @@ class CallbackProcessor:
             error_code = 400
             message = str(e)
             redirect_url = None
-            CallbackLog.create_failure_entry(name=entry.get("action_name"),
+            trace_id = CallbackLog.create_failure_entry(name=entry.get("action_name"),
                                              bot=bot,
                                              channel=entry.get("channel"),
                                              identifier=entry.get("identifier"),
@@ -211,5 +212,6 @@ class CallbackProcessor:
                                                       user_query_history=request_data.get('body'))
 
             message = "Callback script execution failed. Check callback logs for details."
+            trace_id = str(trace_id["_id"])
 
-        return data, message, error_code, response_type, redirect_url
+        return data, message, error_code, response_type, redirect_url, trace_id
