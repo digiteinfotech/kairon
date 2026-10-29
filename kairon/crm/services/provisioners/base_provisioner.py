@@ -411,7 +411,14 @@ frappe.clear_cache()
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
 
+    def _begin_provisioning(self, company_name: str, bot: str):
+        """Shared start of a fresh-site run: loads the tenant record and fixes the site name."""
+        doc = self._load_client_doc(company_name, bot)
+        clean_name, site_name = self._clean_site_name(company_name)
+        doc.site_name = site_name
+        self.provisioning_id = doc.provisioning_id or ""
+        return doc, clean_name, site_name
+
     @abstractmethod
     def provision(self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str) -> Dict[str, Any]:
         """Executes the provisioning strategy."""
-        pass
