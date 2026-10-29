@@ -113,7 +113,7 @@ class TestActionAgent:
         assert call_kwargs["request_method"] == "POST"
         assert "agents/bot_exec_agent/agent-uuid-123/run/sender_exec/simple" in call_kwargs["http_url"]
         assert call_kwargs["request_body"]["message"] == "hello agent"
-        assert call_kwargs["request_body"]["max_iterations"] == 1
+        assert call_kwargs["request_body"]["max_iterations"] == 5
         assert call_kwargs["request_body"]["metadata"] == {}
         mock_log.assert_called_once()
         assert result["kairon_action_response"] == "Here is your answer"
