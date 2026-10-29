@@ -93,7 +93,7 @@ class ActionAgent(ActionsBase):
                 "message": self._build_message(user_message, self._get_chat_history(tracker)),
                 "session_id": None,
                 "metadata": {},
-                "max_iterations": 1,
+                "max_iterations": 5,
             }
 
             api_response, status_code, _, _ = await ActionUtility.execute_request_async(
