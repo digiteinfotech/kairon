@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Security, Query, Request, Header
+from fastapi.concurrency import run_in_threadpool
 
 from kairon.api.models import Response
 from kairon.shared.constants import ADMIN_ACCESS
@@ -35,13 +36,16 @@ def onboard_company(
     Initiates automated ERPNext site provisioning for a tenant bot.
 
     - **Request Schema**: `CRMOnboardRequest` (company_name, abbr, default_currency, country, crm_admin_email, selected_modules)
-    - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, accepted, provisioned, failed }` (`temporary_password` only when the deployment opts in). `success` only means the request was accepted; read `provisioned`/`failed`/`status` for the real outcome.
+    - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, accepted, provisioned,
+      failed }` (`temporary_password` only when the deployment opts in). `success` only means the request was accepted;
+      read `provisioned`/`failed`/`status` for the real outcome.
     - **Possible Error Responses**:
       - 400 Bad Request: Missing or invalid company parameters.
       - 422 Unprocessable Entity: Empty module selection or forbidden system module request.
       - 500 Internal Server Error: Provisioning error (recorded in `last_error`).
     - **Security Note**: Requires `ADMIN_ACCESS` token. Only authorized tenant admins may provision CRM instances.
-    - **Expected Behavior**: Performs atomic lock, creates site in Bench, initializes Fernet encryption key, reloads Gunicorn, creates integration user, configures module profiles, and provisions administrator user.
+    - **Expected Behavior**: Performs atomic lock, creates site in Bench, initializes Fernet encryption key, reloads
+      Gunicorn, creates integration user, configures module profiles, and provisions administrator user.
     """
     result = crm_processor.onboard_company(
         company_name=req.company_name,
@@ -172,7 +176,8 @@ def configure_modules(
       - 400 Bad Request: Invalid module selection or attempting to disable required infrastructure.
       - 502 Bad Gateway: ERPNext REST API communication failure.
     - **Security Note**: Enforces admin authorization (`ADMIN_ACCESS`).
-    - **Expected Behavior**: Updates ERPNext `Module Profile`, sets `is_hidden = 1` on non-selected workspaces, sets user default workspace, and flushes site cache.
+    - **Expected Behavior**: Updates ERPNext `Module Profile`, sets `is_hidden = 1` on non-selected workspaces, sets
+      user default workspace, and flushes site cache.
     """
     result = CRMProcessor.configure_modules(
         bot=current_user.get_bot(),
@@ -278,7 +283,9 @@ async def handle_invitation_webhook(
     """
     raw_body = await request.body()
     payload = await request.json()
-    result = CRMProcessor.handle_invitation_webhook(
+    # The processor does blocking database and ERPNext HTTP work; keep it off the event loop.
+    result = await run_in_threadpool(
+        CRMProcessor.handle_invitation_webhook,
         site_name=x_kairon_site,
         raw_body=raw_body,
         signature_header=x_frappe_webhook_signature,
@@ -332,7 +339,10 @@ def get_crm_details(
     Returns full provisioning metadata, database connection info, and web access URLs for the tenant CRM.
 
     - **Request Schema**: None
-    - **Response Schema**: `Response` wrapping `CRMClientDetails` dict (allowlisted fields only: company fields, onboarding_status, site_name, site_url, tier, installed_apps, selected_modules, timestamps). Credentials (Administrator password, DB password, Frappe API key/secret, webhook secrets) and raw provisioning errors are never included.
+    - **Response Schema**: `Response` wrapping `CRMClientDetails` dict (allowlisted fields only: company fields,
+      onboarding_status, site_name, site_url, tier, installed_apps, selected_modules, timestamps). Credentials
+      (Administrator password, DB password, Frappe API key/secret, webhook secrets) and raw provisioning errors are never
+      included.
     - **Security Note**: Admin authorization required (`ADMIN_ACCESS`).
     """
     details = CRMProcessor.get_crm_public_details(current_user.get_bot())
@@ -372,7 +382,6 @@ def delete_project(
     """
     result = CRMProcessor.delete_crm_details(current_user.get_bot(), company_name)
     return Response(data=result)
-
 
 
 @router.post("/admin-invitation/resend", response_model=Response)

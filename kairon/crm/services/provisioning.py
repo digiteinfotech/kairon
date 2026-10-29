@@ -54,6 +54,8 @@ class ProvisioningService:
         self.bot = bot
         self.company_name = company_name
         self.provisioning_id = provisioning_id
+        # True when the tenant owner already signed in: their password was left alone and no invitation is needed.
+        self.admin_already_active = False
 
     def update_onboarding_status(self, new_status: CRMOnboardingStatus, error_message: str = None):
         """
@@ -139,7 +141,7 @@ class ProvisioningService:
         if doc.onboarding_status in (CRMOnboardingStatus.SITE_CREATED.value, CRMOnboardingStatus.FAILED_HEALTH.value):
             logger.info(f"[{self.provisioning_id}] Waiting for ERPNext health...")
             is_healthy = False
-            for _ in range(12): # Wait up to 2 mins
+            for _ in range(12):  # Wait up to 2 mins
                 if verifier.verify_health():
                     is_healthy = True
                     break
@@ -238,22 +240,27 @@ class ProvisioningService:
             logger.info(f"[{self.provisioning_id}] Logging into ERPNext...")
             client.login(admin_password)
 
-            logger.info(f"[{self.provisioning_id}] Creating ERPNext User...")
-            # The administrator is invited by Kairon only after the tenant is verified ready, so ERPNext must not send
-            # its own welcome mail. The random password exists only to verify that this account can log in; it is
-            # never stored or returned and is rotated away once verification passes.
-            temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+            if self._owner_is_active(client, current_user_email):
+                # An administrator who has already signed in (e.g. a Tier 1 tenant being upgraded) keeps their password:
+                # nothing here sets or rotates it, and verification below does not log in as them.
+                logger.info(f"[{self.provisioning_id}] Administrator account is already active; credentials left unchanged.")
+            else:
+                logger.info(f"[{self.provisioning_id}] Creating ERPNext User...")
+                # The administrator is invited by Kairon only after the tenant is verified ready, so ERPNext must not send
+                # its own welcome mail. The random password exists only to verify that this account can log in; it is
+                # never stored or returned and is rotated away once verification passes.
+                temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
 
-            client.create_erpnext_user(
-                email=current_user_email,
-                first_name=first_name,
-                last_name=last_name,
-                send_welcome_email=False,
-                password=temp_password
-            )
-            # create_erpnext_user is a no-op for an existing user (resumed run), so make the verification password
-            # authoritative either way.
-            client.set_user_password(current_user_email, temp_password)
+                client.create_erpnext_user(
+                    email=current_user_email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    send_welcome_email=False,
+                    password=temp_password
+                )
+                # create_erpnext_user is a no-op for an existing user (resumed run), so make the verification password
+                # authoritative either way.
+                client.set_user_password(current_user_email, temp_password)
 
             # Recomputed here (not just relying on step 4's locals) so a resumed
             # execution that skips step 4 -- e.g. retrying from FAILED_USER, where
@@ -312,18 +319,20 @@ class ProvisioningService:
         if doc.onboarding_status in (CRMOnboardingStatus.USER_CREATED.value, CRMOnboardingStatus.FAILED_VERIFICATION.value):
             logger.info(f"[{self.provisioning_id}] Verifying provisioning state...")
 
-            # Verification logs in as the administrator with a password that only lives in memory
+            # Verification logs in as the administrator with a password that only lives in memory (never stored: it is
+            # rotated away below, and `erpnext_password` is a different credential read elsewhere). An administrator who
+            # has already signed in is verified through the Administrator session instead and their password is untouched.
             if not temp_password:
-                temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-                logger.info(f"[{self.provisioning_id}] Rotating user password for login verification...")
                 client.login(admin_password)
-                url = f"{client.base_url}/api/resource/User/{current_user_email}"
-                resp = client.session.put(url, json={"new_password": temp_password}, timeout=15)
-                if resp.status_code != 200:
-                    raise AppException(f"Password rotation for login verification failed: HTTP {resp.status_code}")
-                # Other code reads the stored credential, so it must follow the rotation.
-                doc.erpnext_password = Utility.encrypt_message(temp_password)
-                doc.save()
+                if self._owner_is_active(client, current_user_email):
+                    logger.info(f"[{self.provisioning_id}] Administrator account is already active; verifying without a user login.")
+                else:
+                    temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+                    logger.info(f"[{self.provisioning_id}] Rotating user password for login verification...")
+                    resp = client.session.put(f"{client.base_url}/api/resource/User/{current_user_email}",
+                                              json={"new_password": temp_password}, timeout=15)
+                    if resp.status_code != 200:
+                        raise AppException(f"Password rotation for login verification failed: HTTP {resp.status_code}")
 
             if not verifier.verify_provisioning_state(
                 admin_password=admin_password,
@@ -334,9 +343,18 @@ class ProvisioningService:
             ):
                 raise AppException("Verification failed.")
 
-            self._rotate_verification_password(client, admin_password, current_user_email)
+            if temp_password:      # only a password this run set is rotated away; an active administrator's is never touched
+                self._rotate_verification_password(client, admin_password, current_user_email)
             self.update_onboarding_status(CRMOnboardingStatus.COMPLETED)
         return None
+
+    def _owner_is_active(self, client, email: str) -> bool:
+        """True when the owner account exists and has already signed in. Records it for the invitation decision."""
+        state = client.get_user_activity(email)
+        active = bool(state and state["active"])
+        if active:
+            self.admin_already_active = True
+        return active
 
     def _rotate_verification_password(self, client, admin_password: str, email: str):
         """Replaces the verification password with a fresh random one nobody holds (access is by emailed setup link)."""

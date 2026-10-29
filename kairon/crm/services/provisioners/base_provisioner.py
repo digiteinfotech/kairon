@@ -48,6 +48,25 @@ class BaseProvisioner(ABC):
             raise AppException(f"CRMClientDetails record not found for company: {company_name}")
         return doc
 
+    def _frontend_container_name(self) -> str:
+        """
+        The Nginx frontend that serves the assets of the bench being provisioned. It must belong to the same Compose
+        project as the backend we are provisioning into, never a fixed name: with a fixed default a differently named
+        stack would have its CRM assets copied into some other bench's frontend. `crm.bench.frontend_container_name`
+        (BENCH_FRONTEND_CONTAINER_NAME) overrides this.
+        """
+        name = self.container_name or ""
+        return name.replace("backend", "frontend", 1) if "backend" in name else "frappe-frontend-1"
+
+    @staticmethod
+    def _scrub(text, *secrets_to_hide) -> str:
+        """Removes known secrets from command output before it is placed in an exception, last_error or a log line."""
+        text = text if isinstance(text, str) else (text or b"").decode("utf-8", "ignore")
+        for secret in secrets_to_hide:
+            if secret:
+                text = text.replace(str(secret), "[REDACTED]")
+        return text
+
     def _bench_new_site(self, site_name: str, db_name: str, admin_password: str, install_app: str, label: str):
         """Runs `bench new-site` installing the given app. Raises AppException on failure."""
         if self.runner:
@@ -78,7 +97,8 @@ class BaseProvisioner(ABC):
             # never be recoverable. Pre-flight guarantees the directory did not exist before this call, so removing
             # it only discards what this failed attempt created.
             self._rollback_partial_site(site_name, label)
-            raise AppException(f"[{label}] Bench new-site failed: {res.stderr or res.stdout}")
+            output = self._scrub(res.stderr or res.stdout, admin_password, self.bench_config.get("db_password"))
+            raise AppException(f"[{label}] Bench new-site failed: {output}")
 
     def _rollback_partial_site(self, site_name: str, label: str):
         if self.runner:
@@ -262,7 +282,7 @@ class BaseProvisioner(ABC):
             # "frappe-backend-1" -- a deployment using a different Compose project
             # name would otherwise silently fail this sync (swallowed below into a
             # warning) and leave the tenant's CRM frontend broken.
-            frontend_container = self.bench_config.get("frontend_container_name", "frappe-frontend-1")
+            frontend_container = self.bench_config.get("frontend_container_name") or self._frontend_container_name()
             try:
                 tar_out = subprocess.Popen(
                     ["docker", "exec", self.container_name, "tar", "-cf", "-", "-C", "/home/frappe/frappe-bench/apps", "crm"],
@@ -290,7 +310,7 @@ class BaseProvisioner(ABC):
             py_script = f"""
 import frappe
 
-frappe.init(site='{site_name}', sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site={json.dumps(site_name)}, sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect()
 
 admin_doc = frappe.get_doc('User', 'Administrator')
@@ -390,7 +410,6 @@ frappe.clear_cache()
             logger.info(f"[BaseProvisioner] Configured user '{admin_email}' and company '{c_name}' on '{site_name}'.")
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
-
 
     @abstractmethod
     def provision(self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str) -> Dict[str, Any]:
