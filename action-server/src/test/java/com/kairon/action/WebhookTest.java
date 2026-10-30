@@ -653,7 +653,9 @@ class WebhookTest {
         catalog.put("kairon_two_stage_fallback_action", doc(
                 "bot", BOT, "name", "fallback", "status", true,
                 "text_recommendations", new Document("count", 1).append("use_intent_ranking", true)));
-        Map<String, Object> body = ok(call("fallback", slots(), latest("flight"), null));
+        Map<String, Object> noRanking = latest("flight");
+        noRanking.remove("intent_ranking");
+        Map<String, Object> body = ok(call("fallback", slots(), noRanking, null));
         assertEquals(List.of(), body.get("events"));
         assertEquals(List.of(), body.get("responses"));
         List<Document> failed = logs("fallback");
@@ -785,6 +787,7 @@ class WebhookTest {
         Map<String, Object> message = new LinkedHashMap<>();
         message.put("text", text);
         message.put("intent", Map.of("name", "greet"));
+        message.put("intent_ranking", List.of(Map.of("name", "greet")));
         return message;
     }
 

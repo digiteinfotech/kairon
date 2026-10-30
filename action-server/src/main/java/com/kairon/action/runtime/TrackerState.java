@@ -74,16 +74,22 @@ public final class TrackerState {
         return name == null ? null : slots.get(name);
     }
 
-    /** Rasa get_intent_of_latest_message: ranking first, then intent.name. */
+    /** rasa_sdk get_intent_of_latest_message(skip_fallback_intent=false): ranking[0], null without a ranking. */
     public String intent() {
+        return intent(false);
+    }
+
+    /** rasa_sdk get_intent_of_latest_message: with skipFallback, nlu_fallback yields ranking[1]. */
+    public String intent(boolean skipFallback) {
         List<Object> ranking = Maps.list(latestMessage.get("intent_ranking"));
-        if (!ranking.isEmpty()) {
-            String name = Maps.str(Maps.map(ranking.get(0)).get("name"));
-            if (name != null) {
-                return name;
-            }
+        if (ranking.isEmpty()) {
+            return null;
         }
-        return Maps.str(Maps.map(latestMessage.get("intent")).get("name"));
+        String name = Maps.str(Maps.map(ranking.get(0)).get("name"));
+        if (skipFallback && "nlu_fallback".equals(name)) {
+            return ranking.size() > 1 ? Maps.str(Maps.map(ranking.get(1)).get("name")) : null;
+        }
+        return name;
     }
 
     public String text() {

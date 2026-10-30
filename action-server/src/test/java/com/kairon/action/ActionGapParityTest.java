@@ -3,6 +3,7 @@ package com.kairon.action;
 import com.kairon.action.actions.ActionFactory;
 import com.kairon.action.catalog.MemoryActionCatalog;
 import com.kairon.action.runtime.ActionFailure;
+import com.kairon.action.runtime.TrackerState;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Tokens;
@@ -27,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Packet T-028..T-031: deferred types and no rephrase (dispatch-and-logging R1 c6, core-actions R4 c4),
+ * Packet T-028..T-031: unsupported types and no rephrase (dispatch-and-logging R1 c6, core-actions R4 c4),
  * two-stage text search (core-actions R3 c2), google CSE request (integration-actions R3 c3),
  * voice provider initiate-call (integration-actions R12 c2).
  */
@@ -68,24 +69,145 @@ class ActionGapParityTest {
         kit.resetState();
     }
 
-    // ---- T-028: deferred types ----
+    // ---- T-028: unsupported types ----
 
     @Test
-    void deferredTypesAreUnsupported() {
-        for (String type : List.of("prompt_action", "database_action")) {
-            String name = "act_" + type;
-            kit.register(name, type);
-            ActionFailure failure = kit.failureOf(() -> factory.get(kit.bot, name));
-            assertEquals(type + " type action is not supported with action server", failure.getMessage());
+    void unknownTypeIsUnsupported() {
+        String type = "unknown_action";
+        String name = "act_" + type;
+        kit.register(name, type);
+        ActionFailure failure = kit.failureOf(() -> factory.get(kit.bot, name));
+        assertEquals(type + " type action is not supported with action server", failure.getMessage());
 
-            Map<String, Object> body = kit.ok(name);
-            assertEquals(List.of(), body.get("events"));
-            assertEquals(List.of(), body.get("responses"));
-            Document log = kit.log(name);
-            assertNull(log.get("type"));
-            assertEquals(type + " type action is not supported with action server", log.get("exception"));
-            assertEquals(Kairon.FAIL, log.get("status"));
-        }
+        Map<String, Object> body = kit.ok(name);
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(List.of(), body.get("responses"));
+        Document log = kit.log(name);
+        assertNull(log.get("type"));
+        assertEquals(type + " type action is not supported with action server", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void promptActionDispatchesResponse() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("ask_llm", "prompt_action");
+        kit.pathBody("/llm", "{\"content\":\"llm-answer\",\"recommendations\":[{\"title\":\"More\",\"payload\":\"/more\"}],\"litellm_call_id\":\"call-77\",\"time_elapsed\":1.2}");
+        kit.put("prompt_action", kit.doc(
+                "bot", kit.bot,
+                "name", "ask_llm",
+                "status", true,
+                "llm_type", "openai",
+                "process_media", true,
+                "num_bot_responses", 3,
+                "instructions", List.of("be concise"),
+                "user_question", kit.doc("type", "from_user_message", "value", "ignored"),
+                "llm_prompts", List.of(
+                        kit.doc("type", "system", "name", "sys", "data", "You are helpful", "is_enabled", true),
+                        kit.doc("type", "user", "name", "kb", "source", "bot_content", "data", "kb_docs", "instructions", "cite", "is_enabled", true,
+                                "hyperparameters", kit.doc("top_results", 5, "similarity_threshold", 0.8)),
+                        kit.doc("type", "query", "name", "q", "data", "Answer using KB", "instructions", "strict", "is_enabled", true)
+                ),
+                "hyperparameters", kit.doc("model", "gpt-4o-mini"),
+                "set_slots", List.of(),
+                "dispatch_response", true,
+                "failure_message", "fallback"
+        ));
+
+        Map<String, Object> body = kit.ok("ask_llm", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
+        assertEquals("llm-answer", kit.text(body));
+        assertEquals(1, ((List<?>) kit.responses(body).get(0).get("buttons")).size());
+        assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        ParityKit.Hit llmHit = kit.hitPath("/llm");
+        assertTrue(llmHit.body().contains("\"should_process_media\":true"));
+        assertTrue(llmHit.body().contains("\"collection\":\"kb_docs\""));
+        assertTrue(llmHit.body().contains("\"similarity_prompt\""));
+        assertTrue(llmHit.body().contains("\"query_prompt\""));
+        Document log = kit.log("ask_llm");
+        assertEquals("prompt_action", log.get("type"));
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertEquals("call-77", log.get("llm_call_id"));
+        assertEquals(List.of("m1"), log.get("media_ids"));
+        assertEquals(1.2, ((Number) log.get("time_elapsed")).doubleValue(), 0.0001);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> loggedConfig = (Map<String, Object>) log.get("kairon_faq_action_config");
+        assertFalse(loggedConfig.containsKey("_id"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> events = (List<Map<String, Object>>) log.get("events");
+        assertEquals(2, events.size());
+        assertEquals("llm_response", events.get(0).get("type"));
+        assertEquals("llm-answer", events.get(0).get("response"));
+        assertEquals("slots_to_fill", events.get(1).get("type"));
+        assertEquals(Map.of(), events.get(1).get("data"));
+    }
+
+    @Test
+    void databaseActionDispatchesResponse() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.put("cognition_schema", kit.doc("bot", kit.bot, "collection_name", "faq",
+                "schema_metadata", kit.doc("training_needed", true)));
+        kit.register("faq_lookup", "database_action");
+        kit.put("database_action", kit.doc(
+                "bot", kit.bot,
+                "name", "faq_lookup",
+                "status", true,
+                "db_type", "qdrant",
+                "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "done", "evaluation_type", "expression"),
+                "set_slots", List.of(),
+                "failure_response", "db failed"
+        ));
+
+        Map<String, Object> body = kit.ok("faq_lookup", kit.slots(), kit.latest("what is kanban"));
+        assertEquals("done", kit.text(body));
+        assertEquals("done", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        Document log = kit.log("faq_lookup");
+        assertEquals("database_action", log.get("type"));
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        @SuppressWarnings("unchecked")
+        List<Object> messages = (List<Object>) log.get("messages");
+        assertEquals(3, messages.size());
+        assertEquals(Map.of("embedding_search", "kanban"), messages.get(0));
+        @SuppressWarnings("unchecked")
+        List<String> composeLog = (List<String>) messages.get(1);
+        assertEquals("evaluation_type: expression", composeLog.get(0));
+        assertTrue(composeLog.get(1).startsWith("expression: done"));
+        assertEquals("initiating slot evaluation", messages.get(2));
+        assertEquals("{'embedding_search': 'kanban'}", log.get("payload"));
+    }
+
+    private void registerDatabase(String name, String dbType) {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register(name, "database_action");
+        kit.put("database_action", kit.doc("bot", kit.bot, "name", name, "status", true,
+                "db_type", dbType, "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "done", "evaluation_type", "expression"),
+                "set_slots", List.of(), "failure_response", "db failed"));
+    }
+
+    @Test
+    void databaseActionRejectsUnknownDbTypeBeforeBuildingPayload() {
+        registerDatabase("bad_db", "mongo");
+        kit.ok("bad_db", kit.slots(), kit.latest("q"));
+        Document log = kit.log("bad_db");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Database not yet implemented!", log.get("exception"));
+        assertEquals(List.of(), log.get("messages"));
+    }
+
+    @Test
+    void databaseActionMissingSchemaFailsBeforePayloadIsLogged() {
+        registerDatabase("no_schema", "qdrant");
+        kit.ok("no_schema", kit.slots(), kit.latest("q"));
+        Document log = kit.log("no_schema");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(List.of(), log.get("messages"));
+        assertNull(log.get("payload"));
     }
 
     // ---- T-028: kairon_bot_response never rephrases ----
@@ -334,5 +456,50 @@ class ActionGapParityTest {
         assertEquals("https://kairon.test/voice/call", form.get("Url"));
         assertEquals("https://kairon.test/voice/status", form.get("StatusCallback"));
         assertEquals("EX42", catalog.all("channel_logs").get(0).get("message_id"));
+    }
+
+    @Test
+    void maskFollowsPythonStrategyFromRight() {
+        assertEquals("", support.mask(""));
+        assertEquals("****", support.mask("abcd"));
+        assertEquals("*****fg", support.mask("abcdefg"));
+        String strategy = settings.getUnmaskedCharStrategy();
+        try {
+            settings.setUnmaskedCharStrategy("from_left");
+            assertEquals("ab*****", support.mask("abcdefg"));
+        } finally {
+            settings.setUnmaskedCharStrategy(strategy);
+        }
+    }
+
+    private static TrackerState trackerWith(Map<String, Object> latest) {
+        Map<String, Object> raw = new LinkedHashMap<>();
+        raw.put("sender_id", "u");
+        raw.put("slots", Map.of());
+        raw.put("latest_message", latest);
+        raw.put("events", List.of());
+        return TrackerState.from(raw);
+    }
+
+    @Test
+    void intentSkipsNluFallbackOnlyWhenAskedAndIsNullWithoutRanking() {
+        Map<String, Object> latest = new LinkedHashMap<>();
+        latest.put("intent", Map.of("name", "nlu_fallback"));
+        latest.put("intent_ranking", List.of(Map.of("name", "nlu_fallback"), Map.of("name", "greet")));
+        TrackerState tracker = trackerWith(latest);
+        assertEquals("nlu_fallback", tracker.intent());
+        assertEquals("greet", tracker.intent(true));
+        assertNull(trackerWith(Map.of("intent", Map.of("name", "greet"))).intent(true));
+        latest.put("intent_ranking", List.of(Map.of("name", "nlu_fallback")));
+        assertNull(trackerWith(latest).intent(true));
+    }
+
+    @Test
+    void placeholderWithMissingKeyFailsLikePython() {
+        Map<String, Object> response = Map.of("a", Map.of("b", 1));
+        assertEquals("1", support.prepareResponse("${a.b}", response));
+        ActionFailure failure = org.junit.jupiter.api.Assertions.assertThrows(ActionFailure.class,
+                () -> support.prepareResponse("${a.missing}", response));
+        assertTrue(failure.getMessage().startsWith("Unable to retrieve value for key from HTTP response"));
     }
 }

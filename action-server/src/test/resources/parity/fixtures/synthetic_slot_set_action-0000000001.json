@@ -81,7 +81,7 @@
             "tracker": {
               "sender_id": "default",
               "slots": {"bot": "5f50fd0a56b698ca10d35d2e", "location": null, "age": 30},
-              "latest_message": {"text": "hello", "intent": {"name": "greet"}, "entities": []},
+              "latest_message": {"text": "hello", "intent": {"name": "greet"}, "intent_ranking": [{"name": "greet"}], "entities": []},
               "events": [],
               "followup_action": "set_location",
               "latest_input_channel": "rest"

@@ -104,7 +104,7 @@ public class ActionSupport {
     /** Python catch-all ActionServerLogs(...) in kairon/actions/handlers/processor.py: no type, default trigger_info. */
     public void saveProcessorFailure(TrackerState tracker, String action, String exception) {
         Map<String, Object> values = new LinkedHashMap<>();
-        values.put("intent", tracker.intent());
+        values.put("intent", tracker.intent(true));
         values.put("action", action);
         values.put("sender", tracker.senderId);
         values.put("exception", exception);
@@ -207,7 +207,7 @@ public class ActionSupport {
         context.put("sender_id", tracker.senderId);
         context.put("user_message", tracker.text());
         context.put("slot", tracker.copySlots());
-        context.put("intent", tracker.intent());
+        context.put("intent", tracker.intent(true));
         context.put("chat_log", trail.messages());
         context.put("key_vault", keyVault ? secrets(Maps.str(tracker.slotValue("bot"))) : new LinkedHashMap<String, Object>());
         context.put("latest_message", tracker.latestMessage);
@@ -330,13 +330,23 @@ public class ActionSupport {
         return buffer.toString();
     }
 
+    /** Port of Python Utility.get_masked_value: strategy from settings, empty kept, len <= 4 fully masked. */
     public String mask(Object value) {
         String text = String.valueOf(value);
         int keep = settings.getUnmaskedCharCount();
-        if (text.length() <= keep) {
+        if (text.isEmpty()) {
+            return text;
+        }
+        if (text.length() <= 4) {
             return "*".repeat(text.length());
         }
-        return text.substring(0, keep) + "*".repeat(text.length() - keep);
+        int len = text.length();
+        String stars = "*".repeat(Math.max(0, len - keep));
+        return switch (settings.getUnmaskedCharStrategy()) {
+            case "from_left" -> text.substring(0, Math.min(keep, len)) + stars;
+            case "from_right" -> stars + text.substring(Math.max(0, len - keep));
+            default -> "*".repeat(len);
+        };
     }
 
     public String decryptMaybe(String token) {
@@ -595,7 +605,7 @@ public class ActionSupport {
 
     /**
      * Mask dict string values that equal a key-vault secret.
-     * Masking is from the left using {@link #mask}. Python masks from the right.
+     * Masking follows the configured strategy via {@link #mask}.
      */
     public Object encryptSecrets(Object requestBody, Map<String, Object> trackerData) {
         if (!(requestBody instanceof Map<?, ?>)) {
@@ -877,6 +887,9 @@ public class ActionSupport {
         try {
             for (String key : path.split("\\.")) {
                 if (current instanceof Map<?, ?> map) {
+                    if (!map.containsKey(key)) {
+                        throw new IllegalStateException("'" + key + "'");
+                    }
                     current = map.get(key);
                 } else if (current instanceof List<?> list) {
                     current = list.get(Integer.parseInt(key));

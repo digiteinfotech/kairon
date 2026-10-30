@@ -35,6 +35,7 @@ class ContextAndParameterTest {
         latest = new LinkedHashMap<>();
         latest.put("text", "/greet");
         latest.put("intent", Map.of("name", "greet", "confidence", 1.0));
+        latest.put("intent_ranking", List.of(Map.of("name", "greet", "confidence", 1.0)));
         latest.put("entities", List.of(Map.of("entity", "kairon_user_msg", "value", "hello there")));
         Map<String, Object> raw = new LinkedHashMap<>();
         raw.put("sender_id", "user-1");

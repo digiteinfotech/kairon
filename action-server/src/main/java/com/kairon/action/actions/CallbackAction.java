@@ -86,6 +86,9 @@ public class CallbackAction implements KaironAction {
             record.put("identifier", identifier);
             record.put("callback_url", callbackUrl);
             record.put("is_valid", true);
+            record.put("timestamp", System.currentTimeMillis() / 1000.0);
+            record.put("state", 0);
+            record.put("execution_mode", "async");
             support.catalog().insert("callback_data", record);
             if (slotName != null) {
                 filled.put(String.valueOf(slotName), standalone ? identifier : callbackUrl);

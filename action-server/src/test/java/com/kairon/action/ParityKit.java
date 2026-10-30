@@ -206,6 +206,7 @@ final class ParityKit {
         Map<String, Object> named = new LinkedHashMap<>();
         named.put("name", intent);
         message.put("intent", named);
+        message.put("intent_ranking", List.of(Map.of("name", intent)));
         if (entities != null) {
             message.put("entities", entities);
         }

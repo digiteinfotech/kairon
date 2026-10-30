@@ -351,6 +351,20 @@ class ActionLogEventsTest {
         assertFalse(keys.contains("exception"));
     }
 
+    /** gap #1: Python CallbackData has FloatField timestamp, state=0, execution_mode="async". */
+    @Test
+    void callbackDataRecordMatchesPythonModelTypes() {
+        kit.register("ping", "callback_action");
+        kit.put("callback_action_config", kit.doc("bot", kit.bot, "name", "ping", "status", true,
+                "callback_name", "hook", "dynamic_url_slot_name", "cb_url", "bot_response", "open {callback_url}"));
+        kit.put("callback_config", kit.doc("bot", kit.bot, "name", "hook", "validation_secret", "secret", "expire_in", 15));
+        kit.ok("ping");
+        Document record = kit.catalog.all("callback_data").get(0);
+        assertTrue(record.get("timestamp") instanceof Double, "timestamp must be a float epoch");
+        assertEquals(0, record.get("state"));
+        assertEquals("async", record.get("execution_mode"));
+    }
+
     @Test
     void callbackFailureLogCarriesMessages() {
         kit.register("ping_missing", "callback_action");

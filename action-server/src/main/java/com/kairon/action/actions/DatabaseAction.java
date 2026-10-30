@@ -7,12 +7,15 @@ import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,6 +46,7 @@ public class DatabaseAction implements KaironAction {
         String status = Kairon.SUCCESS;
         boolean dispatch = false;
         String failure = Kairon.FAILED_DOT;
+        List<Object> messages = new ArrayList<>();
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
             if (faqDisabled(context.bot)) {
@@ -57,8 +61,12 @@ public class DatabaseAction implements KaironAction {
             dispatch = Maps.truthy(responseConfig.get("dispatch"));
             failure = Maps.str(config.get("failure_response"));
             String collection = Maps.str(config.get("collection"));
-            requestBody = payload(config.get("payload"), context);
+            if (!"qdrant".equals(config.get("db_type"))) {
+                throw new ActionFailure("Database not yet implemented!");
+            }
             boolean trainingNeeded = trainingNeeded(context.bot, collection);
+            requestBody = payload(config.get("payload"), context);
+            messages.add(requestBody);
             if (Maps.isEmpty(support.settings().getVectorUrl())) {
                 throw new ActionFailure("vector url is not configured");
             }
@@ -75,8 +83,12 @@ public class DatabaseAction implements KaironAction {
             Map<String, Object> responseContext = new LinkedHashMap<>();
             responseContext.put("data", response);
             responseContext.put("context", support.context(context.tracker, true));
-            botResponse = support.compose(responseConfig, responseContext);
-            filled.putAll(support.fillSlots(config.get("set_slots"), responseContext));
+            ActionSupport.Composed composed = support.composeLogged(responseConfig, responseContext);
+            botResponse = composed.result();
+            messages.add(composed.log());
+            ActionSupport.SlotFill slotFill = support.fillSlotsLogged(config.get("set_slots"), responseContext);
+            messages.addAll(slotFill.log());
+            filled.putAll(slotFill.values());
         } catch (Exception e) {
             exception = ActionFlags.message(e);
             LOG.error("database action failed", e);
@@ -89,8 +101,9 @@ public class DatabaseAction implements KaironAction {
             }
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("config", config);
-            extra.put("payload", requestBody == null ? null : String.valueOf(requestBody));
-            extra.put("response", response == null ? null : String.valueOf(response));
+            extra.put("payload", Maps.isEmpty(requestBody) ? null : PyRepr.str(requestBody));
+            extra.put("response", Maps.isEmpty(response) ? null : PyRepr.str(response));
+            extra.put("messages", messages);
             support.save(context, type(), status, exception, botResponse, extra);
         }
         filled.put(Kairon.ACTION_RESPONSE, botResponse);
