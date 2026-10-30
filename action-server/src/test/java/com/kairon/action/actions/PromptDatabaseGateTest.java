@@ -60,7 +60,7 @@ class PromptDatabaseGateTest {
         Tokens tokens = new Tokens(settings);
         support = new ActionSupport(catalog, settings, tokens, null);
         LlmSecrets secrets = new LlmSecrets(catalog, tokens);
-        CognitionSchemas schemas = new CognitionSchemas(catalog, secrets);
+        CognitionSchemas schemas = new CognitionSchemas(catalog);
         HttpCaller http = new HttpCaller(settings);
         LlmClient llm = new LlmClient(new LlmHttp(http, settings), settings, schemas);
         QdrantClient qdrant = new QdrantClient(http, settings, llm);

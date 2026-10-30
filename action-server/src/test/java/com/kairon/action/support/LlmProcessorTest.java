@@ -6,7 +6,6 @@ import com.kairon.action.support.llm.AnswerParams;
 import com.kairon.action.support.llm.CognitionSchemas;
 import com.kairon.action.support.llm.LlmClient;
 import com.kairon.action.support.llm.LlmProcessor;
-import com.kairon.action.support.llm.LlmSecrets;
 import com.kairon.action.support.llm.QdrantClient;
 import com.kairon.action.support.llm.SimilarityContext;
 import org.junit.jupiter.api.AfterEach;
@@ -47,7 +46,7 @@ class LlmProcessorTest {
         settings.setLlmRequestTimeout(2);
         settings.setFernetKey(FERNET);
         MemoryActionCatalog catalog = new MemoryActionCatalog();
-        CognitionSchemas schemas = new CognitionSchemas(catalog, new LlmSecrets(catalog, new Tokens(settings)));
+        CognitionSchemas schemas = new CognitionSchemas(catalog);
         LlmClient llm = new LlmClient(new LlmHttp(new HttpCaller(settings), settings), settings, schemas);
         SimilarityContext similarity = new SimilarityContext(new QdrantClient(new HttpCaller(settings), settings));
         processor = new LlmProcessor(llm, similarity);

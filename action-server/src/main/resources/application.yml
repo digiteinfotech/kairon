@@ -48,10 +48,6 @@ kairon:
     llm-request-timeout: ${LLM_REQUEST_TIMEOUT:30}
     vector-db: ${VECTOR_DB:`http://localhost:6333`}
     vector-key: ${VECTOR_DB_KEY:}
-    # Adapter leftovers (removed in T-126). Kept below the llm.*/vector.* keys so the first
-    # LLM_SERVER_URL/VECTOR_DB placeholder carries the Python default (ConfigMappingTest).
-    vector-url: ${VECTOR_DB:}
-    llm-url: ${LLM_SERVER_URL:}
     simple-agent-url: ${SIMPLE_AGENT_URL:}
     voice-call-url: ${KAIRON_VOICE_CALL_URL:}
     frontend-url: ${FRONTEND_URL:`http://localhost:3000`}

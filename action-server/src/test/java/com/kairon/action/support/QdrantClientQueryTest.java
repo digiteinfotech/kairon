@@ -5,7 +5,6 @@ import com.kairon.action.catalog.MemoryActionCatalog;
 import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.support.llm.CognitionSchemas;
 import com.kairon.action.support.llm.LlmClient;
-import com.kairon.action.support.llm.LlmSecrets;
 import com.kairon.action.support.llm.QdrantClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +44,7 @@ class QdrantClientQueryTest {
         settings.setLlmRequestTimeout(1);
         settings.setFernetKey(FERNET);
         MemoryActionCatalog catalog = new MemoryActionCatalog();
-        CognitionSchemas schemas = new CognitionSchemas(catalog, new LlmSecrets(catalog, new Tokens(settings)));
+        CognitionSchemas schemas = new CognitionSchemas(catalog);
         LlmClient llm = new LlmClient(new LlmHttp(new HttpCaller(settings), settings), settings, schemas);
         qdrant = new QdrantClient(new HttpCaller(settings), settings, llm);
         stub.on(EMBED_PATH, request -> StubServer.Reply.json(200, "[[0.1, 0.2]]"));

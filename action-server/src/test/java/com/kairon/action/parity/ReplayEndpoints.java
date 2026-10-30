@@ -44,8 +44,8 @@ final class ReplayEndpoints {
             new Endpoint("live-agent", "http://localhost:8000/api/v1", ActionSettings::getLiveAgentUrl, ActionSettings::setLiveAgentUrl),
             new Endpoint("simple-agent", "", ActionSettings::getSimpleAgentUrl, ActionSettings::setSimpleAgentUrl),
             new Endpoint("voice-call", "", ActionSettings::getVoiceCallUrl, ActionSettings::setVoiceCallUrl),
-            new Endpoint("llm", "http://localhost", ActionSettings::getLlmUrl, ActionSettings::setLlmUrl),
-            new Endpoint("vector", "http://localhost:6333", ActionSettings::getVectorUrl, ActionSettings::setVectorUrl),
+            new Endpoint("llm", "http://localhost", ActionSettings::getLlmServerUrl, ActionSettings::setLlmServerUrl),
+            new Endpoint("vector", "http://localhost:6333", ActionSettings::getVectorDb, ActionSettings::setVectorDb),
             new Endpoint("web-search", "", ActionSettings::getWebSearchUrl, ActionSettings::setWebSearchUrl));
 
     private ReplayEndpoints() {

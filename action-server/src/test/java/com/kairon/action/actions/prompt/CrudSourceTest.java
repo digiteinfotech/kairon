@@ -184,7 +184,7 @@ class CrudSourceTest {
     void valueModeBadJsonTakesGenericPromptFailurePath() {
         ActionSettings settings = new ActionSettings();
         settings.setFernetKey("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
-        settings.setLlmUrl("http://127.0.0.1:1/llm");
+        settings.setLlmServerUrl("http://127.0.0.1:1");
         ActionSupport support = new ActionSupport(catalog, settings, tokens, null);
         catalog.put("bot_settings", new Document("bot", BOT).append("status", true)
                 .append("llm_settings", new Document("enable_faq", true)));
@@ -203,7 +203,7 @@ class CrudSourceTest {
         // fails while building params, before LLMProcessor setup: no processor needed
         com.kairon.action.support.llm.LlmSecrets secrets = new com.kairon.action.support.llm.LlmSecrets(catalog, tokens);
         Map<String, Object> filled = new PromptAction(support, secrets,
-                new com.kairon.action.support.llm.CognitionSchemas(catalog, secrets), null).execute(context);
+                new com.kairon.action.support.llm.CognitionSchemas(catalog), null).execute(context);
         Document log = catalog.all(Kairon.LOGS).get(0);
         assertEquals(Kairon.FAIL, log.get("status"));
         assertEquals("Expecting value: line 1 column 1 (char 0)", log.get("exception"));

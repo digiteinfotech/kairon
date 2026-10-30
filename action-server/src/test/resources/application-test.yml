@@ -20,8 +20,6 @@ kairon:
     pyscript-url: "http://127.0.0.1:18780/pyscript"
     live-agent-url: "http://127.0.0.1:18780/live"
     live-agent-token: "live-token"
-    vector-url: "http://127.0.0.1:18780/vector"
-    llm-url: "http://127.0.0.1:18780/llm"
     simple-agent-url: "http://127.0.0.1:18780/agent"
     voice-call-url: "http://127.0.0.1:18780/voice"
     frontend-url: "http://front.test"

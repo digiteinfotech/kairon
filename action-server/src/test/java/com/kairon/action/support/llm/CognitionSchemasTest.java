@@ -1,14 +1,10 @@
 package com.kairon.action.support.llm;
 
-import com.kairon.action.ActionSettings;
 import com.kairon.action.catalog.ActionCatalog;
 import com.kairon.action.catalog.MemoryActionCatalog;
 import com.kairon.action.runtime.ActionFailure;
-import com.kairon.action.support.Tokens;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -18,18 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** llm-vector-clients R7: cognition schema lookup, defaults and openrouter swap. */
 class CognitionSchemasTest {
 
-    private static final String FERNET = "WvNf7igjO89j9xdRtVMrW7bvVy67uV3ZM9yjwDHkC7E=";
     private static final String BOT = "bot-1";
 
     private final MemoryActionCatalog catalog = new MemoryActionCatalog();
-    private final Tokens tokens = tokens();
-    private final CognitionSchemas schemas = new CognitionSchemas(catalog, new LlmSecrets(catalog, tokens));
-
-    private static Tokens tokens() {
-        ActionSettings settings = new ActionSettings();
-        settings.setFernetKey(FERNET);
-        return new Tokens(settings);
-    }
+    private final CognitionSchemas schemas = new CognitionSchemas(catalog);
 
     private void schema(String collection, Document metadata) {
         Document document = new Document("bot", BOT).append("collection_name", collection);
@@ -37,11 +25,6 @@ class CognitionSchemasTest {
             document.append("schema_metadata", metadata);
         }
         catalog.put(ActionCatalog.COGNITION_SCHEMA, document);
-    }
-
-    private void secret(String llmType, String apiKey) {
-        catalog.put(ActionCatalog.LLM_SECRET, new Document("bot", BOT)
-                .append("llm_type", llmType).append("api_key", tokens.encrypt(apiKey)));
     }
 
     @Test
@@ -117,52 +100,14 @@ class CognitionSchemasTest {
     }
 
     @Test
-    void swapsToOpenrouterWhenNotDefaultAndTrainingNotNeeded() {
-        secret("openai", "openai-key");
-        secret("anthropic", "anthropic-key");
-        secret("openrouter", "router-key");
+    void promptSwapsOnlyForNonDefaultCollectionWhoseTrainingIsNotNeeded() {
         CognitionSchemas.Schema trained = new CognitionSchemas.Schema(false, 1536, "m", "openrouter");
-
-        CognitionSchemas.Provider provider = schemas.resolveProvider(BOT, "products", trained, "anthropic");
-        assertEquals("openrouter", provider.llmType());
-        assertEquals(Map.of("api_key", "router-key"), provider.secret());
-        assertEquals(Map.of("api_key", "router-key"), provider.embeddingSecret());
-    }
-
-    @Test
-    void keepsLlmTypeWhenDefaultCollectionOrTrainingNeededOrNoCollection() {
-        secret("openai", "openai-key");
-        secret("anthropic", "anthropic-key");
-        secret("openrouter", "router-key");
-        CognitionSchemas.Schema trained = new CognitionSchemas.Schema(false, 1536, "m", "openrouter");
-
-        for (CognitionSchemas.Provider provider : new CognitionSchemas.Provider[] {
-                schemas.resolveProvider(BOT, "default", trained, "anthropic"),
-                schemas.resolveProvider(BOT, "products", CognitionSchemas.Schema.DEFAULT, "anthropic"),
-                schemas.resolveProvider(BOT, null, trained, "anthropic"),
-                schemas.resolveProvider(BOT, "products", null, "anthropic")}) {
-            assertEquals("anthropic", provider.llmType());
-            assertEquals(Map.of("api_key", "anthropic-key"), provider.secret());
-            assertEquals(Map.of("api_key", "openai-key"), provider.embeddingSecret());
-        }
-    }
-
-    @Test
-    void openrouterLlmTypeStaysOpenrouterWithOwnSecrets() {
-        secret("openrouter", "router-key");
-        CognitionSchemas.Provider provider = schemas.resolveProvider(
-                BOT, "products", new CognitionSchemas.Schema(false, 1536, "m", "openrouter"), "openrouter");
-        assertEquals("openrouter", provider.llmType());
-        assertEquals(Map.of("api_key", "router-key"), provider.secret());
-        assertEquals(Map.of("api_key", "router-key"), provider.embeddingSecret());
-    }
-
-    @Test
-    void swapFailsWhenOpenrouterSecretMissing() {
-        secret("openai", "openai-key");
-        ActionFailure failure = assertThrows(ActionFailure.class, () -> schemas.resolveProvider(
-                BOT, "products", new CognitionSchemas.Schema(false, 1536, "m", "openrouter"), "openai"));
-        assertEquals("LLM secret for 'openrouter' is not configured!", failure.getMessage());
+        assertTrue(CognitionSchemas.swapsToOpenrouter("products", trained));
+        assertFalse(CognitionSchemas.swapsToOpenrouter("default", trained));
+        assertFalse(CognitionSchemas.swapsToOpenrouter(null, trained));
+        assertFalse(CognitionSchemas.swapsToOpenrouter("", trained));
+        assertFalse(CognitionSchemas.swapsToOpenrouter("products", CognitionSchemas.Schema.DEFAULT));
+        assertFalse(CognitionSchemas.swapsToOpenrouter("products", null));
     }
 
     @Test

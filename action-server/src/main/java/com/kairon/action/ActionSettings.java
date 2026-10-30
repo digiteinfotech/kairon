@@ -37,10 +37,6 @@ public class ActionSettings {
     private String liveAgentToken = "";
     /** live_agent.enable (no env var in Python, fixed true). */
     private boolean liveAgentEnabled = true;
-    /** Adapter leftover, superseded by {@link #vectorDb}; removed in T-126. */
-    private String vectorUrl = "";
-    /** Adapter leftover, superseded by {@link #llmServerUrl}; removed in T-126. */
-    private String llmUrl = "";
     /** llm.url / LLM_SERVER_URL. */
     private String llmServerUrl = "http://localhost";
     /** llm.request_timeout / LLM_REQUEST_TIMEOUT, seconds. */
@@ -102,10 +98,6 @@ public class ActionSettings {
     public void setLiveAgentToken(String liveAgentToken) { this.liveAgentToken = liveAgentToken; }
     public boolean isLiveAgentEnabled() { return liveAgentEnabled; }
     public void setLiveAgentEnabled(boolean liveAgentEnabled) { this.liveAgentEnabled = liveAgentEnabled; }
-    public String getVectorUrl() { return vectorUrl; }
-    public void setVectorUrl(String vectorUrl) { this.vectorUrl = vectorUrl; }
-    public String getLlmUrl() { return llmUrl; }
-    public void setLlmUrl(String llmUrl) { this.llmUrl = llmUrl; }
     public String getLlmServerUrl() { return llmServerUrl; }
     public void setLlmServerUrl(String llmServerUrl) { this.llmServerUrl = llmServerUrl; }
     public int getLlmRequestTimeout() { return llmRequestTimeout; }

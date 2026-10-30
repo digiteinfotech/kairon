@@ -176,7 +176,6 @@ class ActionGapParityTest {
         assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
         assertEquals("call-77", kit.event(body, Kairon.LLM_CALL_ID).get("value"));
         assertEquals("llm-answer", kit.event(body, "answer").get("value"));
-        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().startsWith("/llm")), "no adapter POST");
 
         // embedding: first similarity collection, invocation prompt_action, openai embedding secret
         Map<String, Object> embedBody = Jsons.readMap(kit.hitPath(embedPath("openai")).body());
@@ -614,7 +613,6 @@ class ActionGapParityTest {
         assertEquals("{\"query\": [0.1, 0.2], \"with_payload\": true, \"limit\": 10}",
                 Jsons.pythonDumps(Jsons.readAny(query.body())));
         assertTrue(ParityKit.API_KEY_PATHS.isEmpty(), "no api-key header: " + ParityKit.API_KEY_PATHS);
-        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().startsWith("/vector")), "no adapter POST");
 
         Document log = kit.log("faq_lookup");
         assertEquals("database_action", log.get("type"));
@@ -852,7 +850,7 @@ class ActionGapParityTest {
         Map<String, Object> body = kit.ok("utter_greet", kit.slots(), kit.latest("hi"), List.of(), domain, "default", "utter_greet", null, null);
         assertEquals("utter_greet", kit.responses(body).get(0).get("response"));
         assertEquals(Map.of("response", "utter_greet"), kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
-        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/llm")), "no LLM call");
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/completion/")), "no LLM call");
         Document log = kit.log("utter_greet");
         assertEquals("kairon_bot_response", log.get("type"));
         assertEquals(Kairon.SUCCESS, log.get("status"));

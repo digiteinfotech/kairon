@@ -150,8 +150,6 @@ final class ParityKit {
         settings.setFernetKey(FERNET);
         settings.setPyscriptUrl(STUB + "/pyscript");
         settings.setEvaluatorUrl(STUB + "/eval");
-        settings.setLlmUrl(STUB + "/llm");
-        settings.setVectorUrl(STUB + "/vector");
         settings.setVectorDb(STUB);
         settings.setVectorKey(null);
         settings.setLlmServerUrl(STUB);
@@ -437,11 +435,18 @@ final class ParityKit {
         if (path.contains("/eval")) {
             return "{\"success\":true,\"data\":\"ok\"}";
         }
-        if (path.contains("/vector")) {
-            return "{\"result\":[{\"id\":\"1\"}]}";
+        // LLM server (LlmClient) and Qdrant (QdrantClient) paths; tests override per path via pathBody
+        if (path.contains("/aembedding/")) {
+            return "[[0.1]]";
         }
-        if (path.contains("/llm")) {
-            return "{\"content\":\"llm-answer\"}";
+        if (path.contains("/completion/")) {
+            return "{\"formatted_response\":\"llm-answer\",\"response\":{}}";
+        }
+        if (path.endsWith("/points/search")) {
+            return "{\"result\":[]}";
+        }
+        if (path.endsWith("/points/query")) {
+            return "{\"result\":{\"points\":[]},\"status\":\"ok\"}";
         }
         if (path.contains("/websearch")) {
             return "{\"error_code\":0,\"data\":[{\"title\":\"T\",\"description\":\"D\",\"url\":\"http://e\"}]}";

@@ -31,16 +31,10 @@ public class CognitionSchemas {
         public static final Schema DEFAULT = new Schema(true, 3072, "text-embedding-3-large", "openai");
     }
 
-    /** Effective llm_type plus LLM and embedding secrets after the swap decision. */
-    public record Provider(String llmType, Map<String, String> secret, Map<String, String> embeddingSecret) {
-    }
-
     private final ActionCatalog catalog;
-    private final LlmSecrets secrets;
 
-    public CognitionSchemas(ActionCatalog catalog, LlmSecrets secrets) {
+    public CognitionSchemas(ActionCatalog catalog) {
         this.catalog = catalog;
-        this.secrets = secrets;
     }
 
     /** CognitionSchema.objects(bot=bot, collection_name=collection).first(), name verbatim. */
@@ -67,22 +61,6 @@ public class CognitionSchemas {
     public static boolean swapsToOpenrouter(String collection, Schema schema) {
         return collection != null && !collection.isEmpty() && !DEFAULT_COLLECTION.equals(collection)
                 && schema != null && !schema.trainingNeeded();
-    }
-
-    /**
-     * llm_type and secrets for {@code collection}: on a swap both secrets become the openrouter
-     * secret; otherwise the llm_type's own secret and its embedding secret (LlmSecrets rules).
-     * Callers needing Python's "original secret loaded first" failure order resolve that before.
-     */
-    public Provider resolveProvider(String bot, String collection, Schema schema, String llmType) {
-        if (swapsToOpenrouter(collection, schema)) {
-            // Python LLMProcessor.__init__ loads the original llm_type secret and embedding secret first
-            secrets.secret(bot, llmType);
-            secrets.embeddingSecret(bot, llmType);
-            Map<String, String> secret = secrets.secret(bot, OPENROUTER);
-            return new Provider(OPENROUTER, secret, secret);
-        }
-        return new Provider(llmType, secrets.secret(bot, llmType), secrets.embeddingSecret(bot, llmType));
     }
 
     private static Schema read(Document document) {

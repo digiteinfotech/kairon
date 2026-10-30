@@ -47,7 +47,7 @@ class LlmClientEmbeddingTest {
         settings.setFernetKey(FERNET);
         tokens = new Tokens(settings);
         catalog = new MemoryActionCatalog();
-        CognitionSchemas schemas = new CognitionSchemas(catalog, new LlmSecrets(catalog, tokens));
+        CognitionSchemas schemas = new CognitionSchemas(catalog);
         client = new LlmClient(new LlmHttp(new HttpCaller(settings), settings), settings, schemas);
     }
 
