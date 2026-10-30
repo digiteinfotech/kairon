@@ -9,6 +9,10 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.llm.AnswerParams;
+import com.kairon.action.support.llm.CognitionSchemas;
+import com.kairon.action.support.llm.LlmProcessor;
+import com.kairon.action.support.llm.LlmSecrets;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.bson.Document;
@@ -20,20 +24,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Calls the configured LLM endpoint. Prompt assembly, embeddings, and model checks stay on that service. */
+/**
+ * prompt.py {@code ActionPrompt.execute}: FAQ gate, config, user question, llm params (crud / nested action sources),
+ * LLMProcessor setup (llm_type secret + embedding secret), cognition schema of a non-default first similarity
+ * collection (missing schema fails; training_needed false swaps to openrouter), model check on
+ * {@code hyperparameters.model}, then {@link LlmProcessor#predict} against the LLM server and Qdrant.
+ */
 @Singleton
 public class PromptAction implements KaironAction {
 
     private static final Logger LOG = LoggerFactory.getLogger(PromptAction.class);
 
     private final ActionSupport support;
+    private final LlmSecrets secrets;
+    private final CognitionSchemas schemas;
+    private final LlmProcessor processor;
 
-    /** {@code action} prompt source (T-114); field-injected so {@code new PromptAction(support)} keeps compiling. */
+    /** {@code action} prompt source (T-114); field-injected (it depends back on the action factory). */
     @Inject
     NestedActionSource nested;
 
-    public PromptAction(ActionSupport support) {
+    @Inject
+    public PromptAction(ActionSupport support, LlmSecrets secrets, CognitionSchemas schemas, LlmProcessor processor) {
         this.support = support;
+        this.secrets = secrets;
+        this.schemas = schemas;
+        this.processor = processor;
     }
 
     @Override
@@ -66,40 +82,49 @@ public class PromptAction implements KaironAction {
             config = support.require("prompt_action", context.bot, "name", context.actionName,
                     "No action found for given bot and name");
             userMessage = PromptParams.userQuestion(Maps.map(config.get("user_question")), context.tracker);
-            if (Maps.isEmpty(support.settings().getLlmUrl())) {
-                throw new ActionFailure("llm url is not configured");
-            }
+            String llmType = config.get("llm_type") == null ? LlmSecrets.DEFAULT_LLM : Maps.str(config.get("llm_type"));
             // crud (T-113) and action (T-114) sources register ContextSource hooks here
             PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of(
                     "crud", new CrudSource(support.catalog(), support.tokens(), context.bot, context.tracker),
                     "action", prompt -> nested.render(context, prompt)));
-            // Python reads media_ids only after config load and llm params, so earlier failures log null
+            // LLMProcessor(bot, llm_type): llm secret, then embedding secret; its log list exists from here on
+            secrets.secret(context.bot, llmType);
+            Map<String, String> embeddingSecret = secrets.embeddingSecret(context.bot, llmType);
+            List<Map<String, Object>> logs = new ArrayList<>();
+            llmLogs = logs;
+            String endpointLlmType = llmType;
+            String collection = llmParams.collection();
+            if (collection != null && !collection.isEmpty() && !CognitionSchemas.DEFAULT_COLLECTION.equals(collection)) {
+                CognitionSchemas.Schema schema = schemas.forAction(context.bot, collection);
+                if (CognitionSchemas.swapsToOpenrouter(collection, schema)
+                        && !CognitionSchemas.OPENROUTER.equals(endpointLlmType)) {
+                    endpointLlmType = CognitionSchemas.OPENROUTER;
+                    embeddingSecret = secrets.secret(context.bot, CognitionSchemas.OPENROUTER);
+                }
+            }
+            if (llmParams.hyperparameters() == null) {
+                throw new ActionFailure("'NoneType' object has no attribute 'get'");
+            }
+            Object model = Maps.map(llmParams.hyperparameters()).get("model");
+            secrets.checkModel(context.bot, llmType, model == null ? null : model.toString());
+            // Python reads media_ids only after the model check, so earlier failures log null
             mediaIds = context.tracker.slotValue("media_ids");
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("bot", context.bot);
-            body.put("user", context.tracker.senderId);
-            body.put("message", userMessage);
-            body.put("llm_type", config.get("llm_type"));
-            body.put("invocation", "prompt_action");
-            body.put("media_ids", mediaIds);
-            body.put("should_process_media", llmParams.shouldProcessMedia());
-            body.putAll(llmParams.toMap());
-            body.put("collection", llmParams.collection());
-            Object response = support.http().executeStrict("POST", support.settings().getLlmUrl(),
-                    Map.of("Content-Type", "application/json"), body, "json");
-            Map<String, Object> llm = Maps.map(response);
+            AnswerParams answer = new AnswerParams(context.bot, endpointLlmType, llmType, userMessage,
+                    llmParams.systemPrompt(), llmParams.contextPrompt(), context.tracker.senderId, type(),
+                    mediaIds instanceof List<?> ids ? ids : null, llmParams.shouldProcessMedia(),
+                    llmParams.queryPrompt(), llmParams.useQueryPrompt(), llmParams.previousBotResponses(),
+                    llmParams.hyperparameters(), llmParams.instructions());
+            LlmProcessor.Prediction prediction = processor.predict(answer, collection, llmParams.similarityPrompt(),
+                    embeddingSecret, logs);
+            Map<String, Object> llm = prediction.response();
             llmResponse = llm;
-            if (Boolean.TRUE.equals(llm.get("is_failure"))) {
+            if (prediction.isFailure()) {
                 status = Kairon.FAIL;
             }
-            exception = Maps.str(llm.get("exception"));
-            botResponse = llm.get("content");
-            recommendations = llm.get("recommendations");
-            llmLogs = llm.get("llm_logs");
-            callId = llm.get("litellm_call_id");
-            if (llm.get("time_elapsed") instanceof Number elapsed) {
-                llmElapsed = elapsed;
-            }
+            exception = prediction.exception() == null ? null : Maps.str(prediction.exception());
+            botResponse = prediction.content();
+            callId = prediction.callId();
+            llmElapsed = prediction.elapsedSeconds();
             Map<String, Object> responseContext = new LinkedHashMap<>();
             responseContext.put("data", botResponse);
             responseContext.put("context", support.context(context.tracker, true));

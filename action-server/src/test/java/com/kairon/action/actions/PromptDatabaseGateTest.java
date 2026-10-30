@@ -13,8 +13,10 @@ import com.kairon.action.support.LlmHttp;
 import com.kairon.action.support.Tokens;
 import com.kairon.action.support.llm.CognitionSchemas;
 import com.kairon.action.support.llm.LlmClient;
+import com.kairon.action.support.llm.LlmProcessor;
 import com.kairon.action.support.llm.LlmSecrets;
 import com.kairon.action.support.llm.QdrantClient;
+import com.kairon.action.support.llm.SimilarityContext;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +50,7 @@ class PromptDatabaseGateTest {
     SpyCatalog catalog;
     ActionSupport support;
     DatabaseAction database;
+    PromptAction prompt;
 
     @BeforeEach
     void setUp() {
@@ -59,12 +62,14 @@ class PromptDatabaseGateTest {
         LlmSecrets secrets = new LlmSecrets(catalog, tokens);
         CognitionSchemas schemas = new CognitionSchemas(catalog, secrets);
         HttpCaller http = new HttpCaller(settings);
-        QdrantClient qdrant = new QdrantClient(http, settings, new LlmClient(new LlmHttp(http, settings), settings, schemas));
+        LlmClient llm = new LlmClient(new LlmHttp(http, settings), settings, schemas);
+        QdrantClient qdrant = new QdrantClient(http, settings, llm);
         database = new DatabaseAction(support, secrets, schemas, qdrant);
+        prompt = new PromptAction(support, secrets, schemas, new LlmProcessor(llm, new SimilarityContext(qdrant)));
     }
 
     private KaironAction action(String type) {
-        return "prompt_action".equals(type) ? new PromptAction(support) : database;
+        return "prompt_action".equals(type) ? prompt : database;
     }
 
     private Document run(String type, String name) {
