@@ -109,6 +109,10 @@ class ActionGapParityTest {
 
     /** prompt_action: system + bot_content(kb_docs) + nested http action + query prompt. */
     private void registerPrompt(String name) {
+        registerPrompt(name, config -> { });
+    }
+
+    private void registerPrompt(String name, java.util.function.Consumer<Document> customize) {
         kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
                 "llm_settings", kit.doc("enable_faq", true)));
         kit.register(name, "prompt_action");
@@ -117,7 +121,7 @@ class ActionGapParityTest {
                 "http_url", ParityKit.STUB + "/mock", "request_method", "GET", "content_type", "json",
                 "response", kit.doc("dispatch", false, "dispatch_type", "text",
                         "value", "${data.data}", "evaluation_type", "expression")));
-        kit.put("prompt_action", kit.doc(
+        Document config = kit.doc(
                 "bot", kit.bot,
                 "name", name,
                 "status", true,
@@ -136,8 +140,9 @@ class ActionGapParityTest {
                 "hyperparameters", kit.doc("model", "gpt-4o-mini", "temperature", 0.0),
                 "set_slots", List.of(kit.doc("name", "answer", "value", "${data}", "evaluation_type", "expression")),
                 "dispatch_response", true,
-                "failure_message", "fallback"
-        ));
+                "failure_message", "fallback");
+        customize.accept(config);
+        kit.put("prompt_action", config);
     }
 
     private void llmServerOk() {
@@ -331,6 +336,217 @@ class ActionGapParityTest {
         assertEquals(2, hitsUnder(completionPath("openrouter")).size());
         assertTrue(hitsUnder(completionPath("openai")).isEmpty());
         assertTrue(hitsUnder(embedPath("openai")).isEmpty());
+    }
+
+    // ---- T-125: prompt output/log parity and the to_mongo() config view ----
+
+    /** LLMMetadata(provider=openai): Utility.get_default_llm_hyperparameters reads each property's default. */
+    private void openaiMetadata() {
+        kit.put("l_l_m_metadata", kit.doc("provider", "openai", "properties", kit.doc(
+                "temperature", kit.doc("type", "number", "default", 0.0),
+                "model", kit.doc("type", "string", "default", "gpt-4o-mini"),
+                "top_p", kit.doc("type", "number", "default", 1.0))));
+    }
+
+    /** Sparse stored prompt_action: only required fields, nullable fields explicitly null. */
+    private void registerSparsePrompt(String name) {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register(name, "prompt_action");
+        Document config = kit.doc("bot", kit.bot, "name", name, "status", true,
+                "llm_prompts", List.of(
+                        kit.doc("type", "system", "name", "sys", "data", "You are helpful"),
+                        kit.doc("type", "user", "name", "ctx", "data", "static context", "source", "static")));
+        config.put("hyperparameters", null);
+        config.put("llm_type", null);
+        config.put("user_question", null);
+        kit.put("prompt_action", config);
+    }
+
+    /** T-125: logged kairon_faq_action_config is PromptAction.to_mongo() without _id: defaults, declared order. */
+    @Test
+    void promptActionLoggedConfigIsToMongoView() {
+        registerSparsePrompt("sparse_prompt");
+        openaiMetadata();
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+
+        Map<String, Object> body = kit.ok("sparse_prompt", kit.slots(), kit.latest("what is kanban"));
+        Document log = kit.log("sparse_prompt");
+        assertEquals(Kairon.SUCCESS, log.get("status"), String.valueOf(log.get("exception")));
+        assertEquals("llm-answer", kit.text(body));
+        // null hyperparameters take the LLMMetadata defaults at runtime too
+        List<ParityKit.Hit> completions = hitsUnder(completionPath("openai"));
+        Map<String, Object> main = Jsons.readMap(completions.get(completions.size() - 1).body());
+        assertEquals(Map.of("temperature", 0.0, "model", "gpt-4o-mini", "top_p", 1.0), main.get("hyperparameters"));
+
+        Map<String, Object> config = asMap(log.get("kairon_faq_action_config"));
+        assertEquals(List.of("name", "num_bot_responses", "failure_message", "user_question", "bot", "timestamp",
+                "llm_type", "hyperparameters", "llm_prompts", "instructions", "set_slots", "dispatch_response",
+                "process_media", "status"), new java.util.ArrayList<>(config.keySet()));
+        assertEquals(5, config.get("num_bot_responses"));
+        assertEquals(Kairon.DEFAULT_FALLBACK, config.get("failure_message"));
+        assertEquals(Map.of("type", "from_user_message"), config.get("user_question"));
+        assertEquals("openai", config.get("llm_type"));
+        assertEquals(List.of("temperature", "model", "top_p"),
+                new java.util.ArrayList<>(asMap(config.get("hyperparameters")).keySet()));
+        assertEquals(List.of(), config.get("instructions"));
+        assertEquals(List.of(), config.get("set_slots"));
+        assertEquals(true, config.get("dispatch_response"));
+        assertEquals(false, config.get("process_media"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> prompts = (List<Map<String, Object>>) config.get("llm_prompts");
+        assertEquals(List.of("name", "data", "type", "source", "is_enabled"), new java.util.ArrayList<>(prompts.get(0).keySet()));
+        assertEquals("static", prompts.get(0).get("source"));
+        assertEquals(true, prompts.get(0).get("is_enabled"));
+    }
+
+    /** T-125: null hyperparameters with no LLMMetadata fails at config load (Python AppException), config {}. */
+    @Test
+    void promptActionNullHyperparametersWithoutMetadataFailsAtConfigLoad() {
+        registerSparsePrompt("no_meta_prompt");
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        RecordingFailureMail.CALLS.clear();
+
+        Map<String, Object> body = kit.ok("no_meta_prompt", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.DEFAULT_FALLBACK, kit.text(body));
+        Document log = kit.log("no_meta_prompt");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Could not find any hyperparameters for openai LLM.", log.get("exception"));
+        assertEquals(Map.of(), log.get("kairon_faq_action_config"));
+        assertNull(log.get("user_msg"));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+    }
+
+    /** T-125: FAQ disabled -> bot_response is the FAQ text, dispatched (dispatch_response default), no mail. */
+    @Test
+    void promptActionFaqDisabledUttersFaqTextWithoutMail() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", false)));
+        kit.register("faq_off_prompt", "prompt_action");
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("faq_off_prompt", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.FAQ_DISABLED, kit.text(body));
+        assertEquals(Kairon.FAQ_DISABLED, kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        Document log = kit.log("faq_off_prompt");
+        assertEquals(Kairon.FAQ_DISABLED, log.get("bot_response"));
+        assertEquals(Map.of(), log.get("kairon_faq_action_config"));
+        assertTrue(RecordingFailureMail.CALLS.isEmpty(), "no failure mail for FAQ disabled");
+    }
+
+    /** T-125: a missing config fails with the default NLU fallback (config never loaded) and a failure mail. */
+    @Test
+    void promptActionMissingConfigUsesDefaultFallbackAndMails() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("ghost_prompt", "prompt_action");
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("ghost_prompt", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.DEFAULT_FALLBACK, kit.text(body));
+        Document log = kit.log("ghost_prompt");
+        assertEquals("No action found for given bot and name", log.get("exception"));
+        assertEquals(Kairon.DEFAULT_FALLBACK, log.get("bot_response"));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+    }
+
+    /** T-125: an empty failure_message falls back to the default NLU response (failure_message or default). */
+    @Test
+    void promptActionEmptyFailureMessageUsesDefaultFallback() {
+        registerPrompt("empty_fm_prompt", config -> config.put("failure_message", ""));
+        llmServerOk();
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("empty_fm_prompt", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.DEFAULT_FALLBACK, kit.text(body));
+        assertEquals("LLM secret for 'openai' is not configured!", kit.log("empty_fm_prompt").get("exception"));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+    }
+
+    /** T-125: dispatch_response false utters nothing; the slots still carry the response. */
+    @Test
+    void promptActionDispatchResponseFalseUttersNothing() {
+        registerPrompt("quiet_prompt", config -> config.put("dispatch_response", false));
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        Map<String, Object> body = kit.ok("quiet_prompt", kit.slots(), kit.latest("q"));
+        assertTrue(kit.responses(body).isEmpty(), String.valueOf(body));
+        assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+    }
+
+    /** T-125: event key order and time_elapsed = prediction + slot-fill seconds. */
+    @Test
+    void promptActionEventsShapeAndTotalElapsed() {
+        registerPrompt("timed_prompt");
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        kit.ok("timed_prompt", kit.slots(), kit.latest("q"));
+        Document log = kit.log("timed_prompt");
+        // non-null declared fields (exception None omitted), then dynamic fields in ActionServerLogs(...) order
+        assertEquals(List.of("type", "intent", "action", "sender", "bot_response", "bot", "timestamp", "status",
+                "trigger_info", "request_id", "events", "recommendations", "llm_response", "kairon_faq_action_config",
+                "llm_logs", "user_msg", "media_ids", "time_elapsed", "llm_call_id"),
+                log.keySet().stream().filter(key -> !"_id".equals(key)).toList());
+        assertTrue(log.containsKey("recommendations") && log.get("recommendations") == null);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> events = (List<Map<String, Object>>) log.get("events");
+        assertEquals(List.of("type", "response", "llm_response_log", "time_elapsed"),
+                new java.util.ArrayList<>(events.get(0).keySet()));
+        assertEquals(List.of("type", "data", "slot_eval_log", "time_elapsed"),
+                new java.util.ArrayList<>(events.get(1).keySet()));
+        assertEquals(log.get("llm_response"), events.get(0).get("llm_response_log"));
+        double prediction = ((Number) events.get(0).get("time_elapsed")).doubleValue();
+        double slots = ((Number) events.get(1).get("time_elapsed")).doubleValue();
+        assertEquals(prediction + slots, ((Number) log.get("time_elapsed")).doubleValue(), 1e-9);
+    }
+
+    /** T-125 (prompt-db R3 c5): unparseable value-mode crud query -> generic failure path with mail. */
+    @Test
+    void promptActionCrudValueModeBadJsonTakesGenericFailurePath() {
+        registerPrompt("crud_prompt", config -> config.put("llm_prompts", List.of(kit.doc("type", "user", "name", "orders",
+                "source", "crud", "is_enabled", true,
+                "crud_config", kit.doc("collections", List.of("orders"), "query", "status=open")))));
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("crud_prompt", kit.slots(), kit.latest("q"));
+        assertEquals("fallback", kit.text(body));
+        Document log = kit.log("crud_prompt");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Expecting value: line 1 column 1 (char 0)", log.get("exception"));
+        assertEquals("fallback", log.get("bot_response"));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+    }
+
+    /** T-125: logged database config is DatabaseAction.to_mongo() without _id; null db_type runs as qdrant. */
+    @Test
+    void databaseActionLoggedConfigIsToMongoView() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        cognitionSchema("faq", true);
+        llmSecret("openai", "sk-openai");
+        kit.pathBody(embedPath("openai"), "[[0.1]]");
+        kit.pathBody(dbQueryPath("faq"), DB_POINTS);
+        kit.register("sparse_db", "database_action");
+        Document stored = kit.doc("bot", kit.bot, "name", "sparse_db", "status", true, "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("value", "done"));
+        stored.put("db_type", null);
+        stored.put("failure_response", null);
+        kit.put("database_action", stored);
+
+        Map<String, Object> body = kit.ok("sparse_db", kit.slots(), kit.latest("q"));
+        assertEquals("done", kit.text(body));
+        Document log = kit.log("sparse_db");
+        assertEquals(Kairon.SUCCESS, log.get("status"), String.valueOf(log.get("exception")));
+        Map<String, Object> config = asMap(log.get("config"));
+        assertEquals(List.of("name", "collection", "payload", "response", "set_slots", "db_type", "failure_response",
+                "bot", "timestamp", "status"), new java.util.ArrayList<>(config.keySet()));
+        assertEquals(List.of("value", "dispatch", "evaluation_type", "dispatch_type"),
+                new java.util.ArrayList<>(asMap(config.get("response")).keySet()));
+        assertEquals(true, asMap(config.get("response")).get("dispatch"));
+        assertEquals(List.of(), config.get("set_slots"));
+        assertEquals("qdrant", config.get("db_type"));
+        assertEquals(Kairon.FAILED_DOT, config.get("failure_response"));
     }
 
     private static final String DB_POINTS = "{\"result\":{\"points\":[{\"id\":1,\"payload\":{\"answer\":\"kanban board\"}}]},\"status\":\"ok\"}";

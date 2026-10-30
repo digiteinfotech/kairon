@@ -20,7 +20,7 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] Config is read by `bot`, `name`, `status: true`
 - [ ] [GAP] A missing prompt config fails with `No action found for given bot and name`
 - [ ] [GAP] A missing database config fails with `No Vector action found for given action and bot`
-- [x] `_id` is absent from the logged config (verified: ActionGapParityTest#promptActionDispatchesResponse)
+- [x] `_id` is absent from the logged config (verified: ActionGapParityTest#promptActionDispatchesResponse, #promptActionLoggedConfigIsToMongoView, #databaseActionLoggedConfigIsToMongoView; PromptDatabaseGateTest#databaseConfigViewDropsIdAndFillsResponseDefaults)
 **Dependencies:** cavekit-dispatch-and-logging.md R4
 
 ### R2: Prompt assembly
@@ -46,7 +46,7 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] With `query_source` `slot`, a dict slot value is used as-is, a string is parsed as JSON, and a falsy value means no filter
 - [ ] [GAP] An unparseable slot value fails with `Invalid JSON format in slot value: {value}`
 - [ ] [GAP] With `query_source` `value`, a string query is parsed as JSON
-- [ ] [GAP] An unparseable `value`-mode query string has no dedicated message: the JSON parse error text becomes the log `exception` (status `Failed`) and the action takes the generic prompt failure path in R5 (`failure_message` or default fallback response, failure mail sent)
+- [x] An unparseable `value`-mode query string has no dedicated message: the JSON parse error text becomes the log `exception` (status `Failed`) and the action takes the generic prompt failure path in R5 (`failure_message` or default fallback response, failure mail sent) (verified: ActionGapParityTest#promptActionCrudValueModeBadJsonTakesGenericFailurePath, CrudSourceTest#valueModeBadJsonTakesGenericPromptFailurePath)
 - [ ] [GAP] Records are read per collection by lowercased name and bot, ANDing one `filterable_attrs` element match `{key, value}` per truthy pair, limited to `result_limit`
 - [ ] [GAP] Only each record's `data` is used, decrypted when the record `is_secure`
 - [ ] [GAP] Keys and values of different lengths fail with `Keys and values lists must be of the same length.`
@@ -68,15 +68,15 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 **Acceptance Criteria:**
 - [ ] [GAP] Cognition handling (cavekit-llm-vector-clients.md R7) runs for a non-default first similarity collection, then the model check (R6) on `hyperparameters.model`, before any LLM call
 - [ ] [GAP] Prediction uses invocation `prompt_action`, the tracker `media_ids` slot and the first similarity source's collection
-- [ ] [GAP] A prediction result with `is_failure` true sets status `Failed` and `exception` to the result's exception
+- [x] A prediction result with `is_failure` true sets status `Failed` and `exception` to the result's exception (verified: ActionGapParityTest#promptActionPredictionFailureSetsFailed)
 - [x] Log `events` are `[llm_response, slots_to_fill]` in that order (verified: ActionGapParityTest#promptActionDispatchesResponse)
-- [ ] [GAP] The `llm_response` event has `response`, `llm_response_log` and `time_elapsed`; `slots_to_fill` has `data`, `slot_eval_log` and `time_elapsed`
+- [x] The `llm_response` event has `response`, `llm_response_log` and `time_elapsed`; `slots_to_fill` has `data`, `slot_eval_log` and `time_elapsed` (verified: ActionGapParityTest#promptActionEventsShapeAndTotalElapsed)
 - [ ] [GAP] Slots are filled from context `{data: <content>, context: <tracker context>}`
 - [ ] [GAP] Returned slots include `kairon_action_response` = content and `llm_call_id` = the call id
-- [ ] [GAP] On error, `bot_response` is the FAQ-disabled text for that error, else `failure_message`, else the default NLU fallback response
-- [ ] [GAP] A failure mail is sent on error except the FAQ-disabled error
-- [ ] [GAP] When `dispatch_response` is true (default), one text message with `bot_response` is uttered with no buttons
-- [ ] [GAP] The log carries `type, intent, action, sender, events, bot, exception, recommendations (null), bot_response, status, llm_response, kairon_faq_action_config, llm_logs, user_msg, media_ids, time_elapsed, trigger_info, llm_call_id, request_id` with `time_elapsed` = prediction plus slot-fill seconds (field order per R7)
+- [x] On error, `bot_response` is the FAQ-disabled text for that error, else `failure_message`, else the default NLU fallback response (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingSecretFailsBeforeSchemaLookup, #promptActionEmptyFailureMessageUsesDefaultFallback, #promptActionMissingConfigUsesDefaultFallbackAndMails)
+- [x] A failure mail is sent on error except the FAQ-disabled error (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingConfigUsesDefaultFallbackAndMails, #promptActionCrudValueModeBadJsonTakesGenericFailurePath)
+- [x] When `dispatch_response` is true (default), one text message with `bot_response` is uttered with no buttons (verified: ActionGapParityTest#promptActionDispatchesResponse, #promptActionLoggedConfigIsToMongoView (dispatch_response absent), #promptActionDispatchResponseFalseUttersNothing)
+- [x] The log carries `type, intent, action, sender, events, bot, exception, recommendations (null), bot_response, status, llm_response, kairon_faq_action_config, llm_logs, user_msg, media_ids, time_elapsed, trigger_info, llm_call_id, request_id` with `time_elapsed` = prediction plus slot-fill seconds (field order per R7) (verified: ActionGapParityTest#promptActionEventsShapeAndTotalElapsed)
 **Dependencies:** R1, R2, cavekit-llm-vector-clients.md R6, R7, R8, cavekit-dispatch-and-logging.md R4, R6, cavekit-outbound-clients.md R5
 
 ### R6: Database execution and output
@@ -90,8 +90,8 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] With `training_needed` false, the query uses the openrouter provider and secret (cavekit-llm-vector-clients.md R7)
 - [ ] [GAP] The vector query is sent per cavekit-llm-vector-clients.md R5 and its result composed with context `{data, context}`
 - [x] `messages` holds the payload, then the compose log, then the slot-eval log entries (verified: ActionGapParityTest#databaseActionDispatchesResponse)
-- [ ] [GAP] On error, `bot_response` is `failure_response` (default `I have failed to process your request.` when config was not loaded) and a failure mail is sent, including for the FAQ-disabled error
-- [ ] [GAP] When `response.dispatch` is true, `bot_response` is uttered as text, on both success and failure
+- [x] On error, `bot_response` is `failure_response` (default `I have failed to process your request.` when config was not loaded) and a failure mail is sent, including for the FAQ-disabled error (verified: ActionGapParityTest#databaseActionFaqDisabledSendsFailureMail, #databaseActionMissingResponseConfigUsesDefaults, #databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls)
+- [x] When `response.dispatch` is true, `bot_response` is uttered as text, on both success and failure (verified: ActionGapParityTest#databaseActionSuccessLogKeyOrder, #databaseActionResponseWithoutDispatchDispatchesByDefault, #databaseActionDispatchFalseUttersNothing)
 - [ ] [GAP] Returned slots are the filled slots plus `kairon_action_response`
 **Dependencies:** R1, cavekit-llm-vector-clients.md R5, R7, cavekit-templating-and-secrets.md R2, cavekit-dispatch-and-logging.md R6, cavekit-outbound-clients.md R5
 
@@ -99,10 +99,11 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 **Description:** Log records, factory registration and configuration match Python.
 **Acceptance Criteria:**
 - [x] The database log `payload` is the Python repr of the payload (verified: ActionGapParityTest#databaseActionDispatchesResponse)
-- [ ] [GAP] The database log `response` and `bot_response` are the Python repr of their values when truthy; when falsy, `response` is stored as null and `bot_response` (a declared field) is omitted
-- [ ] [GAP] Database log field order follows cavekit-dispatch-and-logging.md R4 (authoritative): non-null declared fields `type, intent, action, sender, headers, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, then dynamic fields `config, payload, response, user_msg`
-- [ ] [GAP] Database log dynamic fields `payload` and `response` are present with null when falsy (declared null fields such as `exception` are omitted)
-- [ ] [GAP] Prompt log field order follows cavekit-dispatch-and-logging.md R4: non-null declared fields, then dynamic fields `events, recommendations, llm_response, kairon_faq_action_config, llm_logs, user_msg, media_ids, time_elapsed, llm_call_id`
+- [x] The database log `response` and `bot_response` are the Python repr of their values when truthy; when falsy, `response` is stored as null and `bot_response` (a declared field) is omitted (verified: ActionGapParityTest#databaseActionDispatchesResponse, #databaseActionSuccessLogKeyOrder, #databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls)
+- [x] Database log field order follows cavekit-dispatch-and-logging.md R4 (authoritative): non-null declared fields `type, intent, action, sender, headers, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, then dynamic fields `config, payload, response, user_msg` (verified: ActionGapParityTest#databaseActionSuccessLogKeyOrder, #databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls, #databaseActionFaqDisabledSendsFailureMail)
+- [x] Database log dynamic fields `payload` and `response` are present with null when falsy (declared null fields such as `exception` are omitted) (verified: ActionGapParityTest#databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls, #databaseActionSuccessLogKeyOrder)
+- [x] Prompt log field order follows cavekit-dispatch-and-logging.md R4: non-null declared fields, then dynamic fields `events, recommendations, llm_response, kairon_faq_action_config, llm_logs, user_msg, media_ids, time_elapsed, llm_call_id` (verified: ActionGapParityTest#promptActionEventsShapeAndTotalElapsed, #promptActionDispatchesResponse)
+- [x] The logged prompt and database configs are the `to_mongo()` view: no `_id`, mongoengine defaults applied (a missing or null field takes its default, including embedded documents; null `hyperparameters` loads the LLMMetadata `openai` property defaults and fails with `Could not find any hyperparameters for openai LLM.` when none exist; null `db_type` runs as `qdrant`), declared field order (verified: ActionGapParityTest#promptActionLoggedConfigIsToMongoView, #promptActionNullHyperparametersWithoutMetadataFailsAtConfigLoad, #databaseActionLoggedConfigIsToMongoView; PromptDatabaseGateTest#promptConfigViewFillsEmbeddedDefaults, #databaseConfigViewDropsIdAndFillsResponseDefaults)
 - [x] `prompt_action` and `database_action` resolve to their implementations through action type resolution (verified: ActionGapParityTest#promptActionDispatchesResponse, ActionGapParityTest#databaseActionDispatchesResponse)
 - [ ] [GAP] Service configuration docs no longer describe prompt_action or database_action as deferred
 - [ ] [GAP] The LLM and vector config keys listed in cavekit-config-and-deploy.md R1 are configurable as specified there
@@ -135,9 +136,10 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - R4: kairon/actions/definitions/prompt.py:242-249
 - R5: kairon/actions/definitions/prompt.py:46-170
 - R6: kairon/actions/definitions/database.py:57-140; kairon/shared/actions/utils.py:727-786 (get_payload)
-- R7: kairon/actions/definitions/database.py:121-137 (ActionServerLogs kwargs); kairon/actions/definitions/prompt.py:139-158; kairon/shared/actions/data_objects.py:263-282 (ActionServerLogs declared fields; DynamicDocument serializes non-null declared fields in declaration order, then dynamic fields in kwarg order with nulls kept, confirmed with mongoengine 0.29 `to_mongo()`); kairon/actions/definitions/factory.py
+- R7: kairon/actions/definitions/database.py:121-137 (ActionServerLogs kwargs); kairon/shared/actions/utils.py:327-336 and database.py:46-48 (to_mongo().to_dict(), _id popped); kairon/shared/actions/data_objects.py:235-246, 942-958 (field order and defaults), kairon/shared/utils.py:2180-2197 (default hyperparameters); kairon/actions/definitions/prompt.py:139-158; kairon/shared/actions/data_objects.py:263-282 (ActionServerLogs declared fields; DynamicDocument serializes non-null declared fields in declaration order, then dynamic fields in kwarg order with nulls kept, confirmed with mongoengine 0.29 `to_mongo()`); kairon/actions/definitions/factory.py
 
 ## Changelog
 - 2026-10-30: Initial draft from approved design (real services, nested database quirk, no prompt buttons).
 - 2026-10-30: Review fixes: log field order aligned to cavekit-dispatch-and-logging.md R4 (authoritative) per mongoengine serialization; config criterion references cavekit-config-and-deploy.md R1; history default 5 and role labels; value-mode JSON parse failure; crud instructions appended once; falsy `bot_response` omitted (declared field) rather than null; dependency on cavekit-outbound-clients.md R5 (script-mode compose and slot evaluation).
 - 2026-10-30: R4 c4 corrected (nested action without a Python success property fails the prompt with AttributeError text); Known risks section added (crud operator injection accepted).
+- 2026-10-30: T-125: R7 criterion added (logged configs are the to_mongo() view); R3 c5, R5 c3/c5/c8-c11, R6 c9/c10, R7 c2-c5 verified.

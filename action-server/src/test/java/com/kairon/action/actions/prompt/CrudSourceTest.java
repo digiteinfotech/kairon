@@ -190,6 +190,8 @@ class CrudSourceTest {
                 .append("llm_settings", new Document("enable_faq", true)));
         catalog.put("prompt_action", new Document("bot", BOT).append("name", "act").append("status", true)
                 .append("failure_message", "sorry")
+                // T-125: a missing hyperparameters field would load the LLMMetadata default at config load
+                .append("hyperparameters", new Document("model", "gpt-4o-mini"))
                 .append("llm_prompts", List.of(new Document(crudPrompt(
                         map("collections", List.of("orders"), "query", "status=open"), null)))));
         Map<String, Object> raw = new LinkedHashMap<>();

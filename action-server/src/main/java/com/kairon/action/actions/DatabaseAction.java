@@ -62,12 +62,12 @@ public class DatabaseAction implements KaironAction {
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
             FaqGate.require(support, context.bot);
-            config = support.require("database_action", context.bot, "name", context.actionName,
-                    "No Vector action found for given action and bot");
-            Map<String, Object> responseConfig = responseConfig(config.get("response"));
+            // retrieve_config: to_mongo() view (defaults applied, _id popped)
+            config = ConfigViews.database(support.require("database_action", context.bot, "name",
+                    context.actionName, "No Vector action found for given action and bot"));
+            Map<String, Object> responseConfig = Maps.map(config.get("response"));
             dispatch = Maps.truthy(responseConfig.get("dispatch"));
-            failure = config.get("failure_response") == null ? Kairon.FAILED_DOT
-                    : Maps.str(config.get("failure_response"));
+            failure = Maps.str(config.get("failure_response"));
             String collection = Maps.str(config.get("collection"));
             if (!"qdrant".equals(config.get("db_type"))) {
                 throw new ActionFailure("Database not yet implemented!");
@@ -116,24 +116,5 @@ public class DatabaseAction implements KaironAction {
         }
         filled.put(Kairon.ACTION_RESPONSE, botResponse);
         return filled;
-    }
-
-    /**
-     * DatabaseAction.response is EmbeddedDocumentField(HttpActionResponse, default=HttpActionResponse()):
-     * to_mongo() fills a missing/None sub-document or member with its defaults (dispatch True,
-     * evaluation_type expression, dispatch_type text; value None is omitted).
-     */
-    static Map<String, Object> responseConfig(Object raw) {
-        Map<String, Object> response = new LinkedHashMap<>(Maps.map(raw));
-        if (response.get("dispatch") == null) {
-            response.put("dispatch", true);
-        }
-        if (response.get("evaluation_type") == null) {
-            response.put("evaluation_type", "expression");
-        }
-        if (response.get("dispatch_type") == null) {
-            response.put("dispatch_type", "text");
-        }
-        return response;
     }
 }

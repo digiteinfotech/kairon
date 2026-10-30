@@ -146,4 +146,48 @@ class PromptDatabaseGateTest {
                 : "No Vector action found for given action and bot";
         assertEquals(expected, log.get("exception"));
     }
+
+    /** T-125: embedded-document defaults of the to_mongo() view (LlmPrompt, PromptHyperparameter, CrudConfig). */
+    @org.junit.jupiter.api.Test
+    void promptConfigViewFillsEmbeddedDefaults() {
+        Document raw = new Document("_id", "x").append("name", "act").append("bot", BOT)
+                .append("hyperparameters", new Document("model", "m"))
+                .append("llm_prompts", List.of(
+                        new Document("name", "kb").append("type", "user").append("source", "bot_content")
+                                .append("data", "docs").append("hyperparameters", new Document("top_results", 3)),
+                        new Document("name", "orders").append("type", "user").append("source", "crud")
+                                .append("crud_config", new Document("collections", List.of("orders")))))
+                .append("set_slots", List.of(new Document("name", "a").append("value", "${data}")));
+        Document view = ConfigViews.prompt(raw, () -> { throw new AssertionError("hyperparameters present"); });
+        assertTrue(!view.containsKey("_id"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> prompts = (List<Map<String, Object>>) view.get("llm_prompts");
+        assertEquals(List.of("name", "hyperparameters", "data", "type", "source", "is_enabled"),
+                List.copyOf(prompts.get(0).keySet()));
+        assertEquals(new Document("top_results", 3).append("similarity_threshold", 0.70), prompts.get(0).get("hyperparameters"));
+        Document crud = new Document("collections", List.of("orders")).append("query", new Document())
+                .append("result_limit", 10).append("query_source", null);
+        assertEquals(crud, prompts.get(1).get("crud_config"));
+        assertEquals(List.of("collections", "query", "result_limit", "query_source"),
+                List.copyOf(((Map<?, ?>) prompts.get(1).get("crud_config")).keySet().stream().map(String::valueOf).toList()));
+        assertEquals(List.of(new Document("name", "a").append("value", "${data}").append("evaluation_type", "expression")),
+                view.get("set_slots"));
+    }
+
+    /** T-125 (tier-6 gate P2): the database config view drops _id and fills HttpActionResponse defaults. */
+    @org.junit.jupiter.api.Test
+    void databaseConfigViewDropsIdAndFillsResponseDefaults() {
+        Document raw = new Document("_id", "x").append("name", "db").append("collection", "faq").append("bot", BOT)
+                .append("payload", List.of(new Document("type", "from_value").append("value", null)
+                        .append("query_type", "embedding_search")))
+                .append("response", null);
+        Document view = ConfigViews.database(raw);
+        assertTrue(!view.containsKey("_id"));
+        assertEquals(new Document("dispatch", true).append("evaluation_type", "expression").append("dispatch_type", "text"),
+                view.get("response"));
+        assertEquals(List.of(new Document("type", "from_value").append("query_type", "embedding_search")), view.get("payload"));
+        assertEquals("qdrant", view.get("db_type"));
+        assertEquals(Kairon.FAILED_DOT, view.get("failure_response"));
+        assertEquals(List.of(), view.get("set_slots"));
+    }
 }

@@ -79,10 +79,11 @@ public class PromptAction implements KaironAction {
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
             FaqGate.require(support, context.bot);
-            config = support.require("prompt_action", context.bot, "name", context.actionName,
-                    "No action found for given bot and name");
+            // get_faq_action_config: to_mongo() view (defaults applied, _id popped); assigned only once it is built
+            config = ConfigViews.prompt(support.require("prompt_action", context.bot, "name", context.actionName,
+                    "No action found for given bot and name"), () -> defaultHyperparameters());
             userMessage = PromptParams.userQuestion(Maps.map(config.get("user_question")), context.tracker);
-            String llmType = config.get("llm_type") == null ? LlmSecrets.DEFAULT_LLM : Maps.str(config.get("llm_type"));
+            String llmType = Maps.str(config.get("llm_type"));
             // crud (T-113) and action (T-114) sources register ContextSource hooks here
             PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of(
                     "crud", new CrudSource(support.catalog(), support.tokens(), context.bot, context.tracker),
@@ -178,4 +179,25 @@ public class PromptAction implements KaironAction {
         copy.remove("_id");
         return copy;
     }
+
+    /** Utility.get_default_llm_hyperparameters (utils.py): LLMMetadata(provider=DEFAULT_LLM) property defaults. */
+    private Map<String, Object> defaultHyperparameters() {
+        Document metadata = support.catalog().all(LLM_METADATA).stream()
+                .filter(document -> LlmSecrets.DEFAULT_LLM.equals(document.get("provider")))
+                .findFirst()
+                .orElseThrow(() -> new ActionFailure(
+                        "Could not find any hyperparameters for " + LlmSecrets.DEFAULT_LLM + " LLM."));
+        Map<String, Object> hyperparameters = new LinkedHashMap<>();
+        Maps.map(metadata.get("properties")).forEach((key, value) -> {
+            Map<String, Object> property = Maps.map(value);
+            if (!property.containsKey("default")) {
+                throw new ActionFailure("'default'");
+            }
+            hyperparameters.put(key, property.get("default"));
+        });
+        return hyperparameters;
+    }
+
+    /** mongoengine collection of LLMMetadata (kairon/shared/admin/data_objects.py). */
+    static final String LLM_METADATA = "l_l_m_metadata";
 }

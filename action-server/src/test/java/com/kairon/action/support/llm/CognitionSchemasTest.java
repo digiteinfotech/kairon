@@ -101,6 +101,21 @@ class CognitionSchemasTest {
         assertFalse(schemas.forAction(BOT, "present").trainingNeeded());
     }
 
+    /**
+     * T-125: CognitionSchema.schema_metadata is EmbeddedDocumentField(SchemaMetadata, default=SchemaMetadata)
+     * (kairon/shared/cognition/data_objects.py:50): a doc without (or with null) schema_metadata loads the
+     * SchemaMetadata defaults, so prompt.py:89 / database.py:89 read training_needed True and do not fail.
+     */
+    @Test
+    void forActionReadsMissingOrNullSchemaMetadataAsDefaults() {
+        schema("absent", null);
+        catalog.put(ActionCatalog.COGNITION_SCHEMA, new Document("bot", BOT).append("collection_name", "nulled")
+                .append("schema_metadata", null));
+        assertEquals(CognitionSchemas.Schema.DEFAULT, schemas.forAction(BOT, "absent"));
+        assertEquals(CognitionSchemas.Schema.DEFAULT, schemas.forAction(BOT, "nulled"));
+        assertThrows(ActionFailure.class, () -> schemas.forAction(BOT, "missing-doc"));
+    }
+
     @Test
     void swapsToOpenrouterWhenNotDefaultAndTrainingNotNeeded() {
         secret("openai", "openai-key");
