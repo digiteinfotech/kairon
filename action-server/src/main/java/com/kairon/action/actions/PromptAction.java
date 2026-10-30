@@ -17,7 +17,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /** Calls the configured LLM endpoint. Prompt assembly, embeddings, and model checks stay on that service. */
 @Singleton
@@ -57,9 +56,7 @@ public class PromptAction implements KaironAction {
         List<Map<String, Object>> events = new ArrayList<>();
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
-            if (faqDisabled(context.bot)) {
-                throw new ActionFailure(Kairon.FAQ_DISABLED);
-            }
+            FaqGate.require(support, context.bot);
             config = support.require("prompt_action", context.bot, "name", context.actionName,
                     "No action found for given bot and name");
             userMessage = question(context, Maps.map(config.get("user_question")));
@@ -143,21 +140,6 @@ public class PromptAction implements KaironAction {
         return filled;
     }
 
-    private boolean faqDisabled(String bot) {
-        Optional<Document> settings = support.botSettings(bot);
-        if (settings.isEmpty()) {
-            return true;
-        }
-        Object llm = settings.get().get("llm_settings");
-        if (!(llm instanceof Map<?, ?>)) {
-            throw new ActionFailure("llm_settings");
-        }
-        Map<String, Object> map = Maps.map(llm);
-        if (!map.containsKey("enable_faq")) {
-            throw new ActionFailure("enable_faq");
-        }
-        return Maps.isEmpty(map.get("enable_faq"));
-    }
 
     private static String question(ActionContext context, Map<String, Object> userQuestion) {
         if ("from_slot".equals(userQuestion.get("type"))) {

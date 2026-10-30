@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /** Posts the vector payload to the configured vector service. Embedding clients stay on that service. */
 @Singleton
@@ -49,9 +48,7 @@ public class DatabaseAction implements KaironAction {
         List<Object> messages = new ArrayList<>();
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
-            if (faqDisabled(context.bot)) {
-                throw new ActionFailure(Kairon.FAQ_DISABLED);
-            }
+            FaqGate.require(support, context.bot);
             config = support.require("database_action", context.bot, "name", context.actionName,
                     "No Vector action found for given action and bot");
             Map<String, Object> responseConfig = Maps.map(config.get("response"));
@@ -110,21 +107,6 @@ public class DatabaseAction implements KaironAction {
         return filled;
     }
 
-    private boolean faqDisabled(String bot) {
-        Optional<Document> settings = support.botSettings(bot);
-        if (settings.isEmpty()) {
-            return true;
-        }
-        Object llm = settings.get().get("llm_settings");
-        if (!(llm instanceof Map<?, ?>)) {
-            throw new IllegalArgumentException("llm_settings");
-        }
-        Map<String, Object> map = Maps.map(llm);
-        if (!map.containsKey("enable_faq")) {
-            throw new IllegalArgumentException("enable_faq");
-        }
-        return Maps.isEmpty(map.get("enable_faq"));
-    }
 
     private boolean trainingNeeded(String bot, String collection) {
         for (Document document : support.catalog().findByBot("cognition_schema", bot)) {
