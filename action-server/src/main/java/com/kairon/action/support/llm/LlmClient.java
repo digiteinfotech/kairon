@@ -2,10 +2,14 @@ package com.kairon.action.support.llm;
 
 import com.kairon.action.ActionSettings;
 import com.kairon.action.support.LlmHttp;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.TokenTruncator;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +40,66 @@ public class LlmClient {
 
     private final LlmHttp http;
     private final ActionSettings settings;
+    private final CognitionSchemas schemas;
 
-    public LlmClient(LlmHttp http, ActionSettings settings) {
+    @Inject
+    public LlmClient(LlmHttp http, ActionSettings settings, CognitionSchemas schemas) {
         this.http = http;
         this.settings = settings;
+        this.schemas = schemas;
+    }
+
+    /** Completion-only client (no cognition schema lookup); {@link #embed} is unavailable. */
+    public LlmClient(LlmHttp http, ActionSettings settings) {
+        this(http, settings, null);
+    }
+
+    /**
+     * processor.py {@code get_embedding} for one text: sent as a one-element {@code text} list; a list
+     * response yields its first element (IndexError text when empty), anything else is returned as-is.
+     */
+    public Object embed(String bot, String llmType, String text, Object user, Object invocation, String collection,
+                        Map<String, String> embeddingSecret) {
+        Object response = embedAll(bot, llmType, List.of(text), user, invocation, collection, embeddingSecret);
+        if (response instanceof List<?> list) {
+            if (list.isEmpty()) {
+                throw new ActionFailure("list index out of range");
+            }
+            return list.get(0);
+        }
+        return response;
+    }
+
+    /**
+     * processor.py {@code get_embedding} for a list: POST {@code {llm.url}/{quote(bot)}/aembedding/{llm_type}} with
+     * body {@code {text, user, kwargs}}; kwargs keys in Python order {@code invocation}, then {@code collection} and
+     * {@code model} (schema model_id) only when the collection's schema has training_needed false (missing schema
+     * = true), then {@code truncated_texts} (8191 cl100k_base tokens each) and {@code api_key} (embedding secret).
+     * The full response is returned. Status outside 200-204 and transport errors fail via {@link LlmHttp#post}.
+     */
+    public Object embedAll(String bot, String llmType, List<String> texts, Object user, Object invocation,
+                           String collection, Map<String, String> embeddingSecret) {
+        if (schemas == null) {
+            throw new IllegalStateException("LlmClient built without CognitionSchemas cannot embed");
+        }
+        CognitionSchemas.Schema schema = schemas.forEmbedding(bot, collection);
+        Map<String, Object> kwargs = new LinkedHashMap<>();
+        kwargs.put("invocation", invocation);
+        if (!schema.trainingNeeded()) {
+            kwargs.put("collection", collection);
+            kwargs.put("model", schema.modelId());
+        }
+        List<String> truncated = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            truncated.add(TokenTruncator.truncate(text, TokenTruncator.EMBEDDING_CTX_LENGTH));
+        }
+        kwargs.put("truncated_texts", truncated);
+        kwargs.put("api_key", embeddingSecret == null ? null : embeddingSecret.get("api_key"));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", texts);
+        body.put("user", user);
+        body.put("kwargs", kwargs);
+        return http.post(url(bot, "aembedding", llmType), body);
     }
 
     /**
