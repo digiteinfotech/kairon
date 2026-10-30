@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.TrackerState;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
+import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Tokens;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -507,5 +508,86 @@ class ActionGapParityTest {
         ActionFailure failure = org.junit.jupiter.api.Assertions.assertThrows(ActionFailure.class,
                 () -> support.prepareResponse("${a.missing}", response));
         assertTrue(failure.getMessage().startsWith("Unable to retrieve value for key from HTTP response"));
+    }
+
+    // ---- agent_action parity with master 4f0a2fd5 (chat history in payload, max_iterations 5) ----
+
+    private void registerAgent(String name, boolean dispatch) {
+        kit.register(name, "agent_action");
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", name, "status", true,
+                "agent_id", "agent-1", "dispatch_bot_response", dispatch));
+    }
+
+    private static Map<String, Object> turn(String event, String text) {
+        Map<String, Object> turn = new LinkedHashMap<>();
+        turn.put("event", event);
+        turn.put("text", text);
+        return turn;
+    }
+
+    @Test
+    void agentActionPrefixesChatHistoryAndSendsFiveIterations() {
+        registerAgent("ask_agent", true);
+        List<Object> events = List.of(turn("user", "u1"), turn("bot", "b1"), turn("user", "current"));
+        Map<String, Object> body = kit.ok("ask_agent", kit.slots(), kit.latest("current"), events, Map.of(),
+                "default", "ask_agent", null, null);
+        assertEquals("agent-out", kit.text(body));
+        String sent = kit.hitPath("/agent").body();
+        Map<String, Object> request = Jsons.readMap(sent);
+        assertEquals("Conversation history:\nuser: u1\nassistant: b1\n\nCurrent message: current", request.get("message"));
+        assertEquals(5, ((Number) request.get("max_iterations")).intValue());
+        assertNull(request.get("session_id"));
+        assertEquals(Map.of(), request.get("metadata"));
+    }
+
+    @Test
+    void agentActionKeepsOnlyLastFiveHistoryMessages() {
+        registerAgent("ask_agent", true);
+        List<Object> events = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            events.add(turn("user", "u" + i));
+            events.add(turn("bot", "b" + i));
+        }
+        events.add(turn("user", "current"));
+        kit.ok("ask_agent", kit.slots(), kit.latest("current"), events, Map.of(), "default", "ask_agent", null, null);
+        String message = (String) Jsons.readMap(kit.hitPath("/agent").body()).get("message");
+        assertTrue(message.startsWith("Conversation history:\nassistant: b3\n"), message);
+        assertTrue(message.endsWith("assistant: b5\n\nCurrent message: current"), message);
+        assertEquals(5, message.lines().filter(line -> line.startsWith("user: ") || line.startsWith("assistant: ")).count());
+    }
+
+    @Test
+    void agentActionWithoutHistorySendsPlainMessage() {
+        registerAgent("ask_agent", true);
+        kit.ok("ask_agent", kit.slots(), kit.latest("hi"), List.of(turn("user", "hi")), Map.of(), "default", "ask_agent", null, null);
+        assertEquals("hi", Jsons.readMap(kit.hitPath("/agent").body()).get("message"));
+    }
+
+    @Test
+    void agentActionLogsApiResponseAsPythonRepr() {
+        registerAgent("ask_agent", true);
+        kit.ok("ask_agent");
+        assertEquals("{'output': 'agent-out'}", kit.log("ask_agent").get("api_response"));
+    }
+
+    @Test
+    void agentActionDispatchFalseUttersNothing() {
+        registerAgent("quiet_agent", false);
+        Map<String, Object> body = kit.ok("quiet_agent");
+        assertEquals(List.of(), kit.responses(body));
+        assertEquals("agent-out", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+    }
+
+    @Test
+    void agentActionStripsEveryTrailingSlashFromBaseUrl() {
+        registerAgent("ask_agent", true);
+        String original = settings.getSimpleAgentUrl();
+        try {
+            settings.setSimpleAgentUrl(original + "///");
+            kit.ok("ask_agent");
+            assertTrue(kit.hitPath("/agent").path().startsWith("/agent/agents/"), kit.hitPath("/agent").path());
+        } finally {
+            settings.setSimpleAgentUrl(original);
+        }
     }
 }

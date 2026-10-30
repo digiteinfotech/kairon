@@ -52,6 +52,19 @@ Read-only comparison of `kairon/actions/definitions/{prompt,database}.py` vs Jav
 
 **Decision needed:** call real services (Qdrant + LLM server) like Python, or keep the adapter and write its contract spec. This sets the scope of every P1 above.
 
+## agent_action parity after master 4f0a2fd5 (2026-10-30)
+
+Python added chat history to the agent payload and raised `max_iterations` to 5. Java was not updated and had no agent_action test.
+
+**Fixed (tests in `ActionGapParityTest`):** message prefixed with the last 5 session turns (current user turn dropped), `max_iterations` 5, `api_response` logged as Python repr (null when falsy), every trailing slash of `simple_agent.url` stripped, plus tests for plain message and `dispatch_bot_response=false`.
+
+**Open:**
+| Sev | Gap |
+|---|---|
+| P1/P2 | Integration token claims: Python (`processor.py:68-93`) creates the `agent-action` integration if missing; claims `sub, bot, name, role, iat, account, exp(15m)`, `access-limit=/api/agents/{bot}/.+/run/.+`. Java sends `sub, bot, type` only. Decide: port claims, or confirm the agent service accepts the Java token. |
+| P3 | Missing `agent_id` is a KeyError in Python; Java puts "null" in the URL. |
+| P3 | Failure-mail args and non-2xx/non-dict-body/config-not-found paths have no Java tests. |
+
 ## P2 — contract and behavior
 
 | Pkt | Gap | Java | Work |
