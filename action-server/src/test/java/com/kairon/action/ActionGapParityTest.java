@@ -117,7 +117,8 @@ class ActionGapParityTest {
 
         Map<String, Object> body = kit.ok("ask_llm", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
         assertEquals("llm-answer", kit.text(body));
-        assertEquals(1, ((List<?>) kit.responses(body).get(0).get("buttons")).size());
+        // T-111: Python never sends recommendation buttons, even when the LLM response carries them
+        assertEquals(List.of(), kit.responses(body).get(0).get("buttons"));
         assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
         ParityKit.Hit llmHit = kit.hitPath("/llm");
         assertTrue(llmHit.body().contains("\"should_process_media\":true"));

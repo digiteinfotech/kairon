@@ -129,11 +129,8 @@ public class PromptAction implements KaironAction {
             support.save(context, type(), status, exception, botResponse, extra);
         }
         if (ActionFlags.enabled(config, "dispatch_response")) {
-            if (recommendations instanceof List<?> list && !list.isEmpty()) {
-                context.dispatcher.buttons(botResponse == null ? null : String.valueOf(botResponse), list);
-            } else {
-                context.dispatcher.text(botResponse == null ? null : String.valueOf(botResponse));
-            }
+            // Python never surfaces recommendations as buttons; always a plain text message
+            context.dispatcher.text(botResponse == null ? null : String.valueOf(botResponse));
         }
         filled.put(Kairon.ACTION_RESPONSE, botResponse);
         filled.put(Kairon.LLM_CALL_ID, callId);
