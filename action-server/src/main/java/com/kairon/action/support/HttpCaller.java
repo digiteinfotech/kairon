@@ -94,10 +94,15 @@ public class HttpCaller {
      * the response body. Transport errors never throw: they come back as 503/408/500 with a null body.
      */
     public Exchange exchange(String method, String url, Map<String, ?> headers, Object body, String contentType) {
+        return exchange(method, url, headers, body, contentType, settings.getRequestTimeout());
+    }
+
+    /** {@link #exchange} with an explicit wall-clock budget, as execute_request_async(timeout=...) / AioRestClient(timeout=...). */
+    public Exchange exchange(String method, String url, Map<String, ?> headers, Object body, String contentType, int timeoutSeconds) {
         try {
             // aiohttp client: `request_body if request_body else {}`
             Object payload = body == null ? new LinkedHashMap<String, Object>() : body;
-            HttpResponse<String> response = send(method, url, headers, payload, contentType, false);
+            HttpResponse<String> response = send(method, url, headers, payload, contentType, false, timeoutSeconds);
             return new Exchange(response.statusCode(), parse(response.body()), headerMap(response));
         } catch (Exception e) {
             return transportFailure(url, e);
@@ -139,7 +144,7 @@ public class HttpCaller {
     /** Python execute_http_request: non-2xx and transport errors become ActionFailure. */
     public Object executeStrict(String method, String url, Map<String, ?> headers, Object body, String contentType) {
         try {
-            HttpResponse<String> response = send(method, url, headers, body, contentType, true);
+            HttpResponse<String> response = send(method, url, headers, body, contentType, true, settings.getRequestTimeout());
             if (!allowed(response.statusCode())) {
                 throw new ActionFailure("Got non-200 status code: " + response.statusCode() + " " + response.body());
             }
@@ -169,7 +174,7 @@ public class HttpCaller {
         }
     }
 
-    private HttpResponse<String> send(String method, String url, Map<String, ?> headers, Object body, String contentType, boolean strictMethod) throws Exception {
+    private HttpResponse<String> send(String method, String url, Map<String, ?> headers, Object body, String contentType, boolean strictMethod, int timeoutSeconds) throws Exception {
         String verb = method == null ? "GET" : method.toUpperCase(Locale.ROOT);
         Map<String, String> outbound = new LinkedHashMap<>();
         if (headers != null) {
@@ -194,7 +199,7 @@ public class HttpCaller {
         } else {
             throw new IllegalArgumentException("Invalid request method!");
         }
-        return execute(verb, target, outbound, bytes);
+        return execute(verb, target, outbound, bytes, timeoutSeconds);
     }
 
     /**
@@ -204,7 +209,11 @@ public class HttpCaller {
      * The request timeout is one wall-clock budget across all hops including the response body.
      */
     HttpResponse<String> execute(String method, String url, Map<String, String> headers, byte[] body) throws Exception {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(Math.max(settings.getRequestTimeout(), 1));
+        return execute(method, url, headers, body, settings.getRequestTimeout());
+    }
+
+    private HttpResponse<String> execute(String method, String url, Map<String, String> headers, byte[] body, int timeoutSeconds) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(Math.max(timeoutSeconds, 1));
         String verb = method;
         String current = url;
         byte[] payload = body;
