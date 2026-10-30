@@ -1,3 +1,5 @@
+import csv
+import io
 from datetime import datetime
 import json
 from fastapi import HTTPException
@@ -39,6 +41,21 @@ def _build_filterable_attr_elem_match(column: str, value, condition: str = None)
     else:
         v_expr = value
     return {"filterable_attrs": {"$elemMatch": {"k": column, "v": v_expr}}}
+
+
+_INT_PATTERN = re.compile(r"^-?\d+$")
+_FLOAT_PATTERN = re.compile(r"^-?\d+\.\d+$")
+
+
+def _with_numeric_variant(value):
+    """Query-string values arrive as str; also match a stored number with the same text."""
+    if not isinstance(value, str):
+        return value
+    if _INT_PATTERN.match(value):
+        return {"$in": [value, int(value)]}
+    if _FLOAT_PATTERN.match(value):
+        return {"$in": [value, float(value)]}
+    return value
 
 
 class DataProcessor:
@@ -271,6 +288,20 @@ class DataProcessor:
         return final_data
 
     @staticmethod
+    def build_attr_filters(keys: List[Text], values: List[Text]) -> List[Dict]:
+        """
+        builds filterable_attrs match clauses from query-string keys and values
+
+        :param keys: attribute names
+        :param values: attribute values as received in the query string
+        :return: list of raw mongo clauses
+        """
+        return [
+            _build_filterable_attr_elem_match(key, _with_numeric_variant(value))
+            for key, value in zip(keys, values) if key and value
+        ]
+
+    @staticmethod
     def get_collection_data(bot: Text, **kwargs):
         """
         fetches collection data based on the filters provided
@@ -285,10 +316,7 @@ class DataProcessor:
         if len(keys) != len(values):
             raise AppException("Keys and values lists must be of the same length.")
 
-        attr_filters = [
-            _build_filterable_attr_elem_match(key, value)
-            for key, value in zip(keys, values) if key and value
-        ]
+        attr_filters = DataProcessor.build_attr_filters(keys, values)
         result_limit = kwargs.pop("result_limit", None)
         page_size = kwargs.pop("page_size", None)
         start_idx = kwargs.pop("start_idx", None)
@@ -318,6 +346,34 @@ class DataProcessor:
             final_data['is_non_editable'] = is_non_editable
             final_data['data'] = data
             yield final_data
+
+    @staticmethod
+    def export_collection_data_as_csv(bot: Text, collection_name: Text) -> str:
+        """
+        exports every row of a collection as csv text, with secure keys decrypted
+
+        :param bot: bot id
+        :param collection_name: collection name
+        :return: csv content
+        """
+        collection_name = collection_name.lower()
+        rows = [
+            item["data"]
+            for item in DataProcessor.get_collection_data(bot, collection_name=collection_name, key=[], value=[])
+        ]
+        if not rows:
+            raise AppException(f"Collection '{collection_name}' not found or has no data!")
+
+        header = list(dict.fromkeys(key for row in rows for key in row))
+        buffer = io.StringIO()
+        writer = csv.DictWriter(buffer, fieldnames=header, restval="", lineterminator="\n")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({
+                key: json.dumps(value) if isinstance(value, (dict, list)) else ("" if value is None else value)
+                for key, value in row.items()
+            })
+        return buffer.getvalue()
 
     @staticmethod
     def get_collection_data_with_timestamp(bot: Text, collection_name: Text, **kwargs):
