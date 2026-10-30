@@ -65,3 +65,14 @@ Kit R5 c7/c8 wording fixed. Open P3: SimilarityContext.join should unwrap Error 
 - P2 for T-124: database log dynamic order must be config, payload, response, user_msg (re-put user_msg in extras after response, add order assertion).
 - P3 for T-123 (owns LlmProcessor edits): catch Exception (+StackOverflowError) in predict; null query fails at embedding stage ('NoneType' object is not iterable) instead of text "None"; LOG.error with the exception (no secrets in messages).
 - P3 T-126: delete vector-url leftovers (ActionSettings:41,105; application.yml:53; ParityKit:154,440; ReplayEndpoints:48; application-test.yml:23). Tick kit R8 c1-c6 and prompt-db R6 c4/c5 with test names at the end.
+
+## Tier 6 gate (inspector, 2026-10-30): PROCEED (0 P0/P1, 1 P2, 8 P3)
+Folded into T-125 (to_mongo view of logged config for BOTH actions):
+- P2 DatabaseAction.java:108 logged config includes _id (Python pops it); kit R1 '[x] _id absent' was only verified for prompt_action.
+- P3 null/missing hyperparameters: Python mongoengine default (Utility.get_default_llm_hyperparameters, data_objects.py:951) -> action succeeds; Java fails with NoneType text. (Earlier impl note describing this as 'null hyperparameters text' was wrong.)
+- P3 null db_type -> Python default 'qdrant'.
+- P3 logged config should be to_mongo() view with defaults (response sub-doc, failure_response, llm_type, hyperparameters).
+- P3 schema_metadata missing -> Python AttributeError "'NoneType' object has no attribute 'training_needed'" (forAction).
+For T-126: delete CognitionSchemas.resolveProvider (+tests) if unused, ActionSettings llmUrl/vectorUrl getters/setters.
+Accepted P3: non-string query repr in LlmProcessor; non-list media_ids -> [] (Python forwards raw).
+Proposed kit R7 criterion: logged prompt/database configs are the to_mongo() view (no _id, defaults applied).
