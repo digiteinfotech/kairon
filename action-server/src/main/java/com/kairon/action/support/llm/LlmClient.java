@@ -4,6 +4,7 @@ import com.kairon.action.ActionSettings;
 import com.kairon.action.support.LlmHttp;
 import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import com.kairon.action.support.TokenTruncator;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -122,6 +123,104 @@ public class LlmClient {
             return new Completion(map.get("formatted_response"), map.get("response"));
         }
         return new Completion(response, response);
+    }
+
+    /** Answer content and call id from processor.py {@code __get_answer}. */
+    public record Answer(Object content, Object callId) {
+    }
+
+    /** {@link #answer(AnswerParams, List)} discarding the per-completion logs. */
+    public Answer answer(AnswerParams params) {
+        return answer(params, new ArrayList<>());
+    }
+
+    /**
+     * processor.py {@code __get_answer}: an optional rephrase completion ({@code __rephrase_query}) then the main
+     * completion. Each completion appends {@code {messages, raw_completion_response, type, hyperparameters}}
+     * ({@code rephrase_query} / {@code answer_query}) to {@code logs} as soon as it returns, so logs survive a
+     * later failure.
+     */
+    public Answer answer(AnswerParams params, List<Map<String, Object>> logs) {
+        Object query = params.query();
+        Object hyperparameters = params.hyperparameters();
+        String instructions = joinInstructions(params.instructions());
+        if (params.useQueryPrompt() && params.queryPrompt() != null && !params.queryPrompt().isEmpty()) {
+            List<Map<String, Object>> rephrase = List.of(
+                    message("system", params.systemPrompt()),
+                    message("user", params.queryPrompt() + "\n\n Q: " + PyRepr.str(query) + "\n A:"));
+            Completion completion = complete(params.bot(), params.endpointLlmType(), rephrase, hyperparameters,
+                    params.user(), PyRepr.str(params.invocation()) + "_rephrase", null, false);
+            logs.add(log(rephrase, completion.raw(), "rephrase_query", hyperparameters));
+            query = completion.content();
+        }
+        List<Map<String, Object>> messages = new ArrayList<>();
+        messages.add(message("system", params.systemPrompt()));
+        if (params.previousBotResponses() != null && !params.previousBotResponses().isEmpty()) {
+            messages.addAll(params.previousBotResponses());
+        }
+        query = modifyUserMessageForPerplexity(query, params.llmType(), hyperparameters);
+        String context = PyRepr.str(params.context());
+        messages.add(message("user", instructions.isEmpty()
+                ? context + " \nQ: " + PyRepr.str(query) + " \nA:"
+                : context + " \n" + instructions + " \nQ: " + PyRepr.str(query) + " \nA:"));
+        Completion completion = complete(params.bot(), params.endpointLlmType(), messages, hyperparameters,
+                params.user(), params.invocation(), params.mediaIds(), params.shouldProcessMedia());
+        logs.add(log(messages, completion.raw(), "answer_query", hyperparameters));
+        return new Answer(completion.content(), completion.callId());
+    }
+
+    /**
+     * processor.py {@code modify_user_message_for_perplexity}: for {@code perplexity} with a truthy
+     * {@code search_domain_filter}, appends {@code " inurl:" + "|".join(stripped non-blank domains)}.
+     */
+    public static Object modifyUserMessageForPerplexity(Object userMessage, String llmType, Object hyperparameters) {
+        if (!"perplexity".equals(llmType)) {
+            return userMessage;
+        }
+        Object filter = Maps.map(hyperparameters).get("search_domain_filter");
+        if (!Maps.truthy(filter)) {
+            return userMessage;
+        }
+        List<String> domains = new ArrayList<>();
+        for (Object domain : Maps.list(filter)) {
+            String stripped = PyRepr.str(domain).strip();
+            if (!stripped.isEmpty()) {
+                domains.add(stripped);
+            }
+        }
+        return PyRepr.str(userMessage) + " inurl:" + String.join("|", domains);
+    }
+
+    /** {@code '\n'.join(instructions)}: a string joins its characters, null reads as []. */
+    static String joinInstructions(Object instructions) {
+        if (instructions == null) {
+            return "";
+        }
+        if (instructions instanceof String text) {
+            return String.join("\n", text.codePoints().mapToObj(Character::toString).toList());
+        }
+        List<String> parts = new ArrayList<>();
+        for (Object item : Maps.list(instructions)) {
+            parts.add(PyRepr.str(item));
+        }
+        return String.join("\n", parts);
+    }
+
+    private static Map<String, Object> message(String role, Object content) {
+        Map<String, Object> message = new LinkedHashMap<>();
+        message.put("role", role);
+        message.put("content", content);
+        return message;
+    }
+
+    private static Map<String, Object> log(List<Map<String, Object>> messages, Object raw, String type,
+                                           Object hyperparameters) {
+        Map<String, Object> entry = new LinkedHashMap<>();
+        entry.put("messages", messages);
+        entry.put("raw_completion_response", raw);
+        entry.put("type", type);
+        entry.put("hyperparameters", hyperparameters);
+        return entry;
     }
 
     /** {@code f"{llm.url}/{urllib.parse.quote(bot)}/{endpoint}/{llm_type}"}. */
