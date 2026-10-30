@@ -1,11 +1,11 @@
 package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
+import com.kairon.action.actions.database.DbPayload;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
-import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
 import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /** Posts the vector payload to the configured vector service. Embedding clients stay on that service. */
 @Singleton
@@ -49,9 +48,7 @@ public class DatabaseAction implements KaironAction {
         List<Object> messages = new ArrayList<>();
         Map<String, Object> filled = new LinkedHashMap<>();
         try {
-            if (faqDisabled(context.bot)) {
-                throw new ActionFailure(Kairon.FAQ_DISABLED);
-            }
+            FaqGate.require(support, context.bot);
             config = support.require("database_action", context.bot, "name", context.actionName,
                     "No Vector action found for given action and bot");
             Map<String, Object> responseConfig = Maps.map(config.get("response"));
@@ -65,7 +62,7 @@ public class DatabaseAction implements KaironAction {
                 throw new ActionFailure("Database not yet implemented!");
             }
             boolean trainingNeeded = trainingNeeded(context.bot, collection);
-            requestBody = payload(config.get("payload"), context);
+            requestBody = DbPayload.build(config.get("payload"), context.tracker);
             messages.add(requestBody);
             if (Maps.isEmpty(support.settings().getVectorUrl())) {
                 throw new ActionFailure("vector url is not configured");
@@ -110,22 +107,6 @@ public class DatabaseAction implements KaironAction {
         return filled;
     }
 
-    private boolean faqDisabled(String bot) {
-        Optional<Document> settings = support.botSettings(bot);
-        if (settings.isEmpty()) {
-            return true;
-        }
-        Object llm = settings.get().get("llm_settings");
-        if (!(llm instanceof Map<?, ?>)) {
-            throw new IllegalArgumentException("llm_settings");
-        }
-        Map<String, Object> map = Maps.map(llm);
-        if (!map.containsKey("enable_faq")) {
-            throw new IllegalArgumentException("enable_faq");
-        }
-        return Maps.isEmpty(map.get("enable_faq"));
-    }
-
     private boolean trainingNeeded(String bot, String collection) {
         for (Document document : support.catalog().findByBot("cognition_schema", bot)) {
             if (collection != null && collection.equals(document.get("collection_name"))) {
@@ -134,35 +115,5 @@ public class DatabaseAction implements KaironAction {
             }
         }
         throw new ActionFailure("Cognition schema not found");
-    }
-
-    private Map<String, Object> payload(Object spec, ActionContext context) {
-        Map<String, Object> request = new LinkedHashMap<>();
-        for (Map<String, Object> item : Maps.mapList(spec)) {
-            Object value;
-            if ("from_slot".equals(item.get("type"))) {
-                value = context.tracker.slotValue(Maps.str(item.get("value")));
-            } else if ("from_user_message".equals(item.get("type"))) {
-                value = context.tracker.userText();
-            } else {
-                value = item.get("value");
-            }
-            if ("payload_search".equals(item.get("query_type"))) {
-                if (value instanceof String text) {
-                    Object parsed = Jsons.readAny(text);
-                    if (!(parsed instanceof Map<?, ?>) && !(parsed instanceof java.util.List<?>)) {
-                        throw new ActionFailure("Error converting payload to JSON: " + value);
-                    }
-                    request.put("payload_search", parsed);
-                } else {
-                    request.put("payload_search", value);
-                }
-            } else if (!request.containsKey("embedding_search")) {
-                request.put("embedding_search", value);
-            } else {
-                request.put("embedding_search", request.get("embedding_search") + " " + value);
-            }
-        }
-        return request;
     }
 }
