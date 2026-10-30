@@ -74,6 +74,74 @@ public class MongoActionCatalog implements ActionCatalog {
     }
 
     @Override
+    public Optional<Document> findLlmSecret(String bot, String llmType) {
+        Document found = collection(LLM_SECRET).find(llmSecretQuery(bot, llmType)).first();
+        if (found == null) {
+            found = collection(LLM_SECRET).find(globalLlmSecretQuery(llmType)).first();
+        }
+        return Optional.ofNullable(found);
+    }
+
+    @Override
+    public Optional<Document> findLlmModel(String bot, String llmType, String model) {
+        Document found = collection(LLM_SECRET).find(llmModelQuery(bot, llmType, model)).first();
+        if (found == null) {
+            found = collection(LLM_SECRET).find(globalLlmModelQuery(llmType, model)).first();
+        }
+        return Optional.ofNullable(found);
+    }
+
+    @Override
+    public Optional<Document> findCognitionSchema(String bot, String collectionName) {
+        return Optional.ofNullable(collection(COGNITION_SCHEMA).find(cognitionSchemaQuery(bot, collectionName)).first());
+    }
+
+    @Override
+    public List<Document> findCognitionData(String bot, String collectionName, List<AttrFilter> filters, int limit) {
+        if (limit <= 0) {
+            return new ArrayList<>();
+        }
+        return collection(COGNITION_DATA).find(cognitionDataQuery(bot, collectionName, filters))
+                .limit(limit)
+                .into(new ArrayList<>());
+    }
+
+    static Bson llmSecretQuery(String bot, String llmType) {
+        return Filters.and(Filters.eq("bot", bot), Filters.eq("llm_type", llmType));
+    }
+
+    static Bson globalLlmSecretQuery(String llmType) {
+        return Filters.and(Filters.eq("llm_type", llmType), Filters.exists("bot", false));
+    }
+
+    static Bson llmModelQuery(String bot, String llmType, String model) {
+        return Filters.and(Filters.eq("bot", bot), Filters.eq("llm_type", llmType), Filters.in("models", model));
+    }
+
+    static Bson globalLlmModelQuery(String llmType, String model) {
+        return Filters.and(Filters.eq("llm_type", llmType), Filters.exists("bot", false), Filters.in("models", model));
+    }
+
+    static Bson cognitionSchemaQuery(String bot, String collectionName) {
+        return Filters.and(Filters.eq("bot", bot), Filters.eq("collection_name", collectionName));
+    }
+
+    static Bson cognitionDataQuery(String bot, String collectionName, List<AttrFilter> filters) {
+        List<Bson> clauses = new ArrayList<>();
+        clauses.add(Filters.eq("bot", bot));
+        clauses.add(Filters.eq("collection_name", lower(collectionName)));
+        for (AttrFilter filter : filters == null ? List.<AttrFilter>of() : filters) {
+            clauses.add(Filters.elemMatch("filterable_attrs",
+                    new Document("k", filter.key()).append("v", filter.value())));
+        }
+        return Filters.and(clauses);
+    }
+
+    static String lower(String name) {
+        return name == null ? null : name.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    @Override
     public Document insert(String collection, Document document) {
         if (document.get("_id") == null) {
             document.put("_id", new ObjectId());

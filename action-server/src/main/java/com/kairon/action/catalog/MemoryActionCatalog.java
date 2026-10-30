@@ -64,6 +64,92 @@ public class MemoryActionCatalog implements ActionCatalog {
         return matches;
     }
 
+    @Override
+    public Optional<Document> findLlmSecret(String bot, String llmType) {
+        return firstSecret(document -> java.util.Objects.equals(bot, str(document.get("bot")))
+                        && java.util.Objects.equals(llmType, str(document.get("llm_type"))))
+                .or(() -> firstSecret(document -> !document.containsKey("bot")
+                        && java.util.Objects.equals(llmType, str(document.get("llm_type")))));
+    }
+
+    @Override
+    public Optional<Document> findLlmModel(String bot, String llmType, String model) {
+        return findLlmModelWhere(document -> java.util.Objects.equals(bot, str(document.get("bot"))), llmType, model)
+                .or(() -> findLlmModelWhere(document -> !document.containsKey("bot"), llmType, model));
+    }
+
+    private Optional<Document> findLlmModelWhere(java.util.function.Predicate<Document> owner, String llmType, String model) {
+        return firstSecret(document -> owner.test(document)
+                && java.util.Objects.equals(llmType, str(document.get("llm_type")))
+                && document.get("models") instanceof List<?> models
+                && models.stream().anyMatch(item -> java.util.Objects.equals(model, str(item))));
+    }
+
+    private Optional<Document> firstSecret(java.util.function.Predicate<Document> match) {
+        for (Document document : snapshot(LLM_SECRET)) {
+            if (match.test(document)) {
+                return Optional.of(deepCopy(document));
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Document> findCognitionSchema(String bot, String collectionName) {
+        for (Document document : snapshot(COGNITION_SCHEMA)) {
+            if (java.util.Objects.equals(bot, str(document.get("bot")))
+                    && java.util.Objects.equals(collectionName, str(document.get("collection_name")))) {
+                return Optional.of(deepCopy(document));
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<Document> findCognitionData(String bot, String collectionName, List<AttrFilter> filters, int limit) {
+        List<Document> matches = new ArrayList<>();
+        String name = collectionName == null ? null : collectionName.toLowerCase(java.util.Locale.ROOT);
+        List<AttrFilter> wanted = filters == null ? List.of() : filters;
+        for (Document document : snapshot(COGNITION_DATA)) {
+            if (matches.size() >= limit) {
+                break;
+            }
+            if (java.util.Objects.equals(bot, str(document.get("bot")))
+                    && java.util.Objects.equals(name, str(document.get("collection_name")))
+                    && wanted.stream().allMatch(filter -> hasAttr(document.get("filterable_attrs"), filter))) {
+                matches.add(deepCopy(document));
+            }
+        }
+        return matches;
+    }
+
+    /** {@code filterable_attrs: {$elemMatch: {k, v}}}: one element carries both the key and the value. */
+    private static boolean hasAttr(Object attrs, AttrFilter filter) {
+        if (!(attrs instanceof List<?> list)) {
+            return false;
+        }
+        for (Object item : list) {
+            if (item instanceof java.util.Map<?, ?> element
+                    && java.util.Objects.equals(filter.key(), element.get("k"))
+                    && mongoEquals(element.get("v"), filter.value())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** BSON equality: numbers compare by value across int/long/double; other types must be equal. */
+    private static boolean mongoEquals(Object stored, Object wanted) {
+        if (stored instanceof Number left && wanted instanceof Number right) {
+            try {
+                return new java.math.BigDecimal(left.toString()).compareTo(new java.math.BigDecimal(right.toString())) == 0;
+            } catch (NumberFormatException nonFinite) {
+                return Double.compare(left.doubleValue(), right.doubleValue()) == 0;
+            }
+        }
+        return java.util.Objects.equals(stored, wanted);
+    }
+
     /**
      * In-memory stand-in for the Mongo {@code $text} search (indexed field: {@code text}).
      * Approximation: lowercase tokens split on non-letter/digit characters, a small English stop-word list,

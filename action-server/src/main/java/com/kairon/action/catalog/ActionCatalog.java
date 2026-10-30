@@ -7,6 +7,41 @@ import java.util.Optional;
 
 public interface ActionCatalog {
 
+    /** mongoengine collection of LLMSecret. */
+    String LLM_SECRET = "l_l_m_secret";
+
+    /** mongoengine collection of CognitionSchema. */
+    String COGNITION_SCHEMA = "cognition_schema";
+
+    /** mongoengine collection of CollectionData (crud prompt source records). */
+    String COGNITION_DATA = "collection_data";
+
+    /** One {@code filterable_attrs} element match {@code {k: key, v: value}}. */
+    record AttrFilter(String key, Object value) {
+    }
+
+    /**
+     * Sysadmin.get_llm_secret lookup: the LLMSecret with {@code {bot, llm_type}}, else the global one
+     * ({@code llm_type} with no {@code bot} field). Raw document; decryption is the caller's job.
+     */
+    Optional<Document> findLlmSecret(String bot, String llmType);
+
+    /**
+     * Sysadmin.check_llm_model_exists lookup: the LLMSecret with {@code {bot, llm_type, models contains model}},
+     * else the global one with no {@code bot} field.
+     */
+    Optional<Document> findLlmModel(String bot, String llmType, String model);
+
+    /** CognitionSchema.objects(bot=bot, collection_name=name).first(), name used verbatim. */
+    Optional<Document> findCognitionSchema(String bot, String collectionName);
+
+    /**
+     * DataProcessor.get_collection_data query: CollectionData of {@code bot} and the lowercased
+     * {@code collectionName}, ANDing one {@code filterable_attrs $elemMatch {k, v}} per filter, at most
+     * {@code limit} documents. Callers drop falsy pairs before calling.
+     */
+    List<Document> findCognitionData(String bot, String collectionName, List<AttrFilter> filters, int limit);
+
     Optional<Document> findActive(String collection, String bot, String nameField, String value);
 
     List<Document> findAllActive(String collection, String bot, String nameField, String value);
