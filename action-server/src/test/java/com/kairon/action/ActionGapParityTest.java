@@ -326,6 +326,123 @@ class ActionGapParityTest {
         assertNull(log.get("payload"));
     }
 
+    private static List<String> logKeys(Document log) {
+        return log.keySet().stream().filter(key -> !"_id".equals(key)).toList();
+    }
+
+    /** T-124: success log = non-null declared fields in R4 order, then config, payload, response, user_msg. */
+    @Test
+    void databaseActionSuccessLogKeyOrder() {
+        registerDatabase("ok_order", "qdrant");
+        cognitionSchema("faq", true);
+        llmSecret("openai", "sk-openai");
+        kit.pathBody(embedPath("openai"), "[[0.1]]");
+        kit.pathBody(dbQueryPath("faq"), DB_POINTS);
+        Map<String, Object> body = kit.ok("ok_order", kit.slots(), kit.latest("what is kanban"));
+        assertEquals("done", kit.text(body));
+        Document log = kit.log("ok_order");
+        assertEquals(List.of("type", "intent", "action", "sender", "bot_response", "messages", "bot", "timestamp",
+                "status", "trigger_info", "request_id", "config", "payload", "response", "user_msg"), logKeys(log));
+        assertEquals("done", log.get("bot_response"));
+        assertEquals("what is kanban", log.get("user_msg"));
+        assertFalse(log.containsKey("exception"), "declared null exception omitted");
+    }
+
+    /**
+     * T-124: falsy bot_response (failure_response "") is omitted (declared); payload/response stay null (dynamic);
+     * dispatch still utters the failure text.
+     */
+    @Test
+    void databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("empty_fail", "database_action");
+        kit.put("database_action", kit.doc("bot", kit.bot, "name", "empty_fail", "status", true,
+                "db_type", "mongo", "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "done", "evaluation_type", "expression"),
+                "set_slots", List.of(), "failure_response", ""));
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("empty_fail", kit.slots(), kit.latest("q"));
+        assertEquals("", kit.text(body));
+        assertEquals("", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        Document log = kit.log("empty_fail");
+        assertEquals(List.of("type", "intent", "action", "sender", "exception", "messages", "bot", "timestamp",
+                "status", "trigger_info", "request_id", "config", "payload", "response", "user_msg"), logKeys(log));
+        assertTrue(log.containsKey("payload") && log.get("payload") == null);
+        assertTrue(log.containsKey("response") && log.get("response") == null);
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+    }
+
+    /** T-124: missing response / failure_response take mongoengine defaults (dispatch true, default failure text). */
+    @Test
+    void databaseActionMissingResponseConfigUsesDefaults() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("no_resp", "database_action");
+        kit.put("database_action", kit.doc("bot", kit.bot, "name", "no_resp", "status", true,
+                "db_type", "mongo", "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search"))));
+        Map<String, Object> body = kit.ok("no_resp", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.FAILED_DOT, kit.text(body));
+        Document log = kit.log("no_resp");
+        assertEquals("Database not yet implemented!", log.get("exception"));
+        assertEquals(Kairon.FAILED_DOT, log.get("bot_response"));
+    }
+
+    /** T-124: response without dispatch / failure_response null -> dispatch true, default failure text. */
+    @Test
+    void databaseActionResponseWithoutDispatchDispatchesByDefault() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("no_disp", "database_action");
+        Document config = kit.doc("bot", kit.bot, "name", "no_disp", "status", true,
+                "db_type", "mongo", "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("value", "done"));
+        config.put("failure_response", null);
+        kit.put("database_action", config);
+        Map<String, Object> body = kit.ok("no_disp", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.FAILED_DOT, kit.text(body));
+        assertEquals(Kairon.FAILED_DOT, kit.log("no_disp").get("bot_response"));
+    }
+
+    /** T-124: dispatch false -> nothing uttered on failure. */
+    @Test
+    void databaseActionDispatchFalseUttersNothing() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("silent", "database_action");
+        kit.put("database_action", kit.doc("bot", kit.bot, "name", "silent", "status", true,
+                "db_type", "mongo", "collection", "faq",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
+                "response", kit.doc("dispatch", false, "value", "done"), "failure_response", "db failed"));
+        Map<String, Object> body = kit.ok("silent", kit.slots(), kit.latest("q"));
+        assertTrue(kit.responses(body).isEmpty(), String.valueOf(body));
+        assertEquals("db failed", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+    }
+
+    /** T-124: FAQ disabled fails before config load: default failure text, not dispatched, failure mail sent. */
+    @Test
+    void databaseActionFaqDisabledSendsFailureMail() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", false)));
+        kit.register("faq_off", "database_action");
+        RecordingFailureMail.CALLS.clear();
+        Map<String, Object> body = kit.ok("faq_off", kit.slots(), kit.latest("q"));
+        assertTrue(kit.responses(body).isEmpty(), String.valueOf(body));
+        assertEquals(Kairon.FAILED_DOT, kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        Document log = kit.log("faq_off");
+        assertEquals(Kairon.FAQ_DISABLED, log.get("exception"));
+        assertEquals(Kairon.FAILED_DOT, log.get("bot_response"));
+        assertTrue(log.containsKey("config") && log.get("config") == null);
+        assertEquals(List.of("type", "intent", "action", "sender", "bot_response", "exception", "messages", "bot",
+                "timestamp", "status", "trigger_info", "request_id", "config", "payload", "response", "user_msg"),
+                logKeys(log));
+        assertEquals(1, RecordingFailureMail.CALLS.size());
+        assertEquals("faq_off", RecordingFailureMail.CALLS.get(0).action());
+    }
+
     // ---- T-028: kairon_bot_response never rephrases ----
 
     @Test
