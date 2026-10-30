@@ -18,6 +18,9 @@ dependencies {
     runtimeOnly("org.yaml:snakeyaml")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("org.eclipse.angus:angus-mail")
+    // cl100k_base tokenizer for embedding-input truncation (llm-vector-clients R1). Pinned; 1.1.0 released
+    // 2024-07-19, no transitive deps, no OSV advisories as of 2026-10-30 (config-and-deploy R5 review).
+    implementation("com.knuddels:jtokkit:1.1.0")
     testAnnotationProcessor("io.micronaut:micronaut-inject-java")
     testImplementation("io.micronaut.test:micronaut-test-junit5")
     testImplementation("com.icegreen:greenmail:2.1.5")
