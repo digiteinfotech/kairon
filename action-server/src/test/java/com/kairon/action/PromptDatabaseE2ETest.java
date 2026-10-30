@@ -275,6 +275,8 @@ class PromptDatabaseE2ETest {
         assertTrue(indexOf(hits("/mock").get(0)) < embedAt, "nested action runs while params are built");
         assertTrue(embedAt < indexOf(kbSearch.get(0)) && embedAt < indexOf(defaultSearch.get(0)));
         assertTrue(Math.max(indexOf(kbSearch.get(0)), indexOf(defaultSearch.get(0))) < indexOf(completions.get(0)));
+        assertTrue(ParityKit.HITS.stream().filter(hit -> !hit.path().equals("/mock"))
+                .allMatch(hit -> "POST".equals(hit.method())), "LLM server and Qdrant calls are POSTs");
         // both searches were in flight at the same time (barrier released only when both arrived)
         assertEquals(0, ParityKit.barrier.timeouts().get(), "similarity searches did not overlap");
 
@@ -506,6 +508,7 @@ class PromptDatabaseE2ETest {
         openaiSecret(List.of("gpt-4o-mini"));
         llmAndQdrantOk();
         kit.pathStatus(completionPath("openai"), 500);
+        settings.setVectorKey(null);
 
         Map<String, Object> body = postPrompt("kb_500");
         assertEquals(1, kit.responses(body).size());
@@ -525,6 +528,10 @@ class PromptDatabaseE2ETest {
                 log.get("llm_logs"));
         Map<String, Object> llmResponse = asMap(log.get("llm_response"));
         assertEquals(List.of("is_failure", "exception", "content"), keys(llmResponse));
+        assertEquals(true, llmResponse.get("is_failure"));
+        assertEquals("Internal Server Error", llmResponse.get("exception"));
+        assertNull(llmResponse.get("content"));
+        assertTrue(ParityKit.API_KEY_PATHS.isEmpty(), "vector.key unset: searches carry no api-key");
         assertEquals(List.of("m1", "m2"), log.get("media_ids"));
         assertNull(log.get("llm_call_id"));
         assertTrue(RecordingFailureMail.CALLS.isEmpty(), "prediction failure is not an exception: no mail");

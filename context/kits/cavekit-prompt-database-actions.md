@@ -26,16 +26,16 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 ### R2: Prompt assembly
 **Description:** LLM parameters are built from enabled `llm_prompts` in config order.
 **Acceptance Criteria:**
-- [ ] [GAP] Disabled prompts are skipped; enabled prompts are processed in config order
+- [x] Disabled prompts are skipped; enabled prompts are processed in config order (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [ ] [GAP] Each system prompt sets the system prompt to `{data}\n`; the last one wins
 - [ ] [GAP] Query prompts accumulate `{name}:\n{data}\n` plus the instructions block into the query prompt and enable it
 - [ ] [GAP] A `history` source yields the last `num_bot_responses` (default 5) bot turns with their user turns as chat messages, stopping at session start
-- [ ] [GAP] History messages use role `user` for user turns and `assistant` for bot turns, oldest first
-- [ ] [GAP] A `bot_content` source adds a similarity source with its collection, name, instructions, `top_results` (default 10) and `similarity_threshold` (default 0.70)
+- [x] History messages use role `user` for user turns and `assistant` for bot turns, oldest first (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
+- [x] A `bot_content` source adds a similarity source with its collection, name, instructions, `top_results` (default 10) and `similarity_threshold` (default 0.70) (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [ ] [GAP] A `slot` source appends `{name}:\n{slot value}\n`, with a null slot rendered `None`
 - [ ] [GAP] Any other source appends `{name}:\n{data}\n`
 - [ ] [GAP] Context sources with instructions also append `Instructions on how to use {name}:\n{instructions}\n\n`
-- [ ] [GAP] `hyperparameters`, `instructions` and `should_process_media` (from config `process_media`) reach the completion request
+- [x] `hyperparameters`, `instructions` and `should_process_media` (from config `process_media`) reach the completion request (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [ ] [GAP] `user_question` of type `from_slot` uses that slot's value; otherwise the latest user text, where a text starting with `/` is replaced by the `kairon_user_msg` entity value
 **Dependencies:** cavekit-llm-vector-clients.md R2, cavekit-templating-and-secrets.md R7
 
@@ -50,7 +50,7 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] Records are read per collection by lowercased name and bot, ANDing one `filterable_attrs` element match `{key, value}` per truthy pair, limited to `result_limit`
 - [ ] [GAP] Only each record's `data` is used, decrypted when the record `is_secure`
 - [ ] [GAP] Keys and values of different lengths fail with `Keys and values lists must be of the same length.`
-- [ ] [GAP] Each collection appends `Collection data for {name}:\n{Python list repr}\n`
+- [x] Each collection appends `Collection data for {name}:\n{Python list repr}\n` (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [ ] [GAP] After all collections, `Instructions on how to use collection {name}:\n{instructions}\n\n` is appended once when instructions exist
 **Dependencies:** cavekit-templating-and-secrets.md R5, R7
 
@@ -66,13 +66,13 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 ### R5: Prompt execution and output
 **Description:** prompt_action predicts via the LLM clients and reports like Python.
 **Acceptance Criteria:**
-- [ ] [GAP] Cognition handling (cavekit-llm-vector-clients.md R7) runs for a non-default first similarity collection, then the model check (R6) on `hyperparameters.model`, before any LLM call
+- [x] Cognition handling (cavekit-llm-vector-clients.md R7) runs for a non-default first similarity collection, then the model check (R6) on `hyperparameters.model`, before any LLM call (verified: PromptDatabaseE2ETest#promptActionUnknownModelUsesFailureMessageMailsAndSkipsLlm, ActionGapParityTest#promptActionMissingSchemaFailsBeforeLlm, #promptActionUnknownModelFailsBeforeLlm)
 - [ ] [GAP] Prediction uses invocation `prompt_action`, the tracker `media_ids` slot and the first similarity source's collection
 - [x] A prediction result with `is_failure` true sets status `Failed` and `exception` to the result's exception (verified: ActionGapParityTest#promptActionPredictionFailureSetsFailed)
 - [x] Log `events` are `[llm_response, slots_to_fill]` in that order (verified: ActionGapParityTest#promptActionDispatchesResponse)
 - [x] The `llm_response` event has `response`, `llm_response_log` and `time_elapsed`; `slots_to_fill` has `data`, `slot_eval_log` and `time_elapsed` (verified: ActionGapParityTest#promptActionEventsShapeAndTotalElapsed)
 - [ ] [GAP] Slots are filled from context `{data: <content>, context: <tracker context>}`
-- [ ] [GAP] Returned slots include `kairon_action_response` = content and `llm_call_id` = the call id
+- [x] Returned slots include `kairon_action_response` = content and `llm_call_id` = the call id (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [x] On error, `bot_response` is the FAQ-disabled text for that error, else `failure_message`, else the default NLU fallback response (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingSecretFailsBeforeSchemaLookup, #promptActionEmptyFailureMessageUsesDefaultFallback, #promptActionMissingConfigUsesDefaultFallbackAndMails)
 - [x] A failure mail is sent on error except the FAQ-disabled error (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingConfigUsesDefaultFallbackAndMails, #promptActionCrudValueModeBadJsonTakesGenericFailurePath)
 - [x] When `dispatch_response` is true (default), one text message with `bot_response` is uttered with no buttons (verified: ActionGapParityTest#promptActionDispatchesResponse, #promptActionLoggedConfigIsToMongoView (dispatch_response absent), #promptActionDispatchResponseFalseUttersNothing)
@@ -86,13 +86,13 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [x] A missing cognition schema fails before the payload is logged (verified: ActionGapParityTest#databaseActionMissingSchemaFailsBeforePayloadIsLogged)
 - [ ] [GAP] A payload item of type `from_slot` uses the slot value, `from_user_message` the latest text (`/`-prefixed text replaced by the `kairon_user_msg` entity), otherwise `value`
 - [ ] [GAP] A `payload_search` string is parsed as JSON; failure gives `Error converting payload to JSON: {value}`
-- [ ] [GAP] Other query types concatenate their values with a single space under `embedding_search`
+- [x] Other query types concatenate their values with a single space under `embedding_search` (verified: PromptDatabaseE2ETest#databaseActionEmbeddingAndPayloadSearchThroughWebhook)
 - [ ] [GAP] With `training_needed` false, the query uses the openrouter provider and secret (cavekit-llm-vector-clients.md R7)
-- [ ] [GAP] The vector query is sent per cavekit-llm-vector-clients.md R5 and its result composed with context `{data, context}`
+- [x] The vector query is sent per cavekit-llm-vector-clients.md R5 and its result composed with context `{data, context}` (verified: PromptDatabaseE2ETest#databaseActionEmbeddingAndPayloadSearchThroughWebhook, ActionGapParityTest#databaseActionDispatchesResponse)
 - [x] `messages` holds the payload, then the compose log, then the slot-eval log entries (verified: ActionGapParityTest#databaseActionDispatchesResponse)
 - [x] On error, `bot_response` is `failure_response` (default `I have failed to process your request.` when config was not loaded) and a failure mail is sent, including for the FAQ-disabled error (verified: ActionGapParityTest#databaseActionFaqDisabledSendsFailureMail, #databaseActionMissingResponseConfigUsesDefaults, #databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls)
 - [x] When `response.dispatch` is true, `bot_response` is uttered as text, on both success and failure (verified: ActionGapParityTest#databaseActionSuccessLogKeyOrder, #databaseActionResponseWithoutDispatchDispatchesByDefault, #databaseActionDispatchFalseUttersNothing)
-- [ ] [GAP] Returned slots are the filled slots plus `kairon_action_response`
+- [x] Returned slots are the filled slots plus `kairon_action_response` (verified: PromptDatabaseE2ETest#databaseActionEmbeddingAndPayloadSearchThroughWebhook)
 **Dependencies:** R1, cavekit-llm-vector-clients.md R5, R7, cavekit-templating-and-secrets.md R2, cavekit-dispatch-and-logging.md R6, cavekit-outbound-clients.md R5
 
 ### R7: Logging parity, registration and config
