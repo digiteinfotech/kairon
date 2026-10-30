@@ -46,7 +46,7 @@ public class CallbackAction implements KaironAction {
         String callbackUrl = null;
         Object slotName = null;
         String identifier = null;
-        Object metadataLog = null;
+        Object metadataLog = new ArrayList<>();
         String status = Kairon.SUCCESS;
         String exception = null;
         List<String> messages = new ArrayList<>();

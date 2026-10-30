@@ -41,7 +41,7 @@ public class PromptAction implements KaironAction {
         Object llmResponse = null;
         Object recommendations = null;
         Object llmLogs = null;
-        Object mediaIds = context.tracker.slotValue("media_ids");
+        Object mediaIds = null;
         Object callId = null;
         String exception = null;
         String status = Kairon.SUCCESS;
@@ -64,6 +64,8 @@ public class PromptAction implements KaironAction {
             }
             // crud (T-113) and action (T-114) sources register ContextSource hooks here
             PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of());
+            // Python reads media_ids only after config load and llm params, so earlier failures log null
+            mediaIds = context.tracker.slotValue("media_ids");
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("bot", context.bot);
             body.put("user", context.tracker.senderId);
@@ -122,10 +124,10 @@ public class PromptAction implements KaironAction {
             extra.put("llm_response", llmResponse);
             extra.put("kairon_faq_action_config", logConfig(config));
             extra.put("llm_logs", llmLogs);
-            extra.put("llm_call_id", callId);
             extra.put("user_msg", userMessage);
             extra.put("media_ids", mediaIds);
             extra.put("time_elapsed", totalElapsed);
+            extra.put("llm_call_id", callId);
             support.save(context, type(), status, exception, botResponse, extra);
         }
         if (ActionFlags.enabled(config, "dispatch_response")) {

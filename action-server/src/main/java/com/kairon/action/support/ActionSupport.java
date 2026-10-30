@@ -78,6 +78,12 @@ public class ActionSupport {
             "trigger_info", "request_id");
 
     public void save(ActionContext ctx, String type, String status, String exception, Object botResponse, Map<String, Object> extra) {
+        save(ctx, type, status, exception, botResponse, extra, true);
+    }
+
+    /** {@code logUserMsg} false for actions whose Python ActionServerLogs(...) omits user_msg (form_validation). */
+    public void save(ActionContext ctx, String type, String status, String exception, Object botResponse,
+                     Map<String, Object> extra, boolean logUserMsg) {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("type", type);
         values.put("intent", ctx.tracker.intent());
@@ -87,7 +93,9 @@ public class ActionSupport {
         values.put("bot_response", logText(botResponse));
         values.put("bot", ctx.bot);
         values.put("status", status);
-        values.put("user_msg", ctx.tracker.text());
+        if (logUserMsg) {
+            values.put("user_msg", ctx.tracker.text());
+        }
         values.put("trigger_info", triggerInfo(ctx.actionCall.get("trigger_info")));
         values.put("request_id", RequestIds.get());
         if (extra != null) {

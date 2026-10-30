@@ -131,6 +131,11 @@ class ActionGapParityTest {
         assertEquals("call-77", log.get("llm_call_id"));
         assertEquals(List.of("m1"), log.get("media_ids"));
         assertEquals(1.2, ((Number) log.get("time_elapsed")).doubleValue(), 0.0001);
+        // T-112: Python ActionServerLogs(...) keyword order puts llm_call_id after time_elapsed
+        List<String> keys = new java.util.ArrayList<>(log.keySet());
+        keys.remove("_id");
+        assertEquals(List.of("events", "recommendations", "llm_response", "kairon_faq_action_config", "llm_logs",
+                "user_msg", "media_ids", "time_elapsed", "llm_call_id"), keys.subList(keys.size() - 9, keys.size()));
         @SuppressWarnings("unchecked")
         Map<String, Object> loggedConfig = (Map<String, Object>) log.get("kairon_faq_action_config");
         assertFalse(loggedConfig.containsKey("_id"));

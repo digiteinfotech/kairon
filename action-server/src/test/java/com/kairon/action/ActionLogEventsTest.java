@@ -355,6 +355,51 @@ class ActionLogEventsTest {
         assertFalse(keys.contains("exception"));
     }
 
+    /** T-112: Python callback_action initialises metadata_log = [], so a failure before metadata logs []. */
+    @Test
+    void callbackFailureLogsEmptyMetadataList() {
+        kit.register("ping_missing", "callback_action");
+        kit.ok("ping_missing");
+        Document log = kit.log("ping_missing");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(log.containsKey("metadata"));
+        assertEquals(List.of(), log.get("metadata"));
+    }
+
+    /** T-112: Python schedule action initialises schedule_data_log = {}, so a failure before data logs {}. */
+    @Test
+    void scheduleFailureLogsEmptyDataMap() {
+        kit.register("sched_missing", "schedule_action");
+        kit.ok("sched_missing");
+        Document log = kit.log("sched_missing");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(log.containsKey("data"));
+        assertEquals(Map.of(), log.get("data"));
+    }
+
+    /** T-112: Python form_validation ActionServerLogs(...) never passes user_msg. */
+    @Test
+    void formValidationLogHasNoUserMsg() {
+        kit.register("validate_form", "form_validation_action");
+        kit.ok("validate_form", kit.slots("requested_slot", "age", "age", 10), kit.latest("ten"));
+        Document log = kit.log("validate_form");
+        assertEquals("form_validation_action", log.get("type"));
+        assertFalse(log.containsKey("user_msg"), log.toJson());
+    }
+
+    /** T-112: Python prompt action reads media_ids only after config load, so a FAQ-gate failure logs null. */
+    @Test
+    void promptFaqDisabledLogsNullMediaIds() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", false)));
+        kit.register("ask_llm", "prompt_action");
+        kit.ok("ask_llm", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
+        Document log = kit.log("ask_llm");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(log.containsKey("media_ids"));
+        assertNull(log.get("media_ids"));
+    }
+
     /** gap #1: Python CallbackData has FloatField timestamp, state=0, execution_mode="async". */
     @Test
     void callbackDataRecordMatchesPythonModelTypes() {
