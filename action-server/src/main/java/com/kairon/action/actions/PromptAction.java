@@ -1,6 +1,7 @@
 package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
+import com.kairon.action.actions.prompt.CrudSource;
 import com.kairon.action.actions.prompt.PromptParams;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.ActionFailure;
@@ -63,7 +64,7 @@ public class PromptAction implements KaironAction {
                 throw new ActionFailure("llm url is not configured");
             }
             // crud (T-113) and action (T-114) sources register ContextSource hooks here
-            PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of());
+            PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of("crud", new CrudSource(support.catalog(), support.tokens(), context.bot, context.tracker)));
             // Python reads media_ids only after config load and llm params, so earlier failures log null
             mediaIds = context.tracker.slotValue("media_ids");
             Map<String, Object> body = new LinkedHashMap<>();

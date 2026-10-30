@@ -695,7 +695,7 @@ public class ActionSupport {
      * non-JSON text ("Expecting value") and trailing data ("Extra data"); a malformed document that starts
      * like JSON is reported as "Expecting value" at the parser's error offset (best effort).
      */
-    static String pythonJsonError(String text) {
+    public static String pythonJsonError(String text) {
         int start = skipWhitespace(text, 0);
         if (start >= text.length()) {
             return jsonError("Expecting value", text, start);
