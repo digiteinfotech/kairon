@@ -45,3 +45,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 1 — 2026-10-30
 - T-100..T-106: DONE (tier 0, 4 packets, merged 3188a78f). Files: ActionSettings, application.yml, catalog/*, TokenTruncator, ActionSupport.logRecord, FaqGate, DbPayload, PromptParams + tests. Build P, full suite P (0 fail). Next: tier 1 T-107..T-112. Open: T-112 review of other actions' null extras; Mongo live contract run; tier-gate review pending.
+
+### Iteration (llm-prompt-db) 2 — 2026-10-30
+- T-107..T-112: DONE (tier 1, 4 packets, merged). Build P, full suite P (0 fail). Open: kit conflict LLM R3 c4 vs outbound R1 (404 phrase); tier 1 gate pending. Next: tier 2 T-113..T-115 after gate.

@@ -15,7 +15,13 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-104 | DONE | FaqGate: missing bot_settings/llm_settings/enable_faq = FAQ disabled (Python defaults). |
 | T-105 | DONE | PromptParams extracted; num_bot_responses default 5; ContextSource hook for crud/action (T-113/T-114). |
 | T-106 | DONE | DbPayload extracted; scalar payload_search accepted, Python str() concat and TypeError text. |
-| T-107..T-127 | TODO | tiers 1-9 |
+| T-107 | DONE | CONFIG.md rows; legacy llm-url/vector-url yml lines moved below new keys (T-126 deletes them + getters). |
+| T-108 | DONE | LlmHttp (headers, llm timeout, 1 attempt, status phrases). Kit conflict: LLM R3 c4 says 404 -> 'Not Found' but Python's RetryClient(raise_for_status) path may yield 'Internal Server Error' for any non-2xx (outbound-clients R1 GAP). Reconcile kits before T-116. |
+| T-109 | DONE | LlmSecrets; cross-language Fernet test passes. API: secret, checkModel, embeddingSecret, usesDefaultEmbeddingSecret. |
+| T-110 | DONE | QdrantClient.search (5s, api-key only when set, urljoin drops base path). Rendering/concurrency left to T-119. Non-2xx/non-JSON texts approximated. |
+| T-111 | DONE | prompt never dispatches buttons. |
+| T-112 | DONE | form_validation no user_msg; callback metadata []; schedule data {}; prompt extras order + media_ids after config load (T-123: keep after model check). |
+| T-113..T-127 | TODO | tiers 2-9 |
 
 ## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
 Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / follow-ups:
