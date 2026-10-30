@@ -59,7 +59,7 @@ public class ScheduleAction implements KaironAction {
         Object scheduleTime = null;
         Object timezone = null;
         Object executionInfo = null;
-        Object dataLog = null;
+        Object dataLog = new LinkedHashMap<>();
         try {
             Document config = support.require("schedule_action", context.bot, "name", context.actionName,
                     "No Schedule action found for given action and bot");

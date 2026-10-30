@@ -89,7 +89,9 @@ public class FormValidationAction implements KaironAction {
         } finally {
             ActionContext logged = new ActionContext(context.bot, context.tracker.followupAction, context.tracker,
                     context.dispatcher, context.domain, context.actionCall);
-            support.save(logged, type(), status, failure == null ? null : failure.getMessage(), null, Maps.of("messages", messages));
+            // Python form_validation ActionServerLogs(...) never passes user_msg
+            support.save(logged, type(), status, failure == null ? null : failure.getMessage(), null,
+                    Maps.of("messages", messages), false);
         }
         if (failure != null && !(failure instanceof ActionFailure && failure.getMessage() != null && failure.getMessage().startsWith("Skipping"))) {
             throw failure;

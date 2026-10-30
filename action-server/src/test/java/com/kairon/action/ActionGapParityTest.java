@@ -117,7 +117,8 @@ class ActionGapParityTest {
 
         Map<String, Object> body = kit.ok("ask_llm", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
         assertEquals("llm-answer", kit.text(body));
-        assertEquals(1, ((List<?>) kit.responses(body).get(0).get("buttons")).size());
+        // T-111: Python never sends recommendation buttons, even when the LLM response carries them
+        assertEquals(List.of(), kit.responses(body).get(0).get("buttons"));
         assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
         ParityKit.Hit llmHit = kit.hitPath("/llm");
         assertTrue(llmHit.body().contains("\"should_process_media\":true"));
@@ -130,6 +131,11 @@ class ActionGapParityTest {
         assertEquals("call-77", log.get("llm_call_id"));
         assertEquals(List.of("m1"), log.get("media_ids"));
         assertEquals(1.2, ((Number) log.get("time_elapsed")).doubleValue(), 0.0001);
+        // T-112: Python ActionServerLogs(...) keyword order puts llm_call_id after time_elapsed
+        List<String> keys = new java.util.ArrayList<>(log.keySet());
+        keys.remove("_id");
+        assertEquals(List.of("events", "recommendations", "llm_response", "kairon_faq_action_config", "llm_logs",
+                "user_msg", "media_ids", "time_elapsed", "llm_call_id"), keys.subList(keys.size() - 9, keys.size()));
         @SuppressWarnings("unchecked")
         Map<String, Object> loggedConfig = (Map<String, Object>) log.get("kairon_faq_action_config");
         assertFalse(loggedConfig.containsKey("_id"));
