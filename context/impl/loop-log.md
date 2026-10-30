@@ -57,3 +57,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 5 — 2026-10-30
 - T-119,T-120: DONE (tier 4, 2 packets, merged). Build P, full suite P (484 tests). Gate for tiers 3+4 pending. Next: T-121, T-122 (tier 5). Also: agent_action parity fixes 772f1f19; second pass found non-dict body repr + falsy output + token claims (deferred).
+
+### Iteration (llm-prompt-db) 6 — 2026-10-30
+- T-121,T-122: DONE (tier 5, 2 packets, merged). Build P, full suite P (495 tests). Tier 3+4 gate PROCEED e43b1c20. Next: tier 5 gate, then T-123 (PromptAction rewrite), T-124 (tier 6).
