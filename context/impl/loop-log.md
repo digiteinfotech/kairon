@@ -48,3 +48,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 2 — 2026-10-30
 - T-107..T-112: DONE (tier 1, 4 packets, merged). Build P, full suite P (0 fail). Open: kit conflict LLM R3 c4 vs outbound R1 (404 phrase); tier 1 gate pending. Next: tier 2 T-113..T-115 after gate.
+
+### Iteration (llm-prompt-db) 3 — 2026-10-30
+- T-113..T-116: DONE (tier 2, 4 packets, merged; PromptAction source-registry conflict resolved by hand). Build P, full suite P (0 fail). Tier 1 gate fix e8f255db (P1 LLM >=400 -> Internal Server Error). Next: tier 2 gate, then tier 3 T-117..T-119.

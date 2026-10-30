@@ -21,7 +21,11 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-110 | DONE | QdrantClient.search (5s, api-key only when set, urljoin drops base path). Rendering/concurrency left to T-119. Non-2xx/non-JSON texts approximated. |
 | T-111 | DONE | prompt never dispatches buttons. |
 | T-112 | DONE | form_validation no user_msg; callback metadata []; schedule data {}; prompt extras order + media_ids after config load (T-123: keep after model check). |
-| T-113..T-127 | TODO | tiers 2-9 |
+| T-113 | DONE | CrudSource (16 tests); ActionSupport.pythonJsonError made public. Bad Fernet token text differs (accepted divergence). |
+| T-114 | DONE | NestedActionSource; ActionContext.succeeded/isSuccess/response + one `context.succeeded(...)` line in Http/GoogleSearch/LiveAgent/Agent/ParallelAction. Not replicated: Python AttributeError when nested type has no is_success (set_slot, email, pyscript...): Java appends nothing - review. |
+| T-115 | DONE | CognitionSchemas (find/forEmbedding/forAction/resolveProvider). T-122/T-123: call secrets.secret(bot,llmType) BEFORE the openrouter swap to keep Python failure order; T-122 replaces DatabaseAction.trainingNeeded with forAction(). |
+| T-116 | DONE | LlmClient.complete + url() helper for T-117 embed. |
+| T-117..T-127 | TODO | tiers 3-9 |
 
 ## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
 Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / follow-ups:
