@@ -44,6 +44,8 @@ final class ParityKit {
     static final ConcurrentHashMap<String, String> PATH_BODIES = new ConcurrentHashMap<>();
     static final ConcurrentHashMap<String, Integer> PATH_STATUS = new ConcurrentHashMap<>();
     static final ConcurrentHashMap<String, String> SCRIPT_BODIES = new ConcurrentHashMap<>();
+    /** Paths of requests that carried an {@code api-key} header (Qdrant auth). */
+    static final List<String> API_KEY_PATHS = new CopyOnWriteArrayList<>();
     static volatile int forcedStatus;
     static volatile String bodyOverride;
 
@@ -85,6 +87,9 @@ final class ParityKit {
             String path = exchange.getRequestURI().getPath();
             String query = exchange.getRequestURI().getRawQuery();
             String method = exchange.getRequestMethod();
+            if (exchange.getRequestHeaders().containsKey("api-key")) {
+                API_KEY_PATHS.add(path);
+            }
             HITS.add(new Hit(method, path, query, exchange.getRequestHeaders().getFirst("Authorization"), body,
                     exchange.getRequestHeaders().getFirst(Kairon.TIMESTAMP)));
             String payload = resolveBody(method, path, body);
@@ -128,6 +133,7 @@ final class ParityKit {
         PATH_BODIES.clear();
         PATH_STATUS.clear();
         SCRIPT_BODIES.clear();
+        API_KEY_PATHS.clear();
         forcedStatus = 0;
         bodyOverride = null;
     }
@@ -146,6 +152,9 @@ final class ParityKit {
         settings.setEvaluatorUrl(STUB + "/eval");
         settings.setLlmUrl(STUB + "/llm");
         settings.setVectorUrl(STUB + "/vector");
+        settings.setVectorDb(STUB);
+        settings.setVectorKey(null);
+        settings.setLlmServerUrl(STUB);
         settings.setEventsServerUrl("http://127.0.0.1:18771");
         settings.setVoiceCallUrl(STUB + "/voice");
         settings.setWebSearchUrl(STUB + "/websearch");

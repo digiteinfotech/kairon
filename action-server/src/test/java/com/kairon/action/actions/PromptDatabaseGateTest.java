@@ -8,7 +8,13 @@ import com.kairon.action.runtime.Dispatcher;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.TrackerState;
 import com.kairon.action.support.ActionSupport;
+import com.kairon.action.support.HttpCaller;
+import com.kairon.action.support.LlmHttp;
 import com.kairon.action.support.Tokens;
+import com.kairon.action.support.llm.CognitionSchemas;
+import com.kairon.action.support.llm.LlmClient;
+import com.kairon.action.support.llm.LlmSecrets;
+import com.kairon.action.support.llm.QdrantClient;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,17 +47,24 @@ class PromptDatabaseGateTest {
 
     SpyCatalog catalog;
     ActionSupport support;
+    DatabaseAction database;
 
     @BeforeEach
     void setUp() {
         ActionSettings settings = new ActionSettings();
         settings.setFernetKey("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
         catalog = new SpyCatalog();
-        support = new ActionSupport(catalog, settings, new Tokens(settings), null);
+        Tokens tokens = new Tokens(settings);
+        support = new ActionSupport(catalog, settings, tokens, null);
+        LlmSecrets secrets = new LlmSecrets(catalog, tokens);
+        CognitionSchemas schemas = new CognitionSchemas(catalog, secrets);
+        HttpCaller http = new HttpCaller(settings);
+        QdrantClient qdrant = new QdrantClient(http, settings, new LlmClient(new LlmHttp(http, settings), settings, schemas));
+        database = new DatabaseAction(support, secrets, schemas, qdrant);
     }
 
     private KaironAction action(String type) {
-        return "prompt_action".equals(type) ? new PromptAction(support) : new DatabaseAction(support);
+        return "prompt_action".equals(type) ? new PromptAction(support) : database;
     }
 
     private Document run(String type, String name) {

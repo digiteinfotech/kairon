@@ -8,6 +8,9 @@ import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
 import com.kairon.action.support.PyRepr;
+import com.kairon.action.support.llm.CognitionSchemas;
+import com.kairon.action.support.llm.LlmSecrets;
+import com.kairon.action.support.llm.QdrantClient;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -18,16 +21,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Posts the vector payload to the configured vector service. Embedding clients stay on that service. */
+/**
+ * database.py {@code ActionDatabase.execute}: FAQ gate, config, db_type, Qdrant/LLMProcessor setup (llm_type
+ * {@code openai} = DEFAULT_LLM, its secret doubles as the embedding secret), cognition schema, openrouter swap when
+ * {@code training_needed} is false, payload, point query (embedding via the LLM server), compose, set_slots.
+ */
 @Singleton
 public class DatabaseAction implements KaironAction {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseAction.class);
 
     private final ActionSupport support;
+    private final LlmSecrets secrets;
+    private final CognitionSchemas schemas;
+    private final QdrantClient qdrant;
 
-    public DatabaseAction(ActionSupport support) {
+    public DatabaseAction(ActionSupport support, LlmSecrets secrets, CognitionSchemas schemas, QdrantClient qdrant) {
         this.support = support;
+        this.secrets = secrets;
+        this.schemas = schemas;
+        this.qdrant = qdrant;
     }
 
     @Override
@@ -61,22 +74,19 @@ public class DatabaseAction implements KaironAction {
             if (!"qdrant".equals(config.get("db_type"))) {
                 throw new ActionFailure("Database not yet implemented!");
             }
-            boolean trainingNeeded = trainingNeeded(context.bot, collection);
+            // Qdrant(...) builds LLMProcessor(bot, DEFAULT_LLM): openai secret loaded here; for openai the
+            // embedding secret is that same secret (LlmSecrets.embeddingSecret).
+            String llmType = LlmSecrets.DEFAULT_LLM;
+            Map<String, String> embeddingSecret = secrets.embeddingSecret(context.bot, llmType);
+            CognitionSchemas.Schema schema = schemas.forAction(context.bot, collection);
+            if (CognitionSchemas.databaseSwapsToOpenrouter(schema)) {
+                llmType = CognitionSchemas.OPENROUTER;
+                embeddingSecret = secrets.secret(context.bot, CognitionSchemas.OPENROUTER);
+            }
             requestBody = DbPayload.build(config.get("payload"), context.tracker);
             messages.add(requestBody);
-            if (Maps.isEmpty(support.settings().getVectorUrl())) {
-                throw new ActionFailure("vector url is not configured");
-            }
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("bot", context.bot);
-            body.put("collection", collection);
-            body.put("collection_name", context.bot + "_" + collection + "_faq_embd");
-            body.put("db_type", config.get("db_type"));
-            body.put("payload", requestBody);
-            body.put("user", context.tracker.senderId);
-            body.put("training_needed", trainingNeeded);
-            response = support.http().executeStrict("POST", support.settings().getVectorUrl(),
-                    Map.of("Content-Type", "application/json"), body, "json");
+            response = qdrant.query(context.bot, collection, requestBody, llmType, embeddingSecret,
+                    context.tracker.senderId);
             Map<String, Object> responseContext = new LinkedHashMap<>();
             responseContext.put("data", response);
             responseContext.put("context", support.context(context.tracker, true));
@@ -105,15 +115,5 @@ public class DatabaseAction implements KaironAction {
         }
         filled.put(Kairon.ACTION_RESPONSE, botResponse);
         return filled;
-    }
-
-    private boolean trainingNeeded(String bot, String collection) {
-        for (Document document : support.catalog().findByBot("cognition_schema", bot)) {
-            if (collection != null && collection.equals(document.get("collection_name"))) {
-                Map<String, Object> metadata = Maps.map(document.get("schema_metadata"));
-                return Maps.truthy(metadata.get("training_needed"));
-            }
-        }
-        throw new ActionFailure(com.kairon.action.support.llm.CognitionSchemas.NOT_FOUND);
     }
 }
