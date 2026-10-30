@@ -113,7 +113,8 @@ class TestActionAgent:
         assert call_kwargs["request_method"] == "POST"
         assert "agents/bot_exec_agent/agent-uuid-123/run/sender_exec/simple" in call_kwargs["http_url"]
         assert call_kwargs["request_body"]["message"] == "hello agent"
-        assert call_kwargs["request_body"]["max_iterations"] == 1
+        assert call_kwargs["request_body"]["max_iterations"] == 5
+        assert call_kwargs["request_body"]["metadata"] == {}
         mock_log.assert_called_once()
         assert result["kairon_action_response"] == "Here is your answer"
         assert any("Here is your answer" in m.get("text", "") for m in dispatcher.messages)
@@ -282,3 +283,50 @@ class TestActionAgent:
                 name="valid_name", agent_name="Agent", agent_id="",
                 bot="bot", user="user"
             ).validate()
+
+
+class TestAgentChatHistory:
+
+    @staticmethod
+    def _tracker(events):
+        tracker = MagicMock()
+        tracker.events = events
+        return tracker
+
+    def test_chat_history_fewer_than_limit_returns_all_without_current_message(self):
+        events = [
+            {"event": "user", "text": "u1"},
+            {"event": "bot", "text": "b1"},
+            {"event": "user", "text": "current"},
+        ]
+        assert ActionAgent._get_chat_history(self._tracker(events)) == [
+            {"role": "user", "content": "u1"},
+            {"role": "assistant", "content": "b1"},
+        ]
+
+    def test_chat_history_more_than_limit_returns_last_five(self):
+        events = []
+        for i in range(6):
+            events += [{"event": "user", "text": f"u{i}"}, {"event": "bot", "text": f"b{i}"}]
+        events.append({"event": "user", "text": "current"})
+        history = ActionAgent._get_chat_history(self._tracker(events))
+        assert len(history) == 5
+        assert history[-1] == {"role": "assistant", "content": "b5"}
+        assert history[0] == {"role": "assistant", "content": "b3"}
+
+    def test_chat_history_ignores_earlier_sessions(self):
+        events = [
+            {"event": "user", "text": "old"},
+            {"event": "session_started"},
+            {"event": "user", "text": "current"},
+        ]
+        assert ActionAgent._get_chat_history(self._tracker(events)) == []
+
+    def test_build_message_without_history_returns_user_message(self):
+        assert ActionAgent._build_message("hi", []) == "hi"
+
+    def test_build_message_prefixes_history(self):
+        history = [{"role": "user", "content": "u1"}, {"role": "assistant", "content": "b1"}]
+        assert ActionAgent._build_message("hi", history) == (
+            "Conversation history:\nuser: u1\nassistant: b1\n\nCurrent message: hi"
+        )
