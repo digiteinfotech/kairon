@@ -17,7 +17,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * T-038 (log record builder), T-037 (bot_response repr), T-036 (template dict rendering),
@@ -34,7 +36,7 @@ class LogRecordTest {
     }
 
     @Test
-    void declaredFieldsFirstInDeclarationOrderThenDynamicNullsOmitted() {
+    void declaredFieldsFirstInDeclarationOrderThenDynamicNullsKept() {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("user_msg", "hi");
         values.put("request_id", "rid-1");
@@ -52,12 +54,33 @@ class LogRecordTest {
         values.put("headers", Map.of());
         Document record = ActionSupport.logRecord(values);
         assertEquals(List.of("type", "intent", "action", "sender", "headers", "url", "exception", "bot", "timestamp",
-                "status", "trigger_info", "request_id", "user_msg", "http_status_code"), new ArrayList<>(record.keySet()));
+                "status", "trigger_info", "request_id", "user_msg", "fail_reason", "http_status_code"),
+                new ArrayList<>(record.keySet()));
         assertInstanceOf(Date.class, record.get("timestamp"));
         assertEquals(new Document("trigger_name", "").append("trigger_type", "implicit").append("trigger_id", ""),
                 record.get("trigger_info"));
+        // mongoengine: declared fields (null=False) drop None; dynamic kwargs become DynamicField(null=True) and keep it.
         assertFalse(record.containsKey("bot_response"));
-        assertFalse(record.containsKey("fail_reason"));
+        assertTrue(record.containsKey("fail_reason"));
+        assertNull(record.get("fail_reason"));
+    }
+
+    @Test
+    void dynamicNullsKeptForDatabaseAndPromptExtras() {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("type", "database_action");
+        values.put("bot_response", null);
+        values.put("exception", null);
+        values.put("config", Map.of("name", "db"));
+        values.put("payload", null);
+        values.put("response", null);
+        values.put("recommendations", null);
+        Document record = ActionSupport.logRecord(values);
+        assertEquals(List.of("type", "timestamp", "status", "trigger_info", "config", "payload", "response",
+                "recommendations"), new ArrayList<>(record.keySet()));
+        assertNull(record.get("payload"));
+        assertNull(record.get("response"));
+        assertNull(record.get("recommendations"));
     }
 
     @Test
