@@ -30,7 +30,7 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-119 | DONE | SimilarityContext.attach/render (7 tests; latch proves concurrency); StubServer.startConcurrent added; virtual thread per search (like ParallelAction); first failure in config order raised (Python: first in time). |
 | T-120 | DONE | QdrantClient.query(bot, collection, payload, llmType, embeddingSecret, user); 3-arg @Inject ctor; no api-key; c8 error text is 'Failed to execute the url: Got non-200 status code: ...' - kit c8 should say 'contains'. |
 | T-121 | DONE | LlmProcessor.predict(AnswerParams, collection, similarityPrompts, embeddingSecret, logs) -> Prediction(response, elapsedSeconds); caller owns logs list -> llm_logs; failure log: completions appended then one error entry; non-list embedding response passes null vector (divergence). |
-| T-122 | DONE | DatabaseAction rewritten: llm_type is always 'openai' (Python Qdrant.__init__ LLMProcessor(bot, DEFAULT_LLM)); order FAQ->config->db_type->openai embedding secret->schema->swap(databaseSwapsToOpenrouter inline)->payload->query. Old vector-url POST removed. Open: missing `dispatch` key throws IllegalArgumentException('dispatch') vs Python KeyError "'dispatch'" (T-124); expression composer lacks `[0]` indexing (outside scope). T-126 deletes vector-url key/setter and ParityKit /vector default. |
+| T-122 | DONE | DatabaseAction rewritten: llm_type is always 'openai' (Python Qdrant.__init__ LLMProcessor(bot, DEFAULT_LLM)); order FAQ->config->db_type->openai embedding secret->schema->swap(databaseSwapsToOpenrouter inline)->payload->query. Old vector-url POST removed. Open (corrected by gate): a missing `dispatch`/`failure_response` is NOT a KeyError in Python - to_mongo() fills mongoengine defaults (dispatch True, failure text 'I have failed to process your request.'); Java throws IllegalArgumentException('dispatch') (T-124 must default instead; HttpAction:64 has the same issue); expression composer lacks `[0]` indexing (outside scope). T-126 deletes vector-url key/setter and ParityKit /vector default. |
 | T-123..T-127 | TODO | tiers 6-9 |
 
 ## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
@@ -57,3 +57,9 @@ Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / 
 
 ## Tier 3+4 gate (inspector, 2026-10-30): PROCEED (0 P0/P1/P2, 6 P3)
 Kit R5 c7/c8 wording fixed. Open P3: SimilarityContext.join should unwrap Error causes; LlmClient joinInstructions/perplexity accept invalid inputs Python rejects (T-121 must pass lists); StubServer.startConcurrent executor never shut down (shutdownNow in close()); 2-arg LlmClient/QdrantClient ctors could be package-private.
+
+## Tier 5 gate (inspector, 2026-10-30): PROCEED (0 P0/P1, 2 P2, 6 P3)
+- P2 for T-124: DatabaseAction missing dispatch/failure_response -> mongoengine defaults (dispatch true, 'I have failed to process your request.'); HttpAction:64 same issue (separate follow-up).
+- P2 for T-124: database log dynamic order must be config, payload, response, user_msg (re-put user_msg in extras after response, add order assertion).
+- P3 for T-123 (owns LlmProcessor edits): catch Exception (+StackOverflowError) in predict; null query fails at embedding stage ('NoneType' object is not iterable) instead of text "None"; LOG.error with the exception (no secrets in messages).
+- P3 T-126: delete vector-url leftovers (ActionSettings:41,105; application.yml:53; ParityKit:154,440; ReplayEndpoints:48; application-test.yml:23). Tick kit R8 c1-c6 and prompt-db R6 c4/c5 with test names at the end.
