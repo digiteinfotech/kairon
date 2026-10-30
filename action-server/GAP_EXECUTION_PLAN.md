@@ -50,7 +50,7 @@ Read-only comparison of `kairon/actions/definitions/{prompt,database}.py` vs Jav
 | P2 | database `payload_search` edge cases: scalar JSON rejected, null concat gives "x null" (Python TypeError) |
 | P3 | database log key order (Python: config, payload, response, user_msg; Java user_msg first); missing-schema error text; missing `bot_settings` treated as disabled (Python default `enable_faq` unverified) |
 
-**Decision needed:** call real services (Qdrant + LLM server) like Python, or keep the adapter and write its contract spec. This sets the scope of every P1 above.
+**Decision (2026-10-30): call real services (Qdrant + LLM server) like Python.** Implemented by context/plans/build-site-llm-prompt-db.md (T-100..T-127); the adapter (`/llm`, `/vector`) and its settings are removed. The P1/P2 rows above marked as adapter/contract gaps are superseded by kits `llm-vector-clients` and `prompt-database-actions`.
 
 ## agent_action parity after master 4f0a2fd5 (2026-10-30)
 
