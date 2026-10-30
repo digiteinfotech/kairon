@@ -12,6 +12,7 @@ import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
 import com.kairon.action.support.Tokens;
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.micronaut.runtime.server.EmbeddedServer;
 import org.bson.Document;
@@ -28,6 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,6 +49,8 @@ final class ParityKit {
     static final ConcurrentHashMap<String, String> PATH_BODIES = new ConcurrentHashMap<>();
     static final ConcurrentHashMap<String, Integer> PATH_STATUS = new ConcurrentHashMap<>();
     static final ConcurrentHashMap<String, String> SCRIPT_BODIES = new ConcurrentHashMap<>();
+    /** Per-path reply sequences (exact path): each request takes the next body, the last one repeats. */
+    static final ConcurrentHashMap<String, java.util.Deque<String>> PATH_SEQUENCES = new ConcurrentHashMap<>();
     /** Paths of requests that carried an {@code api-key} header (Qdrant auth). */
     static final List<String> API_KEY_PATHS = new CopyOnWriteArrayList<>();
     static volatile int forcedStatus;
@@ -52,6 +59,39 @@ final class ParityKit {
     private static HttpServer stub;
     private static HttpServer events;
     static int eventsPort;
+    /**
+     * Same handler and shared state as {@link #STUB}, but served on a thread pool so concurrent clients overlap
+     * (the default stub handles one exchange at a time). Use with {@link #barrier} to prove concurrency.
+     */
+    private static HttpServer concurrentStub;
+    static String concurrentStubUrl;
+    /** When set, matching requests on the concurrent stub wait for each other before replying. */
+    static volatile Barrier barrier;
+
+    /**
+     * Requests whose path ends with {@code suffix} count down {@code latch} and then wait (up to 3 s) for it to reach
+     * zero; a request that gives up is counted in {@code timeouts}. Zero timeouts proves the requests overlapped.
+     */
+    record Barrier(String suffix, CountDownLatch latch, AtomicInteger timeouts) {
+        static Barrier of(String suffix, int parties) {
+            return new Barrier(suffix, new CountDownLatch(parties), new AtomicInteger());
+        }
+
+        void await(String path) {
+            if (!path.endsWith(suffix)) {
+                return;
+            }
+            latch.countDown();
+            try {
+                if (!latch.await(3, TimeUnit.SECONDS)) {
+                    timeouts.incrementAndGet();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                timeouts.incrementAndGet();
+            }
+        }
+    }
 
     final EmbeddedServer server;
     final MemoryActionCatalog catalog;
@@ -81,26 +121,19 @@ final class ParityKit {
 
     static void startServers() throws Exception {
         stub = HttpServer.create(new InetSocketAddress("127.0.0.1", 18780), 0);
-        stub.createContext("/", exchange -> {
-            byte[] raw = exchange.getRequestBody().readAllBytes();
-            String body = new String(raw, StandardCharsets.UTF_8);
-            String path = exchange.getRequestURI().getPath();
-            String query = exchange.getRequestURI().getRawQuery();
-            String method = exchange.getRequestMethod();
-            if (exchange.getRequestHeaders().containsKey("api-key")) {
-                API_KEY_PATHS.add(path);
-            }
-            HITS.add(new Hit(method, path, query, exchange.getRequestHeaders().getFirst("Authorization"), body,
-                    exchange.getRequestHeaders().getFirst(Kairon.TIMESTAMP)));
-            String payload = resolveBody(method, path, body);
-            int status = resolveStatus(path);
-            byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(status, bytes.length);
-            exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
+        stub.createContext("/", ParityKit::handle);
         stub.start();
+        concurrentStub = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        concurrentStub.setExecutor(Executors.newCachedThreadPool());
+        concurrentStub.createContext("/", exchange -> {
+            Barrier current = barrier;
+            if (current != null) {
+                current.await(exchange.getRequestURI().getPath());
+            }
+            handle(exchange);
+        });
+        concurrentStub.start();
+        concurrentStubUrl = "http://127.0.0.1:" + concurrentStub.getAddress().getPort();
         events = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         events.createContext("/", exchange -> {
             String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
@@ -119,9 +152,32 @@ final class ParityKit {
         eventsPort = events.getAddress().getPort();
     }
 
+    private static void handle(HttpExchange exchange) throws java.io.IOException {
+        byte[] raw = exchange.getRequestBody().readAllBytes();
+        String body = new String(raw, StandardCharsets.UTF_8);
+        String path = exchange.getRequestURI().getPath();
+        String query = exchange.getRequestURI().getRawQuery();
+        String method = exchange.getRequestMethod();
+        if (exchange.getRequestHeaders().containsKey("api-key")) {
+            API_KEY_PATHS.add(path);
+        }
+        HITS.add(new Hit(method, path, query, exchange.getRequestHeaders().getFirst("Authorization"), body,
+                exchange.getRequestHeaders().getFirst(Kairon.TIMESTAMP)));
+        String payload = resolveBody(method, path, body);
+        int status = resolveStatus(path);
+        byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
     static void stopServers() {
         if (stub != null) {
             stub.stop(0);
+        }
+        if (concurrentStub != null) {
+            concurrentStub.stop(0);
         }
         if (events != null) {
             events.stop(0);
@@ -133,9 +189,11 @@ final class ParityKit {
         PATH_BODIES.clear();
         PATH_STATUS.clear();
         SCRIPT_BODIES.clear();
+        PATH_SEQUENCES.clear();
         API_KEY_PATHS.clear();
         forcedStatus = 0;
         bodyOverride = null;
+        barrier = null;
     }
 
     void resetState() {
@@ -377,6 +435,11 @@ final class ParityKit {
         PATH_BODIES.put(path, body);
     }
 
+    /** Replies to successive requests on exactly {@code path} with {@code bodies} in order (the last repeats). */
+    void pathSequence(String path, String... bodies) {
+        PATH_SEQUENCES.put(path, new java.util.concurrent.ConcurrentLinkedDeque<>(List.of(bodies)));
+    }
+
     void pathStatus(String path, int status) {
         PATH_STATUS.put(path, status);
     }
@@ -386,6 +449,12 @@ final class ParityKit {
             String source = sourceOf(requestBody);
             if (source != null && SCRIPT_BODIES.containsKey(source)) {
                 return SCRIPT_BODIES.get(source);
+            }
+        }
+        java.util.Deque<String> sequence = PATH_SEQUENCES.get(path);
+        if (sequence != null) {
+            synchronized (sequence) {
+                return sequence.size() > 1 ? sequence.pollFirst() : sequence.peekFirst();
             }
         }
         String best = longest(PATH_BODIES.keySet(), path);
