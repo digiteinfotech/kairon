@@ -58,6 +58,7 @@ public class GoogleSearchAction implements KaironAction {
                 results = search(Maps.text(apiKey), Maps.text(config.get("search_engine_id")), Maps.text(searchTerm), config.get("num_results"));
                 if (results instanceof List<?> list && !list.isEmpty()) {
                     botResponse = support.formatSearch(cast(list));
+                    context.succeeded(botResponse);
                     if (!Maps.isEmpty(config.get("set_slot"))) {
                         slots.put(Maps.str(config.get("set_slot")), botResponse);
                     }

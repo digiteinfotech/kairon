@@ -61,6 +61,7 @@ public class LiveAgentAction implements KaironAction {
                 botResponse = data.get("msg");
                 dispatch = true;
             }
+            context.succeeded(botResponse);
         } catch (Exception e) {
             exception = ActionFlags.message(e);
             LOG.error("live agent action failed", e);

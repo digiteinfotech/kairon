@@ -70,6 +70,7 @@ public class ParallelAction implements KaironAction {
             logId = insertPreRecord(created);
             List<Object> results = runChildren(context, config.get("actions"), logId);
             extractSlots(results, filled);
+            context.succeeded(null);
         } catch (Exception e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

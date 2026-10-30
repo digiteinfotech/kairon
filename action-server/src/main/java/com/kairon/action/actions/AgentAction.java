@@ -66,6 +66,7 @@ public class AgentAction implements KaironAction {
             } else {
                 botResponse = apiResponse == null ? "" : String.valueOf(apiResponse);
             }
+            context.succeeded(botResponse);
         } catch (Exception e) {
             exception = ActionFlags.message(e);
             LOG.error("agent action failed", e);
