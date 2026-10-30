@@ -23,7 +23,8 @@ public class CognitionSchemas {
     public static final String OPENROUTER = "openrouter";
 
     /** Message when an action's collection has no CognitionSchema. */
-    public static final String NOT_FOUND = "Cognition schema not found";
+    /** Python prompt.py:88-89 / database.py:88-89: CognitionSchema.first() is None, then .schema_metadata. */
+    public static final String NOT_FOUND = "'NoneType' object has no attribute 'schema_metadata'";
 
     /** SchemaMetadata as Python reads it; absent or null fields take the mongoengine defaults. */
     public record Schema(boolean trainingNeeded, int size, String modelId, String provider) {
@@ -57,7 +58,12 @@ public class CognitionSchemas {
         return find(bot, collection).orElseThrow(() -> new ActionFailure(NOT_FOUND));
     }
 
-    /** True when {@code collection} is non-default and its schema says no training is needed. */
+    /** database_action (database.py:90): swaps whenever training is not needed, whatever the collection. */
+    public static boolean databaseSwapsToOpenrouter(Schema schema) {
+        return schema != null && !schema.trainingNeeded();
+    }
+
+    /** prompt_action (prompt.py:87): swaps only for a non-default collection whose schema needs no training. */
     public static boolean swapsToOpenrouter(String collection, Schema schema) {
         return collection != null && !collection.isEmpty() && !DEFAULT_COLLECTION.equals(collection)
                 && schema != null && !schema.trainingNeeded();
@@ -70,6 +76,9 @@ public class CognitionSchemas {
      */
     public Provider resolveProvider(String bot, String collection, Schema schema, String llmType) {
         if (swapsToOpenrouter(collection, schema)) {
+            // Python LLMProcessor.__init__ loads the original llm_type secret and embedding secret first
+            secrets.secret(bot, llmType);
+            secrets.embeddingSecret(bot, llmType);
             Map<String, String> secret = secrets.secret(bot, OPENROUTER);
             return new Provider(OPENROUTER, secret, secret);
         }

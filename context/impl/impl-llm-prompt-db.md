@@ -42,3 +42,9 @@ Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / 
 - P3 fixed: form_validation no longer logs exception (Python never passes it).
 - Open P3: QdrantClient non-2xx/non-JSON error text should match aiohttp 3.9.5 ClientResponseError str (`<status>, message='<phrase>', url=URL('<url>')`); LlmSecrets bad-Fernet-token text differs (Python '' ) - accept or map; T-123 keep media_ids read after secret lookup + model check.
 - Never log LlmSecrets.secret() map (holds plaintext api_key).
+
+## Tier 2 gate (inspector, 2026-10-30): BLOCK -> fixed (cycle 1)
+- P1 fixed (user decision: replicate Python): nested action of a type without Python is_success (17 types incl. database) runs then fails the prompt with "'<PyClass>' object has no attribute 'is_success'". Kit R4 c4 corrected; T-114 DONE stands.
+- P2 fixed: missing cognition schema text now "'NoneType' object has no attribute 'schema_metadata'" (CognitionSchemas.NOT_FOUND, DatabaseAction); database swap rule split (databaseSwapsToOpenrouter: whenever training_needed false); resolveProvider resolves original llm + embedding secret before the openrouter swap.
+- Accepted risk (user decision: match Python): crud slot-mode Mongo operator injection; documented in kit 'Known risks'; decrypted secure data lands in llm_logs.
+- Open P3: CrudSource result_limit null => unlimited / non-int fails; null crud_config/collections error texts; prompt nesting itself recurses to StackOverflowError (add depth guard or catch Error); LlmClient mediaIds typed List<?> (Python forwards any truthy value). T-122 must use databaseSwapsToOpenrouter and forAction().

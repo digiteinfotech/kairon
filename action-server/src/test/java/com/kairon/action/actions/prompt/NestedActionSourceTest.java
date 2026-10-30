@@ -7,6 +7,7 @@ import com.kairon.action.actions.HttpAction;
 import com.kairon.action.actions.PromptAction;
 import com.kairon.action.catalog.MemoryActionCatalog;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.Dispatcher;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.TrackerState;
@@ -189,15 +190,28 @@ class NestedActionSourceTest {
         assertEquals(Kairon.FAIL, logs.get(0).get("status"));
     }
 
-    // c4: database_action appends nothing even when it succeeds.
+    // c4 (corrected): Python's ActionDatabase has no is_success, so reading it fails the prompt after the nested
+    // action already ran (its dispatch and log remain).
     @Test
-    void nestedDatabaseActionAppendsNothingEvenOnSuccess() {
-        assertEquals("", source.render(parent, prompt("Db", "db_lookup", "Use it well")));
+    void nestedDatabaseActionRunsThenFailsWithAttributeError() {
+        ActionFailure failure = org.junit.jupiter.api.Assertions.assertThrows(ActionFailure.class,
+                () -> source.render(parent, prompt("Db", "db_lookup", "Use it well")));
+        assertEquals("'ActionDatabase' object has no attribute 'is_success'", failure.getMessage());
         assertEquals(1, database.seen.size());
-        assertTrue(database.seen.get(0).isSuccess());
         assertEquals(1, logs("db_lookup").size());
         assertEquals(List.of("uttered by db_lookup"),
                 parent.dispatcher.messages.stream().map(m -> m.get("text")).toList());
+    }
+
+    @Test
+    void everyNonDefinerTypeMapsToItsPythonClassName() {
+        assertEquals(17, NestedActionSource.WITHOUT_IS_SUCCESS.size());
+        assertEquals("ActionPyscript", NestedActionSource.WITHOUT_IS_SUCCESS.get("pyscript_action"));
+        assertEquals("ActionSetSlot", NestedActionSource.WITHOUT_IS_SUCCESS.get("slot_set_action"));
+        for (String definer : List.of("http_action", "google_search_action", "live_agent_action", "agent_action",
+                "callback_action", "schedule_action", "parallel_action")) {
+            assertTrue(!NestedActionSource.WITHOUT_IS_SUCCESS.containsKey(definer), definer);
+        }
     }
 
     // c2/c3 against a real action: http_action reports Python's is_success/response.

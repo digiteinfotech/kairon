@@ -97,8 +97,10 @@ Approved design 2026-10-30: call the real services; Qdrant `api-key` header sent
 - [ ] [GAP] The schema is looked up by `{bot, collection_name}` with the collection name verbatim
 - [ ] [GAP] A schema with no metadata values reads as `training_needed` true, size 3072, `model_id` `text-embedding-3-large`
 - [ ] [GAP] In the embedding client a missing schema is treated as `training_needed` true
+- [x] In prompt_action and database_action a missing schema fails the action with `'NoneType' object has no attribute 'schema_metadata'` (verified: CognitionSchemasTest, forActionFailsOnMissingSchema)
 - [ ] [GAP] In prompt and database actions a missing schema fails the action
-- [ ] [GAP] When the collection is not `default` and `training_needed` is false, `llm_type` becomes `openrouter` and both LLM and embedding secrets become the openrouter secret
+- [ ] [GAP] prompt_action: when the collection is not `default` and `training_needed` is false, `llm_type` becomes `openrouter` and both LLM and embedding secrets become the openrouter secret; database_action swaps whenever `training_needed` is false, whatever the collection (verified helper: CognitionSchemasTest#databaseSwapsWheneverTrainingNotNeededEvenForDefaultCollection)
+- [ ] [GAP] Before the swap the original `llm_type` secret and its embedding secret are resolved first, so a missing original secret fails first as in Python
 **Dependencies:** R6
 
 ### R8: Prediction result and LLM log capture
@@ -142,3 +144,4 @@ Approved design 2026-10-30: call the real services; Qdrant `api-key` header sent
 ## Changelog
 - 2026-10-30: Initial draft from approved design (real services, no adapter; Qdrant api-key parity quirk).
 - 2026-10-30: R6 lists the excluded LLM types explicitly (`openrouter`); See also lines for dispatch-and-logging, core-actions, integration-actions (bidirectional).
+- 2026-10-30: R7 missing-schema text, per-action swap rule and secret-failure order specified from tier 2 gate.

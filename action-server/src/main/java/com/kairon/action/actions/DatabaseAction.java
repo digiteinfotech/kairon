@@ -114,6 +114,6 @@ public class DatabaseAction implements KaironAction {
                 return Maps.truthy(metadata.get("training_needed"));
             }
         }
-        throw new ActionFailure("Cognition schema not found");
+        throw new ActionFailure(com.kairon.action.support.llm.CognitionSchemas.NOT_FOUND);
     }
 }

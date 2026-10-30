@@ -2,6 +2,7 @@ package com.kairon.action.actions.prompt;
 
 import com.kairon.action.actions.ActionFactory;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.Maps;
 import jakarta.inject.Provider;
@@ -24,7 +25,29 @@ import java.util.Map;
 @Singleton
 public class NestedActionSource {
 
-    static final String DATABASE_ACTION = "database_action";
+    /**
+     * Python classes that do NOT define an {@code is_success} property (only http, google, live_agent, agent,
+     * callback, schedule and parallel do): reading it after execute raises AttributeError, which fails the
+     * prompt action after the nested action already ran.
+     */
+    static final Map<String, String> WITHOUT_IS_SUCCESS = Map.ofEntries(
+            Map.entry("slot_set_action", "ActionSetSlot"),
+            Map.entry("email_action", "ActionEmail"),
+            Map.entry("form_validation_action", "ActionFormValidation"),
+            Map.entry("jira_action", "ActionJiraTicket"),
+            Map.entry("zendesk_action", "ActionZendeskTicket"),
+            Map.entry("pipedrive_leads_action", "ActionPipedriveLeads"),
+            Map.entry("hubspot_forms_action", "ActionHubspotForms"),
+            Map.entry("two_stage_fallback", "ActionTwoStageFallback"),
+            Map.entry("kairon_bot_response", "ActionKaironBotResponse"),
+            Map.entry("razorpay_action", "ActionRazorpay"),
+            Map.entry("prompt_action", "ActionPrompt"),
+            Map.entry("pyscript_action", "ActionPyscript"),
+            Map.entry("database_action", "ActionDatabase"),
+            Map.entry("web_search_action", "ActionWebSearch"),
+            Map.entry("voice_call_action", "ActionVoiceCall"),
+            Map.entry("voice_disconnect", "ActionVoiceDisconnect"),
+            Map.entry("store_page_action", "ActionStorePage"));
 
     /** Provider: ActionFactory takes every KaironAction, including PromptAction, so a direct injection is a cycle. */
     private final Provider<ActionFactory> factory;
@@ -40,7 +63,11 @@ public class NestedActionSource {
         ActionContext nested = new ActionContext(parent.bot, name, parent.tracker, parent.dispatcher,
                 parent.domain, parent.actionCall);
         action.execute(nested);
-        if (!nested.isSuccess() || DATABASE_ACTION.equals(action.type())) {
+        String missing = WITHOUT_IS_SUCCESS.get(action.type());
+        if (missing != null) {
+            throw new ActionFailure("'" + missing + "' object has no attribute 'is_success'");
+        }
+        if (!nested.isSuccess()) {
             return "";
         }
         return PromptParams.section(prompt, nested.response());

@@ -60,7 +60,7 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] The nested action is resolved by name through action type resolution and run with the same tracker, dispatcher, domain and request context
 - [ ] [GAP] A successful nested action appends `{name}:\n{response}\n` plus the instructions block when instructions exist
 - [ ] [GAP] A failed nested action appends nothing, while its own utterances and log record remain
-- [ ] [GAP] A nested database_action appends nothing even on success (Python never sets its success flag or response)
+- [x] A nested action whose type has no success property in Python (every type except http, google_search, live_agent, agent, callback, schedule and parallel; including database_action) runs to completion and then fails the prompt action with `'<PythonClassName>' object has no attribute 'is_success'` (e.g. `'ActionDatabase' object has no attribute 'is_success'`); its own dispatches and log remain (verified: NestedActionSourceTest#nestedDatabaseActionRunsThenFailsWithAttributeError, #everyNonDefinerTypeMapsToItsPythonClassName)
 **Dependencies:** cavekit-dispatch-and-logging.md R1
 
 ### R5: Prompt execution and output
@@ -108,6 +108,10 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [ ] [GAP] The LLM and vector config keys listed in cavekit-config-and-deploy.md R1 are configurable as specified there
 **Dependencies:** cavekit-templating-and-secrets.md R7, cavekit-dispatch-and-logging.md R1, R4, cavekit-config-and-deploy.md R1
 
+## Known risks (accepted, parity with Python)
+
+- crud slot mode passes a user-controlled slot value straight into the collection filter, so Mongo operators in the value (e.g. `$regex`, `$ne`) are interpreted as in Python. Scope stays bot + collection, but a user can pull any record of the named collection into the prompt, with `is_secure` fields decrypted, and decrypted data is persisted in `llm_logs`. Decision 2026-10-30: match Python; revisit if this action is exposed to untrusted end users.
+
 ## Out of Scope
 - Model training and collection creation, including use of the embedding size
 - Sparse and rerank embeddings
@@ -136,3 +140,4 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 ## Changelog
 - 2026-10-30: Initial draft from approved design (real services, nested database quirk, no prompt buttons).
 - 2026-10-30: Review fixes: log field order aligned to cavekit-dispatch-and-logging.md R4 (authoritative) per mongoengine serialization; config criterion references cavekit-config-and-deploy.md R1; history default 5 and role labels; value-mode JSON parse failure; crud instructions appended once; falsy `bot_response` omitted (declared field) rather than null; dependency on cavekit-outbound-clients.md R5 (script-mode compose and slot evaluation).
+- 2026-10-30: R4 c4 corrected (nested action without a Python success property fails the prompt with AttributeError text); Known risks section added (crud operator injection accepted).

@@ -95,7 +95,8 @@ class CognitionSchemasTest {
     @Test
     void forActionFailsOnMissingSchema() {
         ActionFailure failure = assertThrows(ActionFailure.class, () -> schemas.forAction(BOT, "missing"));
-        assertEquals("Cognition schema not found", failure.getMessage());
+        assertEquals(CognitionSchemas.NOT_FOUND, failure.getMessage());
+        assertEquals("'NoneType' object has no attribute 'schema_metadata'", failure.getMessage());
         schema("present", new Document("training_needed", false));
         assertFalse(schemas.forAction(BOT, "present").trainingNeeded());
     }
@@ -147,5 +148,14 @@ class CognitionSchemasTest {
         ActionFailure failure = assertThrows(ActionFailure.class, () -> schemas.resolveProvider(
                 BOT, "products", new CognitionSchemas.Schema(false, 1536, "m", "openrouter"), "openai"));
         assertEquals("LLM secret for 'openrouter' is not configured!", failure.getMessage());
+    }
+
+    @Test
+    void databaseSwapsWheneverTrainingNotNeededEvenForDefaultCollection() {
+        CognitionSchemas.Schema trained = new CognitionSchemas.Schema(false, 3072, "m", "openai");
+        assertTrue(CognitionSchemas.databaseSwapsToOpenrouter(trained));
+        assertTrue(!CognitionSchemas.swapsToOpenrouter("default", trained));
+        assertTrue(!CognitionSchemas.databaseSwapsToOpenrouter(CognitionSchemas.Schema.DEFAULT));
+        assertTrue(!CognitionSchemas.databaseSwapsToOpenrouter(null));
     }
 }
