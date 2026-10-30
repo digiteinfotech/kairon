@@ -52,3 +52,6 @@ Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / 
 - P2 fixed: missing cognition schema text now "'NoneType' object has no attribute 'schema_metadata'" (CognitionSchemas.NOT_FOUND, DatabaseAction); database swap rule split (databaseSwapsToOpenrouter: whenever training_needed false); resolveProvider resolves original llm + embedding secret before the openrouter swap.
 - Accepted risk (user decision: match Python): crud slot-mode Mongo operator injection; documented in kit 'Known risks'; decrypted secure data lands in llm_logs.
 - Open P3: CrudSource result_limit null => unlimited / non-int fails; null crud_config/collections error texts; prompt nesting itself recurses to StackOverflowError (add depth guard or catch Error); LlmClient mediaIds typed List<?> (Python forwards any truthy value). T-122 must use databaseSwapsToOpenrouter and forAction().
+
+## Tier 3+4 gate (inspector, 2026-10-30): PROCEED (0 P0/P1/P2, 6 P3)
+Kit R5 c7/c8 wording fixed. Open P3: SimilarityContext.join should unwrap Error causes; LlmClient joinInstructions/perplexity accept invalid inputs Python rejects (T-121 must pass lists); StubServer.startConcurrent executor never shut down (shutdownNow in close()); 2-arg LlmClient/QdrantClient ctors could be package-private.

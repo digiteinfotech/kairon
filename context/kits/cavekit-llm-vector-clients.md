@@ -73,8 +73,8 @@ Approved design 2026-10-30: call the real services; Qdrant `api-key` header sent
 - [ ] [GAP] The body has `with_payload: true` and `limit` (default 10) whenever it has other content
 - [ ] [GAP] A payload yielding no query and no payload_search fails with `No Operation to perform`
 - [ ] [GAP] No `api-key` header is sent, even when `vector.key` is set
-- [ ] [GAP] The timeout is `action.request_timeout` seconds, default 60
-- [ ] [GAP] A status outside 200/201/202/204 fails with `Got non-200 status code: {code} {body text}`
+- [ ] [GAP] The timeout is `action.request_timeout` seconds, default 60 (the deployed default; the Python code's own fallback when the key is absent is 1)
+- [ ] [GAP] A status outside 200/201/202/204 fails with a message containing `Got non-200 status code: {code} {body text}` (the action wraps it as `Failed to execute the url: Got non-200 status code: ...`)
 - [ ] [GAP] Any other request error fails with a message starting `Failed to execute the url:`
 - [ ] [GAP] On success the full Qdrant JSON (or text for non-JSON) is returned unmodified
 - [x] A `db_type` other than `qdrant` fails with `Database not yet implemented!` (verified: ActionGapParityTest#databaseActionRejectsUnknownDbTypeBeforeBuildingPayload)
