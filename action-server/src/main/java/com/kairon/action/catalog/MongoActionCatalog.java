@@ -51,6 +51,18 @@ public class MongoActionCatalog implements ActionCatalog {
     }
 
     @Override
+    public List<Document> findLiveIntegrations(String bot) {
+        return collection(INTEGRATION).find(Filters.and(Filters.eq("bot", bot), Filters.ne("status", "deleted")))
+                .into(new ArrayList<>());
+    }
+
+    @Override
+    public Optional<Document> findBotById(String id) {
+        Object key = ObjectId.isValid(id) ? new ObjectId(id) : id;
+        return Optional.ofNullable(collection("bot").find(Filters.eq("_id", key)).first());
+    }
+
+    @Override
     public List<Document> findByBot(String collection, String bot) {
         return collection(collection).find(Filters.eq("bot", bot)).into(new ArrayList<>());
     }

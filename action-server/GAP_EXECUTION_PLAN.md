@@ -61,7 +61,7 @@ Python added chat history to the agent payload and raised `max_iterations` to 5.
 **Open:**
 | Sev | Gap |
 |---|---|
-| P1/P2 | Integration token claims: Python (`processor.py:68-93`) creates the `agent-action` integration if missing; claims `sub, bot, name, role, iat, account, exp(15m)`, `access-limit=/api/agents/{bot}/.+/run/.+`. Java sends `sub, bot, type` only. Decide: port claims, or confirm the agent service accepts the Java token. |
+| ~~P1/P2~~ DONE | Integration token claims: `AgentAction.agentClaims` now sends `sub, bot, name, role, iat, account, exp(15m), access-limit`, creates the `agent-action` integration (limit/name-taken checks), fails `Bot does not exists!` when the bot is missing. Tests in `ActionGapParityTest`. Not run against the real agent service. |
 | P3 | Missing `agent_id` is a KeyError in Python; Java puts "null" in the URL. |
 | P3 | Failure-mail args and non-2xx/non-dict-body/config-not-found paths have no Java tests. |
 

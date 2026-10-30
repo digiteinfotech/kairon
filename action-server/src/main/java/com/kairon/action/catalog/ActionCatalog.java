@@ -48,6 +48,15 @@ public interface ActionCatalog {
 
     Optional<Document> findBotSettings(String bot);
 
+    /** mongoengine collection of Integration. */
+    String INTEGRATION = "integration";
+
+    /** Integration.objects(bot=bot, status__ne="deleted"). */
+    List<Document> findLiveIntegrations(String bot);
+
+    /** AccountProcessor.get_bot: the {@code bot} collection document with {@code _id} {@code id}. */
+    Optional<Document> findBotById(String id);
+
     List<Document> findByBot(String collection, String bot);
 
     /**

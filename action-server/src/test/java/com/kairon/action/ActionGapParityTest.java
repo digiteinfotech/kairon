@@ -1140,6 +1140,7 @@ class ActionGapParityTest {
         kit.register(name, "agent_action");
         kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", name, "status", true,
                 "agent_id", "agent-1", "dispatch_bot_response", dispatch));
+        kit.put("bot", new Document("_id", kit.bot).append("account", 7L).append("name", "b"));
     }
 
     private static Map<String, Object> turn(String event, String text) {
@@ -1213,6 +1214,61 @@ class ActionGapParityTest {
         } finally {
             settings.setSimpleAgentUrl(original);
         }
+    }
+
+    private Map<String, Object> agentTokenClaims() {
+        String bearer = kit.hitPath("/agent").auth();
+        assertTrue(bearer.startsWith("Bearer "), bearer);
+        return tokens.decryptClaims(bearer.substring("Bearer ".length()));
+    }
+
+    @Test
+    void agentActionTokenCarriesPythonClaimsAndCreatesIntegration() {
+        registerAgent("ask_agent", true);
+        kit.ok("ask_agent");
+        Map<String, Object> claims = agentTokenClaims();
+        assertEquals("integration", claims.get("type"));
+        assertEquals("agent-action", claims.get("name"));
+        assertEquals("admin", claims.get("role"));
+        assertEquals(kit.bot, claims.get("bot"));
+        assertEquals(7, ((Number) claims.get("account")).intValue());
+        assertEquals(List.of("/api/agents/" + kit.bot + "/.+/run/.+"), claims.get("access-limit"));
+        long now = java.time.Instant.now().getEpochSecond();
+        assertTrue(Math.abs(((Number) claims.get("exp")).longValue() - (now + 900)) < 30);
+        assertTrue(((Number) claims.get("iat")).longValue() <= now);
+        List<Document> stored = catalog.findLiveIntegrations(kit.bot);
+        assertEquals(1, stored.size());
+        assertEquals("active", stored.get(0).get("status"));
+        assertEquals(stored.get(0).getDate("iat").toInstant().getEpochSecond(), ((Number) claims.get("iat")).longValue());
+    }
+
+    @Test
+    void agentActionReusesExistingIntegration() {
+        registerAgent("ask_agent", true);
+        kit.put("integration", kit.doc("name", "agent-action", "bot", kit.bot, "user", "u", "role", "admin",
+                "status", "active", "iat", new java.util.Date(1_700_000_000_000L)));
+        kit.ok("ask_agent");
+        kit.ok("ask_agent");
+        assertEquals(1, catalog.findLiveIntegrations(kit.bot).size());
+        assertEquals(1_700_000_000L, ((Number) agentTokenClaims().get("iat")).longValue());
+    }
+
+    @Test
+    void agentActionFailsWhenIntegrationLimitReached() {
+        registerAgent("ask_agent", true);
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true, "integrations_per_user_limit", 0));
+        kit.ok("ask_agent");
+        assertEquals("Integrations limit reached!", kit.log("ask_agent").get("exception"));
+        assertEquals(0, catalog.findLiveIntegrations(kit.bot).size());
+    }
+
+    @Test
+    void agentActionFailsWhenBotMissing() {
+        kit.register("ask_agent", "agent_action");
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", "ask_agent", "status", true,
+                "agent_id", "agent-1", "dispatch_bot_response", true));
+        kit.ok("ask_agent");
+        assertEquals("Bot does not exists!", kit.log("ask_agent").get("exception"));
     }
 
     @Test

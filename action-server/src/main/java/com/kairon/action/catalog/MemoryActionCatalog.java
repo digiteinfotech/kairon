@@ -54,6 +54,22 @@ public class MemoryActionCatalog implements ActionCatalog {
     }
 
     @Override
+    public List<Document> findLiveIntegrations(String bot) {
+        List<Document> matches = new ArrayList<>();
+        for (Document document : snapshot(INTEGRATION)) {
+            if (bot.equals(str(document.get("bot"))) && !"deleted".equals(document.get("status"))) {
+                matches.add(deepCopy(document));
+            }
+        }
+        return matches;
+    }
+
+    @Override
+    public Optional<Document> findBotById(String id) {
+        return findById("bot", id);
+    }
+
+    @Override
     public List<Document> findByBot(String collection, String bot) {
         List<Document> matches = new ArrayList<>();
         for (Document document : snapshot(collection)) {

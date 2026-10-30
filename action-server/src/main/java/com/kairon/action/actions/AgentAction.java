@@ -2,7 +2,9 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.actions.prompt.PromptParams;
+import com.kairon.action.catalog.ActionCatalog;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.TrackerState;
 import com.kairon.action.support.ActionSupport;
@@ -14,7 +16,10 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +55,7 @@ public class AgentAction implements KaironAction {
             // Python simple_agent.url.rstrip('/')
             base = base.replaceAll("/+$", "");
             url = base + "/agents/" + context.bot + "/" + config.get("agent_id") + "/run/" + context.tracker.senderId + "/simple";
-            String token = support.tokens().integrationToken(Map.of("sub", Maps.text(context.tracker.senderId), "bot", context.bot));
+            String token = support.tokens().integrationToken(agentClaims(context.bot, Maps.text(context.tracker.senderId)));
             Map<String, String> headers = new LinkedHashMap<>();
             headers.put("Accept", "application/json");
             headers.put("Content-Type", "application/json");
@@ -88,6 +93,46 @@ public class AgentAction implements KaironAction {
             support.save(context, type(), status, exception, botResponse, extra);
         }
         return ActionFlags.response(botResponse);
+    }
+
+    /** Token lifetime of IntegrationProcessor.create_agent_action_token (minutes). */
+    static final int TOKEN_EXPIRE_MINUTES = 15;
+
+    /**
+     * IntegrationProcessor.create_agent_action_token claims. Creates the active "agent-action"
+     * integration when missing, with add_integration's name-taken and limit checks.
+     */
+    Map<String, Object> agentClaims(String bot, String user) {
+        List<Document> live = support.catalog().findLiveIntegrations(bot);
+        Document integration = live.stream()
+                .filter(d -> "agent-action".equals(d.get("name")) && "active".equals(d.get("status")))
+                .findFirst().orElse(null);
+        if (integration == null) {
+            int limit = support.catalog().findBotSettings(bot)
+                    .map(s -> s.get("integrations_per_user_limit")).map(v -> ((Number) v).intValue()).orElse(3);
+            if (live.size() >= limit) {
+                throw new ActionFailure("Integrations limit reached!");
+            }
+            if (live.stream().anyMatch(d -> "agent-action".equals(d.get("name")))) {
+                throw new ActionFailure("Integration token with this name has already been initiated");
+            }
+            integration = support.catalog().insert(ActionCatalog.INTEGRATION, new Document("name", "agent-action")
+                    .append("bot", bot).append("user", user)
+                    .append("iat", new Date(Instant.now().truncatedTo(ChronoUnit.SECONDS).toEpochMilli()))
+                    .append("role", "admin").append("status", "active"));
+        }
+        Document account = support.catalog().findBotById(bot)
+                .orElseThrow(() -> new ActionFailure("Bot does not exists!"));
+        Map<String, Object> claims = new LinkedHashMap<>();
+        claims.put("sub", user);
+        claims.put("bot", bot);
+        claims.put("name", "agent-action");
+        claims.put("role", integration.get("role"));
+        claims.put("iat", ((Date) integration.get("iat")).toInstant().getEpochSecond());
+        claims.put("account", account.get("account"));
+        claims.put("exp", Instant.now().plusSeconds(TOKEN_EXPIRE_MINUTES * 60L).getEpochSecond());
+        claims.put("access-limit", List.of("/api/agents/" + bot + "/.+/run/.+"));
+        return claims;
     }
 
     /** Python CHAT_HISTORY_SIZE. */
