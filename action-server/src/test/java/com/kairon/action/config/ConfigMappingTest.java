@@ -60,6 +60,10 @@ class ConfigMappingTest {
         REQUIRED.put("EMAIL_SENDER_PASSWORD", null);
         REQUIRED.put("EMAIL_SENDER_USERID", null);
         REQUIRED.put("EMAIL_TEMPLATES_ACTION_FAILURE", "kAIron Action Failure - BOT_NAME");
+        REQUIRED.put("LLM_SERVER_URL", "http://localhost");
+        REQUIRED.put("LLM_REQUEST_TIMEOUT", "30");
+        REQUIRED.put("VECTOR_DB", "http://localhost:6333");
+        REQUIRED.put("VECTOR_DB_KEY", null);
     }
 
     record Row(String pythonKey, String env, String property, String defaultCell) {
@@ -279,6 +283,35 @@ class ConfigMappingTest {
             assertEquals("qdrant-key-from-env", settings.getVectorKey());
             assertEquals(21, settings.getRequestTimeout());
         }
+    }
+
+    /** cavekit-prompt-database-actions R7: llm.* / vector.* rows name the bound property; no "deferred" wording. */
+    @Test
+    void llmAndVectorRowsMatchApplicationYml() throws IOException {
+        Map<String, Row> byKey = new LinkedHashMap<>();
+        for (Row row : table()) {
+            byKey.put(row.pythonKey(), row);
+        }
+        Map<String, String[]> expected = new LinkedHashMap<>();
+        expected.put("llm.url", new String[] {"LLM_SERVER_URL", "kairon.action.llm-server-url", "`http://localhost`"});
+        expected.put("llm.request_timeout", new String[] {"LLM_REQUEST_TIMEOUT", "kairon.action.llm-request-timeout", "`30`"});
+        expected.put("vector.db", new String[] {"VECTOR_DB", "kairon.action.vector-db", "`http://localhost:6333`"});
+        expected.put("vector.key", new String[] {"VECTOR_DB_KEY", "kairon.action.vector-key", "none"});
+        String application = read(APPLICATION_YML);
+        for (Map.Entry<String, String[]> e : expected.entrySet()) {
+            Row row = byKey.get(e.getKey());
+            assertTrue(row != null, e.getKey() + " missing from CONFIG.md");
+            assertEquals(e.getValue()[0], row.env(), e.getKey());
+            assertEquals(e.getValue()[1], row.property(), e.getKey());
+            assertEquals(e.getValue()[2], row.defaultCell(), e.getKey());
+            String leaf = row.property().substring("kairon.action.".length());
+            assertTrue(Pattern.compile("(?m)^\\s+" + Pattern.quote(leaf) + ": \\$\\{" + Pattern.quote(row.env()) + "[:}]")
+                    .matcher(application).find(), row.property() + " not bound to " + row.env() + " in application.yml");
+        }
+        assertTrue(read(CONFIG_MD).contains("database_action point query is bounded by `action.request_timeout`"));
+        String config = read(CONFIG_MD).toLowerCase(java.util.Locale.ROOT);
+        assertFalse(config.contains("deferred"), "CONFIG.md still describes actions as deferred");
+        assertFalse(config.contains("keeps them off") || config.contains("keeps it off"));
     }
 
     @Test

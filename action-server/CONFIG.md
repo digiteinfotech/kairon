@@ -45,8 +45,10 @@ Default column conventions:
 | `security.unmasked_char_count` | `SECRET_UNMASKED_CHAR_COUNT` | `kairon.action.unmasked-char-count` | `2` | Secret masking. |
 | `security.unmasked_char_strategy` | `SECRET_UNMASKED_CHAR_STRATEGY` | `kairon.action.unmasked-char-strategy` | `from_right` | Secret masking. |
 | `app.frontend_url` | `FRONTEND_URL` | `kairon.action.frontend-url` | `http://localhost:3000` | `BASE_URL` in email templates. |
-| `llm.url` | `LLM_SERVER_URL` | `kairon.action.llm-url` | deviation: empty (Python `http://localhost`) | Only read by prompt_action and LLM rephrase, both deferred; an empty value keeps them off. |
-| `vector.db` | `VECTOR_DB` | `kairon.action.vector-url` | deviation: empty (Python `http://localhost:6333`) | Only read by database_action, deferred; an empty value keeps it off. |
+| `llm.url` | `LLM_SERVER_URL` | `kairon.action.llm-server-url` | `http://localhost` | LLM server base URL used by prompt_action (LLM calls and embeddings). |
+| `llm.request_timeout` | `LLM_REQUEST_TIMEOUT` | `kairon.action.llm-request-timeout` | `30` | LLM server request timeout, seconds. |
+| `vector.db` | `VECTOR_DB` | `kairon.action.vector-db` | `http://localhost:6333` | Qdrant base URL used by prompt_action (similarity search) and database_action. The database_action point query is bounded by `action.request_timeout` (`ACTION_SERVER_REQUEST_TIMEOUT`, default 60). |
+| `vector.key` | `VECTOR_DB_KEY` | `kairon.action.vector-key` | none | Qdrant API key; when unset no `api-key` header is sent. |
 
 ## Required secrets
 
