@@ -149,12 +149,36 @@ class ActionGapParityTest {
         assertEquals(Map.of(), events.get(1).get("data"));
     }
 
+    private static final String DB_POINTS = "{\"result\":{\"points\":[{\"id\":1,\"payload\":{\"answer\":\"kanban board\"}}]},\"status\":\"ok\"}";
+
+    private String dbQueryPath(String collection) {
+        return "/collections/" + kit.bot + "_" + collection + "_faq_embd/points/query";
+    }
+
+    private String embedPath(String llmType) {
+        return "/" + kit.bot + "/aembedding/" + llmType;
+    }
+
+    private void llmSecret(String llmType, String apiKey) {
+        kit.put(com.kairon.action.catalog.ActionCatalog.LLM_SECRET, kit.doc("bot", kit.bot, "llm_type", llmType,
+                "api_key", tokens.encrypt(apiKey)));
+    }
+
+    private void cognitionSchema(String collection, boolean trainingNeeded) {
+        kit.put("cognition_schema", kit.doc("bot", kit.bot, "collection_name", collection,
+                "schema_metadata", kit.doc("training_needed", trainingNeeded, "model_id", "or-embed-model")));
+    }
+
+    /** T-122: embedding via LLM server (openai, embedding secret), then Qdrant points/query without api-key. */
     @Test
     void databaseActionDispatchesResponse() {
+        settings.setVectorKey("vec-key");
         kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
-                "llm_settings", kit.doc("enable_faq", true)));
-        kit.put("cognition_schema", kit.doc("bot", kit.bot, "collection_name", "faq",
-                "schema_metadata", kit.doc("training_needed", true)));
+                "llm_settings", kit.doc("enable_faq", true, "provider", "anthropic")));
+        cognitionSchema("faq", true);
+        llmSecret("openai", "sk-openai");
+        kit.pathBody(embedPath("openai"), "[[0.1,0.2]]");
+        kit.pathBody(dbQueryPath("faq"), DB_POINTS);
         kit.register("faq_lookup", "database_action");
         kit.put("database_action", kit.doc(
                 "bot", kit.bot,
@@ -163,27 +187,110 @@ class ActionGapParityTest {
                 "db_type", "qdrant",
                 "collection", "faq",
                 "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search")),
-                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "done", "evaluation_type", "expression"),
-                "set_slots", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text",
+                        "value", "found: ${data.status}", "evaluation_type", "expression"),
+                "set_slots", List.of(kit.doc("name", "answer", "value", "${data.status}", "evaluation_type", "expression")),
                 "failure_response", "db failed"
         ));
 
         Map<String, Object> body = kit.ok("faq_lookup", kit.slots(), kit.latest("what is kanban"));
-        assertEquals("done", kit.text(body));
-        assertEquals("done", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        assertEquals("found: ok", kit.text(body));
+        assertEquals("found: ok", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        assertEquals("ok", kit.event(body, "answer").get("value"));
+
+        ParityKit.Hit embed = kit.hitPath(embedPath("openai"));
+        assertEquals("POST", embed.method());
+        Map<String, Object> embedBody = Jsons.readMap(embed.body());
+        assertEquals(List.of("kanban"), embedBody.get("text"));
+        assertEquals("default", embedBody.get("user"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> kwargs = (Map<String, Object>) embedBody.get("kwargs");
+        assertEquals("db_action_qdrant", kwargs.get("invocation"));
+        assertFalse(kwargs.containsKey("collection"), "training_needed true: no collection/model kwargs");
+        assertEquals("sk-openai", kwargs.get("api_key"));
+
+        ParityKit.Hit query = kit.hitPath(dbQueryPath("faq"));
+        assertEquals("POST", query.method());
+        assertEquals("{\"query\": [0.1, 0.2], \"with_payload\": true, \"limit\": 10}",
+                Jsons.pythonDumps(Jsons.readAny(query.body())));
+        assertTrue(ParityKit.API_KEY_PATHS.isEmpty(), "no api-key header: " + ParityKit.API_KEY_PATHS);
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().startsWith("/vector")), "no adapter POST");
+
         Document log = kit.log("faq_lookup");
         assertEquals("database_action", log.get("type"));
         assertEquals(Kairon.SUCCESS, log.get("status"));
         @SuppressWarnings("unchecked")
         List<Object> messages = (List<Object>) log.get("messages");
-        assertEquals(3, messages.size());
         assertEquals(Map.of("embedding_search", "kanban"), messages.get(0));
         @SuppressWarnings("unchecked")
         List<String> composeLog = (List<String>) messages.get(1);
         assertEquals("evaluation_type: expression", composeLog.get(0));
-        assertTrue(composeLog.get(1).startsWith("expression: done"));
         assertEquals("initiating slot evaluation", messages.get(2));
         assertEquals("{'embedding_search': 'kanban'}", log.get("payload"));
+        assertEquals("{'result': {'points': [{'id': 1, 'payload': {'answer': 'kanban board'}}]}, 'status': 'ok'}",
+                log.get("response"));
+    }
+
+    /** T-122: training_needed false swaps embedding to openrouter (its secret, schema model) after loading openai. */
+    @Test
+    void databaseActionSwapsToOpenrouterWhenTrainingNotNeeded() {
+        registerDatabase("or_db", "qdrant");
+        cognitionSchema("faq", false);
+        llmSecret("openai", "sk-openai");
+        llmSecret("openrouter", "sk-or");
+        kit.pathBody(embedPath("openrouter"), "[[0.5]]");
+        kit.pathBody(dbQueryPath("faq"), DB_POINTS);
+
+        kit.ok("or_db", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.SUCCESS, kit.log("or_db").get("status"));
+        Map<String, Object> embedBody = Jsons.readMap(kit.hitPath(embedPath("openrouter")).body());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> kwargs = (Map<String, Object>) embedBody.get("kwargs");
+        assertEquals("faq", kwargs.get("collection"));
+        assertEquals("or-embed-model", kwargs.get("model"));
+        assertEquals("sk-or", kwargs.get("api_key"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().endsWith("/aembedding/openai")));
+    }
+
+    /** T-122: Qdrant ctor loads the openai secret before the schema lookup (Python failure order). */
+    @Test
+    void databaseActionMissingOpenaiSecretFailsBeforeSchemaLookup() {
+        registerDatabase("no_secret", "qdrant");
+        kit.ok("no_secret", kit.slots(), kit.latest("q"));
+        Document log = kit.log("no_secret");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("LLM secret for 'openai' is not configured!", log.get("exception"));
+        assertEquals(List.of(), log.get("messages"));
+    }
+
+    /** T-122: missing openrouter secret fails after the schema lookup, before the payload. */
+    @Test
+    void databaseActionMissingOpenrouterSecretFailsBeforePayload() {
+        registerDatabase("no_or", "qdrant");
+        cognitionSchema("faq", false);
+        llmSecret("openai", "sk-openai");
+        kit.ok("no_or", kit.slots(), kit.latest("q"));
+        Document log = kit.log("no_or");
+        assertEquals("LLM secret for 'openrouter' is not configured!", log.get("exception"));
+        assertEquals(List.of(), log.get("messages"));
+        assertNull(log.get("payload"));
+    }
+
+    /** T-122: Qdrant failure surfaces as the action exception with the failure response dispatched. */
+    @Test
+    void databaseActionQdrantErrorFails() {
+        registerDatabase("q_err", "qdrant");
+        cognitionSchema("faq", true);
+        llmSecret("openai", "sk-openai");
+        kit.pathBody(embedPath("openai"), "[[0.1]]");
+        kit.pathBody(dbQueryPath("faq"), "{\"status\":{\"error\":\"boom\"}}");
+        kit.pathStatus(dbQueryPath("faq"), 500);
+        Map<String, Object> body = kit.ok("q_err", kit.slots(), kit.latest("q"));
+        assertEquals("db failed", kit.text(body));
+        Document log = kit.log("q_err");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(String.valueOf(log.get("exception")).startsWith("Failed to execute the url"), String.valueOf(log.get("exception")));
+        assertEquals(List.of(Map.of("embedding_search", "kanban")), log.get("messages"));
     }
 
     private void registerDatabase(String name, String dbType) {
@@ -210,9 +317,11 @@ class ActionGapParityTest {
     @Test
     void databaseActionMissingSchemaFailsBeforePayloadIsLogged() {
         registerDatabase("no_schema", "qdrant");
+        llmSecret("openai", "sk-openai");
         kit.ok("no_schema", kit.slots(), kit.latest("q"));
         Document log = kit.log("no_schema");
         assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(com.kairon.action.support.llm.CognitionSchemas.NOT_FOUND, log.get("exception"));
         assertEquals(List.of(), log.get("messages"));
         assertNull(log.get("payload"));
     }
