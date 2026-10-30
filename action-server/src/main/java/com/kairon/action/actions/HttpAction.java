@@ -148,6 +148,7 @@ public class HttpAction implements KaironAction {
             responseLog.put("response", botResponse);
             responseLog.put("bot_response_log", composed.log());
             responseLog.put("time_elapsed", timeTakenCompose);
+            context.succeeded(botResponse);
             ActionSupport.SlotFill slotFill = support.fillSlotsLogged(config.get("set_slots"), responseContext);
             slotValues = slotFill.values();
             timeTakenSlots = slotFill.elapsed();

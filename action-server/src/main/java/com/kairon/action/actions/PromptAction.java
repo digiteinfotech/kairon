@@ -1,12 +1,14 @@
 package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
+import com.kairon.action.actions.prompt.NestedActionSource;
 import com.kairon.action.actions.prompt.PromptParams;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -24,6 +26,10 @@ public class PromptAction implements KaironAction {
     private static final Logger LOG = LoggerFactory.getLogger(PromptAction.class);
 
     private final ActionSupport support;
+
+    /** {@code action} prompt source (T-114); field-injected so {@code new PromptAction(support)} keeps compiling. */
+    @Inject
+    NestedActionSource nested;
 
     public PromptAction(ActionSupport support) {
         this.support = support;
@@ -63,7 +69,8 @@ public class PromptAction implements KaironAction {
                 throw new ActionFailure("llm url is not configured");
             }
             // crud (T-113) and action (T-114) sources register ContextSource hooks here
-            PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of());
+            PromptParams.LlmParams llmParams = PromptParams.build(config, context.tracker, Map.of(
+                    "action", prompt -> nested.render(context, prompt)));
             // Python reads media_ids only after config load and llm params, so earlier failures log null
             mediaIds = context.tracker.slotValue("media_ids");
             Map<String, Object> body = new LinkedHashMap<>();
