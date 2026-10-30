@@ -58,7 +58,7 @@ public class LlmHttp {
     /**
      * JSON POST to the LLM server. Returns the parsed JSON body, or the raw text when the 2xx body is not JSON.
      * Any other outcome throws {@link ActionFailure} whose message is the Python HTTPStatus phrase of the
-     * response status, or of 503 (connection failure), 408 (timeout) or 500 (other transport error).
+     * response status for a 2xx/3xx outside the OK set, of 500 for any >= 400 response, or of 503 (connection failure), 408 (timeout) or 500 (other transport error).
      */
     public Object post(String url, Object body) {
         Map<String, Object> headers = new LinkedHashMap<>();
@@ -68,7 +68,10 @@ public class LlmHttp {
         }
         HttpCaller.Exchange exchange = http.exchange("POST", url, headers, body, "json", timeout());
         if (!OK.contains(exchange.status())) {
-            throw new ActionFailure(phrase(exchange.status()));
+            // Python RetryClient(raise_for_status=True) raises before status_code is set, so any real >= 400
+            // response is reported as 500; transport failures keep 503/408/500 and other non-OK statuses their phrase.
+            int reported = !exchange.transportFailed() && exchange.status() >= 400 ? 500 : exchange.status();
+            throw new ActionFailure(phrase(reported));
         }
         return exchange.body();
     }

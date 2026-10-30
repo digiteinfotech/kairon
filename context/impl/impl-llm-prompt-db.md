@@ -32,3 +32,9 @@ Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / 
 - P3 PromptAction.java:44 media_ids read before FAQ gate; Python null until config loaded.
 - P3 DbPayload list += str extends char-wise in Python (edge; deliberate divergence or port).
 - P3 findLlmSecret/findLlmModel .first() vs Python .get() MultipleObjectsReturned (accept/document).
+
+## Tier 1 gate (inspector, 2026-10-30): BLOCK -> fixed (cycle 1)
+- P1 fixed: LlmHttp maps any real >=400 response to 'Internal Server Error' (Python RetryClient raise_for_status before status_code set); transport failures keep 503/408/500. LlmHttpTest updated; kit llm-vector-clients R3 c4 reworded (outbound-clients R1 c4 was right).
+- P3 fixed: form_validation no longer logs exception (Python never passes it).
+- Open P3: QdrantClient non-2xx/non-JSON error text should match aiohttp 3.9.5 ClientResponseError str (`<status>, message='<phrase>', url=URL('<url>')`); LlmSecrets bad-Fernet-token text differs (Python '' ) - accept or map; T-123 keep media_ids read after secret lookup + model check.
+- Never log LlmSecrets.secret() map (holds plaintext api_key).

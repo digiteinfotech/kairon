@@ -45,7 +45,7 @@ Approved design 2026-10-30: call the real services; Qdrant `api-key` header sent
 - [ ] [GAP] Requests carry `X-Kairon-Request-ID` (when a request id exists) and the request-timestamp header, and no `Authorization` header
 - [ ] [GAP] The timeout is `llm.request_timeout` seconds, default 30 when unset
 - [ ] [GAP] Exactly one request is sent per call, including for 5xx responses (no retry)
-- [ ] [GAP] A non-2xx response fails with the HTTP status phrase as the message (e.g. 500 -> `Internal Server Error`, 404 -> `Not Found`)
+- [ ] [GAP] Any response with status >= 400 (4xx or 5xx) fails with `Internal Server Error`, because the Python client raises on status before the status code is recorded and the wrapper reports 500; a 2xx/3xx outside 200-204 (e.g. 206) fails with its HTTP status phrase
 - [ ] [GAP] A connection failure fails with `Service Unavailable`, a timeout with `Request Timeout`, any other transport error with `Internal Server Error`
 - [ ] [GAP] A 2xx non-JSON body is kept as raw text
 **Dependencies:** cavekit-outbound-clients.md R1

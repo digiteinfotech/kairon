@@ -114,15 +114,15 @@ class LlmHttpTest {
     void gatewayErrorsAreNotRetried() {
         stub.on("/b", request -> StubServer.Reply.json(503, "{}"));
         ActionFailure failure = assertThrows(ActionFailure.class, () -> llm.post(stub.url("/b"), Map.of()));
-        assertEquals("Service Unavailable", failure.getMessage());
+        assertEquals("Internal Server Error", failure.getMessage());
         assertEquals(1, stub.at("/b").size());
     }
 
-    /** c4: 404 -> `Not Found`. */
+    /** c4: any >= 400 response is reported as 500 (Python raise_for_status before status_code is set). */
     @Test
     void notFoundFailsWithPhrase() {
         ActionFailure failure = assertThrows(ActionFailure.class, () -> llm.post(stub.url("/missing"), Map.of()));
-        assertEquals("Not Found", failure.getMessage());
+        assertEquals("Internal Server Error", failure.getMessage());
     }
 
     /** c4 (P3): Python HTTPStatus phrases, not the JDK's. */
