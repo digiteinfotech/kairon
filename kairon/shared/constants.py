@@ -91,6 +91,7 @@ class EventClass(str, Enum):
     catalog_integration = "catalog_integration"
     upload_file_handler = "upload_file_handler"
     analytics_pipeline = "analytics_pipeline"
+    crm_lead_analysis = "crm_lead_analysis"
 
 class CatalogSyncClass(str, Enum):
     petpooja = "petpooja"

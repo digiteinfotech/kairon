@@ -518,7 +518,11 @@ class CallbackScriptUtility:
 
     @staticmethod
     def process_instruction(data_list, prompt, operation_type, model_id, llm_type: str = "openrouter",
-                            bot: str = None, user: str = None):
+                            bot: str = None, user: str = None, system_prompt: str = None, timeout: float = None):
+        """
+        The Analytics Pipeline's LLM entry point (completion and embedding through the LLM server).
+        `system_prompt` and `timeout` are optional and only used when given, so existing scripts behave as before.
+        """
         import requests
         from kairon.shared.admin.data_objects import LLMSecret
 
@@ -551,15 +555,19 @@ class CallbackScriptUtility:
         else:
             text_input = data_list[0]
             final_prompt = prompt.format(document=text_input)
+            messages = [{"role": "user", "content": final_prompt}]
+            if system_prompt:
+                messages.insert(0, {"role": "system", "content": system_prompt})
             payload = {
                 "user": user,
                 "hyperparameters": {"temperature": 0, "model": model_id},
-                "messages": [{"role": "user", "content": final_prompt}]
+                "messages": messages
             }
             llm_server_url = Utility.environment['llm']['url']
+            request_kwargs = {"timeout": timeout} if timeout is not None else {}
             response = requests.request(method="POST",
                                         url=f"{llm_server_url}/{bot}/completion/{llm_type}",
-                                        json=payload)
+                                        json=payload, **request_kwargs)
 
             response.raise_for_status()
             response = response.json()
@@ -570,6 +578,21 @@ class CallbackScriptUtility:
 
             return extracted_data
 
+
+    @staticmethod
+    def analyse_crm_leads(bot: str = None) -> dict:
+        """
+        PyScript helper for the CRM lead-qualification pipeline: one bounded, lease-protected pass over this bot's recent
+        conversations (see kairon/crm/analytics/pipeline.py). Bound to the calling pipeline's bot by the runner, so a
+        script can only ever analyse its own bot's conversations with its own bot's prompt.
+        """
+        if not bot:
+            raise Exception("Missing bot id")
+        from kairon.crm.analytics.pipeline import LeadAnalysisPipeline
+        stats = LeadAnalysisPipeline().run_bot(bot)
+        if stats is None:
+            return {"skipped": "another run holds the lease"}
+        return stats
 
     @staticmethod
     def create_vector_collection(collection_name, model_id: str, user: str,
