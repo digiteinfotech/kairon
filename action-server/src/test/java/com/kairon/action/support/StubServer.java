@@ -52,6 +52,13 @@ final class StubServer implements AutoCloseable {
         return new StubServer(HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0));
     }
 
+    /** A stub whose handlers run on their own threads, so a handler may block until another request arrives. */
+    static StubServer startConcurrent() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
+        return new StubServer(server);
+    }
+
     StubServer on(String path, Function<Captured, Reply> handler) {
         routes.put(path, handler);
         return this;
