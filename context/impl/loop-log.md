@@ -42,3 +42,6 @@ Build site: context/plans/build-site.md
 - Resume with /ck:resume (or /ck:make) once the two branches are merged.
 - HUMAN REVIEW backlog: key_vault secrets embedded in Python-parity log events; compose SECRET_KEY must equal kairon-api's; CORS localhost-pass-through; docker image build unverified (daemon not usable); 64MB request ceiling; failure-mail wording; events endpoint auth posture; P2 findings in impl-review-findings.md (decryptMaybe sends ciphertext upstream on key mismatch; https-stub-base settable from env in prod).
 - Note: commit 804a36e6 swept the user's pre-staged deletion of kairon-action/ into the tracking commit; revert that commit's kairon-action hunk if the Rust port should stay.
+
+### Iteration (llm-prompt-db) 1 — 2026-10-30
+- T-100..T-106: DONE (tier 0, 4 packets, merged 3188a78f). Files: ActionSettings, application.yml, catalog/*, TokenTruncator, ActionSupport.logRecord, FaqGate, DbPayload, PromptParams + tests. Build P, full suite P (0 fail). Next: tier 1 T-107..T-112. Open: T-112 review of other actions' null extras; Mongo live contract run; tier-gate review pending.

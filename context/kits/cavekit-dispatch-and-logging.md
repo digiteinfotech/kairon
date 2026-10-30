@@ -57,7 +57,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] `bot` is the tracker `bot` slot value
 - [ ] `timestamp` is a BSON date in UTC truncated to millisecond precision
 - [ ] `status` is `Success` or `Failed`; no other value is written by actions
-- [x] Declared fields appear in the order `type, intent, action, sender, headers, url, request_method, request_params, api_response, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, followed by dynamic fields, matching the recorded Python documents (verified: LogRecordTest#declaredFieldsFirstInDeclarationOrderThenDynamicNullsOmitted)
+- [x] Declared fields appear in the order `type, intent, action, sender, headers, url, request_method, request_params, api_response, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, followed by dynamic fields, matching the recorded Python documents (verified: LogRecordTest#declaredFieldsFirstInDeclarationOrderThenDynamicNullsKept)
 **Dependencies:** cavekit-webhook-contract.md R4, cavekit-config-and-deploy.md R3
 
 ### R5: Per-type log fields
