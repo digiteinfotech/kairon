@@ -25,7 +25,9 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-114 | DONE | NestedActionSource; ActionContext.succeeded/isSuccess/response + one `context.succeeded(...)` line in Http/GoogleSearch/LiveAgent/Agent/ParallelAction. Not replicated: Python AttributeError when nested type has no is_success (set_slot, email, pyscript...): Java appends nothing - review. |
 | T-115 | DONE | CognitionSchemas (find/forEmbedding/forAction/resolveProvider). T-122/T-123: call secrets.secret(bot,llmType) BEFORE the openrouter swap to keep Python failure order; T-122 replaces DatabaseAction.trainingNeeded with forAction(). |
 | T-116 | DONE | LlmClient.complete + url() helper for T-117 embed. |
-| T-117..T-127 | TODO | tiers 3-9 |
+| T-117 | DONE | LlmClient.embed/embedAll (LlmClientEmbeddingTest 10); 3-arg @Inject ctor (LlmHttp, ActionSettings, CognitionSchemas); 2-arg ctor completion-only. |
+| T-118 | DONE | LlmClient.answer(AnswerParams[, logs]) -> Answer(content, callId); AnswerParams splits endpointLlmType (URL, openrouter after swap) vs llmType (perplexity); rephrase log survives main failure; T-121 passes its own log list. |
+| T-119..T-127 | TODO | tiers 4-9 |
 
 ## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
 Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / follow-ups:

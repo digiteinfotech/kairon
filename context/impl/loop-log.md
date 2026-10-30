@@ -51,3 +51,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 3 — 2026-10-30
 - T-113..T-116: DONE (tier 2, 4 packets, merged; PromptAction source-registry conflict resolved by hand). Build P, full suite P (0 fail). Tier 1 gate fix e8f255db (P1 LLM >=400 -> Internal Server Error). Next: tier 2 gate, then tier 3 T-117..T-119.
+
+### Iteration (llm-prompt-db) 4 — 2026-10-30
+- T-117,T-118: DONE (tier 3, 1 packet, merged). Tier 2 gate fixes bff13524 (nested no-is_success AttributeError; schema text; swap rules). Build P, full suite P. Next: T-119, T-120 (tier 4).
