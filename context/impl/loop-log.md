@@ -60,3 +60,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 6 — 2026-10-30
 - T-121,T-122: DONE (tier 5, 2 packets, merged). Build P, full suite P (495 tests). Tier 3+4 gate PROCEED e43b1c20. Next: tier 5 gate, then T-123 (PromptAction rewrite), T-124 (tier 6).
+
+### Iteration (llm-prompt-db) 7 — 2026-10-30
+- T-123,T-124: DONE (tier 6, 2 packets, merged clean). Build P, full suite P (509 tests). Tier 5 gate PROCEED. Next: tier 6 gate, then T-125 (prompt output/log parity), T-126 (adapter removal; needs T-107,T-124,T-125), T-127 (e2e).
