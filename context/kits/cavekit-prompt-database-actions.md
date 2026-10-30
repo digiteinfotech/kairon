@@ -15,11 +15,11 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 ### R1: Gates and config load
 **Description:** Both actions check the FAQ feature first, then load active config.
 **Acceptance Criteria:**
-- [ ] [GAP] The FAQ check runs before the config lookup: with `llm_settings.enable_faq` false the action fails with `Faq feature is disabled for the bot! Please contact support.` and no config read
-- [ ] [GAP] A bot with no `bot_settings` document is treated as Python's default settings (FAQ disabled) and fails with the same message
-- [ ] [GAP] Config is read by `bot`, `name`, `status: true`
-- [ ] [GAP] A missing prompt config fails with `No action found for given bot and name`
-- [ ] [GAP] A missing database config fails with `No Vector action found for given action and bot`
+- [x] The FAQ check runs before the config lookup: with `llm_settings.enable_faq` false the action fails with `Faq feature is disabled for the bot! Please contact support.` and no config read (verified: PromptDatabaseGateTest#faqFalseFailsBeforeConfigRead)
+- [x] A bot with no `bot_settings` document is treated as Python's default settings (FAQ disabled) and fails with the same message (verified: PromptDatabaseGateTest#missingBotSettingsUsesPythonDefaults, PromptDatabaseGateTest#inactiveBotSettingsUsesPythonDefaults)
+- [x] Config is read by `bot`, `name`, `status: true` (verified: PromptDatabaseGateTest#configReadByBotNameAndActiveStatus)
+- [x] A missing prompt config fails with `No action found for given bot and name` (verified: PromptDatabaseGateTest#configReadByBotNameAndActiveStatus)
+- [x] A missing database config fails with `No Vector action found for given action and bot` (verified: PromptDatabaseGateTest#configReadByBotNameAndActiveStatus)
 - [x] `_id` is absent from the logged config (verified: ActionGapParityTest#promptActionDispatchesResponse, #promptActionLoggedConfigIsToMongoView, #databaseActionLoggedConfigIsToMongoView; PromptDatabaseGateTest#databaseConfigViewDropsIdAndFillsResponseDefaults)
 **Dependencies:** cavekit-dispatch-and-logging.md R4
 
@@ -27,39 +27,39 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 **Description:** LLM parameters are built from enabled `llm_prompts` in config order.
 **Acceptance Criteria:**
 - [x] Disabled prompts are skipped; enabled prompts are processed in config order (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
-- [ ] [GAP] Each system prompt sets the system prompt to `{data}\n`; the last one wins
-- [ ] [GAP] Query prompts accumulate `{name}:\n{data}\n` plus the instructions block into the query prompt and enable it
-- [ ] [GAP] A `history` source yields the last `num_bot_responses` (default 5) bot turns with their user turns as chat messages, stopping at session start
+- [x] Each system prompt sets the system prompt to `{data}\n`; the last one wins (verified: PromptParamsTest#systemPromptLastWins)
+- [x] Query prompts accumulate `{name}:\n{data}\n` plus the instructions block into the query prompt and enable it (verified: PromptParamsTest#queryPromptsAccumulateWithInstructionsAndEnable)
+- [x] A `history` source yields the last `num_bot_responses` (default 5) bot turns with their user turns as chat messages, stopping at session start (verified: PromptParamsTest#historyDefaultsToFiveBotTurns, #historyHonoursNumBotResponses, #historyStopsAtSessionStartOldestFirst)
 - [x] History messages use role `user` for user turns and `assistant` for bot turns, oldest first (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [x] A `bot_content` source adds a similarity source with its collection, name, instructions, `top_results` (default 10) and `similarity_threshold` (default 0.70) (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
-- [ ] [GAP] A `slot` source appends `{name}:\n{slot value}\n`, with a null slot rendered `None`
-- [ ] [GAP] Any other source appends `{name}:\n{data}\n`
-- [ ] [GAP] Context sources with instructions also append `Instructions on how to use {name}:\n{instructions}\n\n`
+- [x] A `slot` source appends `{name}:\n{slot value}\n`, with a null slot rendered `None` (verified: PromptParamsTest#slotSourceRendersValueAndNone)
+- [x] Any other source appends `{name}:\n{data}\n` (verified: PromptParamsTest#otherSourceAppendsNameAndData)
+- [x] Context sources with instructions also append `Instructions on how to use {name}:\n{instructions}\n\n` (verified: PromptParamsTest#contextSourcesAppendInstructionsBlock)
 - [x] `hyperparameters`, `instructions` and `should_process_media` (from config `process_media`) reach the completion request (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
-- [ ] [GAP] `user_question` of type `from_slot` uses that slot's value; otherwise the latest user text, where a text starting with `/` is replaced by the `kairon_user_msg` entity value
+- [x] `user_question` of type `from_slot` uses that slot's value; otherwise the latest user text, where a text starting with `/` is replaced by the `kairon_user_msg` entity value (verified: PromptParamsTest#userQuestionFromSlotUsesRawSlotValue, #userQuestionSlashTextReplacedByKaironUserMsgEntity)
 **Dependencies:** cavekit-llm-vector-clients.md R2, cavekit-templating-and-secrets.md R7
 
 ### R3: crud prompt source
 **Description:** A `crud` source injects matching collection records into the context.
 **Acceptance Criteria:**
-- [ ] [GAP] `crud_config` supplies `collections`, `query_source` (`slot` or `value`, default `value`) and `result_limit` (default 10)
-- [ ] [GAP] With `query_source` `slot`, a dict slot value is used as-is, a string is parsed as JSON, and a falsy value means no filter
-- [ ] [GAP] An unparseable slot value fails with `Invalid JSON format in slot value: {value}`
-- [ ] [GAP] With `query_source` `value`, a string query is parsed as JSON
+- [x] `crud_config` supplies `collections`, `query_source` (`slot` or `value`, default `value`) and `result_limit` (default 10) (verified: CrudSourceTest#defaultsValueModeAndLimitTen, #resultLimitHonoured, #slotModeDictUsedAsIs)
+- [x] With `query_source` `slot`, a dict slot value is used as-is, a string is parsed as JSON, and a falsy value means no filter (verified: CrudSourceTest#slotModeDictUsedAsIs, #slotModeStringParsedAsJson, #slotModeFalsyMeansNoFilter)
+- [x] An unparseable slot value fails with `Invalid JSON format in slot value: {value}` (verified: CrudSourceTest#slotModeBadJsonFails)
+- [x] With `query_source` `value`, a string query is parsed as JSON (verified: CrudSourceTest#valueModeStringParsedAsJson)
 - [x] An unparseable `value`-mode query string has no dedicated message: the JSON parse error text becomes the log `exception` (status `Failed`) and the action takes the generic prompt failure path in R5 (`failure_message` or default fallback response, failure mail sent) (verified: ActionGapParityTest#promptActionCrudValueModeBadJsonTakesGenericFailurePath, CrudSourceTest#valueModeBadJsonTakesGenericPromptFailurePath)
-- [ ] [GAP] Records are read per collection by lowercased name and bot, ANDing one `filterable_attrs` element match `{key, value}` per truthy pair, limited to `result_limit`
-- [ ] [GAP] Only each record's `data` is used, decrypted when the record `is_secure`
-- [ ] [GAP] Keys and values of different lengths fail with `Keys and values lists must be of the same length.`
+- [x] Records are read per collection by lowercased name and bot, ANDing one `filterable_attrs` element match `{key, value}` per truthy pair, limited to `result_limit` (verified: CrudSourceTest#lowercasedNameBotScopeAndTruthyPairsAnded, #recordsHelperDropsFalsyPairs, #resultLimitHonoured)
+- [x] Only each record's `data` is used, decrypted when the record `is_secure` (verified: CrudSourceTest#onlyDataUsedAndSecureKeysDecrypted)
+- [x] Keys and values of different lengths fail with `Keys and values lists must be of the same length.` (verified: CrudSourceTest#keyValueLengthMismatchFails)
 - [x] Each collection appends `Collection data for {name}:\n{Python list repr}\n` (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
-- [ ] [GAP] After all collections, `Instructions on how to use collection {name}:\n{instructions}\n\n` is appended once when instructions exist
+- [x] After all collections, `Instructions on how to use collection {name}:\n{instructions}\n\n` is appended once when instructions exist (verified: CrudSourceTest#perCollectionBlocksThenInstructionsOnce)
 **Dependencies:** cavekit-templating-and-secrets.md R5, R7
 
 ### R4: Nested action source
 **Description:** An `action` source runs another action and injects its response.
 **Acceptance Criteria:**
-- [ ] [GAP] The nested action is resolved by name through action type resolution and run with the same tracker, dispatcher, domain and request context
-- [ ] [GAP] A successful nested action appends `{name}:\n{response}\n` plus the instructions block when instructions exist
-- [ ] [GAP] A failed nested action appends nothing, while its own utterances and log record remain
+- [x] The nested action is resolved by name through action type resolution and run with the same tracker, dispatcher, domain and request context (verified: NestedActionSourceTest#resolvesByNameAndRunsWithParentContext)
+- [x] A successful nested action appends `{name}:\n{response}\n` plus the instructions block when instructions exist (verified: NestedActionSourceTest#successAppendsResponseWithoutInstructions, #successAppendsInstructionsBlock, #realHttpActionSuccessAndFailure)
+- [x] A failed nested action appends nothing, while its own utterances and log record remain (verified: NestedActionSourceTest#failedNestedActionAppendsNothingButKeepsUtterancesAndLog, #realHttpActionSuccessAndFailure)
 - [x] A nested action whose type has no success property in Python (every type except http, google_search, live_agent, agent, callback, schedule and parallel; including database_action) runs to completion and then fails the prompt action with `'<PythonClassName>' object has no attribute 'is_success'` (e.g. `'ActionDatabase' object has no attribute 'is_success'`); its own dispatches and log remain (verified: NestedActionSourceTest#nestedDatabaseActionRunsThenFailsWithAttributeError, #everyNonDefinerTypeMapsToItsPythonClassName)
 **Dependencies:** cavekit-dispatch-and-logging.md R1
 
@@ -67,11 +67,11 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 **Description:** prompt_action predicts via the LLM clients and reports like Python.
 **Acceptance Criteria:**
 - [x] Cognition handling (cavekit-llm-vector-clients.md R7) runs for a non-default first similarity collection, then the model check (R6) on `hyperparameters.model`, before any LLM call (verified: PromptDatabaseE2ETest#promptActionUnknownModelUsesFailureMessageMailsAndSkipsLlm, ActionGapParityTest#promptActionMissingSchemaFailsBeforeLlm, #promptActionUnknownModelFailsBeforeLlm)
-- [ ] [GAP] Prediction uses invocation `prompt_action`, the tracker `media_ids` slot and the first similarity source's collection
+- [x] Prediction uses invocation `prompt_action`, the tracker `media_ids` slot and the first similarity source's collection (verified: ActionGapParityTest#promptActionDispatchesResponse, PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [x] A prediction result with `is_failure` true sets status `Failed` and `exception` to the result's exception (verified: ActionGapParityTest#promptActionPredictionFailureSetsFailed)
 - [x] Log `events` are `[llm_response, slots_to_fill]` in that order (verified: ActionGapParityTest#promptActionDispatchesResponse)
 - [x] The `llm_response` event has `response`, `llm_response_log` and `time_elapsed`; `slots_to_fill` has `data`, `slot_eval_log` and `time_elapsed` (verified: ActionGapParityTest#promptActionEventsShapeAndTotalElapsed)
-- [ ] [GAP] Slots are filled from context `{data: <content>, context: <tracker context>}`
+- [x] Slots are filled from context `{data: <content>, context: <tracker context>}` (verified: ActionGapParityTest#promptActionFillsSlotsFromDataAndTrackerContext)
 - [x] Returned slots include `kairon_action_response` = content and `llm_call_id` = the call id (verified: PromptDatabaseE2ETest#promptActionFullPipelineThroughWebhook)
 - [x] On error, `bot_response` is the FAQ-disabled text for that error, else `failure_message`, else the default NLU fallback response (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingSecretFailsBeforeSchemaLookup, #promptActionEmptyFailureMessageUsesDefaultFallback, #promptActionMissingConfigUsesDefaultFallbackAndMails)
 - [x] A failure mail is sent on error except the FAQ-disabled error (verified: ActionGapParityTest#promptActionFaqDisabledUttersFaqTextWithoutMail, #promptActionMissingConfigUsesDefaultFallbackAndMails, #promptActionCrudValueModeBadJsonTakesGenericFailurePath)
@@ -84,10 +84,10 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 **Acceptance Criteria:**
 - [x] An unsupported `db_type` fails before payload building, leaving `messages` empty (verified: ActionGapParityTest#databaseActionRejectsUnknownDbTypeBeforeBuildingPayload)
 - [x] A missing cognition schema fails before the payload is logged (verified: ActionGapParityTest#databaseActionMissingSchemaFailsBeforePayloadIsLogged)
-- [ ] [GAP] A payload item of type `from_slot` uses the slot value, `from_user_message` the latest text (`/`-prefixed text replaced by the `kairon_user_msg` entity), otherwise `value`
-- [ ] [GAP] A `payload_search` string is parsed as JSON; failure gives `Error converting payload to JSON: {value}`
+- [x] A payload item of type `from_slot` uses the slot value, `from_user_message` the latest text (`/`-prefixed text replaced by the `kairon_user_msg` entity), otherwise `value` (verified: DbPayloadTest#fromSlotUsesSlotValue, #fromUserMessageUsesLatestText, #fromUserMessageSlashTextReplacedByKaironUserMsgEntity, #otherTypesUseValue)
+- [x] A `payload_search` string is parsed as JSON; failure gives `Error converting payload to JSON: {value}` (verified: DbPayloadTest#payloadSearchStringParsedAsJson, #payloadSearchInvalidJsonFails)
 - [x] Other query types concatenate their values with a single space under `embedding_search` (verified: PromptDatabaseE2ETest#databaseActionEmbeddingAndPayloadSearchThroughWebhook)
-- [ ] [GAP] With `training_needed` false, the query uses the openrouter provider and secret (cavekit-llm-vector-clients.md R7)
+- [x] With `training_needed` false, the query uses the openrouter provider and secret (cavekit-llm-vector-clients.md R7) (verified: ActionGapParityTest#databaseActionSwapsToOpenrouterWhenTrainingNotNeeded)
 - [x] The vector query is sent per cavekit-llm-vector-clients.md R5 and its result composed with context `{data, context}` (verified: PromptDatabaseE2ETest#databaseActionEmbeddingAndPayloadSearchThroughWebhook, ActionGapParityTest#databaseActionDispatchesResponse)
 - [x] `messages` holds the payload, then the compose log, then the slot-eval log entries (verified: ActionGapParityTest#databaseActionDispatchesResponse)
 - [x] On error, `bot_response` is `failure_response` (default `I have failed to process your request.` when config was not loaded) and a failure mail is sent, including for the FAQ-disabled error (verified: ActionGapParityTest#databaseActionFaqDisabledSendsFailureMail, #databaseActionMissingResponseConfigUsesDefaults, #databaseActionFailureLogOmitsFalsyBotResponseKeepsDynamicNulls)
@@ -106,7 +106,7 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - [x] The logged prompt and database configs are the `to_mongo()` view: no `_id`, mongoengine defaults applied (a missing or null field takes its default, including embedded documents; null `hyperparameters` loads the LLMMetadata `openai` property defaults and fails with `Could not find any hyperparameters for openai LLM.` when none exist; null `db_type` runs as `qdrant`), declared field order (verified: ActionGapParityTest#promptActionLoggedConfigIsToMongoView, #promptActionNullHyperparametersWithoutMetadataFailsAtConfigLoad, #databaseActionLoggedConfigIsToMongoView; PromptDatabaseGateTest#promptConfigViewFillsEmbeddedDefaults, #databaseConfigViewDropsIdAndFillsResponseDefaults)
 - [x] `prompt_action` and `database_action` resolve to their implementations through action type resolution (verified: ActionGapParityTest#promptActionDispatchesResponse, ActionGapParityTest#databaseActionDispatchesResponse)
 - [x] Service configuration docs no longer describe prompt_action or database_action as deferred (verified: ConfigMappingTest#llmAndVectorRowsMatchApplicationYml asserts CONFIG.md has no "deferred" wording; T-126 removed the adapter keys `kairon.action.llm-url`/`vector-url`, ActionSettings llmUrl/vectorUrl and their javadocs; grep of action-server/src/main and CONFIG.md finds no adapter/deferred text)
-- [ ] [GAP] The LLM and vector config keys listed in cavekit-config-and-deploy.md R1 are configurable as specified there
+- [x] The LLM and vector config keys listed in cavekit-config-and-deploy.md R1 are configurable as specified there (verified: ConfigMappingTest#llmAndVectorKeysDefaultWithoutEnv, #llmAndVectorKeysFollowPythonEnvNames, #llmAndVectorRowsMatchApplicationYml)
 **Dependencies:** cavekit-templating-and-secrets.md R7, cavekit-dispatch-and-logging.md R1, R4, cavekit-config-and-deploy.md R1
 
 ## Known risks (accepted, parity with Python)
@@ -143,3 +143,4 @@ This kit supersedes the earlier deferral and remote-adapter design; the other ki
 - 2026-10-30: Review fixes: log field order aligned to cavekit-dispatch-and-logging.md R4 (authoritative) per mongoengine serialization; config criterion references cavekit-config-and-deploy.md R1; history default 5 and role labels; value-mode JSON parse failure; crud instructions appended once; falsy `bot_response` omitted (declared field) rather than null; dependency on cavekit-outbound-clients.md R5 (script-mode compose and slot evaluation).
 - 2026-10-30: R4 c4 corrected (nested action without a Python success property fails the prompt with AttributeError text); Known risks section added (crud operator injection accepted).
 - 2026-10-30: T-125: R7 criterion added (logged configs are the to_mongo() view); R3 c5, R5 c3/c5/c8-c11, R6 c9/c10, R7 c2-c5 verified.
+- 2026-10-30: post-build per-criterion verification

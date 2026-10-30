@@ -1214,4 +1214,17 @@ class ActionGapParityTest {
             settings.setSimpleAgentUrl(original);
         }
     }
+
+    @Test
+    void promptActionFillsSlotsFromDataAndTrackerContext() {
+        registerPrompt("ask_ctx", config -> config.put("set_slots", List.of(
+                kit.doc("name", "from_data", "value", "${data}", "evaluation_type", "expression"),
+                kit.doc("name", "from_context", "value", "${context.user_message}", "evaluation_type", "expression"))));
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        Map<String, Object> body = kit.ok("ask_ctx", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
+        assertEquals("llm-answer", kit.event(body, "from_data").get("value"));
+        assertEquals("what is kanban", kit.event(body, "from_context").get("value"));
+    }
 }

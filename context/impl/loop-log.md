@@ -66,3 +66,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 8 — 2026-10-30
 - T-125: DONE (tier 7, merged clean). Build P, full suite P (527 tests). Tier 6 gate PROCEED. Next: T-126 (remove adapter leftovers), T-127 (e2e).
+
+### Iteration (llm-prompt-db) 9 — 2026-10-30
+- T-125..T-127: DONE (tiers 7-9). BUILD COMPLETE: 28/28 tasks, full suite P (530 tests). Kit verification: llm-vector 35/36, prompt-db 29/29. Final gate over T-125..T-127 pending.
