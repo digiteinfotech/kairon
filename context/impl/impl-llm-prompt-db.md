@@ -16,3 +16,13 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-105 | DONE | PromptParams extracted; num_bot_responses default 5; ContextSource hook for crud/action (T-113/T-114). |
 | T-106 | DONE | DbPayload extracted; scalar payload_search accepted, Python str() concat and TypeError text. |
 | T-107..T-127 | TODO | tiers 1-9 |
+
+## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
+Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / follow-ups:
+- P2 form_validation: Python never passes user_msg; Java save() always adds it (ActionSupport.java:89, FormValidationAction.java:92).
+- P2 CallbackAction.java:49 metadataLog init null; Python [] -> init empty list.
+- P2 ScheduleAction.java:62 dataLog init null; Python {} -> init empty map.
+- P3 PromptAction.java:125 extras order: llm_call_id belongs after time_elapsed.
+- P3 PromptAction.java:44 media_ids read before FAQ gate; Python null until config loaded.
+- P3 DbPayload list += str extends char-wise in Python (edge; deliberate divergence or port).
+- P3 findLlmSecret/findLlmModel .first() vs Python .get() MultipleObjectsReturned (accept/document).
