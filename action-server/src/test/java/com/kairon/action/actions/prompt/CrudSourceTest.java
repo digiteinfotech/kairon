@@ -198,7 +198,10 @@ class CrudSourceTest {
         raw.put("latest_message", map("text", "hi"));
         raw.put("events", List.of());
         ActionContext context = new ActionContext(BOT, "act", TrackerState.from(raw), new Dispatcher(), Map.of(), Map.of());
-        Map<String, Object> filled = new PromptAction(support).execute(context);
+        // fails while building params, before LLMProcessor setup: no processor needed
+        com.kairon.action.support.llm.LlmSecrets secrets = new com.kairon.action.support.llm.LlmSecrets(catalog, tokens);
+        Map<String, Object> filled = new PromptAction(support, secrets,
+                new com.kairon.action.support.llm.CognitionSchemas(catalog, secrets), null).execute(context);
         Document log = catalog.all(Kairon.LOGS).get(0);
         assertEquals(Kairon.FAIL, log.get("status"));
         assertEquals("Expecting value: line 1 column 1 (char 0)", log.get("exception"));

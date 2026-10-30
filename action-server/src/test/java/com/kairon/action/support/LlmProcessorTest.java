@@ -220,6 +220,65 @@ class LlmProcessorTest {
                 logs.get(1));
     }
 
+    /** T-123: a None query fails in truncate_text (embedding stage) before any request; no "None" text embedded. */
+    @Test
+    void nullQueryFailsAtEmbeddingStageWithoutRequests() {
+        embeddingOk(0);
+        searchOk();
+        AnswerParams p = params(null, false);
+        AnswerParams noQuery = new AnswerParams(p.bot(), p.endpointLlmType(), p.llmType(), null, p.systemPrompt(),
+                p.context(), p.user(), p.invocation(), p.mediaIds(), p.shouldProcessMedia(), p.queryPrompt(),
+                p.useQueryPrompt(), p.previousBotResponses(), p.hyperparameters(), p.instructions());
+
+        LlmProcessor.Prediction prediction = processor.predict(noQuery, "default", sources(),
+                Map.of("api_key", "emb-key"), logs);
+
+        assertFailure(prediction, "'NoneType' object is not iterable");
+        assertEquals(List.of(Map.of("error",
+                "Creating a new embedding for the provided query. 'NoneType' object is not iterable")), logs);
+        assertTrue(stub.requests.isEmpty(), "no request: " + stub.requests);
+    }
+
+    /** T-123: a checked exception escaping the client still yields the failure shape (Python catches Exception). */
+    @Test
+    void checkedExceptionIsCaught() {
+        LlmProcessor failing = processorThrowing(new java.io.IOException("io broke"));
+        LlmProcessor.Prediction prediction = failing.predict(params(null, false), "default", sources(),
+                Map.of("api_key", "emb-key"), logs);
+        assertFailure(prediction, "io broke");
+        assertEquals(List.of(Map.of("error", "Creating a new embedding for the provided query. io broke")), logs);
+    }
+
+    /** T-123: StackOverflowError (Python RecursionError is an Exception) is caught; null message reads as "". */
+    @Test
+    void stackOverflowIsCaught() {
+        LlmProcessor failing = processorThrowing(new StackOverflowError());
+        LlmProcessor.Prediction prediction = failing.predict(params(null, false), "default", sources(),
+                Map.of("api_key", "emb-key"), logs);
+        assertFailure(prediction, "");
+        assertEquals(List.of(Map.of("error", "Creating a new embedding for the provided query. ")), logs);
+    }
+
+    private LlmProcessor processorThrowing(Throwable error) {
+        ActionSettings settings = new ActionSettings();
+        settings.setLlmServerUrl(stub.url(""));
+        settings.setVectorDb(stub.url(""));
+        settings.setFernetKey(FERNET);
+        LlmClient throwing = new LlmClient(new LlmHttp(new HttpCaller(settings), settings), settings, null) {
+            @Override
+            public Object embed(String bot, String llmType, String text, Object user, Object invocation,
+                                String collection, Map<String, String> embeddingSecret) {
+                throw LlmProcessorTest.<RuntimeException>sneaky(error);
+            }
+        };
+        return new LlmProcessor(throwing, new SimilarityContext(new QdrantClient(new HttpCaller(settings), settings)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> E sneaky(Throwable error) throws E {
+        throw (E) error;
+    }
+
     private static void assertFailure(LlmProcessor.Prediction prediction, String exception) {
         Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("is_failure", true);

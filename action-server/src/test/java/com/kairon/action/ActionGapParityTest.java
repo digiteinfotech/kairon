@@ -89,15 +89,37 @@ class ActionGapParityTest {
         assertEquals(Kairon.FAIL, log.get("status"));
     }
 
-    @Test
-    void promptActionDispatchesResponse() {
+    // ---- T-123: prompt_action against the LLM server + Qdrant ----
+
+    private static final String COMPLETION_REPLY =
+            "{\"formatted_response\":\"llm-answer\",\"response\":{\"litellm_call_id\":\"call-77\"}}";
+
+    private String completionPath(String llmType) {
+        return "/" + kit.bot + "/completion/" + llmType;
+    }
+
+    private String searchPath(String collection) {
+        return "/collections/" + kit.bot + "_" + collection + "_faq_embd/points/search";
+    }
+
+    private void llmSecretWithModels(String llmType, String apiKey, List<String> models) {
+        kit.put(com.kairon.action.catalog.ActionCatalog.LLM_SECRET, kit.doc("bot", kit.bot, "llm_type", llmType,
+                "api_key", tokens.encrypt(apiKey), "models", models));
+    }
+
+    /** prompt_action: system + bot_content(kb_docs) + nested http action + query prompt. */
+    private void registerPrompt(String name) {
         kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
                 "llm_settings", kit.doc("enable_faq", true)));
-        kit.register("ask_llm", "prompt_action");
-        kit.pathBody("/llm", "{\"content\":\"llm-answer\",\"recommendations\":[{\"title\":\"More\",\"payload\":\"/more\"}],\"litellm_call_id\":\"call-77\",\"time_elapsed\":1.2}");
+        kit.register(name, "prompt_action");
+        kit.register("kb_http", "http_action");
+        kit.put("http_action_config", kit.doc("bot", kit.bot, "action_name", "kb_http", "status", true,
+                "http_url", ParityKit.STUB + "/mock", "request_method", "GET", "content_type", "json",
+                "response", kit.doc("dispatch", false, "dispatch_type", "text",
+                        "value", "${data.data}", "evaluation_type", "expression")));
         kit.put("prompt_action", kit.doc(
                 "bot", kit.bot,
-                "name", "ask_llm",
+                "name", name,
                 "status", true,
                 "llm_type", "openai",
                 "process_media", true,
@@ -108,37 +130,106 @@ class ActionGapParityTest {
                         kit.doc("type", "system", "name", "sys", "data", "You are helpful", "is_enabled", true),
                         kit.doc("type", "user", "name", "kb", "source", "bot_content", "data", "kb_docs", "instructions", "cite", "is_enabled", true,
                                 "hyperparameters", kit.doc("top_results", 5, "similarity_threshold", 0.8)),
+                        kit.doc("type", "user", "name", "Http", "source", "action", "data", "kb_http", "is_enabled", true),
                         kit.doc("type", "query", "name", "q", "data", "Answer using KB", "instructions", "strict", "is_enabled", true)
                 ),
-                "hyperparameters", kit.doc("model", "gpt-4o-mini"),
-                "set_slots", List.of(),
+                "hyperparameters", kit.doc("model", "gpt-4o-mini", "temperature", 0.0),
+                "set_slots", List.of(kit.doc("name", "answer", "value", "${data}", "evaluation_type", "expression")),
                 "dispatch_response", true,
                 "failure_message", "fallback"
         ));
+    }
+
+    private void llmServerOk() {
+        kit.pathBody(embedPath("openai"), "[[0.1,0.2]]");
+        kit.pathBody(searchPath("kb_docs"), "{\"result\":[{\"payload\":{\"content\":\"kanban is a board\"}}]}");
+        kit.pathBody(completionPath("openai"), COMPLETION_REPLY);
+    }
+
+    private List<ParityKit.Hit> hitsUnder(String prefix) {
+        return ParityKit.HITS.stream().filter(hit -> hit.path().startsWith(prefix)).toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        return (Map<String, Object>) value;
+    }
+
+    /** T-123: embedding -> Qdrant search -> rephrase + answer completions on the real LLM server paths. */
+    @Test
+    void promptActionDispatchesResponse() {
+        registerPrompt("ask_llm");
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
 
         Map<String, Object> body = kit.ok("ask_llm", kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
         assertEquals("llm-answer", kit.text(body));
-        // T-111: Python never sends recommendation buttons, even when the LLM response carries them
+        // T-111: Python never sends recommendation buttons
+        assertEquals(1, kit.responses(body).size());
         assertEquals(List.of(), kit.responses(body).get(0).get("buttons"));
         assertEquals("llm-answer", kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
-        ParityKit.Hit llmHit = kit.hitPath("/llm");
-        assertTrue(llmHit.body().contains("\"should_process_media\":true"));
-        assertTrue(llmHit.body().contains("\"collection\":\"kb_docs\""));
-        assertTrue(llmHit.body().contains("\"similarity_prompt\""));
-        assertTrue(llmHit.body().contains("\"query_prompt\""));
+        assertEquals("call-77", kit.event(body, Kairon.LLM_CALL_ID).get("value"));
+        assertEquals("llm-answer", kit.event(body, "answer").get("value"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().startsWith("/llm")), "no adapter POST");
+
+        // embedding: first similarity collection, invocation prompt_action, openai embedding secret
+        Map<String, Object> embedBody = Jsons.readMap(kit.hitPath(embedPath("openai")).body());
+        assertEquals(List.of("what is kanban"), embedBody.get("text"));
+        Map<String, Object> embedKwargs = asMap(embedBody.get("kwargs"));
+        assertEquals("prompt_action", embedKwargs.get("invocation"));
+        assertFalse(embedKwargs.containsKey("collection"), "training_needed true pops collection");
+        assertEquals("sk-openai", embedKwargs.get("api_key"));
+        // Qdrant search with the query vector and the source's limits
+        Map<String, Object> search = Jsons.readMap(kit.hitPath(searchPath("kb_docs")).body());
+        assertEquals(List.of(0.1, 0.2), search.get("vector"));
+        assertEquals(5, ((Number) search.get("limit")).intValue());
+        assertEquals(0.8, ((Number) search.get("score_threshold")).doubleValue(), 1e-9);
+
+        // rephrase then answer completions
+        List<ParityKit.Hit> completions = hitsUnder(completionPath("openai"));
+        assertEquals(2, completions.size());
+        Map<String, Object> rephrase = Jsons.readMap(completions.get(0).body());
+        assertEquals("prompt_action_rephrase", rephrase.get("invocation"));
+        assertEquals(List.of(), rephrase.get("media_ids"));
+        assertEquals(false, rephrase.get("should_process_media"));
+        Map<String, Object> main = Jsons.readMap(completions.get(1).body());
+        assertEquals(List.of("messages", "hyperparameters", "user", "invocation", "media_ids", "should_process_media"),
+                new java.util.ArrayList<>(main.keySet()));
+        assertEquals("prompt_action", main.get("invocation"));
+        assertEquals(List.of("m1"), main.get("media_ids"));
+        assertEquals(true, main.get("should_process_media"));
+        assertEquals("default", main.get("user"));
+        assertEquals(Map.of("model", "gpt-4o-mini", "temperature", 0.0), main.get("hyperparameters"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) main.get("messages");
+        assertEquals(Map.of("role", "system", "content", "You are helpful\n"), messages.get(0));
+        String userContent = String.valueOf(messages.get(messages.size() - 1).get("content"));
+        // nested http action (R4 c1) and similarity context reach the prompt; instructions joined
+        assertTrue(userContent.contains("Http:\ntest_data\n"), userContent);
+        assertTrue(userContent.contains("Instructions on how to use kb:\n['kanban is a board']\ncite\n"), userContent);
+        assertTrue(userContent.endsWith(" \nbe concise \nQ: llm-answer \nA:"), userContent);
+
         Document log = kit.log("ask_llm");
         assertEquals("prompt_action", log.get("type"));
         assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertNull(log.get("exception"));
         assertEquals("call-77", log.get("llm_call_id"));
         assertEquals(List.of("m1"), log.get("media_ids"));
-        assertEquals(1.2, ((Number) log.get("time_elapsed")).doubleValue(), 0.0001);
+        assertTrue(((Number) log.get("time_elapsed")).doubleValue() > 0);
+        Map<String, Object> llmResponse = asMap(log.get("llm_response"));
+        assertEquals(List.of("content", "similarity_context", "litellm_call_id"),
+                new java.util.ArrayList<>(llmResponse.keySet()));
+        assertEquals("llm-answer", llmResponse.get("content"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> llmLogs = (List<Map<String, Object>>) log.get("llm_logs");
+        assertEquals(List.of("rephrase_query", "answer_query"), llmLogs.stream().map(entry -> entry.get("type")).toList());
         // T-112: Python ActionServerLogs(...) keyword order puts llm_call_id after time_elapsed
         List<String> keys = new java.util.ArrayList<>(log.keySet());
         keys.remove("_id");
         assertEquals(List.of("events", "recommendations", "llm_response", "kairon_faq_action_config", "llm_logs",
                 "user_msg", "media_ids", "time_elapsed", "llm_call_id"), keys.subList(keys.size() - 9, keys.size()));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> loggedConfig = (Map<String, Object>) log.get("kairon_faq_action_config");
+        Map<String, Object> loggedConfig = asMap(log.get("kairon_faq_action_config"));
         assertFalse(loggedConfig.containsKey("_id"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> events = (List<Map<String, Object>>) log.get("events");
@@ -146,7 +237,100 @@ class ActionGapParityTest {
         assertEquals("llm_response", events.get(0).get("type"));
         assertEquals("llm-answer", events.get(0).get("response"));
         assertEquals("slots_to_fill", events.get(1).get("type"));
-        assertEquals(Map.of(), events.get(1).get("data"));
+        assertEquals(Map.of("answer", "llm-answer"), events.get(1).get("data"));
+    }
+
+    private void assertFailedBeforeLlm(String name, String exception) {
+        Map<String, Object> body = kit.ok(name, kit.slots("media_ids", List.of("m1")), kit.latest("what is kanban"));
+        assertEquals("fallback", kit.text(body));
+        Document log = kit.log(name);
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(exception, log.get("exception"));
+        assertNull(log.get("media_ids"), "media_ids read only after the model check");
+        assertEquals(List.of(), log.get("llm_logs"), "processor built: empty llm_logs");
+        // only the nested http action (params build) ran; nothing reached the LLM server or Qdrant
+        assertTrue(ParityKit.HITS.stream().allMatch(hit -> hit.path().startsWith("/mock")),
+                "no LLM/Qdrant hit: " + ParityKit.HITS);
+        assertTrue(hitsUnder("/" + kit.bot).isEmpty());
+        assertTrue(hitsUnder("/collections").isEmpty());
+    }
+
+    /** T-123: a non-default first collection without a CognitionSchema fails before any LLM call. */
+    @Test
+    void promptActionMissingSchemaFailsBeforeLlm() {
+        registerPrompt("no_schema_prompt");
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        assertFailedBeforeLlm("no_schema_prompt", com.kairon.action.support.llm.CognitionSchemas.NOT_FOUND);
+    }
+
+    /** T-123: the model check on hyperparameters.model (original llm_type) fails before any LLM call. */
+    @Test
+    void promptActionUnknownModelFailsBeforeLlm() {
+        registerPrompt("bad_model_prompt");
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o"));
+        llmServerOk();
+        assertFailedBeforeLlm("bad_model_prompt", "The model 'gpt-4o-mini' is not available for 'openai'.");
+    }
+
+    /** T-123: LLMProcessor(bot, llm_type) loads the secret before the schema lookup (Python failure order). */
+    @Test
+    void promptActionMissingSecretFailsBeforeSchemaLookup() {
+        registerPrompt("no_secret_prompt");
+        llmServerOk();
+        Map<String, Object> body = kit.ok("no_secret_prompt", kit.slots(), kit.latest("q"));
+        assertEquals("fallback", kit.text(body));
+        Document log = kit.log("no_secret_prompt");
+        assertEquals("LLM secret for 'openai' is not configured!", log.get("exception"));
+        assertNull(log.get("llm_logs"), "processor never built");
+        assertTrue(hitsUnder("/" + kit.bot).isEmpty());
+    }
+
+    /** T-123: is_failure from predict -> status Failed, exception from the result, content None. */
+    @Test
+    void promptActionPredictionFailureSetsFailed() {
+        registerPrompt("fail_prompt");
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        kit.pathStatus(completionPath("openai"), 500);
+
+        Map<String, Object> body = kit.ok("fail_prompt", kit.slots("media_ids", List.of("m1")), kit.latest("q"));
+        assertNull(kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        assertNull(kit.event(body, Kairon.LLM_CALL_ID).get("value"));
+        Document log = kit.log("fail_prompt");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Internal Server Error", log.get("exception"));
+        assertEquals(List.of("m1"), log.get("media_ids"));
+        Map<String, Object> llmResponse = asMap(log.get("llm_response"));
+        assertEquals(List.of("is_failure", "exception", "content"), new java.util.ArrayList<>(llmResponse.keySet()));
+        assertEquals(true, llmResponse.get("is_failure"));
+        assertEquals(List.of(Map.of("error", "Retrieving chat completion for the provided query. Internal Server Error")),
+                log.get("llm_logs"));
+        assertEquals(1, hitsUnder(embedPath("openai")).size());
+    }
+
+    /** T-123: non-default collection with training_needed false swaps endpoints/secrets to openrouter. */
+    @Test
+    void promptActionSwapsToOpenrouterForUntrainedCollection() {
+        registerPrompt("or_prompt");
+        cognitionSchema("kb_docs", false);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmSecret("openrouter", "sk-or");
+        kit.pathBody(embedPath("openrouter"), "[[0.3]]");
+        kit.pathBody(searchPath("kb_docs"), "{\"result\":[]}");
+        kit.pathBody(completionPath("openrouter"), COMPLETION_REPLY);
+
+        kit.ok("or_prompt", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.SUCCESS, kit.log("or_prompt").get("status"));
+        Map<String, Object> kwargs = asMap(Jsons.readMap(kit.hitPath(embedPath("openrouter")).body()).get("kwargs"));
+        assertEquals("kb_docs", kwargs.get("collection"));
+        assertEquals("or-embed-model", kwargs.get("model"));
+        assertEquals("sk-or", kwargs.get("api_key"));
+        assertEquals(2, hitsUnder(completionPath("openrouter")).size());
+        assertTrue(hitsUnder(completionPath("openai")).isEmpty());
+        assertTrue(hitsUnder(embedPath("openai")).isEmpty());
     }
 
     private static final String DB_POINTS = "{\"result\":{\"points\":[{\"id\":1,\"payload\":{\"answer\":\"kanban board\"}}]},\"status\":\"ok\"}";

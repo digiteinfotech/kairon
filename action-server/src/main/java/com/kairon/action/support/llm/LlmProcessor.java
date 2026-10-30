@@ -1,5 +1,6 @@
 package com.kairon.action.support.llm;
 
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.support.PyRepr;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -27,6 +28,8 @@ public class LlmProcessor {
 
     static final String EMBEDDING_STAGE = "Creating a new embedding for the provided query.";
     static final String COMPLETION_STAGE = "Retrieving chat completion for the provided query.";
+    /** truncate_text iterating a None query ({@code for text in texts}) before any embedding request. */
+    static final String NONE_QUERY = "'NoneType' object is not iterable";
 
     /**
      * {@code (response, elapsed_time)} of predict.
@@ -82,6 +85,9 @@ public class LlmProcessor {
         boolean embeddingCreated = false;
         Map<String, Object> response = new LinkedHashMap<>();
         try {
+            if (params.query() == null) {
+                throw new ActionFailure(NONE_QUERY);
+            }
             Object embedding = llm.embed(params.bot(), params.endpointLlmType(), PyRepr.str(params.query()),
                     params.user(), params.invocation(), collection, embeddingSecret);
             embeddingCreated = true;
@@ -91,9 +97,10 @@ public class LlmProcessor {
             response.put("content", answer.content());
             response.put("similarity_context", context);
             response.put("litellm_call_id", answer.callId());
-        } catch (RuntimeException e) {
-            // Only the exception text is logged: messages carry status phrases / error texts, never secrets.
-            LOG.error("LLM prediction failed for bot {}: {}", params.bot(), e.toString());
+        } catch (Exception | StackOverflowError e) {
+            // Python catches every Exception (incl. RecursionError); messages carry status phrases / error texts,
+            // never secrets, so the throwable is logged with its stack trace.
+            LOG.error("LLM prediction failed for bot {}", params.bot(), e);
             String exception = e.getMessage() == null ? "" : e.getMessage();
             String stage = embeddingCreated ? COMPLETION_STAGE : EMBEDDING_STAGE;
             Map<String, Object> error = new LinkedHashMap<>();
