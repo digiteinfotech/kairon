@@ -69,3 +69,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 9 — 2026-10-30
 - T-125..T-127: DONE (tiers 7-9). BUILD COMPLETE: 28/28 tasks, full suite P (530 tests). Kit verification: llm-vector 35/36, prompt-db 29/29. Final gate over T-125..T-127 pending.
+
+### Final — 2026-10-30
+- Final gate tiers 7-9: PROCEED. llm-prompt-db build COMPLETE: 28/28 tasks, 530 tests, 0 failures. Open follow-ups recorded in impl-llm-prompt-db.md.

@@ -81,3 +81,7 @@ Folded into T-125 (to_mongo view of logged config for BOTH actions):
 For T-126: delete CognitionSchemas.resolveProvider (+tests) if unused, ActionSettings llmUrl/vectorUrl getters/setters.
 Accepted P3: non-string query repr in LlmProcessor; non-list media_ids -> [] (Python forwards raw).
 Proposed kit R7 criterion: logged prompt/database configs are the to_mongo() view (no _id, defaults applied).
+
+## Final gate tiers 7-9 (inspector, 2026-10-30): PROCEED (0 P0/P1/P2, 7 P3)
+Verified: ConfigViews field order/defaults vs mongoengine 0.29.1 to_mongo; default hyperparameters source (l_l_m_metadata, provider openai); Python completion 500 => is_failure, no mail, None text dispatched; no leftover adapter references outside context/; E2E tests non-tautological; barrier test not flaky; no secrets logged; 7 spot-checked ticked criteria proven.
+Open P3 (follow-ups): ConfigViews keeps undeclared stored keys (Python FieldDoesNotExist) - fail like Python or add kit R7 criterion; no to_python type coercion in logged config (e.g. 5.0 vs 5); PromptAction early-failure time_elapsed logged 0.0 (Python int 0); defaultHyperparameters scans whole l_l_m_metadata (use filtered lookup); ParityKit.concurrentStub executor never shut down (stopServers); ParityKit.pathSequence with no bodies NPE; PromptAction.logConfig redundant _id removal.
