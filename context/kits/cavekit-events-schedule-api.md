@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Events Schedule API
@@ -59,7 +59,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - Any change to the port (cavekit-orchestration-actions.md R2 consumes this endpoint)
 - Changes to scheduler execution, `message_broadcast` or `analytics_pipeline` scheduling
 - Authentication additions to the events server
-- prompt_action, database_action, Lambda transports, LLM rephrase, native image
+- prompt_action and database_action (cavekit-prompt-database-actions.md; they do not use this endpoint)
+- Lambda transports, LLM rephrase in kairon_bot_response, native image
 
 ## Cross-References
 - See also: cavekit-parity-harness.md
@@ -100,3 +101,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Review iteration 2 fixes (scheduling rejection semantics, callback token derivation, AES IV, cross-references, tiering).
 - 2026-10-26: Brownfield gap pass against existing port: 16 [GAP], 1 [UNVERIFIED] markers added.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: Stale prompt/database Out of Scope line now points to cavekit-prompt-database-actions.md.

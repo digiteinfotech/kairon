@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Core Actions
@@ -60,8 +60,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] No per-type config collection is read; `bot_settings` is read for the rephrase flag
 - [ ] One message is uttered with `response` = the `utter_*` name
 - [ ] Returned slots are `{"kairon_action_response": {"response": "<utter_name>"}}`
-- [ ] [GAP] The log has `type: "kairon_bot_response"`, `enable_rephrasing` = the bot settings `rephrase_response` value, `is_rephrased`, and `raw_gpt_response` (null when no rephrase happened); with rephrase disabled these are `false`, `false`, `null`
-- [ ] [GAP] The log `bot_response` equals `{'response': '<utter_name>'}` (Python repr)
+- [x] The log has `type: "kairon_bot_response"`, `enable_rephrasing` = the bot settings `rephrase_response` value, `is_rephrased`, and `raw_gpt_response` (null when no rephrase happened); with rephrase disabled these are `false`, `false`, `null` (verified: ActionGapParityTest#botResponseIgnoresRephraseFlag, ActionGapParityTest#botResponseRephraseDisabledDefaults)
+- [x] The log `bot_response` equals `{'response': '<utter_name>'}` (Python repr) (verified: WebhookTest#inActionFailureMailsOnceAndLogsRepr)
 - [ ] On exception the action writes its own `Failed` log with `exception`, sends the failure mail, and still utters the response
 **Dependencies:** cavekit-templating-and-secrets.md R7, cavekit-dispatch-and-logging.md R1
 
@@ -94,7 +94,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] Config is read from collection `callback_action_config` by `bot`, `name`, `status: true` (missing: `No Async Callback action found for given action and bot`); the callback configuration is read from collection `callback_config` by `bot` and case-insensitive `name` (missing: `Callback Configuration with name '<name>' does not exist!`)
 - [ ] The long token is a Fernet token (cavekit-templating-and-secrets.md R5) of the JSON object `{"bot", "callback_name", "validation_secret", "expire_in"}` where `validation_secret` is the Fernet-decrypted stored secret and the JSON is serialized as Python `json.dumps` would (cavekit-templating-and-secrets.md R7)
 - [ ] When the configuration's `shorten_token` is false, the URL token is the long token
-- [ ] [GAP] When `shorten_token` is true, the long token is written back to the `callback_config` document's `token_value` field, and the URL token is the configuration's `token_hash` encrypted with AES-CTR using the configured key and IV, base64url-encoded with padding stripped
+- [x] When `shorten_token` is true, the long token is written back to the `callback_config` document's `token_value` field, and the URL token is the configuration's `token_hash` encrypted with AES-CTR using the configured key and IV, base64url-encoded with padding stripped (verified: LogRecordTest#shortenTokenWritesLongTokenBackAndReturnsAesHash, LogRecordTest#shortSecretMatchesPythonXorEncryptSecret)
 - [ ] The `standalone` flag comes from the callback configuration
 - [ ] One `callback_data` document is inserted with `action_name`, `callback_name`, `bot`, `sender_id`, `channel`, `metadata`, `identifier`, `callback_url`, `timestamp`, `is_valid: true`
 - [ ] `identifier` is a UUID version 7 rendered as 32 lowercase hex characters
@@ -109,7 +109,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ## Out of Scope
 - LLM rephrasing in kairon_bot_response
 - Integration actions (cavekit-integration-actions.md) and orchestration actions (cavekit-orchestration-actions.md)
-- prompt_action, database_action, Lambda transports, native image
+- prompt_action and database_action (cavekit-prompt-database-actions.md, which may run these actions as nested prompt sources)
+- Lambda transports, native image
 
 ## Cross-References
 - See also: cavekit-orchestration-actions.md
@@ -120,6 +121,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-outbound-clients.md
 - See also: cavekit-parity-harness.md
 - See also: cavekit-config-and-deploy.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md
 
 ## Source Traceability
 - R1: kairon/actions/definitions/set_slot.py:30-58; kairon/shared/actions/data_objects.py:336
@@ -149,3 +152,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Review iteration 2 fixes (scheduling rejection semantics, callback token derivation, AES IV, cross-references, tiering).
 - 2026-10-26: Brownfield gap pass against existing port: 8 [GAP], 2 [UNVERIFIED] markers added.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: prompt/database exclusion points to cavekit-prompt-database-actions.md; See also lines for the new kits.

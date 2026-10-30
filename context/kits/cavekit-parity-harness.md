@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Parity Harness
@@ -35,14 +35,14 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R3: Replay (port side)
 **Description:** Each fixture runs as an independently reported test case against the new server.
 **Acceptance Criteria:**
-- [ ] [GAP] Each fixture produces exactly one reported pass/fail result named by its node id
-- [ ] [GAP] Replay seeds the action catalog from the fixture's Mongo seed documents
-- [ ] [GAP] Replay serves each recorded upstream response for its recorded request
-- [ ] [GAP] Replay POSTs the recorded request to `/webhook`
-- [ ] [GAP] The response must equal the recorded response, ignoring placeholder-normalized fields
-- [ ] [GAP] Every recorded outbound call must be made with the recorded method, URL, headers of interest and body
-- [ ] [GAP] No outbound call beyond the recorded ones is made
-- [ ] [GAP] Written `action_server_logs` and other written documents must equal the recorded ones, ignoring `_id` and timestamps
+- [x] Each fixture produces exactly one reported pass/fail result named by its node id (verified: ParityReplayTest#factoryNamesEachBundledFixtureByNodeIdAndRunsItClean)
+- [x] Replay seeds the action catalog from the fixture's Mongo seed documents (verified: CatalogSeederTest#seedsEveryDocumentIntoTheCatalogWithBsonTypes)
+- [x] Replay serves each recorded upstream response for its recorded request (verified: UpstreamStubsTest#servesCannedRepliesRecordsHitsAndVerifiesClean)
+- [x] Replay POSTs the recorded request to `/webhook` (verified: FixtureReplayTest#slotSetFixtureReplaysClean)
+- [x] The response must equal the recorded response, ignoring placeholder-normalized fields (verified: FixtureReplayTest#responseDifferenceIsReported)
+- [x] Every recorded outbound call must be made with the recorded method, URL, headers of interest and body (verified: FixtureReplayTest#outboundBodyAndHeaderDifferencesAreReported)
+- [x] No outbound call beyond the recorded ones is made (verified: FixtureReplayTest#missingAndExtraOutboundCallsAreReported)
+- [x] Written `action_server_logs` and other written documents must equal the recorded ones, ignoring `_id` and timestamps (verified: WrittenDocsTest#matchesIgnoringIdAndTimestampFieldsInAnyOrder)
 **Dependencies:** R2, cavekit-webhook-contract.md R2, cavekit-dispatch-and-logging.md R4
 
 ### R4: Two storage backends
@@ -72,8 +72,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ## Out of Scope
 - Shadow traffic or live request mirroring
 - Recording real (non-mocked) upstream traffic
-- Fixtures for prompt_action and database_action (deferred)
-- Lambda transports, LLM rephrase, native image
+- No replay fixtures for prompt_action/database_action until the real services (LLM server, Qdrant; cavekit-llm-vector-clients.md) can be stubbed; their behaviour is specified in cavekit-prompt-database-actions.md
+- Lambda transports, LLM rephrase in kairon_bot_response, native image
 - Parity of the events-server endpoint (cavekit-events-schedule-api.md has its own tests)
 
 ## Cross-References
@@ -128,3 +128,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 ## Changelog
 - 2026-10-26: Initial draft from approved design.
 - 2026-10-26: Brownfield gap pass against existing port: 26 [GAP], 1 [UNVERIFIED] markers added.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: prompt/database fixture exclusion stated explicitly (no replay fixtures until the real services can be stubbed).

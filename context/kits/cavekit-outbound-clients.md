@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Outbound Clients
@@ -15,9 +15,9 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R1: Swallowing HTTP exchange
 **Description:** Used by http_action and parallel children. Transport errors are swallowed and the action continues.
 **Acceptance Criteria:**
-- [ ] [GAP] The timeout is a wall-clock cap on the whole exchange (connect, redirects, body) equal to `ACTION_SERVER_REQUEST_TIMEOUT` seconds
-- [ ] [GAP] A connection failure (refused, DNS, reset) yields response body `null` and status `503` with no exception, so the action continues and the status counts as non-2xx
-- [ ] [GAP] A timeout yields response body `null` and status `408` with no exception; any other transport error yields body `null` and status `500`
+- [x] The timeout is a wall-clock cap on the whole exchange (connect, redirects, body) equal to `ACTION_SERVER_REQUEST_TIMEOUT` seconds (verified: HttpCallerExchangeTest#deadlineCoversAllRedirectHops, HttpCallerExchangeTest#deadlineCoversResponseBody)
+- [x] A connection failure (refused, DNS, reset) yields response body `null` and status `503` with no exception, so the action continues and the status counts as non-2xx (verified: HttpCallerExchangeTest#connectionRefusedYields503, HttpCallerExchangeTest#connectionResetYields503, HttpCallerExchangeTest#transportErrorsMapToPythonStatuses)
+- [x] A timeout yields response body `null` and status `408` with no exception; any other transport error yields body `null` and status `500` (verified: HttpCallerExchangeTest#transportErrorsMapToPythonStatuses, HttpCallerExchangeTest#otherTransportErrorYields500)
 - [ ] [GAP] Any non-2xx response (4xx or 5xx) yields response body `null` and status `500` regardless of the real status, because the Python client raises on status and the wrapper swallows it; the action continues
 - [ ] [GAP] A 2xx response whose content type is not JSON yields the body as the raw text, not parsed
 - [ ] Exactly one request is sent per call, including for 502/503/504 responses (no retry)
@@ -39,10 +39,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R3: Redirects and TLS
 **Description:** Redirect handling matches the Python clients.
 **Acceptance Criteria:**
-- [ ] [GAP] Up to 10 redirect hops are followed; the 11th fails the exchange
+- [x] Up to 10 redirect hops are followed; the 11th fails the exchange (verified: HttpCallerRedirectTest#followsTenRedirects, HttpCallerRedirectTest#eleventhRedirectFailsTheExchange)
 - [ ] A 301, 302 or 303 response to a POST is followed with a GET and no body
 - [ ] A 307 or 308 response is followed with the original method and body
-- [ ] [GAP] `Authorization`, `Cookie` and `Proxy-Authorization` are not sent to a different origin after a redirect
+- [x] `Authorization`, `Cookie` and `Proxy-Authorization` are not sent to a different origin after a redirect (verified: HttpCallerRedirectTest#credentialsAreNotSentToAnotherOrigin)
 - [ ] A server with an invalid TLS certificate fails the exchange
 **Dependencies:** cavekit-config-and-deploy.md R5
 
@@ -50,10 +50,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Request bytes match what the Python clients send where downstreams may care.
 **Acceptance Criteria:**
 - [ ] JSON requests send `Content-Type: application/json` with no charset parameter
-- [ ] [GAP] Form encoding of a nested dict value sends the nested dict's keys as the value, matching Python
-- [ ] [GAP] Form encoding of a list value sends one repeated key per element
-- [ ] [GAP] Form and query encoding drop keys whose value is null
-- [ ] [GAP] Spaces in query strings are encoded as `+`
+- [x] Form encoding of a nested dict value sends the nested dict's keys as the value, matching Python (verified: HttpCallerWireFormatTest#formEncodingMatchesPythonRequests)
+- [x] Form encoding of a list value sends one repeated key per element (verified: HttpCallerWireFormatTest#formEncodingMatchesPythonRequests)
+- [x] Form and query encoding drop keys whose value is null (verified: HttpCallerWireFormatTest#formEncodingMatchesPythonRequests, HttpCallerWireFormatTest#queryEncodingMatchesPythonRequests)
+- [x] Spaces in query strings are encoded as `+` (verified: HttpCallerWireFormatTest#queryEncodingMatchesPythonRequests)
 - [ ] [UNVERIFIED] Which downstreams depend on these wire details is confirmed (needs human review)
 **Dependencies:** none
 
@@ -79,10 +79,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R7: SMTP
 **Description:** Mail is sent with the configured SMTP settings.
 **Acceptance Criteria:**
-- [ ] [GAP] Mail uses the resolved host, port, user, password and TLS flag
-- [ ] [GAP] One message is sent per recipient
-- [ ] [GAP] The subject is `{sender_id} {subject}`
-- [ ] [GAP] The body is HTML, either the chat-log template or the custom text
+- [x] Mail uses the resolved host, port, user, password and TLS flag (verified: SmtpMailerTest#sendsOneHtmlMessagePerRecipientWithSenderIdSubject, EmailActionTest#chatLogBodyOneMessagePerRecipientWithResolvedCredentials)
+- [x] One message is sent per recipient (verified: SmtpMailerTest#sendsOneHtmlMessagePerRecipientWithSenderIdSubject)
+- [x] The subject is `{sender_id} {subject}` (verified: SmtpMailerTest#sendsOneHtmlMessagePerRecipientWithSenderIdSubject)
+- [x] The body is HTML, either the chat-log template or the custom text (verified: EmailActionTest#chatLogBodyOneMessagePerRecipientWithResolvedCredentials, EmailActionTest#customTextBodyUsesPythonTemplate)
 **Dependencies:** cavekit-templating-and-secrets.md R3
 
 ### R8: Media multipart upload
@@ -95,8 +95,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 
 ## Out of Scope
 - Lambda transports for pyscript and web search
-- LLM and vector-store clients (prompt_action, database_action)
-- LLM rephrase, native image
+- LLM and vector-store clients (specified in cavekit-llm-vector-clients.md, which reuses this kit's R1 transport rules)
+- LLM rephrase in kairon_bot_response, native image
 - Adding retries (Python effectively has none)
 - User-Agent and header-order parity
 
@@ -107,6 +107,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-integration-actions.md
 - See also: cavekit-orchestration-actions.md
 - See also: cavekit-config-and-deploy.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md
 
 ## Source Traceability
 - R1: kairon/shared/rest_client.py:51-70; kairon/shared/actions/utils.py:~60-81 (execute_request_async)
@@ -146,3 +148,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Build wave 3: R1 c2/c3/c5 corrected to Python (transport errors set status 503/408/500, rest_client.py:89-101); marked [GAP] (port returns null).
 - 2026-10-26: Tier 0 gate (inspector): R1 gains two criteria from live Python check (404 -> (None, 500); text/plain 200 -> text body).
 - 2026-10-26: Tier 0 gate (inspector): R8 c1 made exact (media bytes come from storage via the media record; size limit; missing-record error).
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: LLM/vector-store exclusion points to cavekit-llm-vector-clients.md; See also lines for the new kits.

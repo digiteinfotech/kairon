@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Orchestration Actions
@@ -16,10 +16,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Runs several actions concurrently through the server's own webhook and merges their slots.
 **Acceptance Criteria:**
 - [ ] Config is read from `parallel_action_config` by `bot`, `name`, `status: true`
-- [ ] [GAP] A pre-record is saved to `action_server_logs` before any child request holding only `request_id`, `timestamp` (creation time), `status: "Success"` and the default `trigger_info`; its `_id` is the `trigger_id`, and the later fill keeps that `timestamp`
-- [ ] [GAP] One POST per configured child action goes to the server's own webhook URL (default `http://localhost:5055/webhook`)
+- [x] A pre-record is saved to `action_server_logs` before any child request holding only `request_id`, `timestamp` (creation time), `status: "Success"` and the default `trigger_info`; its `_id` is the `trigger_id`, and the later fill keeps that `timestamp` (verified: ParallelActionTest#childrenPostToOwnWebhookAndSlotsMergeInChildOrder)
+- [x] One POST per configured child action goes to the server's own webhook URL (default `http://localhost:5055/webhook`) (verified: ParallelActionTest#childrenPostToOwnWebhookAndSlotsMergeInChildOrder)
 - [ ] Each child body equals the original request with `next_action` = the child name and `trigger_info` = `{"trigger_name": <parent name>, "trigger_type": "parallel_action", "trigger_id": <parent log id>}`
-- [ ] [GAP] Each child request carries the parent's request id header
+- [x] Each child request carries the parent's request id header (verified: ParallelActionTest#childrenPostToOwnWebhookAndSlotsMergeInChildOrder)
 - [ ] Child utterances are discarded; only child events with `event` = `slot` are merged, last write wins in child order
 - [ ] A failing or erroring child does not fail the parent; the parent log `status` is `Success`
 - [ ] When `dispatch_response_text` is true, `response_text` is uttered and `kairon_action_response` is set; otherwise neither
@@ -35,20 +35,20 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Acceptance Criteria:**
 - [ ] Config is read from `schedule_action` by `bot`, `name`, `status: true`; callback config from `callback_config`
 - [ ] `schedule_time` resolves via parameter resolution; `timezone` and `params_list` resolve as configured
-- [ ] [GAP] The port generates the job id as a 32-character lowercase hex UUIDv7 and submits exactly one `POST {events server URL}/api/events/schedule/action` with the body defined in cavekit-events-schedule-api.md R1 (`job_id`, `run_at`, `timezone`, `schedule_action_type`, `schedule_action`, `bot`, `user`, `data`)
-- [ ] [GAP] The submission is treated as failed when the HTTP status is not 200 OR the response envelope's `success` is not `true` (the events server returns rejections as HTTP 200 with `success: false`); a failed submission fails the action (Failed log, failure utterance) and no dispatch GET is sent
-- [ ] [GAP] The port writes no document to the events job-store collection
+- [x] The port generates the job id as a 32-character lowercase hex UUIDv7 and submits exactly one `POST {events server URL}/api/events/schedule/action` with the body defined in cavekit-events-schedule-api.md R1 (`job_id`, `run_at`, `timezone`, `schedule_action_type`, `schedule_action`, `bot`, `user`, `data`) (verified: ScheduleActionTest#pyscriptPostsTheReferenceRequestThenDispatchesOnce)
+- [x] The submission is treated as failed when the HTTP status is not 200 OR the response envelope's `success` is not `true` (the events server returns rejections as HTTP 200 with `success: false`); a failed submission fails the action (Failed log, failure utterance) and no dispatch GET is sent (verified: ScheduleActionTest#envelopeSuccessFalseIsAFailedSubmissionWithoutDispatch, ScheduleActionTest#non200StatusIsAFailedSubmissionWithoutDispatch)
+- [x] The port writes no document to the events job-store collection (verified: ScheduleActionTest#pyscriptPostsTheReferenceRequestThenDispatchesOnce)
 - [ ] After submission, one GET goes to `{events server URL}/api/events/dispatch/{job id}`
 - [ ] When `dispatch_bot_response` is true, `response_text` is uttered as text
 - [ ] Returned slots are `{}`
 - [ ] Failure utterance: `Sorry, I am unable to process your request at the moment.`
-- [ ] [GAP] Log: `type: "schedule_action"`, `schedule_action`, `schedule_time`, `timezone`, `execution_info`, `data`, `bot_response`, `messages`, `exception`
+- [x] Log: `type: "schedule_action"`, `schedule_action`, `schedule_time`, `timezone`, `execution_info`, `data`, `bot_response`, `messages`, `exception` (verified: ScheduleActionTest#pyscriptPostsTheReferenceRequestThenDispatchesOnce)
 **Dependencies:** cavekit-events-schedule-api.md R1, cavekit-events-schedule-api.md R3, cavekit-templating-and-secrets.md R3, cavekit-outbound-clients.md R2, cavekit-config-and-deploy.md R1
 
 ## Out of Scope
 - Writing the scheduler job store from the port (pickled jobs are never produced)
-- prompt_action nesting of actions (deferred with prompt_action)
-- prompt_action, database_action, Lambda transports, LLM rephrase, native image
+- prompt_action nesting of actions and database_action (cavekit-prompt-database-actions.md R4)
+- Lambda transports, LLM rephrase in kairon_bot_response, native image
 
 ## Cross-References
 - See also: cavekit-core-actions.md
@@ -84,3 +84,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 2 fixes (scheduling rejection semantics, callback token derivation, AES IV, cross-references, tiering).
 - 2026-10-26: Brownfield gap pass against existing port: 7 [GAP], 3 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 2: R1 c2 corrected to Python (pre-record = request_id + model defaults, custom_parallel_actions.py:76-77).
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: Stale deferred prompt/database Out of Scope lines now point to cavekit-prompt-database-actions.md.

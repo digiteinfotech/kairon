@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Webhook Contract
@@ -19,13 +19,13 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] A tracker missing `slots` is treated as `slots` = `{}`
 - [ ] A tracker missing `latest_message` is treated as `{}`
 - [ ] A tracker missing `events` is treated as `[]`
-- [ ] [GAP] A tracker missing `paused` is treated as `false`
+- [x] A tracker missing `paused` is treated as `false` (verified: TrackerStateTest#defaultsMatchRasaSdk)
 - [ ] A tracker missing `followup_action` is treated as `null`
-- [ ] [GAP] A tracker without `active_loop` but with `active_form` uses the `active_form` value as the active loop
-- [ ] [GAP] A tracker without both `active_loop` and `active_form` uses `{}` as the active loop
-- [ ] [GAP] A tracker missing `latest_action_name` is treated as `null`
-- [ ] [GAP] A tracker missing `stack` is treated as `[]`
-- [ ] [GAP] A tracker without `sender_id` returns HTTP 500 and executes no action (same path as a missing tracker, R3)
+- [x] A tracker without `active_loop` but with `active_form` uses the `active_form` value as the active loop (verified: TrackerStateTest#activeFormIsTheFallbackActiveLoop)
+- [x] A tracker without both `active_loop` and `active_form` uses `{}` as the active loop (verified: TrackerStateTest#defaultsMatchRasaSdk)
+- [x] A tracker missing `latest_action_name` is treated as `null` (verified: TrackerStateTest#defaultsMatchRasaSdk)
+- [x] A tracker missing `stack` is treated as `[]` (verified: TrackerStateTest#defaultsMatchRasaSdk)
+- [x] A tracker without `sender_id` returns HTTP 500 and executes no action (same path as a missing tracker, R3) (verified: WebhookTest#missingSenderIdIs500)
 - [ ] A missing `domain` is treated as `{}`
 - [ ] A `version` value different from the server's pinned Rasa SDK version produces a log line and does not change the response
 **Dependencies:** none
@@ -48,21 +48,21 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Error handling matches the existing Python server exactly. Existing port tests that expect HTTP 422 are wrong and must be corrected to this contract.
 **Acceptance Criteria:**
 - [ ] `next_action` that is missing, empty or whitespace-only returns HTTP 200 with body `null`
-- [ ] [GAP] A body that is a JSON object without a `tracker` key (and with a non-blank `next_action`) returns HTTP 500
-- [ ] [GAP] A body that is not a JSON object, or is empty, returns HTTP 200 with body `{"success":false,"error_code":422,"message":[...],"data":null}` where `message` is a list
+- [x] A body that is a JSON object without a `tracker` key (and with a non-blank `next_action`) returns HTTP 500 (verified: WebhookTest#missingTrackerIs500)
+- [x] A body that is not a JSON object, or is empty, returns HTTP 200 with body `{"success":false,"error_code":422,"message":[...],"data":null}` where `message` is a list (verified: WebhookTest#emptyBodyIsErrorEnvelope, WebhookTest#nonObjectBodyIsErrorEnvelope)
 - [ ] Any failure raised while executing an action returns HTTP 200 with `events: []` and `responses` = the messages uttered before the failure (`[]` when nothing was uttered)
-- [ ] [GAP] No request to `/webhook` returns HTTP 422 as the status code
+- [x] No request to `/webhook` returns HTTP 422 as the status code (verified: WebhookTest#noRequestReturns422Status)
 **Dependencies:** none
 
 ### R4: Middleware headers
 **Description:** Every response carries the same CORS, compression, request-id and secure headers the Python server emits.
 **Acceptance Criteria:**
 - [ ] A request with header `X-Kairon-Request-ID: abc` gets a response with `X-Kairon-Request-ID: abc`
-- [ ] [GAP] A request without `X-Kairon-Request-ID` gets a response with an `X-Kairon-Request-ID` value that is a valid UUID version 4
-- [ ] [GAP] `Access-Control-Allow-Origin` equals the request `Origin` header when present, else the first configured allowed origin
-- [ ] [GAP] CORS allows credentials, all methods and all headers
+- [x] A request without `X-Kairon-Request-ID` gets a response with an `X-Kairon-Request-ID` value that is a valid UUID version 4 (verified: RequestIdAndGzipTest#missingRequestIdIsGeneratedAsUuid4)
+- [x] `Access-Control-Allow-Origin` equals the request `Origin` header when present, else the first configured allowed origin (verified: CorsTest#allowedOriginIsEchoedWithCredentials, CorsTest#noOriginGetsFirstConfiguredOrigin)
+- [x] CORS allows credentials, all methods and all headers (verified: CorsTest#preflightAllowsAllMethodsAndRequestedHeaders)
 - [ ] [UNVERIFIED] A request with `Accept-Encoding: gzip` and a response body larger than 1 KB returns `Content-Encoding: gzip`
-- [ ] [GAP] Responses carry `Strict-Transport-Security`, `Content-Security-Policy`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cache-Control` containing `must-revalidate`, `X-Content-Type-Options`, `Server: Secure`, `Cross-Origin-Embedder-Policy: require-corp`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`
+- [x] Responses carry `Strict-Transport-Security`, `Content-Security-Policy`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cache-Control` containing `must-revalidate`, `X-Content-Type-Options`, `Server: Secure`, `Cross-Origin-Embedder-Policy: require-corp`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin` (verified: WebhookTest#secureHeadersMatchPython)
 - [ ] [GAP] Each secure-header value equals the value captured from the Python server for the same request
 **Dependencies:** cavekit-config-and-deploy.md R1
 
@@ -77,7 +77,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R6: Request size
 **Description:** The server accepts request bodies at least as large as the Python server accepts in practice. The Python server imposes no body-size limit.
 **Acceptance Criteria:**
-- [ ] [GAP] A valid webhook request with a 20 MB tracker is processed and does not return HTTP 413
+- [x] A valid webhook request with a 20 MB tracker is processed and does not return HTTP 413 (verified: RequestSizeTest#twentyMegabyteTrackerIsProcessed)
 - [ ] [UNVERIFIED] The configured body-size ceiling is documented and agreed (needs human review)
 **Dependencies:** cavekit-config-and-deploy.md R1
 
@@ -85,7 +85,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - Action behaviour, action-type resolution and logging (cavekit-dispatch-and-logging.md, cavekit-core-actions.md, cavekit-integration-actions.md, cavekit-orchestration-actions.md)
 - Templating and parameter resolution (cavekit-templating-and-secrets.md)
 - `domain_digest` handling (Rasa SDK >= 3.9) beyond ignoring unknown keys
-- prompt_action, database_action, Lambda transports, LLM rephrase, native image
+- prompt_action and database_action behaviour (cavekit-prompt-database-actions.md); they use this envelope unchanged
+- Lambda transports, LLM rephrase in kairon_bot_response, native image
 - Authentication of any endpoint
 
 ## Cross-References
@@ -132,3 +133,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Brownfield gap pass against existing port: 16 [GAP], 3 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R3 c5 corrected to literal Python (prior utterances are kept on action failure); gap marker removed.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: Stale prompt/database Out of Scope line now points to cavekit-prompt-database-actions.md.

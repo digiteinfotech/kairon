@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Templating and Secrets
@@ -29,7 +29,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Acceptance Criteria:**
 - [ ] `${RESPONSE}` becomes the whole body serialized as R7 `json.dumps` would
 - [ ] `${a.b.0}` resolves dict key `a`, then key `b`, then list index `0`
-- [ ] [GAP] A resolved dict value is rendered as R7 `json.dumps`; any other value is rendered as Python `str()`
+- [x] A resolved dict value is rendered as R7 `json.dumps`; any other value is rendered as Python `str()` (verified: LogRecordTest#placeholderDictIsJsonDumpsOtherwisePythonStr)
 - [ ] A non-empty template against a body that is neither a dict nor a list fails with `Could not find value for keys in response`
 - [ ] An empty template returns the raw body unchanged
 **Dependencies:** R7
@@ -43,15 +43,15 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] Type `chat_log` returns an object with keys `sender_id`, `session_started`, `conversation`
 - [ ] Type `key_vault` returns the decrypted key-vault value, or `null` with no error when the key is missing
 - [ ] A `value` parameter with `encrypt: true` is Fernet-decrypted before use (R5)
-- [ ] [GAP] The logged form of an encrypted parameter is masked per Python `get_masked_value`: values of 4 characters or fewer are fully masked; longer values keep `SECRET_UNMASKED_CHAR_COUNT` characters unmasked at the start when `SECRET_UNMASKED_CHAR_STRATEGY` is `from_left` and at the end when it is `from_right`
+- [x] The logged form of an encrypted parameter is masked per Python `get_masked_value`: values of 4 characters or fewer are fully masked; longer values keep `SECRET_UNMASKED_CHAR_COUNT` characters unmasked at the start when `SECRET_UNMASKED_CHAR_STRATEGY` is `from_left` and at the end when it is `from_right` (verified: ActionGapParityTest#maskFollowsPythonStrategyFromRight)
 **Dependencies:** R5, cavekit-config-and-deploy.md R1
 
 ### R4: Evaluation context
 **Description:** The context sent to the expression and pyscript evaluators has the Python key set.
 **Acceptance Criteria:**
 - [ ] The context contains `sender_id`, `user_message`, `slot`, `intent`, `chat_log`, `latest_message`, `kairon_user_msg`, `session_started`, and `key_vault` (`{}` unless requested); `bot` is appended by the http, callback, google_search and schedule actions only
-- [ ] [GAP] The context `intent` is the top entry of `latest_message.intent_ranking`, skipping `nlu_fallback` (second entry, or null if none); it is null when `intent_ranking` is absent or empty, even if `intent.name` is present
-- [ ] [GAP] `key_vault` (all decrypted secrets for the bot) is present only when requested by the action config
+- [x] The context `intent` is the top entry of `latest_message.intent_ranking`, skipping `nlu_fallback` (second entry, or null if none); it is null when `intent_ranking` is absent or empty, even if `intent.name` is present (verified: ActionGapParityTest#intentSkipsNluFallbackOnlyWhenAskedAndIsNullWithoutRanking)
+- [x] `key_vault` (all decrypted secrets for the bot) is present only when requested by the action config (verified: ContextAndParameterTest#contextHasPythonKeysAndKeyVaultOnlyWhenRequested)
 - [ ] [UNVERIFIED] The context sent for each recorded fixture equals the recorded outbound evaluator body after normalization
 **Dependencies:** R3
 
@@ -78,28 +78,27 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R7: Python repr and json.dumps parity
 **Description:** A serializer reproduces Python `str(dict)` and `json.dumps` defaults for log fields and templates that store them.
 **Acceptance Criteria:**
-- [ ] [GAP] repr output uses single quotes for strings, and double quotes when the string contains `'`
-- [ ] [GAP] repr output renders booleans as `True`/`False` and null as `None`
+- [x] repr output uses single quotes for strings, and double quotes when the string contains `'` (verified: PyReprTest#quoteSwitchingBoolsNoneAndNesting)
+- [x] repr output renders booleans as `True`/`False` and null as `None` (verified: PyReprTest#quoteSwitchingBoolsNoneAndNesting)
 - [ ] repr of `{"disconnect": true}` equals `{'disconnect': True}`
 - [ ] json output uses `", "` and `": "` separators
 - [ ] json output escapes non-ASCII characters as `\uXXXX`
-- [ ] [GAP] json output formats floats as Python does (e.g. `1e+16`, `1.0`)
-- [ ] [GAP] json and repr output preserve key insertion order
+- [x] json output formats floats as Python does (e.g. `1e+16`, `1.0`) (verified: PyReprTest#floatsFormatLikePython)
+- [x] json and repr output preserve key insertion order (verified: PyReprTest#insertionOrderPreserved)
 - [ ] [GAP] Output equals strings captured from Python for every repr field in the recorded fixtures (two_stage_fallback, kairon_voice_disconnect, kairon_bot_response `bot_response`)
 **Dependencies:** none
 
 ### R8: Sender id decryption
 **Description:** A sender id that is a valid Fernet token is decrypted before use; otherwise it is used as-is.
 **Acceptance Criteria:**
-- [ ] [GAP] A sender id that is a Fernet token of `user@x.com` under the configured key resolves to `user@x.com`
+- [x] A sender id that is a Fernet token of `user@x.com` under the configured key resolves to `user@x.com` (verified: WebhookTest#fernetSenderIdIsDecrypted)
 - [ ] A sender id that is not a valid Fernet token resolves to itself unchanged
 **Dependencies:** R5
 
 ## Out of Scope
 - Making HTTP calls (cavekit-outbound-clients.md)
 - Which action uses which template (action kits)
-- Repr/json fields of database_action (deferred)
-- prompt_action, database_action, Lambda transports, LLM rephrase, native image
+- Lambda transports, LLM rephrase in kairon_bot_response, native image (prompt_action and database_action use of R2, R5, R7 is specified in cavekit-prompt-database-actions.md and cavekit-llm-vector-clients.md)
 
 ## Cross-References
 - See also: cavekit-webhook-contract.md
@@ -109,6 +108,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-integration-actions.md
 - See also: cavekit-orchestration-actions.md
 - See also: cavekit-config-and-deploy.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md
 
 ## Source Traceability
 - R1: kairon/shared/actions/utils.py:458-492 (prepare_url)
@@ -144,3 +145,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Build wave 1: R3 c3 corrected (latest_message parameter type falls through to literal value in Python); gap marker removed.
 - 2026-10-26: Tier 0 gate (inspector): R3 masking criterion made exact (short values fully masked; strategy honoured).
 - 2026-10-26: Tier 0 gate (inspector): R4 gains the rasa_sdk intent rule (skip fallback; null without intent_ranking).
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: Removed deferred database_action repr/json Out of Scope line; prompt/database exclusion now points to the new kits; See also lines for cavekit-llm-vector-clients.md and cavekit-prompt-database-actions.md.

@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Config and Deploy
@@ -15,10 +15,15 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R1: Config mapping
 **Description:** Every config key the Python action server reads has an equivalent in the port with the same env var name and default.
 **Acceptance Criteria:**
-- [ ] [GAP] `DATABASE_URL` sets the Mongo connection; when the URL names no database, `kairon` is used
-- [ ] [GAP] `ACTION_SERVER_REQUEST_TIMEOUT` sets the outbound timeout (default 60)
+- [x] `DATABASE_URL` sets the Mongo connection; when the URL names no database, `kairon` is used (verified: ConfigMappingTest#pythonEnvNamesOverrideSettings, ConfigMappingTest#databaseNameFromUrlElseKairon)
+- [x] `ACTION_SERVER_REQUEST_TIMEOUT` sets the outbound timeout (default 60) (verified: ConfigMappingTest#defaultsResolveWithoutEnv, ConfigMappingTest#pythonEnvNamesOverrideSettings)
 - [ ] [GAP] The pyscript URL, evaluator URL, events server URL, async callback base URL, live agent URL/token/enabled, simple-agent URL, voice-call URL, web-search URL, support mail address, CORS origins, Fernet key (`FERNET_KEY`), JWT secret (`SECRET_KEY`) and algorithm, async-callback AES key and IV (`ASYNC_CALLBACK_AES_KEY`, `ASYNC_CALLBACK_AES_IV`, used by the callback token in cavekit-core-actions.md R7) and unmasked char count are each configurable
 - [ ] [GAP] Each of those keys uses the same env var name as the Python `system.yaml` and the same default
+- [ ] [GAP] `llm.url` is set by `LLM_SERVER_URL`, default `http://localhost` (used by cavekit-llm-vector-clients.md R1, R2)
+- [ ] [GAP] `llm.request_timeout` is set by `LLM_REQUEST_TIMEOUT`, default 30 seconds (cavekit-llm-vector-clients.md R3)
+- [ ] [GAP] `vector.db` is set by `VECTOR_DB`, default `http://localhost:6333` (cavekit-llm-vector-clients.md R4, R5)
+- [ ] [GAP] `vector.key` is set by `VECTOR_DB_KEY`, with no default; when unset no `api-key` header is sent (cavekit-llm-vector-clients.md R4)
+- [ ] [GAP] `action.request_timeout` (`ACTION_SERVER_REQUEST_TIMEOUT`, default 60, above) also bounds the database_action vector point query (cavekit-llm-vector-clients.md R5)
 - [ ] [GAP] A table mapping every Python key to its port key is documented and has no unmapped Python key used by in-scope actions
 **Dependencies:** none
 
@@ -26,17 +31,17 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Secrets have no defaults.
 **Acceptance Criteria:**
 - [ ] The packaged config contains no value for the Fernet key, JWT secret, AES key or AES IV
-- [ ] [GAP] Startup without the Fernet key fails with an error naming the missing key
-- [ ] [GAP] Startup without the JWT secret fails with an error naming the missing key
-- [ ] [GAP] Startup without the AES key fails with an error naming the missing key
-- [ ] [GAP] Startup without the AES IV fails with an error naming the missing key
+- [x] Startup without the Fernet key fails with an error naming the missing key (verified: SecretsTest#startupFailsNamingTheMissingSecret)
+- [x] Startup without the JWT secret fails with an error naming the missing key (verified: SecretsTest#startupFailsNamingTheMissingSecret)
+- [x] Startup without the AES key fails with an error naming the missing key (verified: SecretsTest#startupFailsNamingTheMissingSecret)
+- [x] Startup without the AES IV fails with an error naming the missing key (verified: SecretsTest#startupFailsNamingTheMissingSecret)
 - [ ] None of the default secret values in the Python `system.yaml` appear anywhere in the port's repository
 **Dependencies:** none
 
 ### R3: Mongo representation
 **Description:** Documents written by the port are indistinguishable from those Python writes.
 **Acceptance Criteria:**
-- [ ] [GAP] UUIDs are written as binary subtype 3 (Python legacy) and read without error
+- [x] UUIDs are written as binary subtype 3 (Python legacy) and read without error (verified: MongoUuidTest#subtype3RoundTripThroughClientCodecs)
 - [ ] Dates are written as BSON dates truncated to millisecond precision
 - [ ] Collection names match Python defaults: `actions`, `action_server_logs`, `http_action_config`, `key_vault`, `bot_settings`, `slots` and each per-type config collection named in the action kits
 - [ ] [UNVERIFIED] A document written by the port is read by the Python server without error
@@ -62,7 +67,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 ### R6: Blocking execution
 **Description:** Blocking work never runs on the request event loop, and the pool fits parallel fan-out.
 **Acceptance Criteria:**
-- [ ] [GAP] Mongo, SMTP and outbound HTTP calls do not execute on request event-loop threads
+- [x] Mongo, SMTP and outbound HTTP calls do not execute on request event-loop threads (verified: WebhookTest#webhookRunsOffTheEventLoop)
 - [ ] [UNVERIFIED] `/healthcheck` answers within 1 second while 50 webhook requests are blocked on a slow upstream
 - [ ] [UNVERIFIED] Pool sizing supports cavekit-orchestration-actions.md R1 fan-out (needs human review)
 **Dependencies:** none
@@ -71,7 +76,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - Native image builds
 - Kubernetes manifests
 - Lambda transport config keys (pyscript, web search trigger_task)
-- LLM and vector config keys (prompt_action, database_action deferred); LLM rephrase
+- LLM rephrase config for kairon_bot_response
 
 ## Cross-References
 - See also: cavekit-integration-actions.md
@@ -82,9 +87,11 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-core-actions.md
 - See also: cavekit-orchestration-actions.md
 - See also: cavekit-parity-harness.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md
 
 ## Source Traceability
-- R1: system.yaml (incl. :96 action.request_timeout); kairon/shared/utils.py:267-275 (ConfigLoader), 1084-1101 (mongoengine_connection)
+- R1: system.yaml (incl. :96 action.request_timeout, :236-237 llm.url/request_timeout, :243-244 vector.db/key); kairon/shared/llm/processor.py:40-43,184-186,225-226; kairon/shared/vector_embeddings/db/qdrant.py:22-25; kairon/shared/utils.py:267-275 (ConfigLoader), 1084-1101 (mongoengine_connection)
 - R2: system.yaml (security.fernet_key, security.secret_key, async_callback_action.short_secret)
 - R3: kairon/shared/actions/data_objects.py (mongoengine defaults); kairon/shared/utils.py:1084-1101
 - R4: docker/docker-compose.yml:40, 77-95
@@ -117,3 +124,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Review iteration 1 fixes (dependency cycles, compose secrets, scheduling endpoint contract, failure-mail paths, missing sender_id, dependency graph).
 - 2026-10-26: Review iteration 2 fixes (scheduling rejection semantics, callback token derivation, AES IV, cross-references, tiering).
 - 2026-10-26: Brownfield gap pass against existing port: 14 [GAP], 6 [UNVERIFIED] markers added.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: R1 gains LLM/vector keys (`LLM_SERVER_URL`, `LLM_REQUEST_TIMEOUT`, `VECTOR_DB`, `VECTOR_DB_KEY`) and action timeout use by database_action, with system.yaml defaults; deferred LLM/vector Out of Scope line removed; See also lines for the new kits.

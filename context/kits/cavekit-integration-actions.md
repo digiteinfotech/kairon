@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Integration Actions
@@ -20,7 +20,7 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] URL and headers are templated per cavekit-templating-and-secrets.md R1 and R3
 - [ ] The request uses the swallowing exchange (cavekit-outbound-clients.md R1), multipart when `media_ids` are present
 - [ ] Response composition: `evaluation_type` `script` sends the template to the pyscript evaluator; `expression` (the default) validates the HTTP status (non-2xx fails) and then fills the template locally per cavekit-templating-and-secrets.md R2; an empty template yields a null result
-- [ ] [GAP] Each `set_slots` entry is evaluated independently; one failing entry sets that slot to `null`, is logged, and does not fail the action
+- [x] Each `set_slots` entry is evaluated independently; one failing entry sets that slot to `null`, is logged, and does not fail the action (verified: ActionLogEventsTest#httpActionParamsListEventsHavePythonKeysOrderAndLogs)
 - [ ] Slots are emitted in order: dynamic_params slots, `kairon_action_response`, `http_status_code`, then `set_slots` (overriding earlier keys)
 - [ ] An utterance is sent only when `response.dispatch` is true and the composed response is truthy
 - [ ] [GAP] `dispatch_type` json parses a string response and sends it as `custom`; on decode error it sends text and logs `Failed to convert http response to json: ...`
@@ -34,8 +34,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Description:** Sends mail to configured recipients.
 **Acceptance Criteria:**
 - [ ] Config is read from `email_action_config`
-- [ ] [GAP] `from_email` and `to_email` resolve as value or slot; SMTP credentials via parameter resolution
-- [ ] [GAP] One SMTP message per recipient with subject `{sender_id} {subject}` and body = chat-log HTML or `custom_text`
+- [x] `from_email` and `to_email` resolve as value or slot; SMTP credentials via parameter resolution (verified: EmailActionTest#chatLogBodyOneMessagePerRecipientWithResolvedCredentials)
+- [x] One SMTP message per recipient with subject `{sender_id} {subject}` and body = chat-log HTML or `custom_text` (verified: EmailActionTest#chatLogBodyOneMessagePerRecipientWithResolvedCredentials, EmailActionTest#customTextBodyUsesPythonTemplate)
 - [ ] Slots: `{"kairon_action_response": <bot_response>}`
 - [ ] When `dispatch_bot_response` is true (default) `response` is uttered as text; when false `responses` is `[]`
 - [ ] Failure utterance: `I have failed to process your request`
@@ -163,9 +163,9 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Dependencies:** cavekit-outbound-clients.md R5, cavekit-templating-and-secrets.md R4
 
 ## Out of Scope
-- prompt_action and database_action (deferred)
+- prompt_action and database_action (cavekit-prompt-database-actions.md, which may run these actions as nested prompt sources)
 - Lambda transports for pyscript and web search
-- LLM rephrase, native image
+- LLM rephrase in kairon_bot_response, native image
 - Telephony providers beyond those the Python server supports
 
 ## Cross-References
@@ -176,6 +176,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-templating-and-secrets.md
 - See also: cavekit-outbound-clients.md
 - See also: cavekit-parity-harness.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md
 
 ## Source Traceability
 - R1: kairon/actions/definitions/http.py:36-185; kairon/shared/actions/utils.py:678-716, 788-824
@@ -213,3 +215,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Brownfield gap pass against existing port: 10 [GAP], 2 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R3 website criterion corrected to Python behaviour (website only used on the keyless path); gap marker removed.
 - 2026-10-26: Tier 0 gate (inspector): R1 log criterion clarified: upstream non-2xx is logged as 500 / None.
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: prompt/database exclusion points to cavekit-prompt-database-actions.md (no longer deferred); See also lines for the new kits.

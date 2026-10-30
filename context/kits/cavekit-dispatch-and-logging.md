@@ -1,6 +1,6 @@
 ---
 created: "2026-10-26T12:44:00Z"
-last_edited: "2026-10-26T14:00:00Z"
+last_edited: "2026-10-30"
 ---
 
 # Cavekit: Dispatch and Logging
@@ -18,9 +18,10 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] `next_action` = `kairon_voice_disconnect` resolves to type `kairon_voice_disconnect` with no Mongo lookup
 - [ ] A `next_action` starting with `utter_` resolves to type `kairon_bot_response`
 - [ ] Any other name resolves via the `actions` collection by `bot`, `name` and `status: true`
-- [ ] [GAP] `next_action` is stripped of surrounding whitespace but never lowercased: `My_Action` does not match a stored `my_action`
+- [x] `next_action` is stripped of surrounding whitespace but never lowercased: `My_Action` does not match a stored `my_action` (verified: WebhookTest#nextActionIsStrippedNotLowercased)
 - [ ] A name with no active `actions` document fails with `No action found for given bot and name`
-- [ ] [GAP] A resolved type outside the 22 in-scope types fails with `<type> type action is not supported with action server` (with `<type>` replaced)
+- [x] A resolved type outside the registered types fails with `<type> type action is not supported with action server` (with `<type>` replaced) (verified: ActionGapParityTest#unknownTypeIsUnsupported)
+- [x] `prompt_action` and `database_action` resolve to their implementations and execute (24 in-scope types in total); neither fails with `not supported` (verified: ActionGapParityTest#promptActionDispatchesResponse, ActionGapParityTest#databaseActionDispatchesResponse)
 - [ ] Both failures above follow the catch-all path in R3
 **Dependencies:** cavekit-webhook-contract.md R1
 
@@ -37,26 +38,26 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - [ ] The response is HTTP 200 with `events: []` and `responses` = the messages uttered before the failure (usually `[]`, since actions catch their own errors before uttering)
 - [ ] Exactly one new `action_server_logs` document is written by this path
 - [ ] That document has no `type` field
-- [ ] [GAP] That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bot`, `request_id`, `timestamp`, `status: "Failed"` and `trigger_info`
+- [x] That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bot`, `request_id`, `timestamp`, `status: "Failed"` and `trigger_info` (verified: WebhookTest#catchAllLogFieldsOrderTriggerInfoAndOneMail)
 - [ ] [GAP] The log `intent` (catch-all and every action) is the top entry of `latest_message.intent_ranking` WITHOUT skipping `nlu_fallback`, and null when `intent_ranking` is absent or empty
-- [ ] [GAP] `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}` when the request carried none
-- [ ] [GAP] One failure mail is attempted (R6)
+- [x] `trigger_info` equals `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}` when the request carried none (verified: WebhookTest#catchAllLogFieldsOrderTriggerInfoAndOneMail)
+- [x] One failure mail is attempted (R6) (verified: WebhookTest#catchAllLogFieldsOrderTriggerInfoAndOneMail)
 - [ ] No exception propagates to the HTTP layer
 **Dependencies:** cavekit-webhook-contract.md R3
 
 ### R4: Base log record
-**Description:** Every action log record in `action_server_logs` carries the base fields with the same names, defaults and order as the Python document.
+**Description:** Every action log record in `action_server_logs` carries the base fields with the same names, defaults and order as the Python document. This requirement is authoritative for field order of every type's log: declared fields of the Python `ActionServerLogs` model in declaration order, then dynamic (undeclared) fields in the order the action supplies them; per-type kits only name which dynamic fields follow.
 **Acceptance Criteria:**
 - [ ] Records are written to the collection named `action_server_logs`
 - [ ] `intent` is the latest message's intent name, including fallback intents
 - [ ] `sender` is the tracker sender id
 - [ ] `user_msg` is the latest message text
-- [ ] [GAP] `trigger_info` equals the request `trigger_info` when present, else `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}`
-- [ ] [GAP] `request_id` equals the response `X-Kairon-Request-ID` value
+- [x] `trigger_info` equals the request `trigger_info` when present, else `{"trigger_name":"","trigger_type":"implicit","trigger_id":""}` (verified: WebhookTest#actionLogKeepsRequestTriggerInfoAndDeclaredOrder)
+- [x] `request_id` equals the response `X-Kairon-Request-ID` value (verified: WebhookTest#actionLogKeepsRequestTriggerInfoAndDeclaredOrder)
 - [ ] `bot` is the tracker `bot` slot value
 - [ ] `timestamp` is a BSON date in UTC truncated to millisecond precision
 - [ ] `status` is `Success` or `Failed`; no other value is written by actions
-- [ ] [GAP] Declared fields appear in the order `type, intent, action, sender, headers, url, request_method, request_params, api_response, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, followed by dynamic fields, matching the recorded Python documents
+- [x] Declared fields appear in the order `type, intent, action, sender, headers, url, request_method, request_params, api_response, bot_response, exception, messages, bot, timestamp, status, trigger_info, request_id`, followed by dynamic fields, matching the recorded Python documents (verified: LogRecordTest#declaredFieldsFirstInDeclarationOrderThenDynamicNullsOmitted)
 **Dependencies:** cavekit-webhook-contract.md R4, cavekit-config-and-deploy.md R3
 
 ### R5: Per-type log fields
@@ -64,9 +65,9 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 **Acceptance Criteria:**
 - [ ] [GAP] For every in-scope type, a Success log contains `type` and every field listed for it in the table
 - [ ] [GAP] For every in-scope type, the field set of each recorded fixture's log equals the Python record's field set
-- [ ] [GAP] http_action `events[]` contains sub-documents with `type` values `slots`, `response`, `api_call`, `dynamic_params` or `params_list`, and `filled_slots`, in the recorded order
-- [ ] [GAP] The http_action `api_call` sub-document contains masked `headers`, `method`, `url`, `payload`, `response`, `status_code`, `time_elapsed`, `response_headers`
-- [ ] [GAP] The http_action `filled_slots` sub-document contains `data`, `slot_eval_log`, `time_elapsed`
+- [x] http_action `events[]` contains sub-documents with `type` values `slots`, `response`, `api_call`, `dynamic_params` or `params_list`, and `filled_slots`, in the recorded order (verified: ActionLogEventsTest#httpActionParamsListEventsHavePythonKeysOrderAndLogs)
+- [x] The http_action `api_call` sub-document contains masked `headers`, `method`, `url`, `payload`, `response`, `status_code`, `time_elapsed`, `response_headers` (verified: ActionLogEventsTest#httpActionParamsListEventsHavePythonKeysOrderAndLogs)
+- [x] The http_action `filled_slots` sub-document contains `data`, `slot_eval_log`, `time_elapsed` (verified: ActionLogEventsTest#httpActionParamsListEventsHavePythonKeysOrderAndLogs)
 - [ ] parallel_action writes an empty record before fan-out and later fills it (cavekit-orchestration-actions.md R1)
 
 | Type | Additional log fields |
@@ -93,21 +94,21 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 | kairon_voice_disconnect | bot_response = `{'disconnect': True}` |
 | store_page_action | exception (no bot_response) |
 | agent_action | url, bot_response, api_response, exception |
-| prompt_action | deferred |
-| database_action | deferred |
+| prompt_action | Field set and order per cavekit-prompt-database-actions.md R5 and R7 (Python prompt.py) |
+| database_action | Field set and order per cavekit-prompt-database-actions.md R7 (Python database.py) |
 
 **Dependencies:** R4, cavekit-templating-and-secrets.md R7
 
 ### R6: Failure mail
 **Description:** A best-effort mail goes to the configured support address on two kinds of failure path: the catch-all (R3) and every in-action exception handler that writes a Failed log. It never affects the response or the log.
 **Acceptance Criteria:**
-- [ ] [GAP] A catch-all failure (R3) causes one SMTP message to the configured support address
-- [ ] [GAP] An in-action failure that writes a Failed log and returns 200 with the action's fallback utterance (for example http_action with an unreachable upstream) causes exactly one SMTP message
+- [x] A catch-all failure (R3) causes one SMTP message to the configured support address (verified: WebhookTest#catchAllLogFieldsOrderTriggerInfoAndOneMail, FailureMailTest#sendsOneMessageToSupportAddressWithFailureDetails)
+- [x] An in-action failure that writes a Failed log and returns 200 with the action's fallback utterance (for example http_action with an unreachable upstream) causes exactly one SMTP message (verified: WebhookTest#inActionFailureMailsOnceAndLogsRepr)
 - [ ] These Failed paths send no mail of their own: form_validation on a validation miss, slot_set, two_stage_fallback, store_page (store_page reaches the mail only through the catch-all)
-- [ ] [GAP] A request that fails once produces exactly one mail, never two
-- [ ] [GAP] The mail body contains the action name, bot, exception text, stack trace, slot values and latest user text
+- [x] A request that fails once produces exactly one mail, never two (verified: WebhookTest#catchAllLogFieldsOrderTriggerInfoAndOneMail, WebhookTest#inActionFailureMailsOnceAndLogsRepr)
+- [x] The mail body contains the action name, bot, exception text, stack trace, slot values and latest user text (verified: FailureMailTest#sendsOneMessageToSupportAddressWithFailureDetails)
 - [ ] When SMTP is unreachable, the webhook response and log record are identical to the case where SMTP succeeds
-- [ ] [GAP] The webhook response is returned without waiting for the mail send to complete
+- [x] The webhook response is returned without waiting for the mail send to complete (verified: FailureMailTest#triggerReturnsBeforeTheSendCompletes)
 - [ ] [GAP] Mail template and wording match the Python mail (needs human review)
 **Dependencies:** cavekit-outbound-clients.md R7, cavekit-config-and-deploy.md R1
 
@@ -124,7 +125,6 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - Templating and parameter resolution (cavekit-templating-and-secrets.md)
 - Outbound transport behaviour (cavekit-outbound-clients.md)
 - Action implementations (cavekit-core-actions.md, cavekit-integration-actions.md, cavekit-orchestration-actions.md)
-- Log fields of prompt_action and database_action (deferred)
 - Lambda transports, LLM rephrase, native image
 - Status values `Partial_Success` and `PASSED` (unused by actions)
 
@@ -137,6 +137,8 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - See also: cavekit-orchestration-actions.md
 - See also: cavekit-parity-harness.md
 - See also: cavekit-config-and-deploy.md
+- See also: cavekit-llm-vector-clients.md
+- See also: cavekit-prompt-database-actions.md (prompt_action/database_action log fields; R4 here is authoritative for declared-field order)
 
 ## Source Traceability
 - R1: kairon/shared/actions/utils.py:507-532; kairon/actions/definitions/factory.py:30-58,68-73; kairon/shared/actions/models.py:32-56; kairon/shared/actions/data_objects.py:297-298
@@ -148,12 +150,11 @@ See context/refs/research-brief-java-action-server-port.md for evidence.
 - R7: kairon/actions/definitions/store_page.py:69-71; kairon/actions/handlers/processor.py:34-48
 
 ## Gap Summary
-Brownfield verification against the existing port (2026-10-26): 25 met, 20 gaps, 0 unverified by code reading.
+Brownfield verification against the existing port (2026-10-26): 25 met, 20 gaps (R1 registration row removed 2026-10-30: prompt_action and database_action are now in scope), 0 unverified by code reading.
 Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` need runtime, fixture, or human confirmation.
 
 | Req | Gap | Evidence |
 |---|---|---|
-| R1 | A resolved type outside the 22 in-scope types fails with `<type> type action is not suppor | action-server/src/main/java/com/kairon/action/actions/ActionFactory.java:20-31 — Message format is correct (test unsupportedTypeStays200), but prompt_action and database_action implementations are registered, so those deferred types run instead of failing. |
 | R1 | `next_action` is stripped of surrounding whitespace but never lowercased: `My_Action` does | action-server/src/main/java/com/kairon/action/server/ActionProcessor.java:35 — next_action is never stripped (Maps.str only); case is preserved, but ' my_action ' will not match. |
 | R3 | One failure mail is attempted (R6) | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:97-103 — failureMail is a stub that only logs 'mail suppressed'; no SMTP send is attempted. |
 | R3 | That document contains `intent`, `action`, `sender`, `exception` (the exception text), `bo | action-server/src/main/java/com/kairon/action/support/ActionSupport.java:85-94 — trigger_info is never written on the catch-all document (timestamp is added by MongoActionCatalog.insert). |
@@ -179,3 +180,5 @@ Criteria prefixed `[GAP]` are not satisfied by the current code; `[UNVERIFIED]` 
 - 2026-10-26: Brownfield gap pass against existing port: 20 [GAP], 0 [UNVERIFIED] markers added.
 - 2026-10-26: Build wave 1: R3 catch-all response criterion corrected to literal Python (handlers/action.py:25-31 keeps dispatcher messages); gap marker removed.
 - 2026-10-26: Tier 0 gate (inspector): R3 gains the log-intent rule (no fallback skip; null without intent_ranking).
+- 2026-10-30: [GAP] markers re-verified against tests
+- 2026-10-30: R1 covers 24 types (prompt_action, database_action resolve and execute); unsupported-type criterion reworded to registered types; R5 table rows point to cavekit-prompt-database-actions.md; deferred Out of Scope line and stale R1 gap row removed; See also lines for the new kits.
