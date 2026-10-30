@@ -1,11 +1,11 @@
 package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
+import com.kairon.action.actions.database.DbPayload;
 import com.kairon.action.runtime.ActionContext;
 import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
-import com.kairon.action.support.Jsons;
 import com.kairon.action.support.Maps;
 import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
@@ -62,7 +62,7 @@ public class DatabaseAction implements KaironAction {
                 throw new ActionFailure("Database not yet implemented!");
             }
             boolean trainingNeeded = trainingNeeded(context.bot, collection);
-            requestBody = payload(config.get("payload"), context);
+            requestBody = DbPayload.build(config.get("payload"), context.tracker);
             messages.add(requestBody);
             if (Maps.isEmpty(support.settings().getVectorUrl())) {
                 throw new ActionFailure("vector url is not configured");
@@ -107,7 +107,6 @@ public class DatabaseAction implements KaironAction {
         return filled;
     }
 
-
     private boolean trainingNeeded(String bot, String collection) {
         for (Document document : support.catalog().findByBot("cognition_schema", bot)) {
             if (collection != null && collection.equals(document.get("collection_name"))) {
@@ -116,35 +115,5 @@ public class DatabaseAction implements KaironAction {
             }
         }
         throw new ActionFailure("Cognition schema not found");
-    }
-
-    private Map<String, Object> payload(Object spec, ActionContext context) {
-        Map<String, Object> request = new LinkedHashMap<>();
-        for (Map<String, Object> item : Maps.mapList(spec)) {
-            Object value;
-            if ("from_slot".equals(item.get("type"))) {
-                value = context.tracker.slotValue(Maps.str(item.get("value")));
-            } else if ("from_user_message".equals(item.get("type"))) {
-                value = context.tracker.userText();
-            } else {
-                value = item.get("value");
-            }
-            if ("payload_search".equals(item.get("query_type"))) {
-                if (value instanceof String text) {
-                    Object parsed = Jsons.readAny(text);
-                    if (!(parsed instanceof Map<?, ?>) && !(parsed instanceof java.util.List<?>)) {
-                        throw new ActionFailure("Error converting payload to JSON: " + value);
-                    }
-                    request.put("payload_search", parsed);
-                } else {
-                    request.put("payload_search", value);
-                }
-            } else if (!request.containsKey("embedding_search")) {
-                request.put("embedding_search", value);
-            } else {
-                request.put("embedding_search", request.get("embedding_search") + " " + value);
-            }
-        }
-        return request;
     }
 }
