@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -12,7 +13,7 @@ from rasa.shared.core.events import ActionExecuted
 from rasa.shared.core.training_data.structures import StoryGraph, StoryStep
 import shutil
 from kairon.exceptions import AppException
-from kairon.shared.cognition.data_objects import AnalyticsCollectionData
+from kairon.shared.cognition.data_objects import AnalyticsCollectionData, CollectionData
 from kairon.shared.cognition.processor import CognitionDataProcessor
 from kairon.shared.constants import UploadHandlerClass
 from kairon.shared.data.collection_processor import DataProcessor
@@ -1753,3 +1754,155 @@ class TestAgentActionIntegrationToken:
         assert re.match(patterns[0], f"/api/agents/{bot}/agent-uuid/run/sender/simple")
         assert not re.match(patterns[0], "/api/agents/other_bot/agent-uuid/run/sender/simple")
         assert not re.match(patterns[0], f"/api/bot/{bot}/chat/client/config")
+
+
+# ---- collection data csv export ----
+
+EXPORT_BOT = "export_bot"
+EXPORT_OTHER_BOT = "export_other_bot"
+EXPORT_USER = "export_user"
+
+
+def _export_parse(content: str):
+    return list(csv.reader(io.StringIO(content, newline="")))
+
+
+def _export_save(collection_name, data, bot=EXPORT_BOT, is_secure=None):
+    DataProcessor.save_bulk_collection_data(
+        [{"data": data, "is_secure": is_secure or [], "is_non_editable": []}],
+        user=EXPORT_USER, bot=bot, collection_name=collection_name,
+    )
+
+
+@pytest.fixture
+def _clean_export_collections():
+    connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+    CollectionData.objects(bot__in=[EXPORT_BOT, EXPORT_OTHER_BOT]).delete()
+    yield
+    CollectionData.objects(bot__in=[EXPORT_BOT, EXPORT_OTHER_BOT]).delete()
+
+
+def test_export_only_current_bot_and_collection(_clean_export_collections):
+    _export_save("orders", {"a": "1"})
+    _export_save("orders", {"a": "2"})
+    _export_save("orders", {"a": "other bot"}, bot=EXPORT_OTHER_BOT)
+    _export_save("other", {"a": "other collection"})
+    rows = _export_parse(DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders"))
+    assert rows[0] == ["a"]
+    assert sorted(r[0] for r in rows[1:]) == ["1", "2"]
+
+
+def test_export_name_is_lowercased(_clean_export_collections):
+    _export_save("orders", {"a": "1"})
+    assert DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "Orders") == \
+        DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+
+
+def test_header_union_first_seen_order_and_empty_cells(_clean_export_collections):
+    _export_save("orders", {"a": "1", "b": "2"})
+    _export_save("orders", {"b": "3", "c": "4"})
+    rows = _export_parse(DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders"))
+    assert rows[0] == ["a", "b", "c"]
+    assert all(len(r) == 3 for r in rows)
+    by_b = {r[1]: r for r in rows[1:]}
+    assert by_b["2"] == ["1", "2", ""]
+    assert by_b["3"] == ["", "3", "4"]
+
+
+def test_no_metadata_columns(_clean_export_collections):
+    _export_save("orders", {"a": "1"})
+    header = _export_parse(DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders"))[0]
+    assert header == ["a"]
+
+
+def test_secure_values_exported_decrypted(_clean_export_collections):
+    _export_save("orders", {"token": "abc123", "name": "x"}, is_secure=["token"])
+    stored = CollectionData.objects(bot=EXPORT_BOT, collection_name="orders").get().data["token"]
+    assert stored != "abc123"
+    content = DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+    assert "abc123" in content
+    assert stored not in content
+    listed = list(DataProcessor.get_collection_data(EXPORT_BOT, collection_name="orders", key=[], value=[]))
+    exported = {h: v for h, v in zip(*_export_parse(content))}
+    assert exported == listed[0]["data"]
+
+
+def test_csv_escaping_and_utf8_roundtrip(_clean_export_collections):
+    values = ["a,b", 'say "hi"', "line1\nline2", "café 東京"]
+    for v in values:
+        _export_save("orders", {"v": v})
+    content = DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+    content.encode("utf-8").decode("utf-8")
+    rows = _export_parse(content)
+    assert len(rows) == len(values) + 1
+    assert sorted(r[0] for r in rows[1:]) == sorted(values)
+
+
+def test_non_scalar_values_written_as_json(_clean_export_collections):
+    _export_save("orders", {"v": {"k": [1, 2]}})
+    rows = _export_parse(DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders"))
+    assert rows[1][0] == '{"k": [1, 2]}'
+
+
+def test_missing_or_other_bot_collection_raises(_clean_export_collections):
+    with pytest.raises(AppException, match="not found or has no data"):
+        DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "nope")
+    _export_save("orders", {"a": "1"}, bot=EXPORT_OTHER_BOT)
+    with pytest.raises(AppException, match="not found or has no data"):
+        DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+
+
+def test_deleted_row_absent_from_next_export(_clean_export_collections):
+    _export_save("orders", {"a": "1"})
+    _export_save("orders", {"a": "2"})
+    doc = CollectionData.objects(bot=EXPORT_BOT, collection_name="orders", data__a="1").get()
+    DataProcessor.delete_collection_data(str(doc.id), EXPORT_BOT, EXPORT_USER)
+    rows = _export_parse(DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders"))
+    assert [r[0] for r in rows[1:]] == ["2"]
+
+
+def test_roundtrip_through_upload_import(_clean_export_collections):
+    import pandas as pd
+    _export_save("orders", {"a": "x,y", "b": "2"})
+    _export_save("orders", {"a": "z", "b": "3"})
+    content = DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+    before = sorted(map(tuple, _export_parse(content)[1:]))
+    df = pd.read_csv(io.StringIO(content), dtype=str)
+    records = [{"is_secure": [], "is_non_editable": [], "data": r} for r in df.to_dict(orient="records")]
+    DataProcessor.delete_collection(EXPORT_BOT, "orders")
+    DataProcessor.save_bulk_collection_data(records, user=EXPORT_USER, bot=EXPORT_BOT, collection_name="orders")
+    again = DataProcessor.export_collection_data_as_csv(EXPORT_BOT, "orders")
+    assert _export_parse(again)[0] == _export_parse(content)[0]
+    assert sorted(map(tuple, _export_parse(again)[1:])) == before
+
+
+def test_get_collection_data_numeric_filter_matches_stored_number(_clean_export_collections):
+    _export_save("orders", {"qty": 5, "name": "a"})
+    _export_save("orders", {"qty": 7, "name": "b"})
+    listed = list(DataProcessor.get_collection_data(
+        EXPORT_BOT, collection_name="orders", key=["qty"], value=["5"]))
+    assert [d["data"]["name"] for d in listed] == ["a"]
+
+
+def test_get_collection_data_float_filter_matches_stored_number(_clean_export_collections):
+    _export_save("orders", {"price": 2.5, "name": "a"})
+    _export_save("orders", {"price": 3.5, "name": "b"})
+    listed = list(DataProcessor.get_collection_data(
+        EXPORT_BOT, collection_name="orders", key=["price"], value=["2.5"]))
+    assert [d["data"]["name"] for d in listed] == ["a"]
+
+
+def test_get_collection_data_numeric_filter_still_matches_stored_string(_clean_export_collections):
+    _export_save("orders", {"code": "123", "name": "a"})
+    _export_save("orders", {"code": "124", "name": "b"})
+    listed = list(DataProcessor.get_collection_data(
+        EXPORT_BOT, collection_name="orders", key=["code"], value=["123"]))
+    assert [d["data"]["name"] for d in listed] == ["a"]
+
+
+def test_get_collection_data_text_filter_unchanged(_clean_export_collections):
+    _export_save("orders", {"qty": 5, "name": "a"})
+    _export_save("orders", {"qty": 7, "name": "b"})
+    listed = list(DataProcessor.get_collection_data(
+        EXPORT_BOT, collection_name="orders", key=["name"], value=["b"]))
+    assert [d["data"]["qty"] for d in listed] == [7]
