@@ -44,6 +44,12 @@ kairon:
     live-agent-enabled: true
     vector-url: ${VECTOR_DB:}
     llm-url: ${LLM_SERVER_URL:}
+    # llm.* / vector.* keys (cavekit-config-and-deploy R1). The adapter keys above are removed in T-126.
+    # VECTOR_DB_KEY has no default; unset leaves vector-key null.
+    llm-server-url: ${LLM_SERVER_URL:`http://localhost`}
+    llm-request-timeout: ${LLM_REQUEST_TIMEOUT:30}
+    vector-db: ${VECTOR_DB:`http://localhost:6333`}
+    vector-key: ${VECTOR_DB_KEY:}
     simple-agent-url: ${SIMPLE_AGENT_URL:}
     voice-call-url: ${KAIRON_VOICE_CALL_URL:}
     frontend-url: ${FRONTEND_URL:`http://localhost:3000`}

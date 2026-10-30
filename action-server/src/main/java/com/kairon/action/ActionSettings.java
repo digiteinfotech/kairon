@@ -37,10 +37,18 @@ public class ActionSettings {
     private String liveAgentToken = "";
     /** live_agent.enable (no env var in Python, fixed true). */
     private boolean liveAgentEnabled = true;
-    /** vector.db / VECTOR_DB (deferred prompt/database actions only). */
+    /** Adapter leftover, superseded by {@link #vectorDb}; removed in T-126. */
     private String vectorUrl = "";
-    /** llm.url / LLM_SERVER_URL (deferred prompt action and rephrase only). */
+    /** Adapter leftover, superseded by {@link #llmServerUrl}; removed in T-126. */
     private String llmUrl = "";
+    /** llm.url / LLM_SERVER_URL. */
+    private String llmServerUrl = "http://localhost";
+    /** llm.request_timeout / LLM_REQUEST_TIMEOUT, seconds. */
+    private int llmRequestTimeout = 30;
+    /** vector.db / VECTOR_DB. */
+    private String vectorDb = "http://localhost:6333";
+    /** vector.key / VECTOR_DB_KEY (no default; null when unset, then no api-key header is sent). */
+    private String vectorKey;
     /** simple_agent.url / SIMPLE_AGENT_URL. */
     private String simpleAgentUrl = "";
     /** Port-only: no Python key. */
@@ -98,6 +106,17 @@ public class ActionSettings {
     public void setVectorUrl(String vectorUrl) { this.vectorUrl = vectorUrl; }
     public String getLlmUrl() { return llmUrl; }
     public void setLlmUrl(String llmUrl) { this.llmUrl = llmUrl; }
+    public String getLlmServerUrl() { return llmServerUrl; }
+    public void setLlmServerUrl(String llmServerUrl) { this.llmServerUrl = llmServerUrl; }
+    public int getLlmRequestTimeout() { return llmRequestTimeout; }
+    public void setLlmRequestTimeout(int llmRequestTimeout) { this.llmRequestTimeout = llmRequestTimeout; }
+    public String getVectorDb() { return vectorDb; }
+    public void setVectorDb(String vectorDb) { this.vectorDb = vectorDb; }
+    public String getVectorKey() { return vectorKey; }
+    /** Blank is treated as unset, matching Python's unset `${VECTOR_DB_KEY}` (no api-key header). */
+    public void setVectorKey(String vectorKey) {
+        this.vectorKey = vectorKey == null || vectorKey.isBlank() ? null : vectorKey;
+    }
     public String getSimpleAgentUrl() { return simpleAgentUrl; }
     public void setSimpleAgentUrl(String simpleAgentUrl) { this.simpleAgentUrl = simpleAgentUrl; }
     public String getVoiceCallUrl() { return voiceCallUrl; }

@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** cavekit-config-and-deploy.md R1: Python env var names and defaults, and the CONFIG.md mapping table. */
@@ -225,6 +226,58 @@ class ConfigMappingTest {
             String uri = context.getProperty("mongodb.uri", String.class).orElseThrow();
             assertEquals("mongodb://db.test:27017", uri);
             assertEquals("kairon", MongoFactory.databaseName(uri));
+        }
+    }
+
+    /** cavekit-config-and-deploy R1 / cavekit-prompt-database-actions R7: llm.* and vector.* keys. */
+    @Test
+    void llmAndVectorKeysDefaultWithoutEnv() {
+        Map<String, Object> secrets = Map.of("FERNET_KEY", "f", "SECRET_KEY", "s",
+                "ASYNC_CALLBACK_AES_KEY", "k", "ASYNC_CALLBACK_AES_IV", "i");
+        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).properties(secrets).start()) {
+            ActionSettings settings = context.getBean(ActionSettings.class);
+            if (System.getenv("LLM_SERVER_URL") == null) {
+                assertEquals("http://localhost", settings.getLlmServerUrl());
+            }
+            if (System.getenv("LLM_REQUEST_TIMEOUT") == null) {
+                assertEquals(30, settings.getLlmRequestTimeout());
+            }
+            if (System.getenv("VECTOR_DB") == null) {
+                assertEquals("http://localhost:6333", settings.getVectorDb());
+            }
+            if (System.getenv("VECTOR_DB_KEY") == null) {
+                assertNull(settings.getVectorKey());
+            }
+            if (System.getenv("ACTION_SERVER_REQUEST_TIMEOUT") == null) {
+                assertEquals(60, settings.getRequestTimeout());
+            }
+        }
+        ActionSettings plain = new ActionSettings();
+        assertEquals("http://localhost", plain.getLlmServerUrl());
+        assertEquals(30, plain.getLlmRequestTimeout());
+        assertEquals("http://localhost:6333", plain.getVectorDb());
+        assertNull(plain.getVectorKey());
+    }
+
+    @Test
+    void llmAndVectorKeysFollowPythonEnvNames() {
+        Map<String, Object> env = new LinkedHashMap<>();
+        env.put("FERNET_KEY", "f");
+        env.put("SECRET_KEY", "s");
+        env.put("ASYNC_CALLBACK_AES_KEY", "k");
+        env.put("ASYNC_CALLBACK_AES_IV", "i");
+        env.put("LLM_SERVER_URL", "http://llm.test:8000");
+        env.put("LLM_REQUEST_TIMEOUT", "45");
+        env.put("VECTOR_DB", "http://qdrant.test:6333");
+        env.put("VECTOR_DB_KEY", "qdrant-key-from-env");
+        env.put("ACTION_SERVER_REQUEST_TIMEOUT", "21");
+        try (ApplicationContext context = ApplicationContext.builder().deduceEnvironment(false).properties(env).start()) {
+            ActionSettings settings = context.getBean(ActionSettings.class);
+            assertEquals("http://llm.test:8000", settings.getLlmServerUrl());
+            assertEquals(45, settings.getLlmRequestTimeout());
+            assertEquals("http://qdrant.test:6333", settings.getVectorDb());
+            assertEquals("qdrant-key-from-env", settings.getVectorKey());
+            assertEquals(21, settings.getRequestTimeout());
         }
     }
 
