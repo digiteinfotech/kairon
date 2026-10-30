@@ -60,6 +60,7 @@
               "status": "Success",
               "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
               "request_id": "{{REQUEST_ID}}",
+              "fail_reason": null,
               "user_msg": "two pizzas please",
               "http_status_code": {"$numberInt": "201"},
               "events": [

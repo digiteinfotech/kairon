@@ -50,6 +50,7 @@
               "status": "Success",
               "trigger_info": {"trigger_name": "", "trigger_type": "implicit", "trigger_id": ""},
               "request_id": "{{REQUEST_ID}}",
+              "fail_reason": null,
               "user_msg": "weather?",
               "http_status_code": {"$numberInt": "200"},
               "events": [

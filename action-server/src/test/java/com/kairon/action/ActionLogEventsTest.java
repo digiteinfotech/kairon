@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -90,8 +91,11 @@ class ActionLogEventsTest {
         List<String> keys = new ArrayList<>(log.keySet());
         keys.remove("_id");
         assertEquals(List.of("type", "intent", "action", "sender", "url", "request_method", "bot_response", "bot",
-                "timestamp", "status", "trigger_info", "request_id", "events", "user_msg", "time_elapsed",
+                "timestamp", "status", "trigger_info", "request_id", "events", "fail_reason", "user_msg", "time_elapsed",
                 "http_status_code"), keys);
+        // Python passes fail_reason=None on 2xx; as a dynamic field mongoengine stores it as null.
+        assertTrue(log.containsKey("fail_reason"));
+        assertNull(log.get("fail_reason"));
 
         List<Map<String, Object>> events = events(log);
         assertEquals(List.of("slots", "response", "api_call", "params_list", "filled_slots"),

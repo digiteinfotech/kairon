@@ -116,7 +116,8 @@ public class ActionSupport {
 
     /**
      * mongoengine to_mongo for ActionServerLogs: declared fields in {@link #LOG_FIELDS} order, then dynamic
-     * fields in insertion order, None values omitted. Defaults: timestamp = now (BSON millisecond precision),
+     * fields in insertion order. A None declared field is omitted; a dynamic field keeps None (mongoengine makes
+     * each extra keyword a DynamicField(null=True), so to_mongo writes it as null). Defaults: timestamp = now (BSON millisecond precision),
      * status = Success, trigger_info = TriggerInfo().
      */
     public static Document logRecord(Map<String, Object> values) {
@@ -138,7 +139,7 @@ public class ActionSupport {
             }
         }
         all.forEach((key, value) -> {
-            if (value != null && !LOG_FIELDS.contains(key)) {
+            if (!LOG_FIELDS.contains(key)) {
                 document.put(key, value);
             }
         });
