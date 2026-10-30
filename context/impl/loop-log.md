@@ -54,3 +54,6 @@ Build site: context/plans/build-site.md
 
 ### Iteration (llm-prompt-db) 4 — 2026-10-30
 - T-117,T-118: DONE (tier 3, 1 packet, merged). Tier 2 gate fixes bff13524 (nested no-is_success AttributeError; schema text; swap rules). Build P, full suite P. Next: T-119, T-120 (tier 4).
+
+### Iteration (llm-prompt-db) 5 — 2026-10-30
+- T-119,T-120: DONE (tier 4, 2 packets, merged). Build P, full suite P (484 tests). Gate for tiers 3+4 pending. Next: T-121, T-122 (tier 5). Also: agent_action parity fixes 772f1f19; second pass found non-dict body repr + falsy output + token claims (deferred).

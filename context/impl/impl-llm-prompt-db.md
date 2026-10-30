@@ -27,7 +27,9 @@ Build site: context/plans/build-site-llm-prompt-db.md
 | T-116 | DONE | LlmClient.complete + url() helper for T-117 embed. |
 | T-117 | DONE | LlmClient.embed/embedAll (LlmClientEmbeddingTest 10); 3-arg @Inject ctor (LlmHttp, ActionSettings, CognitionSchemas); 2-arg ctor completion-only. |
 | T-118 | DONE | LlmClient.answer(AnswerParams[, logs]) -> Answer(content, callId); AnswerParams splits endpointLlmType (URL, openrouter after swap) vs llmType (perplexity); rephrase log survives main failure; T-121 passes its own log list. |
-| T-119..T-127 | TODO | tiers 4-9 |
+| T-119 | DONE | SimilarityContext.attach/render (7 tests; latch proves concurrency); StubServer.startConcurrent added; virtual thread per search (like ParallelAction); first failure in config order raised (Python: first in time). |
+| T-120 | DONE | QdrantClient.query(bot, collection, payload, llmType, embeddingSecret, user); 3-arg @Inject ctor; no api-key; c8 error text is 'Failed to execute the url: Got non-200 status code: ...' - kit c8 should say 'contains'. |
+| T-121..T-127 | TODO | tiers 5-9 |
 
 ## Tier 0 gate (inspector, 2026-10-30): PROCEED (0 P0/P1)
 Codex gate failed to run (invocation error); inspector used. Inputs for T-112 / follow-ups:
