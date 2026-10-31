@@ -572,7 +572,7 @@ async def test_process_async_callback_request_async_triggers_callback(
         mock_run_pyscript_async.side_effect = fake_run_pyscript_async
 
         from kairon.async_callback.processor import CallbackProcessor
-        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url, trace_id = await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -618,7 +618,7 @@ async def test_process_async_callback_request_sync(
 
         mock_parse_pyscript_data.return_value = ("Test Bot", {"state": "updated"}, False, True)
 
-        data, message, error_code, response_type, redirect_url = await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url, trace_id = await CallbackProcessor.process_async_callback_request(
             token, identifier, request_data, callback_source
         )
 
@@ -926,3 +926,27 @@ async def test_shutdown_calls_executor_shutdown_and_disconnect():
         await shutdown(mock_app)
         mock_executor.shutdown.assert_called_once_with(wait=False)
         mock_disconnect.assert_called_once()
+
+@pytest.mark.asyncio
+@patch('kairon.async_callback.processor.ActionUtility.trigger_action_failure_mail')
+@patch('kairon.async_callback.processor.CallbackLog.create_failure_entry')
+@patch('kairon.async_callback.processor.CallbackProcessor.run_pyscript',
+       side_effect=AppException("Error while executing pyscript: Error on Line 2: boom"))
+@patch('kairon.async_callback.processor.CallbackData.validate_entry')
+async def test_process_async_callback_request_sync_failure_generic_message_and_full_log(
+        mock_validate, mock_run, mock_failure_entry, mock_mail):
+    entry = {"bot": "b", "identifier": "i", "action_name": "a", "channel": "c",
+             "sender_id": "s", "metadata": {}, "callback_url": "u"}
+    callback = {"execution_mode": "sync", "pyscript_code": "x", "name": "cb"}
+    mock_validate.return_value = (entry, callback)
+
+    data, message, error_code, _, redirect_url, trace_id= await CallbackProcessor.process_async_callback_request(
+        "token", "i", {"body": {}}, "src")
+
+    assert data is None
+    assert error_code == 400
+    assert message == "Callback script execution failed. Check callback logs for details."
+    assert redirect_url is None
+    assert mock_failure_entry.call_args.kwargs["error_log"] == \
+        "Error while executing pyscript: Error on Line 2: boom"
+    mock_mail.assert_called_once()
