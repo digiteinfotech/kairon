@@ -42,8 +42,9 @@ public class AgentAction implements KaironAction {
 
     @Override
     public Map<String, Object> execute(ActionContext context) {
-        Document config = support.require("agent_action_config", context.bot, "name", context.actionName,
-                "No AgentAction found for given action and bot");
+        // Python retrieve_config uses QuerySet.get() outside the execute try: DoesNotExist →
+        // ActionFailure, MultipleObjectsReturned bubbles to the processor catch-all.
+        Document config = uniqueConfig(context);
         boolean dispatch = ActionFlags.enabled(config, "dispatch_bot_response");
         Object botResponse = null;
         Object apiResponse = null;
@@ -51,10 +52,16 @@ public class AgentAction implements KaironAction {
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
+            if (!config.containsKey("agent_id")) {
+                // Python action_config["agent_id"] → KeyError; str(KeyError('agent_id')) is "'agent_id'".
+                throw new ActionFailure("'agent_id'");
+            }
             String base = support.settings().getSimpleAgentUrl();
             // Python simple_agent.url.rstrip('/')
             base = base.replaceAll("/+$", "");
-            url = base + "/agents/" + context.bot + "/" + config.get("agent_id") + "/run/" + context.tracker.senderId + "/simple";
+            // f-string interpolates a present-null agent_id as "None".
+            url = base + "/agents/" + context.bot + "/" + PyRepr.str(config.get("agent_id"))
+                    + "/run/" + context.tracker.senderId + "/simple";
             String token = support.tokens().integrationToken(agentClaims(context.bot, Maps.text(context.tracker.senderId)));
             Map<String, String> headers = new LinkedHashMap<>();
             headers.put("Accept", "application/json");
@@ -74,7 +81,7 @@ public class AgentAction implements KaironAction {
                 Object output = Maps.map(map).get("output");
                 botResponse = Maps.isEmpty(output) ? "" : output;
             } else {
-                botResponse = apiResponse == null ? "" : String.valueOf(apiResponse);
+                botResponse = apiResponse == null ? "" : PyRepr.str(apiResponse);
             }
             context.succeeded(botResponse);
         } catch (Exception e) {
@@ -85,7 +92,8 @@ public class AgentAction implements KaironAction {
             support.failureMail(context, e);
         } finally {
             if (dispatch && Maps.truthy(botResponse)) {
-                ActionFlags.utterText(context.dispatcher, botResponse);
+                // rasa_sdk utter_message(text=bot_response) keeps the object (bool/dict/list).
+                context.dispatcher.text(botResponse);
             }
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("url", url);
@@ -93,6 +101,23 @@ public class AgentAction implements KaironAction {
             support.save(context, type(), status, exception, botResponse, extra);
         }
         return ActionFlags.response(botResponse);
+    }
+
+    /**
+     * Python AgentActionConfig.objects(bot, name, status=True).get(): empty raises
+     * {@code ActionFailure("No AgentAction found for given action and bot")}; two or more raises
+     * mongoengine {@code MultipleObjectsReturned("2 or more items returned, instead of 1")}.
+     */
+    Document uniqueConfig(ActionContext context) {
+        List<Document> found = support.catalog().findAllActive("agent_action_config", context.bot, "name",
+                context.actionName);
+        if (found.size() > 1) {
+            throw new ActionFailure("2 or more items returned, instead of 1");
+        }
+        if (found.isEmpty()) {
+            throw new ActionFailure("No AgentAction found for given action and bot");
+        }
+        return found.get(0);
     }
 
     /** Token lifetime of IntegrationProcessor.create_agent_action_token (minutes). */
@@ -157,7 +182,7 @@ public class AgentAction implements KaironAction {
             if (transcript.length() > 0) {
                 transcript.append('\n');
             }
-            transcript.append(message.get("role")).append(": ").append(message.get("content"));
+            transcript.append(PyRepr.str(message.get("role"))).append(": ").append(PyRepr.str(message.get("content")));
         }
         return "Conversation history:\n" + transcript + "\n\nCurrent message: " + userMessage;
     }

@@ -1272,6 +1272,80 @@ class ActionGapParityTest {
     }
 
     @Test
+    void agentActionMissingAgentIdKeyFailsLikeKeyError() {
+        kit.register("ask_agent", "agent_action");
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", "ask_agent", "status", true,
+                "dispatch_bot_response", true));
+        kit.put("bot", new Document("_id", kit.bot).append("account", 7L).append("name", "b"));
+        Map<String, Object> body = kit.ok("ask_agent");
+        assertEquals("'agent_id'", kit.log("ask_agent").get("exception"));
+        assertEquals("agent_action", kit.log("ask_agent").get("type"));
+        assertEquals(Kairon.FAIL, kit.log("ask_agent").get("status"));
+        assertEquals(Kairon.FAILED_DOT, kit.text(body));
+        assertEquals(Kairon.FAILED_DOT, kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/agent/")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void agentActionNullAgentIdInterpolatesAsNone() {
+        kit.register("ask_agent", "agent_action");
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", "ask_agent", "status", true,
+                "agent_id", null, "dispatch_bot_response", true));
+        kit.put("bot", new Document("_id", kit.bot).append("account", 7L).append("name", "b"));
+        kit.ok("ask_agent");
+        assertTrue(kit.hitPath("/agent").path().contains("/None/"), kit.hitPath("/agent").path());
+        assertEquals(Kairon.SUCCESS, kit.log("ask_agent").get("status"));
+    }
+
+    @Test
+    void agentActionDuplicateConfigBubblesAsMultipleObjectsReturned() {
+        kit.register("ask_agent", "agent_action");
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", "ask_agent", "status", true,
+                "agent_id", "agent-1", "dispatch_bot_response", true));
+        kit.put("agent_action_config", kit.doc("bot", kit.bot, "name", "ask_agent", "status", true,
+                "agent_id", "agent-2", "dispatch_bot_response", true));
+        kit.put("bot", new Document("_id", kit.bot).append("account", 7L).append("name", "b"));
+        Map<String, Object> body = kit.ok("ask_agent");
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(List.of(), body.get("responses"));
+        Document log = kit.log("ask_agent");
+        assertNull(log.get("type"));
+        assertEquals("2 or more items returned, instead of 1", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(1, kit.logs("ask_agent").size());
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/agent/")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void agentActionUttersBooleanOutputAsBoolean() {
+        registerAgent("ask_agent", true);
+        kit.pathBody("/agent", "{\"output\": true}");
+        Map<String, Object> body = kit.ok("ask_agent");
+        assertEquals(Boolean.TRUE, kit.responses(body).get(0).get("text"));
+        assertEquals(Boolean.TRUE, kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+    }
+
+    @Test
+    void agentActionUttersDictOutputAsObject() {
+        registerAgent("ask_agent", true);
+        kit.pathBody("/agent", "{\"output\": {\"a\": 1}}");
+        Map<String, Object> body = kit.ok("ask_agent");
+        assertEquals(Map.of("a", 1), kit.responses(body).get(0).get("text"));
+        assertEquals(Map.of("a", 1), kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+    }
+
+    @Test
+    void agentActionHistoryNullContentAsPythonNone() {
+        registerAgent("ask_agent", true);
+        List<Object> events = List.of(turn("user", null), turn("bot", "b1"), turn("user", "current"));
+        kit.ok("ask_agent", kit.slots(), kit.latest("current"), events, Map.of(), "default", "ask_agent", null, null);
+        assertEquals("Conversation history:\nuser: None\nassistant: b1\n\nCurrent message: current",
+                Jsons.readMap(kit.hitPath("/agent").body()).get("message"));
+    }
+
+    @Test
     void promptActionFillsSlotsFromDataAndTrackerContext() {
         registerPrompt("ask_ctx", config -> config.put("set_slots", List.of(
                 kit.doc("name", "from_data", "value", "${data}", "evaluation_type", "expression"),

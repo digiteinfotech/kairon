@@ -13,7 +13,7 @@ public final class Dispatcher {
 
     public final List<Map<String, Object>> messages = new ArrayList<>();
 
-    public void utterMessage(String text, String image, Map<String, Object> jsonMessage, String response,
+    public void utterMessage(Object text, String image, Map<String, Object> jsonMessage, String response,
                              String attachment, List<?> buttons, List<?> elements, Map<String, Object> kwargs) {
         String resolved = response;
         if ((resolved == null || resolved.isEmpty()) && kwargs != null && kwargs.get("template") != null) {
@@ -34,7 +34,7 @@ public final class Dispatcher {
         messages.add(message);
     }
 
-    public void text(String text) {
+    public void text(Object text) {
         utterMessage(text, null, null, null, null, null, null, null);
     }
 
