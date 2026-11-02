@@ -78,6 +78,14 @@ class QdrantClientQueryTest {
         assertEquals(1, stub.at(defaultPath).size());
     }
 
+    @Test
+    void nullCollectionIsPythonNoneInQueryUrl() {
+        String path = "/collections/bot1_None_faq_embd/points/query";
+        stub.on(path, request -> StubServer.Reply.json(200, POINTS));
+        qdrant.query("bot1", null, Map.of("payload_search", Map.of("filter", Map.of())), "openai", SECRET, "u");
+        assertEquals(1, stub.at(path).size());
+    }
+
     /** c1: urljoin with an absolute path drops any base path of vector.db. */
     @Test
     void basePathDropped() {

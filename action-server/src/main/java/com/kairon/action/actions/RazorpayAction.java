@@ -7,6 +7,7 @@ import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class RazorpayAction implements KaironAction {
             Object apiSecret = support.one(trackerData, config.get("api_secret"), context.bot);
             amountRaw = support.one(trackerData, config.get("amount"), context.bot);
             if (Maps.isEmpty(amountRaw)) {
-                throw new ActionFailure("amount must be a whole number! Got " + amountRaw + ".");
+                throw new ActionFailure("amount must be a whole number! Got " + PyRepr.str(amountRaw) + ".");
             }
             long amount = whole(amountRaw);
             Object currency = support.one(trackerData, config.get("currency"), context.bot);
@@ -78,7 +79,7 @@ public class RazorpayAction implements KaironAction {
             botResponse = payload.get("short_url");
         } catch (NumberFormatException e) {
             LOG.error("razorpay amount", e);
-            exception = "amount must be a whole number! Got " + amountRaw + ".";
+            exception = "amount must be a whole number! Got " + PyRepr.str(amountRaw) + ".";
             status = Kairon.FAIL;
             botResponse = Kairon.FAILED;
         } catch (Exception e) {

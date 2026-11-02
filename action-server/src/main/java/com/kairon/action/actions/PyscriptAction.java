@@ -44,10 +44,9 @@ public class PyscriptAction implements KaironAction {
         try {
             config = support.require("pyscript_action_config", context.bot, "name", context.actionName,
                     "No pyscript action found for given action and bot");
-            if (!config.containsKey("dispatch_response")) {
-                throw new IllegalArgumentException("dispatch_response");
-            }
-            dispatch = Maps.truthy(config.get("dispatch_response"));
+            // mongoengine BooleanField default True; missing key is Success True.
+            dispatch = ActionFlags.enabled(config, "dispatch_response");
+            ActionFlags.require(config, "source_code");
             Map<String, Object> response = support.runPyscript(Maps.str(config.get("source_code")), support.context(context.tracker, true));
             if (response.get("type") != null) {
                 dispatchType = String.valueOf(response.get("type"));

@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.RequestIds;
 import com.kairon.action.support.ActionSupport;
@@ -60,15 +61,17 @@ public class ParallelAction implements KaironAction {
         try {
             Document config = support.require("parallel_action_config", context.bot, "name", context.actionName,
                     "No parallel action found for given action and bot");
-            if (!config.containsKey("actions") || !config.containsKey("dispatch_response_text")
-                    || !config.containsKey("response_text")) {
-                throw new IllegalArgumentException("parallel config");
+            Object actions = ActionFlags.require(config, "actions");
+            ActionFlags.require(config, "dispatch_response_text");
+            ActionFlags.require(config, "response_text");
+            if (actions == null) {
+                throw new ActionFailure("'NoneType' object is not iterable");
             }
             dispatch = Maps.truthy(config.get("dispatch_response_text"));
             responseText = config.get("response_text");
             created = new Date();
             logId = insertPreRecord(created);
-            List<Object> results = runChildren(context, config.get("actions"), logId);
+            List<Object> results = runChildren(context, actions, logId);
             extractSlots(results, filled);
             context.succeeded(null);
         } catch (Exception e) {

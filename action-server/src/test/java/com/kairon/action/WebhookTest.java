@@ -505,7 +505,7 @@ class WebhookTest {
     @Test
     void liveAgentUnavailable() {
         register("talk", "live_agent_action");
-        catalog.put("live_agent_action_config", doc("bot", BOT, "name", "talk", "status", true, "bot_response", "hello"));
+        catalog.put("live_agent_action_config", doc("bot", BOT, "name", "live_agent_action", "status", true, "bot_response", "hello"));
         Map<String, Object> body = ok(call("talk", slots(), latest("hi"), null));
         assertEquals(List.of(), body.get("events"));
         Map<String, Object> custom = map(responses(body).get(0).get("custom"));
@@ -661,7 +661,7 @@ class WebhookTest {
         List<Document> failed = logs("fallback");
         assertEquals(1, failed.size());
         assertNull(failed.get(0).get("type"));
-        assertEquals("intent_ranking", failed.get(0).get("exception"));
+        assertEquals("'intent_ranking'", failed.get(0).get("exception"));
         assertEquals(Kairon.FAIL, failed.get(0).get("status"));
     }
 

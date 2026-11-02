@@ -321,7 +321,7 @@ class ActionLogEventsTest {
     @Test
     void liveAgentLogCarriesMessages() {
         kit.register("talk", "live_agent_action");
-        kit.put("live_agent_action_config", kit.doc("bot", kit.bot, "name", "talk", "status", true, "bot_response", "hello"));
+        kit.put("live_agent_action_config", kit.doc("bot", kit.bot, "name", "live_agent_action", "status", true, "bot_response", "hello"));
         kit.ok("talk");
         Document log = kit.log("talk");
         assertEquals(List.of(), log.get("messages"));

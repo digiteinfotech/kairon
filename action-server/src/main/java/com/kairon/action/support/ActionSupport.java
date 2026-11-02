@@ -251,6 +251,9 @@ public class ActionSupport {
     }
 
     public Object[] parameterPair(Map<String, Object> trackerData, Map<String, Object> param, String bot) {
+        if (!param.containsKey("parameter_type")) {
+            throw new ActionFailure("'parameter_type'");
+        }
         String type = Maps.str(param.get("parameter_type"));
         Object value;
         if ("sender_id".equals(type)) {
@@ -294,6 +297,9 @@ public class ActionSupport {
         Map<String, Object> body = new LinkedHashMap<>();
         Map<String, Object> log = new LinkedHashMap<>();
         for (Map<String, Object> param : Maps.mapList(params)) {
+            if (!param.containsKey("key")) {
+                throw new ActionFailure("'key'");
+            }
             Object[] pair = parameterPair(trackerData, param, bot);
             body.put(Maps.str(param.get("key")), pair[0]);
             log.put(Maps.str(param.get("key")), pair[1]);
@@ -307,12 +313,16 @@ public class ActionSupport {
         return prepared;
     }
 
+    /**
+     * ActionUtility.get_parameter_value: resolves a single param map. schedule_time and similar
+     * CustomActionRequestParameters have no {@code key}; {@code prepare_request} is the only caller
+     * that does {@code param['key']}.
+     */
     public Object one(Map<String, Object> trackerData, Object param, String bot) {
         if (!(param instanceof Map<?, ?>)) {
             return null;
         }
-        Prepared prepared = prepareRequest(trackerData, List.of(param), bot);
-        return prepared.body().get(Maps.str(Maps.map(param).get("key")));
+        return parameterPair(trackerData, Maps.map(param), bot)[0];
     }
 
     public String prepareUrl(String url, Map<String, Object> trackerData) {

@@ -55,6 +55,7 @@ public class GoogleSearchAction implements KaironAction {
                     throw new ActionFailure("Google search requires an api key; global search for '"
                             + globalSearchTerm(Maps.text(searchTerm), config.get("website")) + "' is not supported");
                 }
+                ActionFlags.require(config, "search_engine_id");
                 results = search(Maps.text(apiKey), Maps.text(config.get("search_engine_id")), Maps.text(searchTerm), config.get("num_results"));
                 if (results instanceof List<?> list && !list.isEmpty()) {
                     botResponse = support.formatSearch(cast(list));

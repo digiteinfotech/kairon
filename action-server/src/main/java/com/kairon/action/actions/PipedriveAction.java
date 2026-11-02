@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -38,11 +39,15 @@ public class PipedriveAction implements KaironAction {
         Document config = support.require("pipedrive_leads_action", context.bot, "name", context.actionName,
                 "No Pipedrive leads action found for given action and bot");
         Object botResponse = config.get("response");
+        // Python title = f"{sender} {action_config['title']}" is outside try.
+        ActionFlags.require(config, "title");
+        String title = Maps.text(context.tracker.senderId) + " " + PyRepr.str(config.get("title"));
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
             Map<String, Object> trackerData = support.context(context.tracker, false);
             Object token = support.one(trackerData, config.get("api_token"), context.bot);
+            ActionFlags.require(config, "domain");
             String base = baseUrl(Maps.text(config.get("domain")));
             String apiToken = Maps.text(token);
             Map<String, Object> metadata = new LinkedHashMap<>();
@@ -57,7 +62,6 @@ public class PipedriveAction implements KaironAction {
             personBody.put("email", Maps.truthy(metadata.get("email")) ? ListOf(metadata.get("email")) : null);
             personBody.put("phone", Maps.truthy(metadata.get("phone")) ? ListOf(metadata.get("phone")) : null);
             Map<String, Object> person = success(post(base, apiToken, "/persons", personBody), "person");
-            String title = Maps.text(context.tracker.senderId) + " " + Maps.text(config.get("title"));
             Map<String, Object> leadBody = new LinkedHashMap<>();
             leadBody.put("title", title);
             leadBody.put("person_id", person.get("id"));

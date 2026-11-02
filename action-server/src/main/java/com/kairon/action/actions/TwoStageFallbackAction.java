@@ -2,9 +2,11 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -35,9 +37,7 @@ public class TwoStageFallbackAction implements KaironAction {
     public Map<String, Object> execute(ActionContext context) {
         Document config = support.require("kairon_two_stage_fallback_action", context.bot, "name", context.actionName,
                 "Two stage fallback action config not found");
-        if (!config.containsKey("text_recommendations")) {
-            throw new IllegalArgumentException("text_recommendations");
-        }
+        ActionFlags.require(config, "text_recommendations");
         String exception = null;
         List<Map<String, Object>> recommendations = new ArrayList<>();
         Object recommendationsConfig = config.get("text_recommendations");
@@ -45,12 +45,12 @@ public class TwoStageFallbackAction implements KaironAction {
         if (Maps.truthy(recommendationsConfig) && Maps.truthy(textRecommendations.get("count"))) {
             int count = count(textRecommendations.get("count"));
             if (Maps.truthy(textRecommendations.get("use_intent_ranking"))) {
-                Object ranking = context.tracker.latestMessage.get("intent_ranking");
+                Object ranking = ActionFlags.require(context.tracker.latestMessage, "intent_ranking");
                 if (ranking == null) {
-                    throw new NullPointerException("intent_ranking");
+                    throw new ActionFailure("'NoneType' object is not subscriptable");
                 }
                 if (!(ranking instanceof List<?>)) {
-                    throw new IllegalArgumentException("intent_ranking");
+                    throw new ActionFailure("'" + ranking.getClass().getSimpleName() + "' object is not subscriptable");
                 }
                 List<Map<String, Object>> intents = Maps.mapList(ranking);
                 for (int i = 1; i < intents.size() && i < 1 + count; i++) {
@@ -75,10 +75,7 @@ public class TwoStageFallbackAction implements KaironAction {
         }
         if (Maps.truthy(config.get("trigger_rules"))) {
             for (Map<String, Object> rule : Maps.mapList(config.get("trigger_rules"))) {
-                if (!rule.containsKey("payload") || rule.get("payload") == null) {
-                    throw new IllegalArgumentException("payload");
-                }
-                String payload = String.valueOf(rule.get("payload"));
+                String payload = PyRepr.str(ActionFlags.require(rule, "payload"));
                 Map<String, Object> button = new LinkedHashMap<>();
                 if (Maps.truthy(rule.get("is_dynamic_msg"))) {
                     button.put("payload", "/" + payload + "{\"" + Kairon.USER_MSG + "\": \"" + py(context.tracker.text()) + "\"}");
@@ -87,10 +84,7 @@ public class TwoStageFallbackAction implements KaironAction {
                 } else {
                     button.put("payload", "/" + payload);
                 }
-                if (!rule.containsKey("text")) {
-                    throw new IllegalArgumentException("text");
-                }
-                button.put("text", rule.get("text"));
+                button.put("text", ActionFlags.require(rule, "text"));
                 recommendations.add(button);
             }
         }
@@ -114,7 +108,7 @@ public class TwoStageFallbackAction implements KaironAction {
                 return text;
             }
         }
-        throw new IllegalStateException("StopIteration");
+        throw new IllegalStateException("");
     }
 
     private static int count(Object value) {

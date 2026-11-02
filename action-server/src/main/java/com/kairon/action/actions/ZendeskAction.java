@@ -6,6 +6,7 @@ import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -35,13 +36,17 @@ public class ZendeskAction implements KaironAction {
         Document config = support.require("zendesk_action", context.bot, "name", context.actionName,
                 "No Zendesk action found for given action and bot");
         Object botResponse = config.get("response");
+        // Python subject = f"{sender} {action_config['subject']}" is outside try.
+        ActionFlags.require(config, "subject");
+        String subject = Maps.text(context.tracker.senderId) + " " + PyRepr.str(config.get("subject"));
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
             Map<String, Object> trackerData = support.context(context.tracker, false);
             Object token = support.one(trackerData, config.get("api_token"), context.bot);
-            String subject = Maps.text(context.tracker.senderId) + " " + Maps.text(config.get("subject"));
-            String comment = support.emailBody(Maps.mapList(trackerData.get("chat_log")), Maps.text(config.get("subject")));
+            ActionFlags.require(config, "subdomain");
+            ActionFlags.require(config, "user_name");
+            String comment = support.emailBody(Maps.mapList(trackerData.get("chat_log")), PyRepr.str(config.get("subject")));
             Map<String, Object> ticket = new LinkedHashMap<>();
             ticket.put("subject", subject);
             ticket.put("comment", Map.of("html_body", comment));

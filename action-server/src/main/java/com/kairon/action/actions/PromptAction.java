@@ -9,6 +9,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import com.kairon.action.support.llm.AnswerParams;
 import com.kairon.action.support.llm.CognitionSchemas;
 import com.kairon.action.support.llm.LlmProcessor;
@@ -107,7 +108,7 @@ public class PromptAction implements KaironAction {
                 throw new ActionFailure("'NoneType' object has no attribute 'get'");
             }
             Object model = Maps.map(llmParams.hyperparameters()).get("model");
-            secrets.checkModel(context.bot, llmType, model == null ? null : model.toString());
+            secrets.checkModel(context.bot, llmType, PyRepr.str(model));
             // Python reads media_ids only after the model check, so earlier failures log null
             mediaIds = context.tracker.slotValue("media_ids");
             AnswerParams answer = new AnswerParams(context.bot, endpointLlmType, llmType, userMessage,

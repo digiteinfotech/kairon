@@ -2,6 +2,7 @@ package com.kairon.action.support;
 
 import com.kairon.action.ActionSettings;
 import com.kairon.action.catalog.MemoryActionCatalog;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.TrackerState;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** templating-and-secrets R3 c3 (latest_message falls through like Python) and R4 c1-c2 (evaluation context). */
 class ContextAndParameterTest {
@@ -100,5 +102,28 @@ class ContextAndParameterTest {
         assertEquals("hello there", support.parameter(context, Map.of("parameter_type", "user_message"), BOT));
         assertEquals("greet", support.parameter(context, Map.of("parameter_type", "intent"), BOT));
         assertEquals("Pune", support.parameter(context, Map.of("parameter_type", "slot", "value", "city"), BOT));
+    }
+
+    @Test
+    void missingParameterTypeIsQuotedKeyError() {
+        Map<String, Object> context = support.context(tracker, false);
+        ActionFailure failure = assertThrows(ActionFailure.class,
+                () -> support.parameter(context, Map.of("key", "city", "value", "Pune"), BOT));
+        assertEquals("'parameter_type'", failure.getMessage());
+    }
+
+    @Test
+    void prepareRequestMissingKeyIsQuotedKeyError() {
+        Map<String, Object> context = support.context(tracker, false);
+        ActionFailure failure = assertThrows(ActionFailure.class,
+                () -> support.prepareRequest(context, List.of(Map.of("parameter_type", "value", "value", "x")), BOT));
+        assertEquals("'key'", failure.getMessage());
+    }
+
+    @Test
+    void oneWithoutKeyResolvesValueLikeGetParameterValue() {
+        Map<String, Object> context = support.context(tracker, false);
+        assertEquals("2030-01-15 10:30:00",
+                support.one(context, Map.of("parameter_type", "value", "value", "2030-01-15 10:30:00"), BOT));
     }
 }

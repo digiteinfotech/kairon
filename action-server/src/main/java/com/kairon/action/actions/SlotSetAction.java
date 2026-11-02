@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
@@ -31,9 +32,13 @@ public class SlotSetAction implements KaironAction {
     public Map<String, Object> execute(ActionContext context) {
         Document config = support.require("slot_set_action", context.bot, "name", context.actionName,
                 "No Slot set action found for given action and bot");
+        Object setSlots = ActionFlags.require(config, "set_slots");
+        if (setSlots == null) {
+            throw new ActionFailure("'NoneType' object is not iterable");
+        }
         Map<String, Object> slots = new LinkedHashMap<>();
         List<String> messages = new ArrayList<>();
-        for (Map<String, Object> slot : Maps.mapList(config.get("set_slots"))) {
+        for (Map<String, Object> slot : Maps.mapList(setSlots)) {
             String name = Maps.str(slot.get("name"));
             if ("from_value".equals(slot.get("type"))) {
                 slots.put(name, slot.get("value"));

@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.runtime.RequestIds;
 import com.kairon.action.support.ActionSupport;
@@ -46,7 +47,8 @@ public class LiveAgentAction implements KaironAction {
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
-            Document config = support.require("live_agent_action_config", context.bot, "name", context.actionName,
+            // Python ActionLiveAgent.__init__ overwrites self.name to this constant before QuerySet.get().
+            Document config = support.require("live_agent_action_config", context.bot, "name", "live_agent_action",
                     "No Live Agent action found for given action and bot");
             dispatch = ActionFlags.enabled(config, "dispatch_bot_response");
             botResponse = config.get("bot_response");
@@ -54,7 +56,7 @@ public class LiveAgentAction implements KaironAction {
             web = channelKey == null || channelKey.isBlank();
             String channel = web ? "web" : CHANNELS.get(channelKey);
             if (!web && channel == null) {
-                throw new IllegalArgumentException(channelKey);
+                throw new ActionFailure("'" + channelKey + "'");
             }
             Map<String, Object> data = request(context, channel);
             if (Maps.truthy(data) && Maps.truthy(data.get("msg"))) {

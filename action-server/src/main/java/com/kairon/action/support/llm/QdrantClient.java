@@ -123,7 +123,8 @@ public class QdrantClient {
         if (!request.containsKey("limit")) {
             request.put("limit", 10);
         }
-        String url = join(settings.getVectorDb(), "/collections/" + bot + "_" + collection + SUFFIX + "/points/query");
+        String url = join(settings.getVectorDb(), "/collections/" + bot + "_"
+                + (collection == null ? "None" : collection) + SUFFIX + "/points/query");
         return http.executeStrict("POST", url, null, request, "json");
     }
 

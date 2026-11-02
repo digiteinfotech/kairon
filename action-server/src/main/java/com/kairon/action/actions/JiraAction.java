@@ -6,6 +6,7 @@ import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -35,15 +36,22 @@ public class JiraAction implements KaironAction {
         Document config = support.require("jira_action", context.bot, "name", context.actionName,
                 "No Jira action found for given action and bot");
         Object botResponse = config.get("response");
+        // Python summary = f"{sender} {action_config['summary']}" is outside try.
+        ActionFlags.require(config, "summary");
+        String summary = Maps.text(context.tracker.senderId) + " " + PyRepr.str(config.get("summary"));
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
             Map<String, Object> trackerData = support.context(context.tracker, false);
             Object token = support.one(trackerData, config.get("api_token"), context.bot);
+            ActionFlags.require(config, "project_key");
+            ActionFlags.require(config, "issue_type");
+            ActionFlags.require(config, "url");
+            ActionFlags.require(config, "user_name");
             Map<String, Object> fields = new LinkedHashMap<>();
             fields.put("project", Map.of("key", config.get("project_key")));
             fields.put("issuetype", Map.of("name", config.get("issue_type")));
-            fields.put("summary", Maps.text(context.tracker.senderId) + " " + Maps.text(config.get("summary")));
+            fields.put("summary", summary);
             fields.put("description", support.messageTrailText(context.tracker.copyEvents()));
             if (!Maps.isEmpty(config.get("parent_key"))) {
                 fields.put("parent", Map.of("key", config.get("parent_key")));

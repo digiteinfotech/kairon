@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
@@ -34,6 +35,10 @@ public class BotResponseAction implements KaironAction {
     public Map<String, Object> execute(ActionContext context) {
         Document settings = support.botSettings(context.bot).orElse(null);
         boolean enableRephrasing = settings != null && Maps.truthy(settings.get("rephrase_response"));
+        // Python domain[DOMAIN.RESPONSES] is outside try: missing key is untyped KeyError "'responses'".
+        if (context.domain == null || !context.domain.containsKey("responses")) {
+            throw new ActionFailure("'responses'");
+        }
         List<Map<String, Object>> responses = Maps.mapList(Maps.map(context.domain.get("responses")).get(context.actionName));
         Map<String, Object> botResponse = new LinkedHashMap<>();
         botResponse.put("response", context.actionName);

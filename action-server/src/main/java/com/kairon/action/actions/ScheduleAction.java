@@ -65,13 +65,11 @@ public class ScheduleAction implements KaironAction {
                     "No Schedule action found for given action and bot");
             dispatch = ActionFlags.enabled(config, "dispatch_bot_response");
             botResponse = config.get("response_text");
-            if (!config.containsKey("schedule_action") || !config.containsKey("timezone")
-                    || !config.containsKey("schedule_time") || !config.containsKey("params_list")
-                    || !config.containsKey("schedule_action_type")) {
-                throw new IllegalArgumentException("schedule config");
-            }
-            scheduleAction = config.get("schedule_action");
-            timezone = config.get("timezone");
+            scheduleAction = ActionFlags.require(config, "schedule_action");
+            timezone = ActionFlags.require(config, "timezone");
+            ActionFlags.require(config, "schedule_time");
+            ActionFlags.require(config, "params_list");
+            ActionFlags.require(config, "schedule_action_type");
             Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             Object resolved = support.one(trackerData, config.get("schedule_time"), context.bot);
             scheduleTime = resolved;

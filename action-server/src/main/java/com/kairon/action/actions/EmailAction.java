@@ -55,8 +55,8 @@ public class EmailAction implements KaironAction {
         String status = Kairon.SUCCESS;
         String exception = null;
         try {
-            String from = address(config.get("from_email"), context, true);
-            List<String> to = recipients(config.get("to_email"), context);
+            String from = address(spec(config, "from_email"), context, true);
+            List<String> to = recipients(spec(config, "to_email"), context);
             Map<String, Object> trackerData = support.context(context.tracker, false);
             Object password = support.one(trackerData, config.get("smtp_password"), context.bot);
             Object userId = support.one(trackerData, config.get("smtp_userid"), context.bot);
@@ -111,6 +111,15 @@ public class EmailAction implements KaironAction {
             throw new ActionFailure("'" + key + "'");
         }
         return config.get(key);
+    }
+
+    /** Python action_config['from_email']['parameter_type']: missing is KeyError, None is TypeError. */
+    private static Object spec(Document config, String key) {
+        Object value = required(config, key);
+        if (value == null) {
+            throw new ActionFailure("'NoneType' object is not subscriptable");
+        }
+        return value;
     }
 
     private static int port(Object value) {

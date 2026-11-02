@@ -58,8 +58,10 @@ public class HttpAction implements KaironAction {
         Number timeTakenPyscript = 0;
         Number timeTakenCompose = 0;
         try {
-            Document config = support.require("http_action_config", context.bot, "action_name", context.actionName,
-                    "No HTTP action found for given action and bot");
+            Document config = ConfigViews.http(support.require("http_action_config", context.bot, "action_name",
+                    context.actionName, "No HTTP action found for given action and bot"));
+            ActionFlags.require(config, "http_url");
+            ActionFlags.require(config, "request_method");
             Map<String, Object> responseConfig = Maps.map(config.get("response"));
             dispatch = Maps.truthy(responseConfig.get("dispatch"));
             dispatchType = Maps.str(responseConfig.get("dispatch_type"));

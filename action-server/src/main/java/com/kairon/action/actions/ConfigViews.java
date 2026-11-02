@@ -47,6 +47,38 @@ final class ConfigViews {
         return view.finish();
     }
 
+    /** HttpActionConfig declared fields in order. */
+    static Document http(Document raw) {
+        View view = new View(raw);
+        view.plain("action_name");
+        view.plain("http_url");
+        view.plain("request_method");
+        view.withDefault("content_type", "json");
+        view.list("params_list", ConfigViews::httpParam);
+        view.plain("dynamic_params");
+        view.list("headers", ConfigViews::httpParam);
+        view.embedded("response", ConfigViews::httpResponse, true);
+        view.list("set_slots", ConfigViews::setSlot);
+        view.plain("bot");
+        view.plain("user");
+        view.withDefault("timestamp", new Date());
+        view.withDefault("status", true);
+        return view.finish();
+    }
+
+    /** HttpActionRequestBody: key omitted when None, value "", parameter_type value, encrypt False. */
+    private static Object httpParam(Object raw) {
+        if (!(raw instanceof Map<?, ?>)) {
+            return raw;
+        }
+        View view = new View(raw);
+        view.plain("key");
+        view.withDefault("value", "");
+        view.withDefault("parameter_type", "value");
+        view.withDefault("encrypt", false);
+        return view.finish();
+    }
+
     /** DatabaseAction declared fields in order. */
     static Document database(Document raw) {
         View view = new View(raw);

@@ -1460,4 +1460,307 @@ class ActionGapParityTest {
         assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/up")),
                 String.valueOf(ParityKit.HITS));
     }
+
+    @Test
+    void slotSetMissingSetSlotsIsUntypedKeyError() {
+        kit.register("set_place", "slot_set_action");
+        kit.put("slot_set_action", kit.doc("bot", kit.bot, "name", "set_place", "status", true));
+        Map<String, Object> body = kit.ok("set_place");
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(List.of(), body.get("responses"));
+        Document log = kit.log("set_place");
+        assertNull(log.get("type"));
+        assertEquals("'set_slots'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void slotSetNullSetSlotsIsNoneTypeNotIterable() {
+        kit.register("set_place", "slot_set_action");
+        kit.put("slot_set_action", kit.doc("bot", kit.bot, "name", "set_place", "status", true, "set_slots", null));
+        Map<String, Object> body = kit.ok("set_place");
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("set_place");
+        assertNull(log.get("type"));
+        assertEquals("'NoneType' object is not iterable", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void liveAgentConfigNamedTalkIsMissingConfig() {
+        kit.register("talk", "live_agent_action");
+        kit.put("live_agent_action_config", kit.doc("bot", kit.bot, "name", "talk", "status", true, "bot_response", "hello"));
+        Map<String, Object> body = kit.ok("talk");
+        assertEquals(Kairon.SORRY, kit.text(body));
+        Document log = kit.log("talk");
+        assertEquals("live_agent_action", log.get("type"));
+        assertEquals("No Live Agent action found for given action and bot", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void liveAgentUnknownChannelIsQuotedKeyError() {
+        kit.register("talk", "live_agent_action");
+        kit.put("live_agent_action_config", kit.doc("bot", kit.bot, "name", "live_agent_action", "status", true,
+                "bot_response", "hello"));
+        Map<String, Object> body = kit.ok("talk", kit.slots(), kit.latest("hi"), List.of(), Map.of(),
+                "default", "talk", null, "slack");
+        assertEquals("hello", kit.text(body));
+        Document log = kit.log("talk");
+        assertEquals("live_agent_action", log.get("type"));
+        assertEquals("'slack'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void googleMissingSearchEngineIdIsKeyError() {
+        kit.register("google", "google_search_action");
+        kit.put("google_search_action", kit.doc("bot", kit.bot, "name", "google", "status", true,
+                "api_key", kit.param("api_key", "value", "KEY-1234"),
+                "num_results", 1, "failure_response", Kairon.FAILED, "dispatch_response", true));
+        Map<String, Object> body = kit.ok("google", kit.slots(), kit.latest("what is kanban"));
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("google");
+        assertEquals("google_search_action", log.get("type"));
+        assertEquals("'search_engine_id'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/customsearch")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void jiraMissingSummaryIsUntypedKeyError() {
+        kit.register("ticket", "jira_action");
+        kit.put("jira_action", kit.doc("bot", kit.bot, "name", "ticket", "status", true, "response", "ok"));
+        Map<String, Object> body = kit.ok("ticket");
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(List.of(), body.get("responses"));
+        Document log = kit.log("ticket");
+        assertNull(log.get("type"));
+        assertEquals("'summary'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void zendeskMissingSubjectIsUntypedKeyError() {
+        kit.register("ticket", "zendesk_action");
+        kit.put("zendesk_action", kit.doc("bot", kit.bot, "name", "ticket", "status", true, "response", "ok"));
+        Map<String, Object> body = kit.ok("ticket");
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("ticket");
+        assertNull(log.get("type"));
+        assertEquals("'subject'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void pipedriveMissingTitleIsUntypedKeyError() {
+        kit.register("lead", "pipedrive_leads_action");
+        kit.put("pipedrive_leads_action", kit.doc("bot", kit.bot, "name", "lead", "status", true, "response", "ok"));
+        Map<String, Object> body = kit.ok("lead");
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("lead");
+        assertNull(log.get("type"));
+        assertEquals("'title'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void razorpayNullAmountIsGotNone() {
+        kit.register("pay", "razorpay_action");
+        kit.put("razorpay_action", kit.doc("bot", kit.bot, "name", "pay", "status", true,
+                "api_key", kit.param("api_key", "value", "k"),
+                "api_secret", kit.param("api_secret", "value", "s"),
+                "amount", kit.param("amount", "value", null)));
+        Map<String, Object> body = kit.ok("pay");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("pay");
+        assertEquals("razorpay_action", log.get("type"));
+        assertEquals("amount must be a whole number! Got None.", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void databaseMissingCollectionIsQuotedKeyError() {
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true,
+                "llm_settings", kit.doc("enable_faq", true)));
+        kit.register("faq_lookup", "database_action");
+        kit.put("database_action", kit.doc("bot", kit.bot, "name", "faq_lookup", "status", true,
+                "db_type", "qdrant",
+                "payload", List.of(kit.doc("type", "from_value", "value", "kanban", "query_type", "embedding_search"))));
+        Map<String, Object> body = kit.ok("faq_lookup", kit.slots(), kit.latest("q"));
+        assertEquals(Kairon.FAILED_DOT, kit.text(body));
+        Document log = kit.log("faq_lookup");
+        assertEquals("database_action", log.get("type"));
+        assertEquals("'collection'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void promptNullModelIsQuotedNone() {
+        registerPrompt("none_model_prompt", config -> config.put("hyperparameters", kit.doc("temperature", 0.0)));
+        cognitionSchema("kb_docs", true);
+        llmSecretWithModels("openai", "sk-openai", List.of("gpt-4o-mini"));
+        llmServerOk();
+        assertFailedBeforeLlm("none_model_prompt", "The model 'None' is not available for 'openai'.");
+    }
+
+    @Test
+    void httpMissingHttpUrlIsQuotedKeyError() {
+        kit.register("lookup", "http_action");
+        kit.put("http_action_config", kit.doc("bot", kit.bot, "action_name", "lookup", "status", true,
+                "request_method", "GET"));
+        Map<String, Object> body = kit.ok("lookup");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("lookup");
+        assertEquals("http_action", log.get("type"));
+        assertEquals("'http_url'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void httpMissingDispatchDefaultsTrue() {
+        kit.register("lookup", "http_action");
+        kit.pathBody("/up", "{\"ok\":true}");
+        kit.put("http_action_config", kit.doc("bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "GET",
+                "response", kit.doc("value", "sent", "evaluation_type", "expression")));
+        Map<String, Object> body = kit.ok("lookup");
+        assertEquals("sent", kit.text(body));
+        assertEquals(Kairon.SUCCESS, kit.log("lookup").get("status"));
+        kit.hitPath("/up");
+    }
+
+    @Test
+    void emailMissingFromEmailIsQuotedKeyError() {
+        kit.register("mail_me", "email_action");
+        kit.put("email_action_config", kit.doc("bot", kit.bot, "action_name", "mail_me", "status", true,
+                "to_email", kit.doc("value", List.of("a@b.test"), "parameter_type", "value"),
+                "response", "sent", "dispatch_bot_response", true));
+        Map<String, Object> body = kit.ok("mail_me");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("mail_me");
+        assertEquals("email_action", log.get("type"));
+        assertEquals("'from_email'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void emailNullFromEmailIsNoneTypeNotSubscriptable() {
+        kit.register("mail_me", "email_action");
+        kit.put("email_action_config", kit.doc("bot", kit.bot, "action_name", "mail_me", "status", true,
+                "from_email", null,
+                "to_email", kit.doc("value", List.of("a@b.test"), "parameter_type", "value"),
+                "response", "sent", "dispatch_bot_response", true));
+        Map<String, Object> body = kit.ok("mail_me");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("mail_me");
+        assertEquals("email_action", log.get("type"));
+        assertEquals("'NoneType' object is not subscriptable", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void pyscriptMissingDispatchResponseSucceeds() {
+        kit.register("py_text", "pyscript_action");
+        kit.script("reply_plain", "{\"statusCode\":200,\"body\":{\"bot_response\":\"plain\"}}");
+        kit.put("pyscript_action_config", kit.doc("bot", kit.bot, "name", "py_text", "status", true,
+                "source_code", "reply_plain"));
+        Map<String, Object> body = kit.ok("py_text");
+        assertEquals("plain", kit.text(body));
+        assertEquals(Kairon.SUCCESS, kit.log("py_text").get("status"));
+    }
+
+    @Test
+    void parallelMissingActionsIsQuotedKeyError() {
+        kit.register("fan", "parallel_action");
+        kit.put("parallel_action_config", kit.doc("bot", kit.bot, "name", "fan", "status", true));
+        Map<String, Object> body = kit.ok("fan");
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("fan");
+        assertEquals("parallel_action", log.get("type"));
+        assertEquals("'actions'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void scheduleMissingScheduleActionIsQuotedKeyError() {
+        kit.register("later", "schedule_action");
+        kit.put("schedule_action", kit.doc("bot", kit.bot, "name", "later", "status", true));
+        Map<String, Object> body = kit.ok("later");
+        Document log = kit.log("later");
+        assertEquals("schedule_action", log.get("type"));
+        assertEquals("'schedule_action'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals(List.of(), body.get("events"));
+    }
+
+    @Test
+    void twoStageMissingTextRecommendationsIsUntypedKeyError() {
+        kit.register("fallback", "two_stage_fallback");
+        kit.put("kairon_two_stage_fallback_action", kit.doc("bot", kit.bot, "name", "fallback", "status", true));
+        Map<String, Object> body = kit.ok("fallback");
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("fallback");
+        assertNull(log.get("type"));
+        assertEquals("'text_recommendations'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void twoStageNullRankingIsNoneTypeNotSubscriptable() {
+        kit.register("fallback", "two_stage_fallback");
+        kit.put("kairon_two_stage_fallback_action", kit.doc("bot", kit.bot, "name", "fallback", "status", true,
+                "text_recommendations", new Document("count", 1).append("use_intent_ranking", true)));
+        Map<String, Object> latest = kit.latest("flight");
+        latest.put("intent_ranking", null);
+        Map<String, Object> body = kit.ok("fallback", kit.slots(), latest);
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("fallback");
+        assertNull(log.get("type"));
+        assertEquals("'NoneType' object is not subscriptable", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void twoStageEmptyExampleIsBlankStopIteration() {
+        kit.register("fallback", "two_stage_fallback");
+        kit.put("kairon_two_stage_fallback_action", kit.doc("bot", kit.bot, "name", "fallback", "status", true,
+                "text_recommendations", new Document("count", 1).append("use_intent_ranking", true)));
+        Map<String, Object> latest = kit.latest("flight");
+        latest.put("intent_ranking", List.of(Map.of("name", "greet"), Map.of("name", "book")));
+        Map<String, Object> body = kit.ok("fallback", kit.slots(), latest);
+        assertEquals(Kairon.UTTER_DEFAULT, kit.responses(body).get(0).get("response"));
+        Document log = kit.log("fallback");
+        assertEquals("two_stage_fallback", log.get("type"));
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertEquals("", log.get("exception"));
+    }
+
+    @Test
+    void botResponseMissingResponsesIsUntypedKeyError() {
+        Map<String, Object> body = kit.ok("utter_gap");
+        assertEquals(List.of(), body.get("events"));
+        assertEquals(List.of(), body.get("responses"));
+        Document log = kit.log("utter_gap");
+        assertNull(log.get("type"));
+        assertEquals("'responses'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void formValidationDuplicateSlotFailsAsMultipleObjectsReturned() {
+        kit.register("validate_form", "form_validation_action");
+        kit.put("form_validation_action", kit.doc("bot", kit.bot, "name", "validate_form", "status", true,
+                "slot", "age", "validation_semantic", ""));
+        kit.put("form_validation_action", kit.doc("bot", kit.bot, "name", "validate_form", "status", true,
+                "slot", "age", "validation_semantic", ""));
+        Map<String, Object> body = kit.ok("validate_form", kit.slots("requested_slot", "age", "age", 10),
+                kit.latest("ten"));
+        assertEquals(List.of(), body.get("events"));
+        Document log = kit.log("validate_form");
+        assertNull(log.get("type"));
+        assertEquals("2 or more items returned, instead of 1", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+    }
 }

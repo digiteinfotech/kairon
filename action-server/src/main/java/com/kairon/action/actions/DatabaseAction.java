@@ -68,6 +68,7 @@ public class DatabaseAction implements KaironAction {
             Map<String, Object> responseConfig = Maps.map(config.get("response"));
             dispatch = Maps.truthy(responseConfig.get("dispatch"));
             failure = Maps.str(config.get("failure_response"));
+            ActionFlags.require(config, "collection");
             String collection = Maps.str(config.get("collection"));
             if (!"qdrant".equals(config.get("db_type"))) {
                 throw new ActionFailure("Database not yet implemented!");

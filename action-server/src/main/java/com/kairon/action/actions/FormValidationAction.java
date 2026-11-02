@@ -41,11 +41,15 @@ public class FormValidationAction implements KaironAction {
         String status = Kairon.FAIL;
         RuntimeException failure = null;
         try {
-            Document validation = support.catalog().findAllActive("form_validation_action", context.bot, "name", context.actionName)
+            List<Document> matches = support.catalog().findAllActive("form_validation_action", context.bot, "name",
+                            context.actionName)
                     .stream()
                     .filter(row -> slot.equals(Maps.str(row.get("slot"))))
-                    .findFirst()
-                    .orElse(null);
+                    .toList();
+            if (matches.size() > 1) {
+                throw new ActionFailure("2 or more items returned, instead of 1");
+            }
+            Document validation = matches.isEmpty() ? null : matches.get(0);
             if (validation == null) {
                 messages.add("Skipping validation as no validation config found for slot: " + slot);
             } else {
