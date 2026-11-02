@@ -70,7 +70,12 @@ public class RazorpayAction implements KaironAction {
                     "Authorization", HttpCaller.basic(Maps.str(apiKey), Maps.str(apiSecret)),
                     "Content-Type", "application/json");
             httpResponse = support.http().executeStrict("POST", URL, headers, body, "json");
-            botResponse = Maps.map(httpResponse).get("short_url");
+            // Python http_response["short_url"]: missing key is KeyError("'short_url'"), FAIL + mail.
+            Map<String, Object> payload = Maps.map(httpResponse);
+            if (!(httpResponse instanceof Map<?, ?>) || !payload.containsKey("short_url")) {
+                throw new ActionFailure("'short_url'");
+            }
+            botResponse = payload.get("short_url");
         } catch (NumberFormatException e) {
             LOG.error("razorpay amount", e);
             exception = "amount must be a whole number! Got " + amountRaw + ".";

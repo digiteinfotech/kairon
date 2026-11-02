@@ -1357,4 +1357,107 @@ class ActionGapParityTest {
         assertEquals("llm-answer", kit.event(body, "from_data").get("value"));
         assertEquals("what is kanban", kit.event(body, "from_context").get("value"));
     }
+
+    @Test
+    void razorpayMissingShortUrlFailsAsKeyError() {
+        kit.register("pay", "razorpay_action");
+        kit.put("razorpay_action", kit.doc("bot", kit.bot, "name", "pay", "status", true,
+                "api_key", kit.param("api_key", "value", "k"),
+                "api_secret", kit.param("api_secret", "value", "s"),
+                "amount", kit.param("amount", "value", "11000"),
+                "currency", kit.param("currency", "value", "INR"),
+                "username", kit.param("username", "sender_id", null),
+                "email", kit.param("email", "sender_id", null),
+                "contact", kit.param("contact", "value", "987654320"),
+                "notes", List.of()));
+        kit.pathBody("/v1/payment_links",
+                "{\"error\":{\"code\":\"BAD_REQUEST_ERROR\",\"description\":\"The api key provided is invalid\"}}");
+        Map<String, Object> body = kit.ok("pay");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        assertEquals(Kairon.FAILED, kit.event(body, Kairon.ACTION_RESPONSE).get("value"));
+        Document log = kit.log("pay");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("'short_url'", log.get("exception"));
+        assertEquals("razorpay_action", log.get("type"));
+    }
+
+    @Test
+    void httpActionMediaOverSizeLimitFails() {
+        kit.register("upload", "http_action");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "upload", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "POST", "content_type", "json",
+                "headers", List.of(),
+                "params_list", List.of(kit.param("media_ids", "value", List.of("m1"))),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "ok")));
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true, "media_size_limit", 10));
+        kit.put("user_media_data", kit.doc("bot", kit.bot, "media_id", "m1", "filename", "big.bin",
+                "content_type", "application/octet-stream", "filesize", 11 * 1024 * 1024,
+                "bytes", new byte[]{1, 2, 3}));
+        Map<String, Object> body = kit.ok("upload");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("upload");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("Total media size exceeded limit of 10MB", log.get("exception"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/up")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void httpActionMediaUnderSizeLimitSucceeds() {
+        kit.register("upload", "http_action");
+        kit.pathBody("/up", "{\"ok\":true}");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "upload", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "POST", "content_type", "json",
+                "headers", List.of(),
+                "params_list", List.of(kit.param("media_ids", "value", List.of("m1"))),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text",
+                        "value", "sent", "evaluation_type", "expression")));
+        kit.put("bot_settings", kit.doc("bot", kit.bot, "status", true, "media_size_limit", 10));
+        kit.put("user_media_data", kit.doc("bot", kit.bot, "media_id", "m1", "filename", "small.bin",
+                "content_type", "application/octet-stream", "filesize", 3,
+                "bytes", new byte[]{1, 2, 3}));
+        Map<String, Object> body = kit.ok("upload");
+        assertEquals("sent", kit.text(body));
+        assertEquals(Kairon.SUCCESS, kit.log("upload").get("status"));
+        kit.hitPath("/up");
+    }
+
+    @Test
+    void hubspotMissingFieldsFailsAsNoneTypeNotIterable() {
+        kit.register("hs", "hubspot_forms_action");
+        kit.put("hubspot_forms_action", kit.doc("bot", kit.bot, "name", "hs", "status", true,
+                "portal_id", "p", "form_guid", "g", "response", "thanks"));
+        Map<String, Object> body = kit.ok("hs");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("hs");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("'NoneType' object is not iterable", log.get("exception"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/submissions")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void httpActionDuplicateConfigFailsAsMultipleObjectsReturned() {
+        kit.register("lookup", "http_action");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "GET",
+                "params_list", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "first")));
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "GET",
+                "params_list", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "second")));
+        Map<String, Object> body = kit.ok("lookup");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("lookup");
+        assertEquals("http_action", log.get("type"));
+        assertEquals("2 or more items returned, instead of 1", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/up")),
+                String.valueOf(ParityKit.HITS));
+    }
 }

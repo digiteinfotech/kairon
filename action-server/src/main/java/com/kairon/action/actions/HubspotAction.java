@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
@@ -44,6 +45,11 @@ public class HubspotAction implements KaironAction {
             String url = "https://api.hsforms.com/submissions/v3/integration/submit/"
                     + config.get("portal_id") + "/" + config.get("form_guid");
             Map<String, Object> trackerData = support.context(context.tracker, false);
+            // Python prepare_hubspot_form_request iterates action_config.get("fields"); None is
+            // TypeError: 'NoneType' object is not iterable.
+            if (config.get("fields") == null) {
+                throw new ActionFailure("'NoneType' object is not iterable");
+            }
             List<Map<String, Object>> fields = new ArrayList<>();
             for (Map<String, Object> field : Maps.mapList(config.get("fields"))) {
                 ActionSupport.Prepared prepared = support.prepareRequest(trackerData, List.of(field), context.bot);

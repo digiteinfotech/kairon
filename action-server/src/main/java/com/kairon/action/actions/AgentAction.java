@@ -104,20 +104,12 @@ public class AgentAction implements KaironAction {
     }
 
     /**
-     * Python AgentActionConfig.objects(bot, name, status=True).get(): empty raises
-     * {@code ActionFailure("No AgentAction found for given action and bot")}; two or more raises
-     * mongoengine {@code MultipleObjectsReturned("2 or more items returned, instead of 1")}.
+     * Python AgentActionConfig.objects(bot, name, status=True).get() outside the execute try.
+     * Uniqueness lives in {@link ActionSupport#require}.
      */
     Document uniqueConfig(ActionContext context) {
-        List<Document> found = support.catalog().findAllActive("agent_action_config", context.bot, "name",
-                context.actionName);
-        if (found.size() > 1) {
-            throw new ActionFailure("2 or more items returned, instead of 1");
-        }
-        if (found.isEmpty()) {
-            throw new ActionFailure("No AgentAction found for given action and bot");
-        }
-        return found.get(0);
+        return support.require("agent_action_config", context.bot, "name", context.actionName,
+                "No AgentAction found for given action and bot");
     }
 
     /** Token lifetime of IntegrationProcessor.create_agent_action_token (minutes). */

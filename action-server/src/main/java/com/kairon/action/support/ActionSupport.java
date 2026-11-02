@@ -60,8 +60,19 @@ public class ActionSupport {
     public Tokens tokens() { return tokens; }
     public HttpCaller http() { return http; }
 
+    /**
+     * Python mongoengine {@code QuerySet.get()}: empty is {@code missing}; two or more is
+     * {@code MultipleObjectsReturned("2 or more items returned, instead of 1")}.
+     */
     public Document require(String collection, String bot, String field, String value, String missing) {
-        return catalog.findActive(collection, bot, field, value).orElseThrow(() -> new ActionFailure(missing));
+        List<Document> found = catalog.findAllActive(collection, bot, field, value);
+        if (found.size() > 1) {
+            throw new ActionFailure("2 or more items returned, instead of 1");
+        }
+        if (found.isEmpty()) {
+            throw new ActionFailure(missing);
+        }
+        return found.get(0);
     }
 
     public Optional<Document> botSettings(String bot) {
@@ -794,6 +805,8 @@ public class ActionSupport {
 
     public List<HttpCaller.MediaFile> media(String bot, List<Object> mediaIds) {
         List<HttpCaller.MediaFile> files = new ArrayList<>();
+        long total = 0;
+        int limitMb = mediaSizeLimitMb(bot);
         for (Object mediaId : mediaIds) {
             Document found = null;
             for (Document document : catalog.findByBot("user_media_data", bot)) {
@@ -817,6 +830,7 @@ public class ActionSupport {
             } else {
                 throw new ActionFailure("One or more media files not found");
             }
+            total += mediaFilesize(found, bytes);
             String name = Maps.text(found.get("filename"));
             if (name.isBlank()) {
                 name = "file";
@@ -827,7 +841,29 @@ public class ActionSupport {
             }
             files.add(new HttpCaller.MediaFile(name, type, bytes));
         }
+        long limitBytes = limitMb * 1024L * 1024L;
+        if (total > limitBytes) {
+            throw new ActionFailure("Total media size exceeded limit of " + limitMb + "MB");
+        }
         return files;
+    }
+
+    /** Python BotSettings.media_size_limit IntField(default=10); get(..., 10) when the field is absent. */
+    int mediaSizeLimitMb(String bot) {
+        Object raw = botSettings(bot).map(document -> document.get("media_size_limit")).orElse(null);
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        return 10;
+    }
+
+    /** Python sums UserMediaData.filesize; fall back to the loaded bytes when the field is missing. */
+    static long mediaFilesize(Document found, byte[] bytes) {
+        Object raw = found.get("filesize");
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        return bytes == null ? 0 : bytes.length;
     }
 
     public Document callbackConfig(String bot, String name) {
