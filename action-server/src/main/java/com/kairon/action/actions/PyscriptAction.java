@@ -70,7 +70,11 @@ public class PyscriptAction implements KaironAction {
             // ActionServerLogs(...) keyword order: config before user_msg.
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("messages", messages);
-            extra.put("config", config);
+            Map<String, Object> loggedConfig = config == null ? null : new LinkedHashMap<>(config);
+            if (loggedConfig != null) {
+                loggedConfig.remove("_id");
+            }
+            extra.put("config", loggedConfig);
             extra.put("user_msg", context.tracker.text());
             support.save(context, type(), status, exception, botResponse, extra);
         }

@@ -69,6 +69,13 @@ class SmtpMailerTest {
     }
 
     @Test
+    void whitespaceUserIdDoesNotFallBackToSender() throws Exception {
+        greenMail.setUser("space@kairon.test", " ", "space-pass");
+        mailer.send(config(" ", "space-pass", false), "owner@kairon.test", List.of("a@example.com"), "s", "<p>x</p>");
+        assertEquals(1, greenMail.getReceivedMessages().length);
+    }
+
+    @Test
     void wrongPasswordFailsLogin() {
         assertThrows(MessagingException.class,
                 () -> mailer.send(config("smtp-user", "wrong", false), "bot@kairon.test", List.of("a@example.com"), "s", "<p>x</p>"));

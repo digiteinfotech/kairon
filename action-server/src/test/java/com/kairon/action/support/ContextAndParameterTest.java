@@ -126,4 +126,14 @@ class ContextAndParameterTest {
         assertEquals("2030-01-15 10:30:00",
                 support.one(context, Map.of("parameter_type", "value", "value", "2030-01-15 10:30:00"), BOT));
     }
+
+    @Test
+    void prepareUrlFalsySlotAndVaultBecomeEmpty() {
+        Map<String, Object> trackerData = new LinkedHashMap<>();
+        trackerData.put("slot", Map.of("count", 0, "flag", false, "name", "Pune"));
+        trackerData.put("key_vault", Map.of("TOKEN", ""));
+        assertEquals("http://x/Pune/", support.prepareUrl("http://x/$name/$count", trackerData));
+        assertEquals("http://x/", support.prepareUrl("http://x/$flag", trackerData));
+        assertEquals("http://x/", support.prepareUrl("http://x/$$TOKEN", trackerData));
+    }
 }

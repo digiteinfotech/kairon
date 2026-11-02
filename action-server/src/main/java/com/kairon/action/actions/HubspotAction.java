@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -70,7 +71,7 @@ public class HubspotAction implements KaironAction {
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();
             extra.put("request_params", request);
-            extra.put("api_response", httpResponse == null ? null : String.valueOf(httpResponse));
+            extra.put("api_response", Maps.truthy(httpResponse) ? PyRepr.str(httpResponse) : null);
             support.save(context, type(), status, exception, botResponse, extra);
         }
         ActionFlags.utterText(context.dispatcher, botResponse);

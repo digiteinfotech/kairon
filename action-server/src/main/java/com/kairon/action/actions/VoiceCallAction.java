@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -87,6 +88,7 @@ public class VoiceCallAction implements KaironAction {
             log.put("bot", context.bot);
             log.put("user", channel.containsKey("user") ? channel.get("user") : "system");
             log.put("initiator", "bot");
+            log.put("errors", List.of());
             support.catalog().insert("channel_logs", log);
         } catch (Exception e) {
             exception = ActionFlags.message(e);

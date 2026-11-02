@@ -26,7 +26,7 @@ public class SmtpMailer {
     /** smtplib.SMTP(..., timeout=10). */
     static final int TIMEOUT_MILLIS = 10_000;
 
-    /** Resolved SMTP settings. {@code userId} may be blank, in which case the sender address logs in. */
+    /** Resolved SMTP settings. {@code userId} may be empty, in which case the sender address logs in. */
     public record SmtpConfig(String host, int port, String userId, String password, boolean tls) {}
 
     /** email_action subject: {@code "{sender_id} {subject}"}. */
@@ -60,7 +60,7 @@ public class SmtpMailer {
         message.setContent(alternative);
         message.saveChanges();
         InternetAddress[] to = recipients.stream().map(SmtpMailer::address).toArray(InternetAddress[]::new);
-        String login = config.userId() == null || config.userId().isBlank() ? from : config.userId();
+        String login = config.userId() == null || config.userId().isEmpty() ? from : config.userId();
         try (Transport transport = session.getTransport("smtp")) {
             transport.connect(config.host(), config.port(), login, config.password());
             transport.sendMessage(message, to);

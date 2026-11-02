@@ -2,6 +2,7 @@ package com.kairon.action.actions;
 
 import com.kairon.action.Kairon;
 import com.kairon.action.runtime.ActionContext;
+import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.HttpCaller;
@@ -91,14 +92,19 @@ public class HttpAction implements KaironAction {
             if (!Maps.isEmpty(dynamic)) {
                 ActionSupport.PyscriptResult script = support.evaluatePyscript(String.valueOf(dynamic), trackerData);
                 filled.putAll(script.slots());
-                body = script.output() instanceof Map<?, ?> ? Maps.map(script.output()) : new LinkedHashMap<>();
+                Object output = script.output();
                 timeTakenPyscript = script.elapsed();
                 parameterLog.put("type", "dynamic_params");
                 parameterLog.put("data", dynamic);
-                parameterLog.put("response", script.output() instanceof Map<?, ?> ? body : script.output());
+                parameterLog.put("response", output);
                 parameterLog.put("slots", script.slots());
                 parameterLog.put("request_params", script.log());
                 parameterLog.put("time_elapsed", timeTakenPyscript);
+                // Python body.pop after logging: a non-dict is TypeError "'X' object has no attribute 'pop'".
+                if (!(output instanceof Map<?, ?>)) {
+                    throw new ActionFailure("'" + ActionSupport.pyTypeName(output) + "' object has no attribute 'pop'");
+                }
+                body = Maps.map(output);
             } else {
                 ActionSupport.Prepared params = support.prepareRequest(trackerData, config.get("params_list"), context.bot);
                 body = params.body();
@@ -109,11 +115,10 @@ public class HttpAction implements KaironAction {
             method = Maps.str(config.get("request_method"));
             url = support.prepareUrl(Maps.str(config.get("http_url")), trackerData);
             // Python body.pop: the parameter log shares the body dict, so it too loses media_ids.
-            Object media = body.remove("media_ids");
-            List<Object> mediaIds = new ArrayList<>();
-            if (media instanceof List<?> list) {
-                mediaIds.addAll(list);
-            } else if (media != null && !Maps.isEmpty(media)) {
+            // Non-list values wrap as [value], including present-null as [None] which is truthy.
+            Object media = body.containsKey("media_ids") ? body.remove("media_ids") : List.of();
+            List<Object> mediaIds = media instanceof List<?> list ? new ArrayList<>(list) : new ArrayList<>(List.of());
+            if (!(media instanceof List<?>)) {
                 mediaIds.add(media);
             }
             Map<String, String> responseHeaders;
@@ -192,7 +197,8 @@ public class HttpAction implements KaironAction {
             extra.put("user_msg", context.tracker.text());
             extra.put("time_elapsed", total(timeElapsed, timeTakenSlots, timeTakenPyscript, timeTakenCompose));
             extra.put("http_status_code", statusCode);
-            support.save(context, type(), status, exception, botResponse, extra);
+            // Python bot_response=str(bot_response) if bot_response else None; None declared field is omitted.
+            support.save(context, type(), status, exception, Maps.truthy(botResponse) ? botResponse : null, extra);
             filled.put(Kairon.ACTION_RESPONSE, botResponse);
             filled.put("http_status_code", statusCode);
             filled.putAll(slotValues);

@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -60,7 +61,7 @@ public class CallbackAction implements KaironAction {
             String channelKey = context.tracker.latestInputChannel();
             String channel = channelKey != null && CHANNELS.containsKey(channelKey)
                     ? CHANNELS.get(channelKey)
-                    : "unsupported (" + channelKey + ")";
+                    : "unsupported (" + PyRepr.str(channelKey) + ")";
             Map<String, Object> trackerData = support.context(context.tracker, true, context.bot);
             Object metadataList = config.get("metadata_list") == null ? List.of() : config.get("metadata_list");
             ActionSupport.Prepared prepared = support.prepareRequestWithBot(trackerData, metadataList, context.bot);

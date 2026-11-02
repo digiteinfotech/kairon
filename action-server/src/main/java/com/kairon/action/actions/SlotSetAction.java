@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 
@@ -42,7 +43,7 @@ public class SlotSetAction implements KaironAction {
             String name = Maps.str(slot.get("name"));
             if ("from_value".equals(slot.get("type"))) {
                 slots.put(name, slot.get("value"));
-                messages.add("Setting slot '" + name + "' to '" + slot.get("value") + "'.");
+                messages.add("Setting slot '" + name + "' to '" + PyRepr.str(slot.get("value")) + "'.");
             } else {
                 slots.put(name, null);
                 messages.add("Resetting slot '" + name + "' value to None.");

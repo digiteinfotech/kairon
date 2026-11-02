@@ -121,6 +121,12 @@ class HttpCallerStrictTest {
         assertEquals("application/json", request.header("Content-Type"));
         assertEquals(Map.of("script", "${data.value}", "data", Map.of("value", 42)), Jsons.readAny(request.text()));
         assertTrue(request.header("X-TimeStamp").matches(STAMP));
+        ActionSupport.ScriptEval eval = support().evaluateScriptLogged("${data.value}", Map.of("value", 42));
+        assertEquals(Map.of("value", 42), eval.data());
+        assertEquals("evaluation_type: script", eval.log().get(0));
+        assertEquals("raise_err_on_failure: True", eval.log().get(3));
+        assertTrue(eval.log().get(4).startsWith("Evaluator response: "), eval.log().get(4));
+        assertTrue(eval.log().get(4).contains("'success': True"), eval.log().get(4));
     }
 
     @Test

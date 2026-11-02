@@ -6,6 +6,7 @@ import com.kairon.action.runtime.ActionFailure;
 import com.kairon.action.runtime.KaironAction;
 import com.kairon.action.support.ActionSupport;
 import com.kairon.action.support.Maps;
+import com.kairon.action.support.PyRepr;
 import jakarta.inject.Singleton;
 import org.bson.Document;
 
@@ -60,9 +61,10 @@ public class FormValidationAction implements KaironAction {
                 messages.add("Slot is required: " + required);
                 boolean valid;
                 if (!Maps.isEmpty(semantic)) {
-                    Object result = support.evaluateScript(semantic, trackerData);
-                    messages.add("Expression evaluation result: " + result);
-                    valid = Maps.truthy(result);
+                    ActionSupport.ScriptEval eval = support.evaluateScriptLogged(semantic, trackerData);
+                    messages.add("Expression evaluation log: " + PyRepr.str(eval.log()));
+                    messages.add("Expression evaluation result: " + PyRepr.str(eval.data()));
+                    valid = Maps.truthy(eval.data());
                 } else {
                     valid = (required && slotValue != null) || !required;
                 }

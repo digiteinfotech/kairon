@@ -1036,6 +1036,7 @@ class ActionGapParityTest {
         assertEquals(kit.bot, log.get("bot"));
         assertEquals("system", log.get("user"));
         assertEquals("bot", log.get("initiator"));
+        assertEquals(List.of(), log.get("errors"));
 
         assertEquals("I'm placing a call to you now.", kit.text(body));
         assertEquals(Kairon.SUCCESS, kit.log("call_me").get("status"));
@@ -1127,11 +1128,18 @@ class ActionGapParityTest {
 
     @Test
     void placeholderWithMissingKeyFailsLikePython() {
-        Map<String, Object> response = Map.of("a", Map.of("b", 1));
+        Map<String, Object> response = Map.of("data", Map.of("x", 1), "a", Map.of("b", 1));
         assertEquals("1", support.prepareResponse("${a.b}", response));
         ActionFailure failure = org.junit.jupiter.api.Assertions.assertThrows(ActionFailure.class,
                 () -> support.prepareResponse("${a.missing}", response));
         assertTrue(failure.getMessage().startsWith("Unable to retrieve value for key from HTTP response"));
+    }
+
+    @Test
+    void attachResponseMissingDataIsKeyError() {
+        ActionFailure failure = org.junit.jupiter.api.Assertions.assertThrows(ActionFailure.class,
+                () -> support.prepareResponse("${a.b}", Map.of("a", Map.of("b", 1))));
+        assertEquals("'data'", failure.getMessage());
     }
 
     // ---- agent_action parity with master 4f0a2fd5 (chat history in payload, max_iterations 5) ----
@@ -1434,6 +1442,7 @@ class ActionGapParityTest {
         Document log = kit.log("hs");
         assertEquals(Kairon.FAIL, log.get("status"));
         assertEquals("'NoneType' object is not iterable", log.get("exception"));
+        assertFalse(log.containsKey("api_response"));
         assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/submissions")),
                 String.valueOf(ParityKit.HITS));
     }
@@ -1578,6 +1587,7 @@ class ActionGapParityTest {
         assertEquals("razorpay_action", log.get("type"));
         assertEquals("amount must be a whole number! Got None.", log.get("exception"));
         assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("None", log.get("api_response"));
     }
 
     @Test
@@ -1668,7 +1678,9 @@ class ActionGapParityTest {
                 "source_code", "reply_plain"));
         Map<String, Object> body = kit.ok("py_text");
         assertEquals("plain", kit.text(body));
-        assertEquals(Kairon.SUCCESS, kit.log("py_text").get("status"));
+        Document log = kit.log("py_text");
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertFalse(((Map<?, ?>) log.get("config")).containsKey("_id"));
     }
 
     @Test
@@ -1762,5 +1774,111 @@ class ActionGapParityTest {
         assertNull(log.get("type"));
         assertEquals("2 or more items returned, instead of 1", log.get("exception"));
         assertEquals(Kairon.FAIL, log.get("status"));
+    }
+
+    @Test
+    void formValidationLogsExpressionEvaluationLogAndPythonTrue() {
+        kit.pathBody("/eval", "{\"success\":true,\"data\":true}");
+        kit.register("validate_form", "form_validation_action");
+        kit.put("form_validation_action", kit.doc("bot", kit.bot, "name", "validate_form", "status", true,
+                "slot", "age", "validation_semantic", "${age}", "is_required", true,
+                "valid_response", "ok", "invalid_response", "no"));
+        kit.ok("validate_form", kit.slots("requested_slot", "age", "age", 10), kit.latest("ten"));
+        Document log = kit.log("validate_form");
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        List<?> messages = (List<?>) log.get("messages");
+        assertEquals("Expression evaluation result: True", messages.get(messages.size() - 1));
+        String evalLog = String.valueOf(messages.get(messages.size() - 2));
+        assertTrue(evalLog.startsWith("Expression evaluation log: ["), evalLog);
+        assertTrue(evalLog.contains("evaluation_type: script"), evalLog);
+        assertTrue(evalLog.contains("Evaluator response:"), evalLog);
+        assertTrue(evalLog.contains("'success': True"), evalLog);
+    }
+
+    @Test
+    void httpActionNonDictDynamicParamsFailsAsPopTypeError() {
+        kit.register("lookup", "http_action");
+        kit.script("build_body", "{\"statusCode\":200,\"body\":{\"bot_response\":\"not-a-dict\"}}");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "POST", "content_type", "json",
+                "dynamic_params", "build_body",
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "ok")));
+        Map<String, Object> body = kit.ok("lookup");
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("lookup");
+        assertEquals("http_action", log.get("type"));
+        assertEquals("'str' object has no attribute 'pop'", log.get("exception"));
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertTrue(ParityKit.HITS.stream().noneMatch(hit -> hit.path().contains("/up")),
+                String.valueOf(ParityKit.HITS));
+    }
+
+    @Test
+    void httpActionFalsyBotResponseIsOmittedFromLog() {
+        kit.register("lookup", "http_action");
+        kit.pathBody("/up", "{\"ok\":true}");
+        kit.script("empty_reply", "{\"statusCode\":200,\"body\":{\"bot_response\":{}}}");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up", "request_method", "POST", "content_type", "json",
+                "params_list", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text",
+                        "value", "empty_reply", "evaluation_type", "script")));
+        kit.ok("lookup");
+        Document log = kit.log("lookup");
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertFalse(log.containsKey("bot_response"), log.toJson());
+    }
+
+    @Test
+    void httpActionUrlFalsySlotBecomesEmpty() {
+        kit.register("lookup", "http_action");
+        kit.pathBody("/up", "{\"ok\":true}");
+        kit.put("http_action_config", kit.doc(
+                "bot", kit.bot, "action_name", "lookup", "status", true,
+                "http_url", ParityKit.STUB + "/up/$count", "request_method", "GET", "content_type", "json",
+                "params_list", List.of(),
+                "response", kit.doc("dispatch", true, "dispatch_type", "text", "value", "ok")));
+        kit.ok("lookup", kit.slots("count", 0), kit.latest("n"));
+        assertEquals(ParityKit.STUB + "/up/", kit.log("lookup").get("url"));
+        assertEquals(Kairon.SUCCESS, kit.log("lookup").get("status"));
+    }
+
+    @Test
+    void googleMissingSnippetIsQuotedKeyError() {
+        google("KEY-1234", "https://nimblework.com");
+        kit.pathBody("/customsearch/v1", "{\"items\":[{\"title\":\"T\",\"link\":\"http://l\"}]}");
+        Map<String, Object> body = kit.ok("google", kit.slots(), kit.latest("what is kanban"));
+        assertEquals(Kairon.FAILED, kit.text(body));
+        Document log = kit.log("google");
+        assertEquals(Kairon.FAIL, log.get("status"));
+        assertEquals("'snippet'", log.get("exception"));
+        assertEquals("google_search_action", log.get("type"));
+    }
+
+    @Test
+    void slotSetFromValueTrueAndNoneUsePythonStr() {
+        kit.register("set_place", "slot_set_action");
+        kit.put("slot_set_action", kit.doc("bot", kit.bot, "name", "set_place", "status", true,
+                "set_slots", List.of(
+                        kit.doc("name", "flag", "type", "from_value", "value", true),
+                        kit.doc("name", "empty", "type", "from_value", "value", null))));
+        kit.ok("set_place");
+        Document log = kit.log("set_place");
+        assertEquals(Kairon.SUCCESS, log.get("status"));
+        assertEquals(List.of("Setting slot 'flag' to 'True'.", "Setting slot 'empty' to 'None'."),
+                log.get("messages"));
+    }
+
+    @Test
+    void callbackNullChannelIsUnsupportedNone() {
+        kit.register("ping", "callback_action");
+        kit.put("callback_action_config", kit.doc("bot", kit.bot, "name", "ping", "status", true,
+                "callback_name", "hook", "dynamic_url_slot_name", "cb_url", "bot_response", "open {callback_url}"));
+        kit.put("callback_config", kit.doc("bot", kit.bot, "name", "hook", "validation_secret", "secret", "expire_in", 15));
+        kit.ok("ping");
+        assertEquals(Kairon.SUCCESS, kit.log("ping").get("status"));
+        assertEquals("unsupported (None)", catalog.all("callback_data").get(0).get("channel"));
     }
 }

@@ -92,7 +92,7 @@ public class RazorpayAction implements KaironAction {
             support.failureMail(context, e);
         } finally {
             Map<String, Object> extra = new LinkedHashMap<>();
-            extra.put("api_response", httpResponse == null ? null : String.valueOf(httpResponse));
+            extra.put("api_response", PyRepr.str(httpResponse));
             extra.put("request", body);
             support.save(context, type(), status, exception, botResponse, extra);
         }

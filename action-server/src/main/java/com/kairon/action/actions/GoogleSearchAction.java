@@ -112,9 +112,9 @@ public class GoogleSearchAction implements KaironAction {
         List<Map<String, Object>> results = new ArrayList<>();
         for (Map<String, Object> item : Maps.mapList(Maps.map(response).get("items"))) {
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("title", item.get("title"));
-            row.put("text", item.get("snippet"));
-            row.put("link", item.get("link"));
+            row.put("title", ActionFlags.require(item, "title"));
+            row.put("text", ActionFlags.require(item, "snippet"));
+            row.put("link", ActionFlags.require(item, "link"));
             results.add(row);
         }
         return results;

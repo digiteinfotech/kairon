@@ -345,7 +345,7 @@ public class ActionSupport {
         Map<String, Object> secrets = Maps.map(trackerData.get("key_vault"));
         while (vault.find()) {
             String name = vault.group().substring(2);
-            vault.appendReplacement(buffer, Matcher.quoteReplacement(Maps.text(secrets.get(name))));
+            vault.appendReplacement(buffer, Matcher.quoteReplacement(orEmpty(secrets.get(name))));
         }
         vault.appendTail(buffer);
         resolved = buffer.toString();
@@ -354,10 +354,15 @@ public class ActionSupport {
         Map<String, Object> slot = Maps.map(trackerData.get("slot"));
         while (slots.find()) {
             String name = slots.group().substring(1);
-            slots.appendReplacement(buffer, Matcher.quoteReplacement(Maps.text(slot.get(name))));
+            slots.appendReplacement(buffer, Matcher.quoteReplacement(orEmpty(slot.get(name))));
         }
         slots.appendTail(buffer);
         return buffer.toString();
+    }
+
+    /** Python {@code value or ""}: 0/False/None/"" become empty, not {@code "0"}/{@code "false"}. */
+    private static String orEmpty(Object value) {
+        return Maps.truthy(value) ? String.valueOf(value) : "";
     }
 
     /** Port of Python Utility.get_masked_value: strategy from settings, empty kept, len <= 4 fully masked. */
@@ -419,18 +424,29 @@ public class ActionSupport {
     }
 
     public Object evaluateScript(String script, Object data) {
+        return evaluateScriptLogged(script, data).data();
+    }
+
+    /**
+     * Python ActionUtility.evaluate_script: {@code (result, log)} where log is
+     * {@code evaluation_type/script/data/raise_err_on_failure} then {@code Evaluator response: {resp}}.
+     */
+    public ScriptEval evaluateScriptLogged(String script, Object data) {
         if (Maps.isEmpty(settings.getEvaluatorUrl())) {
             throw new ActionFailure("Expression evaluation failed: evaluator url is not configured");
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("script", script);
         body.put("data", data);
+        List<String> log = new ArrayList<>(List.of("evaluation_type: script", "script: " + script,
+                "data: " + PyRepr.str(data), "raise_err_on_failure: True"));
         Object response = http.executeStrict("POST", settings.getEvaluatorUrl(), Map.of("Content-Type", "application/json"), body, "json");
+        log.add("Evaluator response: " + PyRepr.str(response));
         Map<String, Object> map = Maps.map(response);
         if (!Maps.truthy(map.get("success"))) {
             throw new ActionFailure("Expression evaluation failed: " + response);
         }
-        return map.get("data");
+        return new ScriptEval(map.get("data"), log);
     }
 
     /**
@@ -507,7 +523,7 @@ public class ActionSupport {
         return payload instanceof Map<?, ?> ? Maps.map(payload) : Maps.of("body", payload);
     }
 
-    private static String pyTypeName(Object value) {
+    public static String pyTypeName(Object value) {
         if (value instanceof String) {
             return "str";
         }
@@ -928,7 +944,10 @@ public class ActionSupport {
 
     private static String attachResponse(String template, Object httpResponse) {
         Object data = httpResponse;
-        if (httpResponse instanceof Map<?, ?> map && map.containsKey("data")) {
+        if (httpResponse instanceof Map<?, ?> map) {
+            if (!map.containsKey("data")) {
+                throw new ActionFailure("'data'");
+            }
             data = map.get("data");
         }
         if (template != null && template.contains("${RESPONSE}")) {
@@ -963,6 +982,8 @@ public class ActionSupport {
     public record Trail(String started, List<Map<String, Object>> messages) {}
 
     public record PyscriptResult(Object output, List<String> log, Map<String, Object> slots, double elapsed) {}
+
+    public record ScriptEval(Object data, List<String> log) {}
 
     public record Composed(Object result, List<String> log, Number elapsed) {}
 
