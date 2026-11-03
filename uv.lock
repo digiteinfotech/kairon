@@ -1856,15 +1856,15 @@ wheels = [
 
 [[package]]
 name = "jsonschema-rs"
-version = "0.58.3"
+version = "0.58.6"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/35/d6/e168a0b600ced73c6431992f4870af4c3f522b2112a50fa5cec5b6fa0321/jsonschema_rs-0.58.3.tar.gz", hash = "sha256:b4eabd1ad6303ea5d0dcbe2801c34c210726f0a85fb927e875af2839b41dd3ab", size = 2854652, upload-time = "2026-09-30T08:37:31.541Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/2a/e1f8bf7448c1d88c804ff3f52f1f354999f4b401d17d9167386d9abf9bed/jsonschema_rs-0.58.6.tar.gz", hash = "sha256:067140dbbb0e94106212c23ad26c41aff4f5558dbc340b4416b57c1a4f3c537a", size = 2892368, upload-time = "2026-10-06T15:32:26.448Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/4c/79474a481f0d979e4cab3f71809ad24df343fa5ff2db06ae118b87a569e7/jsonschema_rs-0.58.3-cp310-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:63f09fd4b8c79c73a5669d0f11c3c2b4bd1486317fec63dfd6ef98d77ede12ac", size = 5700631, upload-time = "2026-09-30T08:36:42.882Z" },
-    { url = "https://files.pythonhosted.org/packages/64/a3/5f7244660cedcd3e8c6cd5d4cde4400712d75d3201483758585bfbbfa15c/jsonschema_rs-0.58.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:81fbd03f86fda99768a18cbbd17cae63e95655982fd32680856b6cd37d4deff5", size = 5921562, upload-time = "2026-09-30T08:36:44.167Z" },
-    { url = "https://files.pythonhosted.org/packages/60/f7/edf98fd6f3a6546a615f2b5917c9f8a86c032314159d4b16c26dbe4e27fc/jsonschema_rs-0.58.3-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:62f9f44ca666957e4876c855a5ddf739ee0bf9fe91f5bcf8ebc52665b5750914", size = 5451529, upload-time = "2026-09-30T08:36:45.746Z" },
-    { url = "https://files.pythonhosted.org/packages/73/5d/226e212b9b8e89a10b8a994c707fc2cc8ecb214b9cc1a6926f1bc81d7c70/jsonschema_rs-0.58.3-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:b9a36b30f4fe671efd011cfdb063532f316ff0cee4ffcf6cdf5c7c29fc7b7c2b", size = 5640345, upload-time = "2026-09-30T08:36:47.083Z" },
-    { url = "https://files.pythonhosted.org/packages/84/64/95ab2353d0c4a8a208d34c2a4d659c8a8ef22d7f029d6c77db24ef9e62a3/jsonschema_rs-0.58.3-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:86b28dd6b1069c2359252f9f84af1832198065e06020d320e25f1c9169c66d4c", size = 6156380, upload-time = "2026-09-30T08:36:48.63Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/7a/add677b359e13d0e1a57211384bec88c637211190a96f7ff12697387ef80/jsonschema_rs-0.58.6-cp310-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:48525cc837bff2d6c2bb14a8f5cbd5600732a0d232a9d394aae3ea97ba7ee53e", size = 5696915, upload-time = "2026-10-06T15:31:33.066Z" },
+    { url = "https://files.pythonhosted.org/packages/44/1a/fd7526d02fc50a6713b2d18fea2355579167b27dddd5cbd2dcc03adc49cb/jsonschema_rs-0.58.6-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e56428f4803dfbe6dee4f1d07e1710b5af377ed769275df256b81c1eb4178ea", size = 5929272, upload-time = "2026-10-06T15:31:34.701Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/26/00bb48747d19f76f42d77dad02330c68a4e6354daa91a9c96405a6b087ea/jsonschema_rs-0.58.6-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:eabc742dde55a445f49f6fbe0ab5cd8a58abd71b4337a7acd61dc7876b22b6a7", size = 5446452, upload-time = "2026-10-06T15:31:36.691Z" },
+    { url = "https://files.pythonhosted.org/packages/10/84/48282b831ab9e82d368d311659e6dbbe8e0ef299a6424e9fd239ce469e2c/jsonschema_rs-0.58.6-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:ed7d2f9d1725d4b44d79a20feab3c1a9fb546e8826c78602c36ae9edb364ec2d", size = 5634429, upload-time = "2026-10-06T15:31:38.489Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/11/a26b5456ec83207e685fc71a7eb191f9ce1093735d06a0d0b27ae8f25c54/jsonschema_rs-0.58.6-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:e69400a4e34e652a5710c0d85adf713112fd32c57aa86f2c0e61477d4d8fd26e", size = 6165253, upload-time = "2026-10-06T15:31:40.185Z" },
 ]
 
 [[package]]
@@ -2016,7 +2016,7 @@ requires-dist = [
     { name = "imap-tools", specifier = "==1.7.4" },
     { name = "jira", specifier = "==3.8.0" },
     { name = "json2html", specifier = "==1.3.0" },
-    { name = "jsonschema-rs", specifier = "==0.58.3" },
+    { name = "jsonschema-rs", specifier = "==0.58.6" },
     { name = "markdown-pdf", specifier = "==1.7" },
     { name = "mongoengine", specifier = "==0.29.1" },
     { name = "mongoengine-jsonschema", specifier = "==0.1.3" },
