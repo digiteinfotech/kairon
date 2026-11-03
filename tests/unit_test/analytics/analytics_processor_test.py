@@ -17,6 +17,7 @@ from kairon.shared.callback.data_objects import CallbackConfig
 
 @pytest.mark.usefixtures("setup")
 class TestAnalyticsPipelineProcessor:
+    OWN_BOTS = ("bot1", "b1")
 
     @pytest.fixture(autouse=True, scope="class")
     def setup(self, request):
@@ -26,6 +27,9 @@ class TestAnalyticsPipelineProcessor:
         db_url = Utility.environment['database']["url"]
         pytest.db_url = db_url
         connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+        # This class owns the bots below. Other suites (e.g. events/definitions_test.py) leave pipelines for their own
+        # bots in the shared database, so remove only this class's records and scope every query to them.
+        AnalyticsPipelineConfig.objects(bot__in=self.OWN_BOTS).delete()
 
     def test_add_scheduled_task(self):
         data = {
@@ -38,7 +42,7 @@ class TestAnalyticsPipelineProcessor:
         event_id = AnalyticsPipelineProcessor.add_scheduled_task("bot1", "user1", data)
         assert event_id is not None
 
-        saved = AnalyticsPipelineConfig.objects().first()
+        saved = AnalyticsPipelineConfig.objects(bot="bot1", pipeline_name="daily-report").first()
         assert saved.pipeline_name == "daily-report"
         assert saved.bot == "bot1"
 
@@ -63,7 +67,7 @@ class TestAnalyticsPipelineProcessor:
         ).save()
 
         AnalyticsPipelineProcessor.delete_task(str(obj.id), "b1", delete_permanently=True)
-        assert AnalyticsPipelineConfig.objects().count() == 2
+        assert AnalyticsPipelineConfig.objects(bot__in=self.OWN_BOTS).count() == 2
         assert AnalyticsPipelineConfig.objects(id=str(obj.id)).count() == 0
 
     def test_delete_task_soft(self):

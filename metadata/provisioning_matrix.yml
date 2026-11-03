@@ -1,0 +1,138 @@
+# Kairon Feature -> Application Provisioning Matrix Configuration
+# Defines tier levels, required Frappe apps, landing routes, default roles, and dependencies.
+
+provisioning_matrix:
+  crm:
+    strategy_key: "crm"
+    tier: 1
+    required_apps:
+      - crm
+    home_page: "crm"
+    # "CRM Admin"/"CRM User" do not exist as Frappe Role records anywhere (not core
+    # Frappe, not the standalone crm app) -- assigning them 500s with LinkValidationError.
+    # Use the same real roles BaseProvisioner.setup_user_and_migrate already assigns to
+    # the bench-created Tier 1 admin user, so both paths agree.
+    default_roles:
+      - "System Manager"
+      - "Sales Manager"
+      - "Sales User"
+    dependencies:
+      - frappe
+    upgrade_supported: true
+
+  helpdesk:
+    strategy_key: "helpdesk"
+    tier: 1
+    required_apps:
+      - helpdesk
+    home_page: "helpdesk"
+    default_roles:
+      - "Helpdesk Admin"
+    dependencies:
+      - frappe
+    upgrade_supported: true
+
+  hr:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+      - hrms
+    home_page: "workspace/HR"
+    default_roles:
+      - "HR Manager"
+      - "Employee"
+    dependencies:
+      - frappe
+      - payments
+      - erpnext
+    upgrade_supported: false
+
+  selling:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Selling"
+    default_roles:
+      - "Sales Manager"
+      - "Sales User"
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false
+
+  accounts:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Accounting"
+    default_roles:
+      - "Accounts Manager"
+      - "Accounts User"
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false
+
+  pos:
+    strategy_key: "erpnext_suite"
+    tier: 2
+    required_apps:
+      - erpnext
+    home_page: "workspace/Restaurant POS"
+    workspaces:
+      - "Restaurant POS"
+      - "Point of Sale Workspace"
+      - "Stock"
+      - "Invoicing"
+      - "Financial Reports"
+      - "Selling"
+      - "Buying"
+      - "Manufacturing"
+      - "Projects"
+      - "Quality"
+      - "Assets"
+      - "Organization"
+
+
+    allowed_modules:
+      - "Point of Sale"
+      - "Stock"
+      - "Accounts"
+      - "Setup"
+      - "Core"
+      - "Custom"
+      - "Integrations"
+      - "Utilities"
+      - "Contacts"
+    role_profile_name: "POS Admin"
+    default_roles:
+      - "System Manager"
+      - "Desk User"
+      - "Stock User"
+      - "Stock Manager"
+      - "Accounts User"
+      - "Accounts Manager"
+      - "Sales User"
+      - "Sales Manager"
+      - "Purchase User"
+      - "Purchase Manager"
+      - "Manufacturing User"
+      - "Manufacturing Manager"
+      - "Quality Manager"
+      - "Projects User"
+      - "Projects Manager"
+      - "Item Manager"
+      - "Workspace Manager"
+      - "Report Manager"
+
+
+
+    dependencies:
+      - frappe
+      - payments
+    upgrade_supported: false
+
+

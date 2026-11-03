@@ -282,5 +282,14 @@ pos:
     odoo_master_password: ${ODOO_MASTER_PASSWORD:"testpassword"}
     odoo_domain: ${ODOO_DOMAIN:"test.kairon.com"}
 
+crm:
+  metering:
+    # Kairon Metering CRM metadata API. Both unset => handoff is skipped (best-effort, never blocks CRM).
+    url: ${CRM_METERING_URL}
+    event_secret: ${CRM_METERING_EVENT_SECRET}
+  bench:
+    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
+    container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
+
 store_page:
   url: ${STORE_PAGE_URL:"http://localhost:8080"}

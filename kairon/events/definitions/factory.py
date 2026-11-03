@@ -1,5 +1,6 @@
 from kairon.events.definitions.agentic_flow import AgenticFlowEvent
 from kairon.events.definitions.analytic_pipeline_handler import AnalyticsPipelineEvent
+from kairon.events.definitions.crm_lead_analysis import CRMLeadAnalysisEvent
 from kairon.events.definitions.content_importer import DocContentImporterEvent
 from kairon.events.definitions.data_importer import TrainingDataImporterEvent
 from kairon.events.definitions.faq_importer import FaqDataImporterEvent
@@ -30,7 +31,8 @@ class EventFactory:
         EventClass.agentic_flow: AgenticFlowEvent,
         EventClass.catalog_integration: CatalogSync,
         EventClass.upload_file_handler: UploadHandler,
-        EventClass.analytics_pipeline: AnalyticsPipelineEvent
+        EventClass.analytics_pipeline: AnalyticsPipelineEvent,
+        EventClass.crm_lead_analysis: CRMLeadAnalysisEvent,
     }
 
     @staticmethod
