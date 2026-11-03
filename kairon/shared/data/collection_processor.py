@@ -30,9 +30,8 @@ _REGEX_CONDITION_MAP = {
 
 _CASE_INSENSITIVE = {"iexact", "icontains", "istartswith", "iendswith"}
 
-_INT_PATTERN = re.compile(r"-?[0-9]+")
-_FLOAT_PATTERN = re.compile(r"-?[0-9]+\.[0-9]+")
 _INT64_MIN, _INT64_MAX = -2 ** 63, 2 ** 63 - 1
+_MAX_NUMERIC_TEXT_LENGTH = 25
 _CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 _EXPORT_CHUNK_ROWS = 1000
 _MAX_EXPORT_ROWS = 10000
@@ -49,21 +48,31 @@ def _build_filterable_attr_elem_match(column: str, value, condition: str = None)
     return {"filterable_attrs": {"$elemMatch": {"k": column, "v": v_expr}}}
 
 
+def _is_ascii_digits(text: str) -> bool:
+    return text.isascii() and text.isdigit()
+
+
 def _with_numeric_variant(value):
     """
     Query-string values arrive as str; also match a stored number with the same text.
-    Leading zeros are ignored ("01" also matches a stored 1) and integers outside int64 stay strings.
+    Leading zeros are ignored ("01" also matches a stored 1). Integers outside int64 and values longer than
+    _MAX_NUMERIC_TEXT_LENGTH characters stay strings. No regex is used as the value is user supplied.
     """
     if not isinstance(value, str):
         return value
-    if _INT_PATTERN.fullmatch(value):
+    unsigned = value[1:] if value.startswith("-") else value
+    if len(unsigned) > _MAX_NUMERIC_TEXT_LENGTH:
+        return value
+    if _is_ascii_digits(unsigned):
         number = int(value)
         if _INT64_MIN <= number <= _INT64_MAX:
             return {"$in": [value, number]}
         return value
-    if _FLOAT_PATTERN.fullmatch(value):
+    whole, dot, fraction = unsigned.partition(".")
+    if dot and _is_ascii_digits(whole) and _is_ascii_digits(fraction):
         return {"$in": [value, float(value)]}
     return value
+
 
 def _neutralise_csv_formula(value):
     """Prefix a quote so spreadsheets do not evaluate user supplied text as a formula."""

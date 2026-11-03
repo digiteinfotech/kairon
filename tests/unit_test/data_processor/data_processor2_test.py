@@ -2030,3 +2030,25 @@ def test_export_row_cap_checked_before_streaming(_clean_export_collections, monk
     for v in ["1", "2"]:
         _export_save("small", {"a": v})
     assert len(_export_parse(_export_csv(EXPORT_BOT, "small"))) == 3
+
+
+def test_with_numeric_variant_long_or_malformed_text_stays_string_and_is_fast():
+    import time
+    from kairon.shared.data.collection_processor import _with_numeric_variant
+    huge = "0" * 100000
+    start = time.perf_counter()
+    assert _with_numeric_variant(huge) == huge
+    assert _with_numeric_variant(huge + "x") == huge + "x"
+    assert _with_numeric_variant(huge + ".5") == huge + ".5"
+    assert time.perf_counter() - start < 1
+    for text in ["", "-", ".", "1.", ".5", "1.2.3", "1,5", "--1", "1e5", "+5", "1.-2"]:
+        assert _with_numeric_variant(text) == text
+
+
+def test_with_numeric_variant_converts_valid_int_and_float_text():
+    from kairon.shared.data.collection_processor import _with_numeric_variant
+    assert _with_numeric_variant("5") == {"$in": ["5", 5]}
+    assert _with_numeric_variant("-5") == {"$in": ["-5", -5]}
+    assert _with_numeric_variant("01") == {"$in": ["01", 1]}
+    assert _with_numeric_variant("2.5") == {"$in": ["2.5", 2.5]}
+    assert _with_numeric_variant("-2.50") == {"$in": ["-2.50", -2.5]}
