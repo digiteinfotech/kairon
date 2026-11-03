@@ -10,7 +10,6 @@ from kairon.crm.services.bench_runner import execution_mode, get_bench_runner
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 
-REQUIRED_PIPELINE_INTERVAL = 300
 MIN_SHARED_SECRET_LENGTH = 32     # same floor Metering enforces for METERING_JWT_SECRET
 
 
@@ -20,16 +19,6 @@ def _check(name: Text, ok: bool, detail: Text, required: bool = True) -> Dict:
 
 def run_checks() -> List[Dict]:
     env, checks = Utility.environment, []
-
-    # 1. The 5-minute Analytics Pipeline must be allowed by the effective minimum interval (broadcasts are unaffected).
-    from kairon.shared.analytics.schedule_limits import analytics_min_trigger_interval
-    effective = analytics_min_trigger_interval()
-    raw = env["events"]["scheduler"].get("analytics_min_trigger_interval")
-    checks.append(_check(
-        "analytics_min_trigger_interval", effective <= REQUIRED_PIPELINE_INTERVAL,
-        f"effective minimum {effective}s (setting: {raw if raw not in (None, '') else 'unset'}); the CRM pipeline needs "
-        f"<= {REQUIRED_PIPELINE_INTERVAL}s. Set ANALYTICS_MIN_TRIGGER_INTERVAL={REQUIRED_PIPELINE_INTERVAL} on the API "
-        "that creates pipelines."))
 
     # 2. Platform LLM: the Analytics Pipeline's own secret and an enabled model. The key is never read out.
     from kairon.shared.admin.data_objects import LLMSecret
@@ -51,6 +40,28 @@ def run_checks() -> List[Dict]:
                          "LLM server URL is " + ("unset" if not llm_url else "a loopback address (not valid in ECS)" if loopback
                                                  else "set" if llm_url.lower().startswith("https://")
                                                  else "not https:// (conversation text would travel unencrypted)"), required=False))
+
+    # 2a. Tenant hostnames must be unique, and the index that enforces it should exist.
+    try:
+        from kairon.crm.models import CRMClientDetails
+        duplicates = CRMClientDetails.duplicate_site_names()
+        checks.append(_check("site_name_unique", not duplicates,
+                             f"{len(duplicates)} site name(s) are used by more than one tenant record; resolve them before "
+                             "`python -m kairon crm_lead_analysis ensure-indexes`" if duplicates else "no duplicate tenant site names"))
+        indexed = CRMClientDetails.has_site_name_index()
+        checks.append(_check("site_name_index", indexed, "unique site_name index " + ("present" if indexed else
+                             "missing: run `python -m kairon crm_lead_analysis ensure-indexes`"), required=False))
+    except Exception as e:
+        checks.append(_check("site_name_unique", False, f"could not read the database: {type(e).__name__}"))
+
+    # 2b. The scheduled platform job needs a task definition under any non-standalone executor (Lambda/ECS look it up by name).
+    executor = str((env.get("events", {}).get("executor") or {}).get("type") or "standalone")
+    task = (env.get("events", {}).get("task_definition") or {}).get("crm_lead_analysis")
+    checks.append(_check(
+        "crm_lead_analysis_task_definition", executor == "standalone" or bool(task),
+        f"executor '{executor}': " + ("not needed" if executor == "standalone" else
+                                      "CRM_LEAD_ANALYSIS_TASK_DEFINITION is set" if task else
+                                      "CRM_LEAD_ANALYSIS_TASK_DEFINITION is NOT set; the scheduled job would fail to start")))
 
     # 3. Bench execution mode and runner configuration.
     try:
@@ -90,17 +101,16 @@ def run_checks() -> List[Dict]:
         checks.append(_check("metering_url_https", str(metering.get("url") or "").lower().startswith("https://"),
                              "CRM_METERING_URL should be https:// outside local development", required=False))
 
-    # 5. The platform job (invitation retries) must be registered on the event server (read from the shared job store).
+    # 5. The platform job (lead analysis, invitation retries and reconciliation) must be registered on the event server (read from the shared job store).
     try:
         from pymongo import MongoClient
         sched = env["events"]["scheduler"]["collection"]
         client = MongoClient(env["database"]["url"], serverSelectionTimeoutMS=3000)
         job = client[env["events"]["queue"]["name"]][sched].find_one({"_id": "crm_lead_analysis"})
         checks.append(_check("platform_job_registered", job is not None,
-                             "crm_lead_analysis " + ("registered" if job else "NOT registered: run `python -m kairon crm_lead_analysis schedule`"),
-                             required=False))
+                             "crm_lead_analysis " + ("registered" if job else "NOT registered: run `python -m kairon crm_lead_analysis schedule`")))
     except Exception as e:
-        checks.append(_check("platform_job_registered", False, f"could not read the job store: {type(e).__name__}", required=False))
+        checks.append(_check("platform_job_registered", False, f"could not read the job store: {type(e).__name__}"))
     return checks
 
 

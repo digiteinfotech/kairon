@@ -2,6 +2,8 @@ from typing import Text
 
 from loguru import logger
 
+from kairon.crm.analytics.pipeline import LeadAnalysisPipeline
+from kairon.crm.processor import CRMProcessor
 from kairon.crm.services.admin_invitation import CRMAdminInvitationService
 from kairon.events.definitions.base import EventsBase
 from kairon.exceptions import AppException
@@ -16,8 +18,9 @@ SYSTEM_USER = "kairon-system"
 
 class CRMLeadAnalysisEvent(EventsBase):
     """
-    Platform-wide, five-minute CRM job: retries pending administrator invitations (claims are atomic, so duplicate
-    firing is harmless). Lead analysis is not here: it is each bot's Analytics Pipeline PyScript callback.
+    Platform-wide, five-minute CRM job. One pass: analyses idle conversations of every CRM-enabled bot (per-bot leases
+    make overlapping runs harmless), retries pending administrator invitations, and reconciles invitations whose
+    acceptance webhook was missed. Each part is isolated, so one failing never blocks the others.
     """
 
     def __init__(self, bot: Text = SYSTEM_BOT, user: Text = SYSTEM_USER, **kwargs):
@@ -32,14 +35,15 @@ class CRMLeadAnalysisEvent(EventsBase):
         Utility.request_event_server(EventClass.crm_lead_analysis, payload)
 
     def execute(self, **kwargs):
-        # Lead analysis itself now runs as each bot's Analytics Pipeline PyScript callback
-        # (kairon/crm/analytics/pipeline_manager.py). This platform job only retries pending administrator invitations.
         summary = {}
-        try:
-            summary["invitations"] = CRMAdminInvitationService.retry_pending()
-        except Exception as e:  # never let the invitation sweep fail the analysis run
-            logger.error(f"[CRMLeadAnalysis] invitation retry sweep failed: {type(e).__name__}")
-            summary["invitations"] = {"error": type(e).__name__}
+        for name, job in (("leads", lambda: LeadAnalysisPipeline().run_cycle()),
+                          ("invitations", CRMAdminInvitationService.retry_pending),
+                          ("reconciliation", CRMProcessor.reconcile_invitations)):
+            try:
+                summary[name] = job()
+            except Exception as e:
+                logger.error(f"[CRMLeadAnalysis] {name} sweep failed: {type(e).__name__}")
+                summary[name] = {"error": type(e).__name__}
         logger.info(f"[CRMLeadAnalysis] cycle complete: {summary}")
         return summary
 

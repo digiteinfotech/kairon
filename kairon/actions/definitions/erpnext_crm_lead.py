@@ -41,6 +41,10 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
     new user-configured action doctype.
     """
 
+    # Used whenever the event could not be delivered (exception or a rejecting webhook): never claims it was passed on.
+    NOTIFY_FAILED_RESPONSE = ("I've noted your details, but there was an issue notifying our sales team -- "
+                              "someone will still follow up.")
+
     # Not a KaironSystemSlots enum member: add_system_required_slots() bulk-provisions
     # every enum member for every bot unconditionally, which would leak this
     # CRM-specific slot onto bots that never enable CRM. It's provisioned only for
@@ -122,10 +126,11 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
                             }
                         )
 
-                        target_url, secret = resolve_lead_target(self.bot, doc.site_name)
+                        target_url, secret = resolve_lead_target(self.bot)
 
                         # publish_webhook is a blocking requests call; keep it off the action server's event loop
-                        publish_result = await asyncio.to_thread(KaironEventPublisher.publish_webhook, target_url, secret, event)
+                        publish_result = await asyncio.to_thread(KaironEventPublisher.publish_webhook, target_url, secret, event,
+                            host_header=doc.site_name)
                         result_payload = {
                             "event_id": event.event_id,
                             "correlation_id": event.correlation_id,
@@ -136,6 +141,7 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
                         if not publish_result.get("success"):
                             status = STATUSES.FAIL.value
                             exception = f"ERPNext webhook rejected event: HTTP {publish_result.get('status_code')} {publish_result.get('response_text')}"
+                            bot_response = self.NOTIFY_FAILED_RESPONSE
 
             if skip_reason:
                 result_payload = {"skipped_reason": skip_reason}
@@ -148,7 +154,7 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
             logger.exception(e)
             status = STATUSES.FAIL.value
             exception = str(e)
-            bot_response = "I've noted your details, but there was an issue notifying our sales team -- someone will still follow up."
+            bot_response = self.NOTIFY_FAILED_RESPONSE
         finally:
             trigger_info_data = action_call.get('trigger_info') or {}
             trigger_info_obj = TriggerInfo(**trigger_info_data)

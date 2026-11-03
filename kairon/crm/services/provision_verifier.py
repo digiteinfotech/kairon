@@ -120,11 +120,7 @@ class ProvisionVerifier:
 
         # 5. Verify User Login if password provided
         if temp_password:
-            user_session = requests.Session()
-            user_session.headers.update({
-                "Host": self.host_header,
-                "Accept": "application/json"
-            })
+            user_session = build_bench_session(self.host_header)      # fresh session: no Administrator cookies or token
             u_login = user_session.post(f"{self.base_url}/api/method/login", data={"usr": email, "pwd": temp_password}, timeout=10)
             if u_login.status_code != 200:
                 logger.error(f"[ProvisionVerifier] Newly created user '{email}' could not authenticate with temporary password.")

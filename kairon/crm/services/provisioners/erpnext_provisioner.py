@@ -1,8 +1,10 @@
 from typing import Dict, Any
 from loguru import logger
+from kairon.crm.lead_dispatch import DEFAULT_BENCH_BASE_URL
 from kairon.crm.models import CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
+from kairon.crm.services.site_naming import database_name
 
 
 class ERPNextProvisioner(BaseProvisioner):
@@ -18,84 +20,84 @@ class ERPNextProvisioner(BaseProvisioner):
     ) -> Dict[str, Any]:
         logger.info(f"[{self.LABEL}] Starting Tier 2 ERPNext Suite Provisioning for company '{company_name}', bot '{bot}'...")
 
-        doc, clean_name, site_name = self._begin_provisioning(company_name, bot)
+        doc, site_name = self._begin_provisioning(company_name, bot)
 
         # Phase 0: Pre-flight validation
         PreFlightValidator.validate_infrastructure(self.container_name, site_name, self.plan, is_upgrade=False)
 
-        # Database name resolution
-        db_name = f"erpnext_{clean_name}"[:63].rstrip('_')
+        db_name = database_name("erpnext", site_name)
 
-        # ERPNext v16 ships a standard "CRM" Desktop Icon. The Frappe CRM app inserts an icon with
-        # the same primary key on install, so installing it *after* erpnext aborts with a
-        # UniqueViolation (bench install-app crm -> FAILED_BENCH). ERPNext's own icon sync is an
-        # upsert, so installing crm first and erpnext second works on the same bench.
-        first_app = "crm" if "crm" in self.plan.apps else "erpnext"
-        self._bench_new_site(site_name, db_name, admin_password, first_app, self.LABEL)
-        if first_app != "erpnext":
-            self._bench_install_app(site_name, "erpnext", self.LABEL)
-        self._install_kairon_connector(site_name, self.LABEL)
+        with self._rollback_on_failure(site_name, self.LABEL):
+            # ERPNext v16 ships a standard "CRM" Desktop Icon. The Frappe CRM app inserts an icon with
+            # the same primary key on install, so installing it *after* erpnext aborts with a
+            # UniqueViolation (bench install-app crm -> FAILED_BENCH). ERPNext's own icon sync is an
+            # upsert, so installing crm first and erpnext second works on the same bench.
+            first_app = "crm" if "crm" in self.plan.apps else "erpnext"
+            self._bench_new_site(site_name, db_name, admin_password, first_app, self.LABEL)
+            if first_app != "erpnext":
+                self._bench_install_app(site_name, "erpnext", self.LABEL)
+            self._install_kairon_connector(site_name, self.LABEL)
 
-        # Post-creation setup: Encryption key, homepage
-        self.prelock_encryption_key(site_name)
-        self.set_homepage(site_name, self.plan.home_page)
+            # Post-creation setup: Encryption key, homepage
+            self.prelock_encryption_key(site_name)
+            self.set_homepage(site_name, self.plan.home_page)
 
-        # Install additional Tier 2 apps if requested (e.g. HRMS)
-        for app in self.plan.apps:
-            if app not in ("frappe", "erpnext", first_app):
-                logger.info(f"[{self.LABEL}] Installing additional Tier 2 app '{app}' on {site_name}...")
-                self._bench_install_app(site_name, app, self.LABEL)
+            # Install additional Tier 2 apps if requested (e.g. HRMS)
+            for app in self.plan.apps:
+                if app not in ("frappe", "erpnext", first_app):
+                    logger.info(f"[{self.LABEL}] Installing additional Tier 2 app '{app}' on {site_name}...")
+                    self._bench_install_app(site_name, app, self.LABEL)
 
-        # Setup user, roles, password, company, fiscal year, and migrate
-        user_email = doc.user if doc.user else "Administrator"
-        self.setup_user_and_migrate(
-            site_name, user_email, admin_password,
-            company_name=company_name, abbr=abbr,
-            default_currency=default_currency, country=country
-        )
+            # Setup user, roles, password, company, fiscal year, and migrate
+            user_email = doc.user if doc.user else "Administrator"
+            self.setup_user_and_migrate(
+                site_name, user_email, admin_password,
+                company_name=company_name, abbr=abbr,
+                default_currency=default_currency, country=country
+            )
 
-        # Apply Product Isolation Service & Role Profile
-        try:
-            from kairon.crm.services.erpnext_client import ERPNextClient
-            from kairon.crm.services.isolation_service import ProductIsolationService
+            # Apply Product Isolation Service & Role Profile
+            try:
+                from kairon.crm.services.erpnext_client import ERPNextClient
+                from kairon.crm.services.isolation_service import ProductIsolationService
 
-            base_url = self.bench_config.get("base_url", "http://localhost:8080")
-            client = ERPNextClient(base_url, site_name)
-            client.login(admin_password)
+                base_url = self.bench_config.get("base_url", DEFAULT_BENCH_BASE_URL)
+                client = ERPNextClient(base_url, site_name)
+                client.login(admin_password)
 
-            selected_features = getattr(self.plan, "selected_features", doc.selected_modules if hasattr(doc, "selected_modules") else ["pos"])
-            isolation_info = ProductIsolationService.apply_isolation(client, company_name, selected_features)
+                selected_features = getattr(self.plan, "selected_features", doc.selected_modules if hasattr(doc, "selected_modules") else ["pos"])
+                isolation_info = ProductIsolationService.apply_isolation(client, company_name, selected_features)
 
-            if user_email and user_email.lower() != "administrator":
-                client.assign_roles_and_company(
-                    user_email,
-                    self.plan.default_roles,
-                    company_name,
-                    module_profile=isolation_info.get("module_profile"),
-                    role_profile=isolation_info.get("role_profile"),
-                    default_workspace=isolation_info.get("default_workspace", "Point of Sale")
-                )
-        except Exception as iso_err:
-            logger.warning(f"[{self.LABEL}] Product isolation setup warning: {iso_err}")
+                if user_email and user_email.lower() != "administrator":
+                    client.assign_roles_and_company(
+                        user_email,
+                        self.plan.default_roles,
+                        company_name,
+                        module_profile=isolation_info.get("module_profile"),
+                        role_profile=isolation_info.get("role_profile"),
+                        default_workspace=isolation_info.get("default_workspace", "Point of Sale")
+                    )
+            except Exception as iso_err:
+                logger.warning(f"[{self.LABEL}] Product isolation setup warning: {iso_err}")
 
-        self._bypass_setup_wizard(site_name, ["frappe", "erpnext"], self.LABEL)
+            self._bypass_setup_wizard(site_name, ["frappe", "erpnext"], self.LABEL)
 
-        # Worker reload
-        self.reload_gunicorn_workers()
+            # Worker reload
+            self.reload_gunicorn_workers()
 
-        # Update metadata in MongoDB. NOTE: status is SITE_CREATED here, not COMPLETED --
-        # marking it COMPLETED at this point (as this used to) skips every remaining step
-        # in ProvisioningService.execute_onboarding_workflow (health check, Company/
-        # integration-user/webhook-secret setup, the tenant owner's actual User record +
-        # welcome email, and final verification), since each of those steps only runs
-        # when the status guard matches its expected prior state. That left every Tier 2
-        # (ERPNext) tenant with only "Administrator" and an ephemeral password nobody was
-        # ever told -- no real login for the tenant owner at all. Matches CRMProvisioner's
-        # (Tier 1) already-correct behavior of stopping at SITE_CREATED.
-        doc.tier = 2
-        doc.installed_apps = self.plan.apps
-        doc.onboarding_status = CRMOnboardingStatus.SITE_CREATED.value
-        doc.save()
+            # Update metadata in MongoDB. NOTE: status is SITE_CREATED here, not COMPLETED --
+            # marking it COMPLETED at this point (as this used to) skips every remaining step
+            # in ProvisioningService.execute_onboarding_workflow (health check, Company/
+            # integration-user/webhook-secret setup, the tenant owner's actual User record +
+            # welcome email, and final verification), since each of those steps only runs
+            # when the status guard matches its expected prior state. That left every Tier 2
+            # (ERPNext) tenant with only "Administrator" and an ephemeral password nobody was
+            # ever told -- no real login for the tenant owner at all. Matches CRMProvisioner's
+            # (Tier 1) already-correct behavior of stopping at SITE_CREATED.
+            doc.tier = 2
+            doc.installed_apps = self.plan.apps
+            doc.onboarding_status = CRMOnboardingStatus.SITE_CREATED.value
+            doc.save()
 
         logger.info(f"[{self.LABEL}] Tier 2 ERPNext site '{site_name}' provisioned successfully.")
         return {

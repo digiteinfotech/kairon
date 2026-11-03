@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 from loguru import logger
 from kairon.exceptions import AppException
+from kairon.crm.services.docker_utils import run_docker
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -77,13 +78,13 @@ class AppUpgradeProvisioner(BaseProvisioner):
                 logger.info(f"[AppUpgradeProvisioner] 'erpnext' is already installed on '{site_name}'; skipping install-app.")
                 upgrade_res = subprocess.CompletedProcess(upgrade_cmd, 0, "", "")
             else:
-                upgrade_res = subprocess.run(upgrade_cmd, capture_output=True, text=True, timeout=300)
+                upgrade_res = run_docker(upgrade_cmd, capture_output=True, text=True, timeout=300)
 
             if upgrade_res.returncode != 0:
                 logger.error(f"[AppUpgradeProvisioner] Upgrade command failed: {upgrade_res.stderr or upgrade_res.stdout}")
                 # Failure Recovery: Run bench migrate to repair partial DB schema
                 logger.info("[AppUpgradeProvisioner] Running bench migrate to repair DB schema state...")
-                subprocess.run(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
+                run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
 
                 doc.onboarding_status = CRMOnboardingStatus.FAILED_UPGRADE.value
                 doc.last_error = upgrade_res.stderr or upgrade_res.stdout
@@ -128,7 +129,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
     def _erpnext_installed(self, site_name: str) -> bool:
         """True when `bench list-apps` for the site already shows erpnext. Any doubt answers False (install is attempted)."""
         try:
-            res = subprocess.run(["docker", "exec", self.container_name, "bench", "--site", site_name, "list-apps"],
+            res = run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "list-apps"],
                                  capture_output=True, text=True, timeout=60)
         except Exception:
             return False
@@ -137,7 +138,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
 
     def _backup_before_upgrade(self, doc, site_name: str):
         logger.info(f"[AppUpgradeProvisioner] Step 1: Creating pre-upgrade backup for '{site_name}'...")
-        backup_res = subprocess.run(["docker", "exec", self.container_name, "bench", "--site", site_name, "backup"],
+        backup_res = run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "backup"],
                                     capture_output=True, text=True)
         if backup_res.returncode != 0:
             # install-app changes the schema and cannot be undone.

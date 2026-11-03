@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Security, Query, Request, Header
+from fastapi import APIRouter, BackgroundTasks, Security, Query, Request, Header
+from fastapi import Response as HTTPResponse
 from fastapi.concurrency import run_in_threadpool
+from loguru import logger
 
 from kairon.api.models import Response
 from kairon.shared.constants import ADMIN_ACCESS
@@ -16,8 +18,6 @@ from kairon.crm.schemas import (
     CRMLeadPromptRequest,
     CRMLeadPromptTestRequest,
     CRMOnboardRequest,
-    CRMCreateUserRequest,
-    CRMInviteUserRequest,
     CRMConfigureModulesRequest,
 )
 
@@ -25,53 +25,59 @@ router = APIRouter()
 crm_processor = CRMProcessor()
 
 
-@router.post("/onboard", response_model=Response)
+def _run_onboarding(bot: str, company_name: str, provisioning_id: str, crm_admin_email: str):
+    """Background half of `/onboard`. Failures are recorded on the tenant (`FAILED_*`, `last_error`) and logged, not raised."""
+    try:
+        crm_processor.run_onboarding(bot, company_name, provisioning_id, crm_admin_email)
+    except Exception as e:
+        logger.error(f"[{provisioning_id}] Onboarding run ended with an unhandled error: {type(e).__name__}")
+
+
+@router.post("/onboard", response_model=Response, status_code=202)
 def onboard_company(
     req: CRMOnboardRequest,
+    background_tasks: BackgroundTasks,
+    http_response: HTTPResponse,
     current_user: User = Security(
         get_crm_user_and_bot, scopes=ADMIN_ACCESS
     ),
 ):
     """
-    Initiates automated ERPNext site provisioning for a tenant bot.
+    Starts automated ERPNext site provisioning for a tenant bot and returns immediately (202). Provisioning takes
+    minutes, so it runs in the background; poll `GET /status` for the outcome.
 
     - **Request Schema**: `CRMOnboardRequest` (company_name, abbr, default_currency, country, crm_admin_email, selected_modules)
-    - **Response Schema**: `Response` wrapping `{ status, site_name, company, erpnext_user, accepted, provisioned,
-      failed }` (`temporary_password` only when the deployment opts in). `success` only means the request was accepted;
-      read `provisioned`/`failed`/`status` for the real outcome.
+    - **Response Schema**: `Response` wrapping `{ status, accepted, provisioned, failed, in_progress }`. 202 means the
+      request was valid and the lock is held; the real outcome is `GET /status`. 200 means the tenant is already
+      provisioned and nothing was started (the live site is never touched by a repeated call).
     - **Possible Error Responses**:
       - 400 Bad Request: Missing or invalid company parameters.
-      - 422 Unprocessable Entity: Empty module selection or forbidden system module request.
-      - 500 Internal Server Error: Provisioning error (recorded in `last_error`).
-    - **Security Note**: Requires `ADMIN_ACCESS` token. Only authorized tenant admins may provision CRM instances.
-    - **Expected Behavior**: Performs atomic lock, creates site in Bench, initializes Fernet encryption key, reloads
-      Gunicorn, creates integration user, configures module profiles, and provisions administrator user.
+      - 422 Unprocessable Entity: Empty module selection, forbidden system module request, or a run already in progress.
+    - **Security Note**: Requires `ADMIN_ACCESS` token (and the staff allowlist when configured). Raw provisioning errors
+      are never returned; they are recorded as `last_error` on the tenant.
+    - **Expected Behavior**: Performs atomic lock, then in the background creates the site in Bench, initializes the
+      encryption key, reloads workers, creates the integration user, configures module profiles and provisions the
+      administrator user.
     """
-    result = crm_processor.onboard_company(
+    bot = current_user.get_bot()
+    started = crm_processor.start_onboarding(
         company_name=req.company_name,
         abbr=req.abbr,
         default_currency=req.default_currency,
         country=req.country,
-        bot=current_user.get_bot(),
+        bot=bot,
         current_user=current_user,
         selected_modules=req.selected_modules,
         crm_admin_email=req.crm_admin_email,
     )
-    outcome = CRMProcessor.onboarding_outcome(result)
-    # The one-time ERPNext password is NOT returned by default. A deployment that still needs it (clients that
-    # display it) can opt in with crm.bench.onboard_return_temporary_password=true (BENCH_ONBOARD_RETURN_TEMP_PASSWORD).
-    if not CRMProcessor.returns_temporary_password():
-        outcome.pop("temporary_password", None)
-    # `success` means the request was accepted and a run was attempted. The provisioning result is
-    # `data.provisioned` / `data.failed` / `data.status`; the message states it so no caller reads a failed
-    # run as a created tenant.
-    if outcome["provisioned"]:
-        message = "CRM tenant provisioned successfully"
-    elif outcome["failed"]:
-        message = f"CRM onboarding request accepted but provisioning failed ({outcome['status']})"
+    in_progress = bool(started["provisioning_id"])
+    if in_progress:
+        background_tasks.add_task(_run_onboarding, bot, req.company_name, started["provisioning_id"], req.crm_admin_email)
+        message = "CRM onboarding accepted; provisioning is in progress"
     else:
-        message = f"CRM onboarding request accepted; provisioning is {outcome.get('status') or 'in progress'}"
-    return Response(data=outcome, message=message)
+        http_response.status_code = 200
+        message = "CRM tenant is already provisioned"
+    return Response(data=CRMProcessor.onboarding_outcome({"status": started["status"]}, in_progress), message=message)
 
 
 @router.post("/validate", response_model=Response)
@@ -89,7 +95,6 @@ def validate_tenant_config(
     - **Possible Error Responses**: CRM not enabled for the bot, empty/invalid company fields (422/400).
     - **Security Note**: Requires `ADMIN_ACCESS`. Read-only; no site, DB or Mongo record is created.
     """
-    CRMProcessor.assert_staff_allowed(current_user.email)
     result = CRMProcessor.validate_tenant_config(
         bot=current_user.get_bot(),
         company_name=req.company_name,
@@ -210,60 +215,6 @@ def reconcile_modules(
     return Response(data=result, message="Module configuration reconciliation completed")
 
 
-@router.post("/create-user", response_model=Response)
-def create_crm_user(
-    req: CRMCreateUserRequest,
-    current_user: User = Security(
-        get_crm_user_and_bot, scopes=ADMIN_ACCESS
-    ),
-):
-    """
-    Creates a new user directly in the provisioned ERPNext instance.
-
-    - **Request Schema**: `CRMCreateUserRequest` (email: EmailStr, role: str)
-    - **Response Schema**: `Response` wrapping `{ email, role, status }`
-    - **Possible Error Responses**:
-      - 400 Bad Request: Invalid email or role requested.
-      - 409 Conflict: User email already exists on the ERPNext instance.
-    - **Security Note**: Scoped to `ADMIN_ACCESS`.
-    - **Expected Behavior**: Invokes `ERPNextClient.create_user`, assigns company permissions, roles, and current tenant Module Profile.
-    """
-    result = CRMProcessor.create_crm_user(
-        bot=current_user.get_bot(),
-        user=current_user.get_user(),
-        email=req.email,
-        role=req.role,
-    )
-    return Response(data=result, message="CRM user creation initiated")
-
-
-@router.post("/invite-user", response_model=Response)
-def invite_erpnext_user(
-    req: CRMInviteUserRequest,
-    current_user: User = Security(
-        get_crm_user_and_bot, scopes=ADMIN_ACCESS
-    ),
-):
-    """
-    Sends an invitation email to a new user to join the tenant ERPNext CRM instance.
-
-    - **Request Schema**: `CRMInviteUserRequest` (email: EmailStr, roles: List[str], company_name: str)
-    - **Response Schema**: `Response` wrapping `{ email, status, message }`
-    - **Possible Error Responses**:
-      - 400 Bad Request: Missing user credentials or invalid roles.
-    - **Security Note**: Requires `ADMIN_ACCESS`.
-    - **Expected Behavior**: Creates user record in ERPNext with invitation flag and dispatches email via configured Mailpit/SMTP relay.
-    """
-    result = CRMProcessor.invite_erpnext_user(
-        bot=current_user.get_bot(),
-        email=req.email,
-        roles=req.roles,
-        company_name=req.company_name,
-        user=current_user.get_user(),
-    )
-    return Response(data=result, message="ERPNext user invitation processed")
-
-
 @router.post("/webhook/invitation-accepted", response_model=Response)
 async def handle_invitation_webhook(
     request: Request,
@@ -374,11 +325,14 @@ def delete_project(
     ),
 ):
     """
-    Teardown endpoint: Deletes CRM client details metadata.
+    Teardown endpoint: drops the tenant's Bench site and database, then deletes the CRM record, invitations and
+    lead-qualification data. Refused while provisioning is running; stops (and keeps the record) if the site cannot be
+    dropped.
 
     - **Request Schema**: Query parameter `company_name: str`
     - **Response Schema**: `Response` wrapping `{ success: True }`
-    - **Security Note**: High privilege admin operation (`ADMIN_ACCESS`).
+    - **Security Note**: High privilege admin operation (`ADMIN_ACCESS` plus the staff allowlist when configured).
+      Irreversible: the site is dropped without a backup.
     """
     result = CRMProcessor.delete_crm_details(current_user.get_bot(), company_name)
     return Response(data=result)
@@ -398,7 +352,6 @@ def resend_admin_invitation(
     - **Security Note**: `ADMIN_ACCESS` plus the optional staff allowlist. A fresh single-use setup link is generated for
       each send; nothing secret is returned or stored.
     """
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMAdminInvitationService.send(current_user.get_bot(), force=True))
 
 
@@ -417,7 +370,6 @@ def list_managed_users(
     - **Possible Error Responses**: tenant not ready; connector unreachable or rejecting the signed request.
     - **Security Note**: `ADMIN_ACCESS` + optional staff allowlist. The tenant is resolved from the caller's bot only.
     """
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMUserManagement.list_users(current_user.get_bot()))
 
 
@@ -428,7 +380,6 @@ def get_assignable_roles(
     ),
 ):
     """Roles that may be granted through user management (never System Manager / Administrator)."""
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data={"roles": CRMUserManagement.assignable_roles()})
 
 
@@ -447,7 +398,6 @@ def invite_managed_user(
     - **Possible Error Responses**: tenant not ready, role not permitted, user already exists.
     - **Security Note**: `ADMIN_ACCESS` + staff allowlist; roles are checked here and again by the connector.
     """
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMUserManagement.invite_user(
         current_user.get_bot(), current_user.get_user(), req.email, req.roles, req.first_name))
 
@@ -460,7 +410,6 @@ def get_managed_user(
     ),
 ):
     """Account and roles of one tenant user (via the connector)."""
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMUserManagement.get_user(current_user.get_bot(), email))
 
 
@@ -472,7 +421,6 @@ def resend_managed_user_invitation(
     ),
 ):
     """Sends the user a fresh single-use setup link (60 s cooldown)."""
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMUserManagement.resend_invitation(current_user.get_bot(), current_user.get_user(), email))
 
 
@@ -485,7 +433,6 @@ def set_managed_user_enabled(
     ),
 ):
     """Enables or disables a tenant user. The CRM administrator cannot be disabled here."""
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMUserManagement.set_enabled(current_user.get_bot(), current_user.get_user(), email, req.enabled))
 
 
@@ -586,5 +533,4 @@ def set_crm_enabled(
     Turns CRM on or off for this bot (a simple toggle). Changes only `enable_crm`; no tenant is created or removed, and
     an existing tenant is preserved when disabling. Provisioning is a separate step (`POST /onboard`).
     """
-    CRMProcessor.assert_staff_allowed(current_user.email)
     return Response(data=CRMProcessor.set_crm_enabled(current_user.get_bot(), current_user.get_user(), req.enabled))

@@ -1,5 +1,5 @@
 """
-Scheduled lead analysis. One `run_cycle()` is a bounded, idempotent pass over every CRM-enabled bot; it is safe to run
+Scheduled lead analysis (run by the platform `crm_lead_analysis` job). One `run_cycle()` is a bounded, idempotent pass over every CRM-enabled bot; it is safe to run
 every five minutes, from any number of workers, and to be killed at any point.
 
 Coordination: a per-bot lease in Mongo (atomic upsert) makes overlapping runs and multiple replicas skip a bot that is
@@ -37,7 +37,7 @@ DEFAULTS = {
     "max_history_turns": 40,
     "max_transcript_chars": 6000,
     "lease_seconds": 600,
-    "time_budget_seconds": 420,     # stop starting new analyses; the PyScript subprocess is hard-limited to 600 s
+    "time_budget_seconds": 420,     # stop starting new analyses so one platform-job pass stays bounded
     "max_attempts": 5,
     "backoff_base_seconds": 60,
     "backoff_cap_seconds": 3600,
@@ -246,8 +246,8 @@ class LeadAnalysisPipeline:
             },
         )
         try:
-            url, secret = resolve_lead_target(bot, crm.site_name)
-            outcome = KaironEventPublisher.publish_webhook(url, secret, event, timeout_seconds=15)
+            url, secret = resolve_lead_target(bot)
+            outcome = KaironEventPublisher.publish_webhook(url, secret, event, timeout_seconds=15, host_header=crm.site_name)
         except Exception as e:
             self._fail(record, f"dispatch: {type(e).__name__}", stats)
             return
