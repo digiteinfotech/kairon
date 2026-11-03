@@ -30,6 +30,12 @@ _REGEX_CONDITION_MAP = {
 
 _CASE_INSENSITIVE = {"iexact", "icontains", "istartswith", "iendswith"}
 
+_INT_PATTERN = re.compile(r"-?[0-9]+")
+_FLOAT_PATTERN = re.compile(r"-?[0-9]+\.[0-9]+")
+_INT64_MIN, _INT64_MAX = -2 ** 63, 2 ** 63 - 1
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+_EXPORT_CHUNK_ROWS = 1000
+_MAX_EXPORT_ROWS = 10000
 
 def _build_filterable_attr_elem_match(column: str, value, condition: str = None) -> dict:
     if condition and condition in _REGEX_CONDITION_MAP:
@@ -43,18 +49,26 @@ def _build_filterable_attr_elem_match(column: str, value, condition: str = None)
     return {"filterable_attrs": {"$elemMatch": {"k": column, "v": v_expr}}}
 
 
-_INT_PATTERN = re.compile(r"^-?\d+$")
-_FLOAT_PATTERN = re.compile(r"^-?\d+\.\d+$")
-
-
 def _with_numeric_variant(value):
-    """Query-string values arrive as str; also match a stored number with the same text."""
+    """
+    Query-string values arrive as str; also match a stored number with the same text.
+    Leading zeros are ignored ("01" also matches a stored 1) and integers outside int64 stay strings.
+    """
     if not isinstance(value, str):
         return value
-    if _INT_PATTERN.match(value):
-        return {"$in": [value, int(value)]}
-    if _FLOAT_PATTERN.match(value):
+    if _INT_PATTERN.fullmatch(value):
+        number = int(value)
+        if _INT64_MIN <= number <= _INT64_MAX:
+            return {"$in": [value, number]}
+        return value
+    if _FLOAT_PATTERN.fullmatch(value):
         return {"$in": [value, float(value)]}
+    return value
+
+def _neutralise_csv_formula(value):
+    """Prefix a quote so spreadsheets do not evaluate user supplied text as a formula."""
+    if isinstance(value, str) and value.startswith(_CSV_FORMULA_PREFIXES):
+        return "'" + value
     return value
 
 
@@ -320,11 +334,21 @@ class DataProcessor:
         result_limit = kwargs.pop("result_limit", None)
         page_size = kwargs.pop("page_size", None)
         start_idx = kwargs.pop("start_idx", None)
+        order_by = kwargs.pop("order_by", None)
+        decrypt = kwargs.pop("decrypt", True)
+        only_fields = kwargs.pop("only_fields", None)
 
         mongo_query = CollectionData.objects(bot=bot, collection_name=collection_name)
         if attr_filters:
             raw = {"$and": attr_filters} if len(attr_filters) > 1 else attr_filters[0]
             mongo_query = mongo_query.filter(__raw__=raw)
+
+        if only_fields:
+            mongo_query = mongo_query.only("collection_name", "is_secure", "is_non_editable",
+                                           *[f"data.{field}" for field in only_fields])
+
+        if order_by:
+            mongo_query = mongo_query.order_by(order_by)
 
         if page_size is not None and start_idx is not None:
             mongo_query = mongo_query.order_by("-timestamp").skip(start_idx).limit(page_size)
@@ -332,14 +356,16 @@ class DataProcessor:
         if result_limit is not None:
             mongo_query = mongo_query.limit(result_limit)
 
-        for value in mongo_query:
+        # documents are consumed once, do not let the queryset keep every one of them in memory
+        for value in mongo_query.no_cache():
             final_data = {}
             item = value.to_mongo().to_dict()
             collection_name = item.pop('collection_name', None)
             is_secure = item.pop('is_secure')
             is_non_editable = item.pop('is_non_editable')
             data = item.pop('data')
-            data = DataProcessor.prepare_decrypted_data(data, is_secure)
+            if decrypt:
+                data = DataProcessor.prepare_decrypted_data(data, is_secure)
             final_data["_id"] = item["_id"].__str__()
             final_data['collection_name'] = collection_name
             final_data['is_secure'] = is_secure
@@ -348,32 +374,71 @@ class DataProcessor:
             yield final_data
 
     @staticmethod
-    def export_collection_data_as_csv(bot: Text, collection_name: Text) -> str:
+    def __get_export_header(bot: Text, collection_name: Text) -> List[Text]:
         """
-        exports every row of a collection as csv text, with secure keys decrypted
+        distinct data keys of a collection in first seen order, computed by mongo without loading documents
+        """
+        pipeline = [
+            {"$sort": {"_id": 1}},
+            {"$project": {"k": {"$map": {"input": {"$objectToArray": "$data"}, "in": "$$this.k"}}}},
+            {"$unwind": {"path": "$k", "includeArrayIndex": "i"}},
+            {"$group": {"_id": "$k", "doc": {"$first": "$_id"}, "i": {"$first": "$i"}}},
+            {"$sort": {"doc": 1, "i": 1}},
+        ]
+        return [item["_id"] for item in CollectionData.objects(
+            bot=bot, collection_name=collection_name).aggregate(pipeline, allowDiskUse=True)]
+
+    @staticmethod
+    def stream_collection_data_as_csv(bot: Text, collection_name: Text, fields: List[Text] = None,
+                                      decrypt_secure: bool = False):
+        """
+        exports every row of a collection as csv, streamed in chunks so memory does not grow with collection size.
+        Raises before the first chunk if the collection does not exist or has more than _MAX_EXPORT_ROWS rows.
 
         :param bot: bot id
         :param collection_name: collection name
-        :return: csv content
+        :param fields: keys to export, in the given order. All keys are exported if empty
+        :param decrypt_secure: decrypt secure keys, otherwise they are exported as stored (encrypted)
+        :return: generator of utf-8 encoded csv chunks, string cells and headers starting with = + - @ tab or CR
+                 are prefixed with a quote
         """
         collection_name = collection_name.lower()
-        rows = [
-            item["data"]
-            for item in DataProcessor.get_collection_data(bot, collection_name=collection_name, key=[], value=[])
-        ]
-        if not rows:
+        row_count = CollectionData.objects(bot=bot, collection_name=collection_name).count()
+        if not row_count:
             raise AppException(f"Collection '{collection_name}' not found or has no data!")
+        if row_count > _MAX_EXPORT_ROWS:
+            raise AppException(f"Collection '{collection_name}' has more than {_MAX_EXPORT_ROWS} rows, cannot export!")
 
-        header = list(dict.fromkeys(key for row in rows for key in row))
-        buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=header, restval="", lineterminator="\n")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({
-                key: json.dumps(value) if isinstance(value, (dict, list)) else ("" if value is None else value)
-                for key, value in row.items()
-            })
-        return buffer.getvalue()
+        if fields:
+            header = list(dict.fromkeys(fields))
+        else:
+            header = DataProcessor.__get_export_header(bot, collection_name)
+        # keys that cannot be addressed in a projection are fetched with the whole document
+        only_fields = header if fields and not any("." in key or key.startswith("$") for key in header) else None
+
+        def rows():
+            buffer = io.StringIO()
+            writer = csv.writer(buffer, lineterminator="\n")
+            writer.writerow([_neutralise_csv_formula(key) for key in header])
+            count = 0
+            for item in DataProcessor.get_collection_data(
+                    bot, collection_name=collection_name, key=[], value=[], order_by="id",
+                    decrypt=decrypt_secure, only_fields=only_fields
+            ):
+                row = item["data"]
+                writer.writerow([
+                    json.dumps(value) if isinstance(value, (dict, list))
+                    else ("" if value is None else _neutralise_csv_formula(value))
+                    for value in (row.get(key) for key in header)
+                ])
+                count += 1
+                if count % _EXPORT_CHUNK_ROWS == 0:
+                    yield buffer.getvalue().encode("utf-8")
+                    buffer.seek(0)
+                    buffer.truncate()
+            yield buffer.getvalue().encode("utf-8")
+
+        return rows()
 
     @staticmethod
     def get_collection_data_with_timestamp(bot: Text, collection_name: Text, **kwargs):
