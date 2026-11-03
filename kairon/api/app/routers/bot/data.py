@@ -1,8 +1,9 @@
 import os
+import re
 from typing import List, Optional, Union
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, StreamingResponse
 
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
@@ -287,6 +288,31 @@ async def get_collection_metadata(
     return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
 
 
+@router.get("/collection/{collection_name}/export")
+def export_collection_data(
+        bot: str,
+        collection_name: str,
+        fields: List[str] = Query([]),
+        decrypt_secure: bool = False,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
+):
+    """
+    Exports collection data of the bot as csv file.
+    fields: keys to export, all keys if not provided.
+    decrypt_secure: export secure keys decrypted, otherwise as stored (encrypted).
+    """
+    collection_name = collection_name.lower()
+    content = DataProcessor.stream_collection_data_as_csv(
+        current_user.get_bot(), collection_name, fields=fields, decrypt_secure=decrypt_secure
+    )
+    filename = re.sub(r"[^a-z0-9_-]", "_", collection_name)
+    return StreamingResponse(
+        content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )
+
+
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
         bot: str,
@@ -302,10 +328,7 @@ async def get_collection_data(
                                                   collection_name=collection_name,
                                                   key=key, value=value, start_idx=start_idx,
                                                   page_size=page_size))
-    attr_filters = [
-        {"filterable_attrs": {"$elemMatch": {"k": k, "v": v}}}
-        for k, v in zip(key, value) if k and v
-    ]
+    attr_filters = DataProcessor.build_attr_filters(key, value)
     raw_query = {"bot": bot, "collection_name": collection_name.lower()}
     if len(attr_filters) > 1:
         raw_query["$and"] = attr_filters
