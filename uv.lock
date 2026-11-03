@@ -461,6 +461,24 @@ wheels = [
 ]
 
 [[package]]
+name = "cachebox"
+version = "5.2.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/f6/85f176d2518cf1d1be5f981fc2dadf6b131e33fefd721f36b330e3434d6c/cachebox-5.2.3.tar.gz", hash = "sha256:b1f68246685aa739bbbd2734befb1465363a1e1042407c154feadb065f17a099", size = 63686, upload-time = "2026-04-10T12:21:35.028Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/02/8ae1b63dbdebb2ebf600523f48b54e9bfb10db5a28551c3432346f49e1dd/cachebox-5.2.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:56cb03ec6289a2ac5daf7422d755683324f02d821bfa796087100df2a7ebd5de", size = 395782, upload-time = "2026-04-10T12:18:50.054Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/2f/79a8a0057f354581c25a1a00ddabbd5db4b8631d192670d7a0cc4271dbb7/cachebox-5.2.3-cp310-cp310-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:a71a71df463ba4c86bc843fa01c3a2a721033adefad888af28c6b65e1915a75c", size = 353194, upload-time = "2026-04-10T12:19:03.083Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/57/a1fead35cf481432bd87def0653cd4a069b1ea5847589255795e49ae74b8/cachebox-5.2.3-cp310-cp310-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:bbe4655371d19fc9f4f5874312bcb6e5b5b6182989979ac33d93c34c8d10c012", size = 371090, upload-time = "2026-04-10T12:19:16.019Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/58/53f1fab8bcc3238fd6c533ef3ab146097986a8acb722863c688a2410c1b2/cachebox-5.2.3-cp310-cp310-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:4974476d1779961df89d6e6f79e6103a1659289d3ee11c92adcb52e236a8aaeb", size = 390902, upload-time = "2026-04-10T12:19:28.258Z" },
+    { url = "https://files.pythonhosted.org/packages/11/2f/5abff74666f8388d2c9516c265f99c33484c827f7fcb3cd703c2f3cbb17e/cachebox-5.2.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ad16d733219f4cab3eec6533af30ab7b9c919c6e3e22ad1ef4eb82629a62edef", size = 395855, upload-time = "2026-04-10T12:19:54.207Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/11/30b429db12ab5df663aa108bcfac42805f733da65b0bf452f60bfaf4a530/cachebox-5.2.3-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:12a9e0a93774ca2b3a9fe8a2a0d0812e399fac4af0fce6246a5bca1e7009b8fc", size = 425760, upload-time = "2026-04-10T12:19:41.138Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/b4/fdac1bb902b954c03d23eb301d645a328c9664caff5898930fdbd92fde80/cachebox-5.2.3-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:be89497a011eb7a638d13cc520244d77579c0f515b95bf759b3de0b90a015203", size = 564988, upload-time = "2026-04-10T12:20:34.673Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/63/76cd5405b0339f15bf86593258bf9bc5608f10a5e0fa6f37a282b42a6caa/cachebox-5.2.3-cp310-cp310-musllinux_1_2_armv7l.whl", hash = "sha256:dd01fc0c1934cccb76493eb4b149a9232d299e5e0275f557adf875c3d25cec81", size = 669110, upload-time = "2026-04-10T12:20:49.039Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/bc/52d154aa0407bafce94d1d8d3ff27ca5e842f8311be43cfabdefcbb0f6b7/cachebox-5.2.3-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:a0dfd97b0968f8bd48c33098a03d10f797964559c3a437c84bf97a9973545714", size = 643768, upload-time = "2026-04-10T12:21:04.095Z" },
+    { url = "https://files.pythonhosted.org/packages/51/d9/82627eb8cecaf5e7e601bbc65d474a1c3053a2fbc21618ddc6aac19c47dc/cachebox-5.2.3-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:223ccf7ac60f595def258e7bc74c0b1d6f43991c9cae6d06749c803d22786d99", size = 610047, upload-time = "2026-04-10T12:21:19.469Z" },
+]
+
+[[package]]
 name = "cachecontrol"
 version = "0.12.14"
 source = { registry = "https://pypi.org/simple" }
@@ -740,14 +758,15 @@ wheels = [
 
 [[package]]
 name = "deepdiff"
-version = "8.6.2"
+version = "9.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "cachebox" },
     { name = "orderly-set" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/89/50/767448e792d41bfb6094ee317a355c1cb221dca24b2e178e2203bbea2a77/deepdiff-8.6.2.tar.gz", hash = "sha256:186dcbd181e4d76cef11ab05f802d0056c5d6083c5a6748c1473e9d7481e183e", size = 634860, upload-time = "2026-03-18T17:16:33.785Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/6b/6a4a5aaf38535eb332c2856aa08e73ed7c549d0851b1215401af0a2db1a7/deepdiff-9.1.0.tar.gz", hash = "sha256:07e9e366fab4297755153c4eab795ad4ef3cbd0d51660e847f5751c6bd727687", size = 382149, upload-time = "2026-05-15T20:18:05.751Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/5f/c52bd1255db763d0cdcb7084d2e90c42119cb229302c56bdf1d0aa78abd2/deepdiff-8.6.2-py3-none-any.whl", hash = "sha256:4d22034a866c3928303a9332c279362f714192d9305bac17c498720d095fd1b4", size = 91979, upload-time = "2026-03-18T17:16:32.171Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/26/4a2bad8eb430d8d805a4642c4bff25103a37548d74ab346f8b1e024abcc5/deepdiff-9.1.0-py3-none-any.whl", hash = "sha256:80c0460e1993b04f6f0ca79abf25548b129fd218478c4ebb08f80560f5d10610", size = 184662, upload-time = "2026-05-15T20:18:03.956Z" },
 ]
 
 [[package]]
@@ -2073,7 +2092,7 @@ requires-dist = [
 dev = [
     { name = "aioresponses", specifier = "==0.7.6" },
     { name = "black", specifier = "==22.12.0" },
-    { name = "deepdiff", specifier = "==8.6.2" },
+    { name = "deepdiff", specifier = "==9.1.0" },
     { name = "locust", specifier = "==2.46.0" },
     { name = "mock", specifier = "==5.1.0" },
     { name = "mongomock", specifier = "==4.1.2" },
