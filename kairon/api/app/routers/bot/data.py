@@ -1,8 +1,10 @@
 import os
+import re
 from typing import List, Optional, Union
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response as StarletteResponse
+from starlette.responses import FileResponse, StreamingResponse
+
 from kairon.shared.chat.broadcast.processor import MessageBroadcastProcessor
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.chat.user_media import UserMedia
@@ -287,22 +289,29 @@ async def get_collection_metadata(
 
 
 @router.get("/collection/{collection_name}/export")
-async def export_collection_data(
+def export_collection_data(
         bot: str,
         collection_name: str,
+        fields: List[str] = Query([]),
+        decrypt_secure: bool = False,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
-    Exports collection data of the bot as csv file
+    Exports collection data of the bot as csv file.
+    fields: keys to export, all keys if not provided.
+    decrypt_secure: export secure keys decrypted, otherwise as stored (encrypted).
     """
-    DataProcessor.validate_collection_name(collection_name)
     collection_name = collection_name.lower()
-    content = DataProcessor.export_collection_data_as_csv(current_user.get_bot(), collection_name)
-    return StarletteResponse(
-        content=content.encode("utf-8"),
-        media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{collection_name}.csv"'},
+    content = DataProcessor.stream_collection_data_as_csv(
+        current_user.get_bot(), collection_name, fields=fields, decrypt_secure=decrypt_secure
     )
+    filename = re.sub(r"[^a-z0-9_-]", "_", collection_name)
+    return StreamingResponse(
+        content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'},
+    )
+
 
 @router.get("/collection/{collection_name}", response_model=Response)
 async def get_collection_data(
