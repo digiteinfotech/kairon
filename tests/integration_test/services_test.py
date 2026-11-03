@@ -87,6 +87,7 @@ from kairon.events.definitions.catalog_sync import CatalogSync
 from kairon.meta.processor import MetaProcessor
 from kairon.shared.catalog_sync.data_objects import CatalogProviderMapping, CatalogSyncLogs
 from kairon.shared.cognition.processor import CognitionDataProcessor
+from kairon.shared.data.collection_processor import DataProcessor
 from kairon.shared.data.model_processor import ModelProcessor
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.data.utils import DataUtility
@@ -4804,6 +4805,58 @@ def test_bulk_save_success():
     assert actual["success"]
     assert "data" in actual
     CollectionData.objects(collection_name="test_bulk_save_success").delete()
+
+
+def test_export_collection_data_csv():
+    DataProcessor.save_bulk_collection_data(
+        [{"data": {"name": "Aniket", "city": "Pune"}, "is_secure": [], "is_non_editable": []}],
+        user="integ@demo.ai", bot=pytest.bot, collection_name="test_export_csv",
+    )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/Test_Export_CSV/export",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    CollectionData.objects(collection_name="test_export_csv").delete()
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"] == 'attachment; filename="test_export_csv.csv"'
+    lines = response.text.strip().splitlines()
+    assert lines[0] == "name,city"
+    assert lines[1] == "Aniket,Pune"
+
+
+def test_export_collection_data_csv_fields_and_decrypt_flag():
+    DataProcessor.save_bulk_collection_data(
+        [{"data": {"name": "Aniket", "pin": "4321", "city": "Pune"}, "is_secure": ["pin"], "is_non_editable": []}],
+        user="integ@demo.ai", bot=pytest.bot, collection_name="test_export_fields",
+    )
+    url = f"/api/bot/{pytest.bot}/data/collection/test_export_fields/export"
+    headers = {"Authorization": pytest.token_type + " " + pytest.access_token}
+    only = client.get(url=url, params={"fields": ["city", "pin"], "decrypt_secure": True}, headers=headers)
+    default = client.get(url=url, params={"fields": ["pin"]}, headers=headers)
+    CollectionData.objects(collection_name="test_export_fields").delete()
+    assert only.text.strip().splitlines() == ["city,pin", "Pune,4321"]
+    assert default.text.strip().splitlines()[0] == "pin"
+    assert "4321" not in default.text
+
+
+def test_export_collection_data_csv_name_with_space_and_empty():
+    DataProcessor.save_bulk_collection_data(
+        [{"data": {"a": "1"}, "is_secure": [], "is_non_editable": []}],
+        user="integ@demo.ai", bot=pytest.bot, collection_name="export space name",
+    )
+    response = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/export space name/export",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    CollectionData.objects(collection_name="export space name").delete()
+    assert response.status_code == 200
+    assert response.headers["content-disposition"] == 'attachment; filename="export_space_name.csv"'
+    missing = client.get(
+        url=f"/api/bot/{pytest.bot}/data/collection/no_such_export/export",
+        headers={"Authorization": pytest.token_type + " " + pytest.access_token},
+    )
+    assert "not found or has no data" in missing.json()["message"]
 
 
 def test_bulk_save_with_missing_is_secure_key():
