@@ -1,12 +1,13 @@
 import json
 import requests
-import subprocess
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
 from loguru import logger
 from kairon.exceptions import AppException
+from kairon.crm.services.docker_utils import run_docker
 from kairon.shared.utils import Utility
 from kairon.crm.services.bench_http import build_bench_session
+from kairon.crm.services.bench_runner import SITE_PATTERN, execution_mode
 from kairon.crm.constants import (
     REQUIRED_INTEGRATION_USER_ROLES,
     BUSINESS_MODULE_CATALOG,
@@ -55,6 +56,9 @@ class ERPNextClient:
         :param base_url: The URL to reach the Frappe web server (e.g. http://localhost:8000)
         :param host_header: The Host header to route to the correct site (e.g. validtestcompany.localhost)
         """
+        if not SITE_PATTERN.match(host_header or ""):
+            # The site name reaches `docker exec` and Frappe scripts in the fallbacks below; only DNS-style names pass.
+            raise AppException("Invalid tenant site name.")
         self.base_url = base_url.rstrip("/")
         self.host_header = host_header
         self.site_name = host_header
@@ -294,7 +298,7 @@ print(json.dumps(keys))
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", script
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            res = run_docker(cmd, capture_output=True, text=True, timeout=30)
             if res.returncode == 0:
                 out = res.stdout.strip()
                 if "{" in out and "}" in out:
@@ -311,6 +315,8 @@ print(json.dumps(keys))
         except Exception as e:
             logger.warning(f"[ERPNextClient] Container key generation fallback failed: {e}")
 
+        if execution_mode() != "docker":
+            raise AppException(f"Failed to generate API keys for '{email}' over HTTP; runner mode has no container fallback.")
         raise AppException(f"Failed to generate API keys for '{email}'")
 
     def ensure_invitation_webhook(self, kairon_url: str, site_name: str, webhook_secret: str, bot: str) -> str:
@@ -333,11 +339,14 @@ print(json.dumps(keys))
                 # Update the secret on the existing webhook -- ProvisioningService
                 # generates and persists a fresh webhook_secret on every run, so a
                 # reused webhook must be kept in sync or its signature checks fail.
-                self.session.put(
+                update_resp = self.session.put(
                     f"{self.base_url}/api/resource/Webhook/{name}",
                     json={"webhook_secret": webhook_secret},
                     timeout=15,
                 )
+                if update_resp.status_code not in (200, 201):
+                    self._log_api_op("ensure_webhook", name, False, update_resp.status_code, update_resp.text)
+                    raise AppException(f"Failed to update invitation webhook secret: HTTP {update_resp.status_code}")
                 self._log_api_op("ensure_webhook", name, True, check_resp.status_code, "Reusing existing webhook")
                 return name
 
@@ -538,7 +547,7 @@ print(json.dumps(keys))
                 f"{{'is_hidden': {is_hidden}, 'public': {public}}}); frappe.db.commit(); frappe.clear_cache()"
             )
             cmd = ["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name, "/home/frappe/frappe-bench/env/bin/python", "-c", script]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            res = run_docker(cmd, capture_output=True, text=True, timeout=30)
             success = res.returncode == 0
         except Exception as e:
             logger.debug(f"[ERPNextClient] {label} container fallback failed: {e}")
@@ -564,7 +573,7 @@ print(json.dumps(keys))
                 "docker", "exec", container_name,
                 "bench", "--site", self.site_name, "clear-cache"
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            res = run_docker(cmd, capture_output=True, text=True, timeout=30)
             self._log_api_op("clear_cache", self.site_name, res.returncode == 0, 200 if res.returncode == 0 else 500)
             return res.returncode == 0
         except Exception as e:
@@ -611,7 +620,7 @@ frappe.db.commit()
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", script
             ]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            run_docker(cmd, capture_output=True, text=True, timeout=30)
         except Exception as e:
             logger.warning(f"[ERPNextClient] Failed to set default workspace for users: {e}")
 
@@ -1047,30 +1056,39 @@ frappe.db.commit()
     # Invitation & User Query Methods
     # ─────────────────────────────────────────────────────────────
 
-    def ensure_default_smtp_account(self, smtp_server: str = "mailpit", smtp_port: int = 1025):
+    def ensure_default_smtp_account(self, smtp: Optional[dict]) -> bool:
+        """
+        Creates the tenant's default outgoing Email Account from the deployment's `crm.bench.smtp` settings
+        (server, port, email_id, use_tls). Without a configured server nothing is created: a made-up account would make
+        `check_smtp_configured()` true and report invitations as sent for mail that can never be delivered.
+        """
         if self.check_smtp_configured():
             logger.info("[ERPNextClient] Outgoing Email Account is already configured.")
-            return
-
-        url = f"{self.base_url}/api/resource/Email Account"
+            return True
+        smtp = smtp or {}
+        if not smtp.get("server") or not smtp.get("email_id"):
+            logger.warning("[ERPNextClient] No crm.bench.smtp server configured; tenant has no outgoing Email Account.")
+            return False
+        use_tls = str(smtp.get("use_tls") or "").lower() in ("1", "true", "yes")
         payload = {
-            "email_id": "notifications@mailpit.local",
+            "email_id": smtp["email_id"],
             "email_account_name": "Notifications",
             "enable_outgoing": 1,
             "default_outgoing": 1,
             "enable_incoming": 0,
-            "smtp_server": smtp_server,
-            "smtp_port": smtp_port,
-            "use_tls": 0,
+            "smtp_server": smtp["server"],
+            "smtp_port": int(smtp.get("port") or (587 if use_tls else 25)),
+            "use_tls": 1 if use_tls else 0,
             "use_ssl": 0,
             "no_smtp_authentication": 1,
             "awaiting_password": 0  # nosec B105 - a flag for ERPNext, not a credential
         }
-        res = self.session.post(url, json=payload, timeout=15)
+        res = self.session.post(f"{self.base_url}/api/resource/Email Account", json=payload, timeout=15)
         if res.status_code in (200, 201):
             logger.info("[ERPNextClient] Default outgoing Email Account created successfully.")
-        else:
-            logger.warning(f"[ERPNextClient] Failed to create Email Account: Status {res.status_code}")
+            return True
+        logger.warning(f"[ERPNextClient] Failed to create Email Account: Status {res.status_code}")
+        return False
 
     def check_smtp_configured(self) -> bool:
         url = f"{self.base_url}/api/resource/Email Account"
@@ -1153,8 +1171,7 @@ frappe.db.commit()
         return response.json().get("message", [])
 
     def verify_user_login(self, email: str, password: str) -> bool:
-        session = requests.Session()
-        session.headers.update({"Host": self.host_header, "Accept": "application/json"})
+        session = build_bench_session(self.host_header)               # fresh session: no Administrator cookies or token
         url = f"{self.base_url}/api/method/login"
         try:
             response = session.post(url, data={"usr": email, "pwd": password}, timeout=15)

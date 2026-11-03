@@ -1,15 +1,20 @@
 import json
-import subprocess
 import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from typing import Dict, Any
 from loguru import logger
 from cryptography.fernet import Fernet
 from kairon.exceptions import AppException
 from kairon.crm.models import CRMClientDetails
 from kairon.crm.services.bench_runner import BenchResult, get_bench_runner
-from kairon.crm.services.docker_utils import resolve_container_name
+from kairon.crm.services.docker_utils import PIPE, popen_docker, resolve_container_name, run_docker
 from kairon.crm.services.provisioning_models import ProvisioningPlan
+from kairon.crm.services.site_naming import clean_site_name
+
+
+# Plain (unformatted) text inserted into the tenant script below: setup wizard completion is stored in tabDefaultValue.
+MARK_SETUP_COMPLETE = r'''frappe.db.sql("UPDATE \"tabDefaultValue\" SET defvalue='1' WHERE defkey='setup_complete'")'''
 
 
 class BaseProvisioner(ABC):
@@ -33,12 +38,6 @@ class BaseProvisioner(ABC):
         the job while a new run (new provisioning id) after a failure starts fresh."""
         key = f"{self.provisioning_id or self._run_id}:{operation}:{site or 'global'}"
         return self.runner.run(operation, site, params, idempotency_key=key, secrets=secrets)
-
-    @staticmethod
-    def _clean_site_name(company_name: str) -> tuple:
-        """Derives a docker/bench-safe site slug from a company name."""
-        clean_name = "".join(c if c.isalnum() else "_" for c in company_name.lower())
-        return clean_name, f"{clean_name}.localhost"
 
     @staticmethod
     def _load_client_doc(company_name: str, bot: str) -> CRMClientDetails:
@@ -73,7 +72,6 @@ class BaseProvisioner(ABC):
             result = self._op("new_site", site_name, {"db_name": db_name, "apps": [install_app]},
                               secrets={"admin_password": admin_password})   # the runner holds the DB root credentials itself
             if not result.ok:
-                self._rollback_partial_site(site_name, label)
                 raise AppException(f"[{label}] Bench new-site failed: {result.error}")
             return
         cmd = [
@@ -87,39 +85,47 @@ class BaseProvisioner(ABC):
             "--db-root-password", self.bench_config.get("db_password", ""),
             "--admin-password", admin_password,
             "--install-app", install_app,
-            "--force"
         ]
         logger.info(f"[{label}] Running command: docker exec {self.container_name} bench new-site {site_name} --install-app {install_app}")
-        res = subprocess.run(cmd, capture_output=True, text=True)
+        res = run_docker(cmd, capture_output=True, text=True)
         if res.returncode != 0:
-            # new-site creates the site directory before the database/app steps. Left behind, it makes every retry
-            # fail pre-flight with "site already exists", so a transient failure (e.g. database unreachable) would
-            # never be recoverable. Pre-flight guarantees the directory did not exist before this call, so removing
-            # it only discards what this failed attempt created.
-            self._rollback_partial_site(site_name, label)
             output = self._scrub(res.stderr or res.stdout, admin_password, self.bench_config.get("db_password"))
             raise AppException(f"[{label}] Bench new-site failed: {output}")
 
+    @contextmanager
+    def _rollback_on_failure(self, site_name: str, label: str):
+        """
+        Wraps every step that creates or changes a brand-new site. `new-site` creates the site directory before the
+        database and app steps, so a failure at any later step (install-app, connector install) leaves a directory that
+        makes every retry fail pre-flight with "site already exists" and strands the tenant in FAILED_BENCH. Pre-flight
+        guarantees the site did not exist before this run, so removing it only discards what this failed run created.
+        """
+        try:
+            yield
+        except Exception:
+            self._rollback_partial_site(site_name, label)
+            raise
+
+    def _owns_site(self) -> bool:
+        """
+        True while this run is still the tenant's current run. A newer run (stale-lock recovery lets a retry start after two
+        hours) overwrites `provisioning_id`, and a superseded run must not drop the site the newer run is now creating.
+        The run id, not the site name, is compared: the name is not stored until a run gets past PROJECT_CREATED. Without a
+        run id (direct use outside the onboarding workflow) there is nothing to compare, so the check does not apply.
+        """
+        if not self.provisioning_id:
+            return True
+        return CRMClientDetails.objects(provisioning_id=self.provisioning_id).first() is not None
+
     def _rollback_partial_site(self, site_name: str, label: str):
-        if self.runner:
-            try:
-                self._op("drop_site", site_name)
-            except Exception as e:
-                logger.error(f"[{label}] Could not roll back partial site {site_name}: {type(e).__name__}")
+        from kairon.crm.services.bench_executor import BenchExecutor     # local import: the executor imports the provisioners
+        if not self._owns_site():
+            logger.warning(f"[{label}] Skipping rollback of {site_name}: a newer provisioning run owns this tenant.")
             return
         try:
-            drop = subprocess.run([
-                "docker", "exec", self.container_name, "bench", "drop-site", site_name, "--force", "--no-backup",
-                "--db-root-username", self.bench_config.get("db_user", "postgres"),
-                "--db-root-password", self.bench_config.get("db_password", ""),
-            ], capture_output=True, text=True, timeout=120)
-            if drop.returncode == 0:
-                logger.info(f"[{label}] Rolled back partially created site {site_name}.")
-                return
-            # drop-site needs a working database; if it was the failure, removing the directory is all that is left.
-            subprocess.run(["docker", "exec", self.container_name, "rm", "-rf", f"sites/{site_name}"],
-                           capture_output=True, text=True, timeout=60)
-            logger.warning(f"[{label}] drop-site failed; removed directory sites/{site_name} so provisioning can be retried.")
+            BenchExecutor().drop_site(site_name, self.container_name,
+                                      f"{self.provisioning_id or self._run_id}:drop_site:{site_name}", self.runner)
+            logger.info(f"[{label}] Rolled back partially created site {site_name}.")
         except Exception as e:
             logger.error(f"[{label}] Could not roll back partial site {site_name}: {type(e).__name__}")
 
@@ -130,7 +136,7 @@ class BaseProvisioner(ABC):
             if not result.ok:
                 raise AppException(f"[{label}] install-app '{app}' failed: {result.error}")
             return
-        res = subprocess.run(
+        res = run_docker(
             ["docker", "exec", self.container_name, "bench", "--site", site_name, "install-app", app],
             capture_output=True, text=True, timeout=600,
         )
@@ -149,7 +155,7 @@ class BaseProvisioner(ABC):
             "bench", "--site", site_name, "install-app", "kairon_connector"
         ]
         logger.info(f"[{label}] Installing kairon_connector on {site_name}")
-        c_res = subprocess.run(connector_cmd, capture_output=True, text=True)
+        c_res = run_docker(connector_cmd, capture_output=True, text=True)
         if c_res.returncode != 0:
             raise AppException(f"[{label}] kairon_connector install failed: {c_res.stderr or c_res.stdout}")
 
@@ -163,21 +169,21 @@ class BaseProvisioner(ABC):
             return
         try:
             for app_name in app_names:
-                subprocess.run([
+                run_docker([
                     "docker", "exec", self.container_name,
                     "bench", "--site", site_name, "execute", "frappe.db.set_value",
                     "--args", f"['Installed Application', {{'app_name': '{app_name}'}}, 'is_setup_complete', 1]"
                 ], capture_output=True)
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "execute", "frappe.db.set_single_value",
                 "--args", "['System Settings', 'setup_complete', 1]"
             ], capture_output=True)
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "clear-cache"
             ], capture_output=True)
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "use", site_name
             ], capture_output=True)
@@ -201,7 +207,7 @@ class BaseProvisioner(ABC):
         try:
             if reload_strategy == "supervisorctl":
                 cmd = ["docker", "exec", self.container_name, "supervisorctl", "restart", "frappe-gunicorn"]
-                subprocess.run(cmd, capture_output=True, timeout=15)
+                run_docker(cmd, capture_output=True, timeout=15)
             else:
                 # Default: SIGHUP to PID 1
                 cmd = [
@@ -209,7 +215,7 @@ class BaseProvisioner(ABC):
                     "/home/frappe/frappe-bench/env/bin/python", "-c",
                     "import os, signal; os.kill(1, signal.SIGHUP)"
                 ]
-                subprocess.run(cmd, capture_output=True, timeout=10)
+                run_docker(cmd, capture_output=True, timeout=10)
             logger.info("[BaseProvisioner] Worker reload signal sent successfully.")
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed to reload workers: {e}")
@@ -224,7 +230,7 @@ class BaseProvisioner(ABC):
             return
         try:
             new_enc_key = Fernet.generate_key().decode()
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "set-config", "encryption_key", new_enc_key
             ], capture_output=True)
@@ -241,12 +247,12 @@ class BaseProvisioner(ABC):
                 logger.warning(f"[BaseProvisioner] Failed to set home page: {e}")
             return
         try:
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "execute", "frappe.db.set_default",
                 "--args", json.dumps(["desktop:home_page", home_page])
             ], capture_output=True)
-            subprocess.run([
+            run_docker([
                 "docker", "exec", self.container_name,
                 "bench", "--site", site_name, "execute", "frappe.db.commit"
             ], capture_output=True)
@@ -269,11 +275,11 @@ class BaseProvisioner(ABC):
             return
         try:
             # 1. Ensure logs directory exists for site
-            subprocess.run(["docker", "exec", self.container_name, "mkdir", "-p", f"sites/{site_name}/logs"], capture_output=True)
+            run_docker(["docker", "exec", self.container_name, "mkdir", "-p", f"sites/{site_name}/logs"], capture_output=True)
 
             # 2. Run bench migrate to sync app fixtures & doctypes
             logger.info(f"[BaseProvisioner] Running bench migrate on site '{site_name}'...")
-            subprocess.run(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
+            run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
 
             # Ensure CRM frontend assets exist in Nginx frontend container.
             # Piped directly between two subprocesses (no shell=True) to avoid
@@ -284,17 +290,17 @@ class BaseProvisioner(ABC):
             # warning) and leave the tenant's CRM frontend broken.
             frontend_container = self.bench_config.get("frontend_container_name") or self._frontend_container_name()
             try:
-                tar_out = subprocess.Popen(
+                tar_out = popen_docker(
                     ["docker", "exec", self.container_name, "tar", "-cf", "-", "-C", "/home/frappe/frappe-bench/apps", "crm"],
-                    stdout=subprocess.PIPE
+                    stdout=PIPE
                 )
-                tar_in = subprocess.Popen(
+                tar_in = popen_docker(
                     ["docker", "exec", "-i", frontend_container, "tar", "-xf", "-", "-C", "/home/frappe/frappe-bench/apps"],
-                    stdin=tar_out.stdout, stdout=subprocess.PIPE
+                    stdin=tar_out.stdout, stdout=PIPE
                 )
                 tar_out.stdout.close()
                 tar_in.communicate(timeout=15)
-                subprocess.run([
+                run_docker([
                     "docker", "exec", frontend_container, "ln", "-sfn",
                     "/home/frappe/frappe-bench/apps/crm/crm/public", "/home/frappe/frappe-bench/assets/crm"
                 ], capture_output=True, timeout=15)
@@ -399,11 +405,11 @@ try:
     frappe.db.set_value('Installed Application', {{'app_name': 'erpnext'}}, 'is_setup_complete', 1)
 except Exception:
     pass
-frappe.db.sql("UPDATE \\\"tabDefaultValue\\\" SET defvalue='1' WHERE defkey='setup_complete'")
+{MARK_SETUP_COMPLETE}
 frappe.db.commit()
 frappe.clear_cache()
 """
-            subprocess.run([
+            run_docker([
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", self.container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
             ], capture_output=True)
@@ -414,10 +420,11 @@ frappe.clear_cache()
     def _begin_provisioning(self, company_name: str, bot: str):
         """Shared start of a fresh-site run: loads the tenant record and fixes the site name."""
         doc = self._load_client_doc(company_name, bot)
-        clean_name, site_name = self._clean_site_name(company_name)
+        # A name fixed earlier (an existing tenant, or this run's PROJECT_CREATED step) always wins over a recomputed one.
+        site_name = doc.site_name or clean_site_name(company_name)[1]
         doc.site_name = site_name
         self.provisioning_id = doc.provisioning_id or ""
-        return doc, clean_name, site_name
+        return doc, site_name
 
     @abstractmethod
     def provision(self, company_name: str, abbr: str, default_currency: str, country: str, admin_password: str, bot: str) -> Dict[str, Any]:

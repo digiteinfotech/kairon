@@ -8763,8 +8763,8 @@ class MongoProcessor:
 
     @staticmethod
     def is_crm_enabled(bot: str):
-        bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        return bot_setting.get("enable_crm", False)
+        bot_setting = BotSettings.objects(bot=bot, status=True).first()
+        return bool(bot_setting and bot_setting.enable_crm)
 
     @staticmethod
     def is_voice_enabled(bot: str):

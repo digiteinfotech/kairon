@@ -580,21 +580,6 @@ class CallbackScriptUtility:
 
 
     @staticmethod
-    def analyse_crm_leads(bot: str = None) -> dict:
-        """
-        PyScript helper for the CRM lead-qualification pipeline: one bounded, lease-protected pass over this bot's recent
-        conversations (see kairon/crm/analytics/pipeline.py). Bound to the calling pipeline's bot by the runner, so a
-        script can only ever analyse its own bot's conversations with its own bot's prompt.
-        """
-        if not bot:
-            raise Exception("Missing bot id")
-        from kairon.crm.analytics.pipeline import LeadAnalysisPipeline
-        stats = LeadAnalysisPipeline().run_bot(bot)
-        if stats is None:
-            return {"skipped": "another run holds the lease"}
-        return stats
-
-    @staticmethod
     def create_vector_collection(collection_name, model_id: str, user: str,
                                  overwrite: bool = False, metadata: list = None, bot: str = None):
         from kairon.shared.cognition.data_objects import CognitionSchema, ColumnMetadata, SchemaMetadata

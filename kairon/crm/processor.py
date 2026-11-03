@@ -17,7 +17,10 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.utils import Utility
-from kairon.crm.lead_dispatch import get_lead_webhook_secret
+from kairon.crm.lead_dispatch import DEFAULT_BENCH_BASE_URL, get_lead_webhook_secret
+from kairon.crm.analytics.models import (
+    CRMLeadAnalysisRecord, CRMLeadAnalysisState, CRMLeadPromptRevision, CRMLeadQualificationConfig,
+)
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus, CRMInvitation, CRMInvitationStatus
 from kairon.crm.schemas import validate_email_address, normalize_email
 from kairon.crm.services.admin_invitation import CRMAdminInvitationService
@@ -201,32 +204,8 @@ class CRMProcessor:
         }
 
     @staticmethod
-    def assert_staff_allowed(user_email: str):
-        """
-        Optional fail-closed gate for provisioning/user-management by Kairon staff. When `crm.staff_allowlist`
-        (env CRM_STAFF_ALLOWLIST, comma separated emails or `@domain` suffixes) is set, only matching callers pass;
-        when unset, the existing per-bot ADMIN_ACCESS rule applies unchanged.
-        """
-        raw = (Utility.environment.get("crm") or {}).get("staff_allowlist")
-        entries = [e.strip().lower() for e in str(raw or "").split(",") if e.strip()]
-        if not entries:
-            return
-        email = normalize_email(user_email)
-        for entry in entries:
-            if (entry.startswith("@") and email.endswith(entry)) or email == entry:
-                return
-        raise AppException("You are not authorised to manage CRM tenants.")
-
-    @staticmethod
     def _bench_config() -> dict:
         return (Utility.environment.get("crm") or {}).get("bench") or {}
-
-    @staticmethod
-    def returns_temporary_password() -> bool:
-        # Default OFF: the one-time ERPNext password is not sent to clients unless a deployment opts in
-        # (BENCH_ONBOARD_RETURN_TEMP_PASSWORD=true). Creators sign in with the one-click login link instead.
-        value = CRMProcessor._bench_config().get("onboard_return_temporary_password")
-        return str(value or "").lower() in ("1", "true", "yes")
 
     @staticmethod
     def get_tenant_url(site_name: str) -> str:
@@ -324,17 +303,18 @@ class CRMProcessor:
             logger.warning(f"[CRMProcessor] Metering handoff skipped for bot {bot}: {e}")
 
     @staticmethod
-    def onboarding_outcome(result: dict) -> dict:
+    def onboarding_outcome(result: dict, in_progress: bool = False) -> dict:
         """
-        Makes the real provisioning outcome explicit without removing any existing field (the Streamlit app, the
-        E2E suite and Admin read `status`). `accepted` only says the request was valid and a run was attempted;
-        `provisioned` is True only for a COMPLETED tenant; `failed` is True for any FAILED_* terminal state.
+        Makes the real provisioning outcome explicit. `accepted` only says the request was valid; `in_progress` says a
+        background run now holds the lock (so a stored FAILED_* from an earlier attempt is not the outcome yet);
+        `provisioned` is True only for a COMPLETED tenant; `failed` is True for a FAILED_* terminal state.
         """
         result = dict(result or {})
         status = result.get("status")
         result["accepted"] = True
+        result["in_progress"] = in_progress
         result["provisioned"] = status == CRMOnboardingStatus.COMPLETED.value
-        result["failed"] = isinstance(status, str) and status.startswith("FAILED")
+        result["failed"] = not in_progress and isinstance(status, str) and status.startswith("FAILED")
         return result
 
     LOGIN_LINK_TTL_SECONDS = 60
@@ -413,8 +393,18 @@ class CRMProcessor:
         record.onboarding_status = status.value
         record.save()
 
+    # Bench site states in which no site exists yet, so there is nothing to tear down besides the record.
+    NO_SITE_STATES = (CRMOnboardingStatus.PENDING.value, CRMOnboardingStatus.PROJECT_CREATED.value,
+                      CRMOnboardingStatus.FAILED_PROJECT.value)
+
     @staticmethod
     def delete_crm_details(bot: str, company_name: str):
+        """
+        Tears the tenant down: drops its Bench site and database, then removes everything Kairon holds for it (the
+        record with its API keys and webhook secrets, invitations, and lead-qualification data). The site is dropped
+        first and a failure stops the delete, so the record is never lost while the site is still running, and the same
+        company can be onboarded again afterwards.
+        """
         if Utility.check_empty_string(company_name):
             raise AppException("Company name cannot be empty.")
 
@@ -425,29 +415,27 @@ class CRMProcessor:
             raise HTTPException(
                 400, detail=f"Company '{company_name}' not found."
             )
+        stale = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+        if record.lock and record.lock_timestamp and record.lock_timestamp > stale:
+            raise AppException("Provisioning is in progress for this company; wait for it to finish before deleting.")
 
+        if record.site_name and record.onboarding_status not in CRMProcessor.NO_SITE_STATES:
+            BenchExecutor().drop_site(record.site_name)
+        site_name = record.site_name
         record.delete()
+        CRMInvitation.objects(bot=bot).delete()
+        for model in (CRMLeadQualificationConfig, CRMLeadPromptRevision, CRMLeadAnalysisState, CRMLeadAnalysisRecord):
+            model.objects(bot=bot).delete()
+        logger.info(f"[CRMProcessor] Tenant torn down: bot={bot}, site={site_name}")
         return {
             "success": True,
-            "message": f"Company '{company_name}' details removed successfully.",
+            "message": f"Company '{company_name}' and its CRM site were removed successfully.",
         }
 
-    @staticmethod
-    def create_crm_user(bot: str, user: str, email: str, role: str):
-        logger.info(
-            f"Creating CRM user: bot={bot}, user={user}, email={email}, role={role}"
-        )
-        result = BenchExecutor().create_crm_user(bot, email, role)
-        record = CRMClientDetails.objects(bot=bot).first()
-        # COMPLETED gates lead creation, invitations and the public "Ready" status, so adding a user to a tenant that
-        # is already provisioned must not push it back into the provisioning state machine.
-        if record and record.onboarding_status != CRMOnboardingStatus.COMPLETED.value:
-            CRMProcessor.update_onboarding_status(
-                bot, record.company_name, CRMOnboardingStatus.USER_CREATED
-            )
-        return result
+    # States in which a run is already underway or finished: onboarding again must not touch the live site.
+    SETTLED_STATES = (CRMOnboardingStatus.COMPLETED.value, CRMOnboardingStatus.UPGRADING_TO_TIER_2.value)
 
-    def onboard_company(
+    def start_onboarding(
         self,
         company_name: str,
         abbr: str,
@@ -457,10 +445,14 @@ class CRMProcessor:
         current_user: User,
         selected_modules: list = None,
         crm_admin_email: str = None,
-    ):
+    ) -> dict:
+        """
+        Validates the request, stores the tenant record and takes the provisioning lock, without running the workflow.
+        Returns `{"status", "provisioning_id"}`; `provisioning_id` is None when nothing was started (the tenant is already
+        provisioned, so its live site is left alone). Run the workflow with `run_onboarding`.
+        """
         if not MongoProcessor.is_crm_enabled(bot):
             raise AppException("CRM integration is not enabled")
-        CRMProcessor.assert_staff_allowed(current_user.email)
         try:
             crm_admin_email = validate_email_address(crm_admin_email, "CRM administrator email")
         except ValueError as e:
@@ -479,6 +471,8 @@ class CRMProcessor:
                 )
             existing.crm_admin_email = crm_admin_email
             existing.save()
+        if existing and existing.onboarding_status in CRMProcessor.SETTLED_STATES:
+            return {"status": existing.onboarding_status, "provisioning_id": None}
         if not existing:
             CRMProcessor.save_crm_details(
                 company_name=company_name,
@@ -516,9 +510,16 @@ class CRMProcessor:
             raise AppException("Provisioning workflow is already in progress for this company.")
 
         logger.info(f"[{provisioning_id}] Atomic lock acquired for {company_name}")
+        status = existing.onboarding_status if existing else CRMOnboardingStatus.PENDING.value
+        return {"status": status, "provisioning_id": provisioning_id}
 
+    def run_onboarding(self, bot: str, company_name: str, provisioning_id: str, crm_admin_email: str) -> dict:
+        """
+        Runs the provisioning workflow for a lock taken by `start_onboarding`. The lock is always released, whatever
+        happens, so a run that finishes without reaching a terminal state cannot leave the tenant locked for hours.
+        """
+        crm_admin_email = normalize_email(crm_admin_email)
         try:
-            # 3. Delegate completely to ProvisioningService
             service = ProvisioningService(bot, company_name.strip(), provisioning_id)
             local_part = crm_admin_email.split("@", 1)[0]
             result = service.execute_onboarding_workflow(
@@ -526,8 +527,6 @@ class CRMProcessor:
                 first_name=(local_part.replace(".", " ").replace("_", " ").title() or "CRM")[:60],
                 last_name="Administrator"
             )
-
-            # The lock is released inside execute_onboarding_workflow (via update_onboarding_status)
             CRMProcessor._notify_metering(bot, company_name)
             if result.status == CRMOnboardingStatus.COMPLETED.value and not service.admin_already_active:
                 # Readiness is verified at this point; delivery is attempted off the request path and retried by the
@@ -535,22 +534,38 @@ class CRMProcessor:
                 # already signed in (nothing to set up) is not sent a setup link.
                 if CRMAdminInvitationService.mark_pending(bot, company_name, provisioning_id):
                     CRMAdminInvitationService.send_in_background(bot)
-            return result.dict()
-
+            return CRMProcessor.public_onboarding_result(result.dict())
         except Exception as e:
+            # ProvisioningService records the stage-specific FAILED_* status for every error it catches; forcing a
+            # status here would break the step guards that resume the next run.
             logger.exception(f"[{provisioning_id}] Unhandled exception in ProvisioningService: {e}")
-            # Ensure lock is released on catastrophic unhandled exception. Do NOT
-            # force a specific onboarding_status here -- ProvisioningService already
-            # records the correct stage-specific FAILED_* status for every error it
-            # catches internally, and overwriting that with a fixed value breaks the
-            # step guards in execute_onboarding_workflow on the next retry (each step
-            # only runs when the status matches its expected prior state).
             CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).update_one(
-                set__lock=False,
-                set__last_error=str(e)
+                set__last_error=str(e)[:500]
             )
             CRMProcessor._notify_metering(bot, company_name)
-            raise e
+            raise
+        finally:
+            CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip(), provisioning_id=provisioning_id
+                                     ).update_one(set__lock=False)
+
+    def onboard_company(self, company_name: str, abbr: str, default_currency: str, country: str, bot: str,
+                        current_user: User, selected_modules: list = None, crm_admin_email: str = None) -> dict:
+        """Synchronous onboarding (start, then run in this call) for callers that must wait for the outcome."""
+        started = self.start_onboarding(company_name, abbr, default_currency, country, bot, current_user,
+                                        selected_modules, crm_admin_email)
+        if not started["provisioning_id"]:
+            return CRMProcessor.public_onboarding_result({"status": started["status"]})
+        return self.run_onboarding(bot, company_name, started["provisioning_id"], crm_admin_email)
+
+    @staticmethod
+    def public_onboarding_result(result: dict) -> dict:
+        """
+        The onboarding result that is safe to return: the raw provisioning `error` (bench stderr, URLs, paths) stays in
+        the server log and the stored `last_error`, exactly as `/details` withholds it.
+        """
+        result = dict(result or {})
+        result.pop("error", None)
+        return result
 
     @staticmethod
     def _get_integration_client(doc: CRMClientDetails) -> ERPNextClient:
@@ -561,7 +576,7 @@ class CRMProcessor:
         """
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
-        base_url = bench_config.get("base_url", "http://localhost:8080")
+        base_url = bench_config.get("base_url", DEFAULT_BENCH_BASE_URL)
 
         client = ERPNextClient(base_url, doc.site_name)
         if doc.kairon_api_key and doc.kairon_api_secret:
@@ -598,94 +613,6 @@ class CRMProcessor:
 
         client = CRMProcessor._get_integration_client(doc)
         return client.get_users()
-
-    @staticmethod
-    def invite_erpnext_user(
-        bot: str,
-        email: str,
-        roles: list,
-        company_name: str = None,
-        user: str = "SYSTEM",
-    ) -> dict:
-        """
-        Sends a native ERPNext user invitation via the UserInvitation API.
-        Does NOT create users manually (no POST /api/resource/User).
-
-        Primary flow:
-          ERPNext dispatches the invitation email immediately after_insert.
-          On acceptance, ERPNext fires an on_update webhook to Kairon's receiver,
-          which assigns the company permission automatically (~5-10 seconds).
-
-        Returns a dict with status: 'invited' | 'already_pending' | 'already_accepted'
-        Raises AppException for error conditions (SMTP, invalid role, etc.).
-        """
-        doc = CRMClientDetails.objects(bot=bot).first()
-        if not doc:
-            raise AppException("No CRM configuration found for this bot.")
-
-        if doc.onboarding_status != CRMOnboardingStatus.COMPLETED.value:
-            raise AppException(
-                f"ERPNext site is not yet provisioned for this bot. "
-                f"Current status: {doc.onboarding_status}"
-            )
-
-        company = company_name or doc.erpnext_company or doc.company_name
-
-        crm_config = Utility.environment.get("crm", {})
-        bench_config = crm_config.get("bench", {})
-        app_name = bench_config.get("app_name", "frappe")
-        redirect_to_path = bench_config.get("invite_redirect_path", "/")
-
-        client = CRMProcessor._get_integration_client(doc)
-
-        # Guard: fail fast if SMTP is not configured
-        if not client.check_smtp_configured():
-            raise AppException(
-                "ERPNext SMTP not configured. Configure an outgoing Email Account "
-                "in ERPNext before inviting users."
-            )
-
-        result = client.invite_user(email, roles, redirect_to_path, app_name)
-
-        # Parse ERPNext's categorised response
-        if email in (result.get("disabled_user_emails") or []):
-            raise AppException(f"User '{email}' is disabled in ERPNext.")
-
-        if email in (result.get("accepted_invite_emails") or []):
-            logger.info(f"[CRMProcessor] Invitation already accepted for '{email}'.")
-            return {"status": "already_accepted", "email": email, "company": company}
-
-        if email in (result.get("pending_invite_emails") or []):
-            logger.info(f"[CRMProcessor] Invitation already pending for '{email}'.")
-            return {"status": "already_pending", "email": email, "company": company}
-
-        # Success: new invitation dispatched
-        inv_record = client.get_invitation_status(email, app_name)
-        erpnext_invitation_id = inv_record.get("name") if inv_record else None
-
-        CRMInvitation(
-            bot=bot,
-            user=user,
-            site_name=doc.site_name,
-            company=company,
-            email=email,
-            roles=roles,
-            invitation_status=CRMInvitationStatus.PENDING.value,
-            erpnext_invitation_id=erpnext_invitation_id,
-            invited_at=dt.utcnow(),
-        ).save()
-
-        logger.info(
-            f"[CRMProcessor] Invitation sent: site={doc.site_name}, company={company}, "
-            f"email={email}, roles={roles}, erpnext_id={erpnext_invitation_id}"
-        )
-        return {
-            "status": "invited",
-            "email": email,
-            "roles": roles,
-            "company": company,
-            "site": doc.site_name,
-        }
 
     @staticmethod
     def handle_invitation_webhook(

@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import json
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from loguru import logger
 from kairon.exceptions import AppException
@@ -50,13 +50,27 @@ class KaironEventPublisher:
         signed_payload = f"{timestamp}.".encode('utf-8') + body_bytes
         return hmac.new(secret.encode('utf-8'), signed_payload, hashlib.sha256).hexdigest()
 
+    @staticmethod
+    def _post(target_url: str, body_bytes: bytes, headers: Dict[str, str], timeout_seconds: int,
+              host_header: Optional[str] = None):
+        """
+        POSTs the signed body. With `host_header` the request goes to `target_url` (the shared Bench frontend) and is
+        routed to that tenant by `Host`, exactly as ERPNextClient reaches it, instead of resolving the tenant's name.
+        """
+        if host_header:
+            from kairon.crm.services.bench_http import build_bench_session
+            return build_bench_session(host_header).post(
+                target_url, data=body_bytes, headers=headers, timeout=timeout_seconds)
+        return requests.post(target_url, data=body_bytes, headers=headers, timeout=timeout_seconds)
+
     @classmethod
     def publish_webhook(
         cls,
         target_url: str,
         secret: str,
         event: KaironEvent,
-        timeout_seconds: int = 10
+        timeout_seconds: int = 10,
+        host_header: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Dispatches a KaironEvent payload to a webhook URL with a timestamp-bound HMAC signature.
@@ -75,20 +89,16 @@ class KaironEventPublisher:
         }
 
         try:
-            response = requests.post(
-                target_url,
-                data=body_bytes,
-                headers=headers,
-                timeout=timeout_seconds
-            )
-            logger.info(f"[KaironEventPublisher] Dispatched {event.event_type} ({event.event_id}) to {target_url} -> Status {response.status_code}")
+            response = cls._post(target_url, body_bytes, headers, timeout_seconds, host_header)
+            logger.info(f"[KaironEventPublisher] Dispatched {event.event_type} ({event.event_id}) -> Status {response.status_code}")
             return {
                 "status_code": response.status_code,
                 "response_text": response.text,
                 "success": response.status_code in (200, 201, 202)
             }
         except Exception as e:
-            logger.error(f"[KaironEventPublisher] Failed to dispatch event {event.event_id} to {target_url}: {e}")
+            # Log the class only: the exception text can echo the URL.
+            logger.error(f"[KaironEventPublisher] Failed to dispatch event {event.event_id}: {type(e).__name__}")
             raise AppException(f"Webhook dispatch failed: {str(e)}")
 
     @classmethod
@@ -98,6 +108,7 @@ class KaironEventPublisher:
         secret: str,
         body: Dict[str, Any],
         timeout_seconds: int = 15,
+        host_header: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Signed request/response call (same timestamp-bound HMAC scheme as `publish_webhook`) for connector
@@ -114,7 +125,7 @@ class KaironEventPublisher:
             "X-Kairon-Event-ID": request_id,
         }
         try:
-            response = requests.post(target_url, data=body_bytes, headers=headers, timeout=timeout_seconds)
+            response = cls._post(target_url, body_bytes, headers, timeout_seconds, host_header)
         except requests.RequestException as e:
             # Log the class only: the exception text can echo the URL.
             logger.error(f"[KaironEventPublisher] Signed request {request_id} failed: {type(e).__name__}")

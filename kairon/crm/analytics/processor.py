@@ -6,7 +6,6 @@ from kairon.crm.analytics.models import (
     CRMLeadAnalysisRecord, CRMLeadAnalysisState, CRMLeadPromptRevision, CRMLeadQualificationConfig,
     LeadRecordStatus, MAX_PROMPT_LENGTH,
 )
-from kairon.crm.analytics.pipeline_manager import CRMLeadPipelineManager
 from kairon.crm.analytics.qualifier import qualify
 from kairon.exceptions import AppException
 from kairon.shared.data.processor import MongoProcessor
@@ -43,8 +42,6 @@ class LeadQualificationProcessor:
         if not config:
             return None
         view = cls._view(config)
-        pipeline = CRMLeadPipelineManager.get(bot)
-        view["pipeline"] = {"scheduled": pipeline is not None, "event_id": str(pipeline.id) if pipeline else None}
         return view
 
     @classmethod
@@ -67,11 +64,7 @@ class LeadQualificationProcessor:
         config.save()
         if not CRMLeadPromptRevision.objects(bot=bot, version=config.version).first():
             CRMLeadPromptRevision(bot=bot, version=config.version, prompt=prompt, user=user).save()
-        view = cls._view(config)
-        # The schedule follows the prompt: enabled => the bot's Analytics Pipeline exists, disabled => it is removed.
-        view["pipeline"] = (CRMLeadPipelineManager.ensure(bot, user) if config.enabled
-                            else CRMLeadPipelineManager.remove(bot, user))
-        return view
+        return cls._view(config)
 
     @classmethod
     def list_revisions(cls, bot: Text, limit: int = 20) -> List[Dict[Text, Any]]:

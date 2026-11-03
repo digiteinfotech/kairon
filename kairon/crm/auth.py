@@ -4,6 +4,8 @@ Authentication for the CRM routes: a normal Kairon login (bot membership, as bef
 Metering staff sign in to the Admin console, which already holds that token. Accepting it here lets Admin manage CRM for any
 bot without asking staff for each bot owner's Kairon login. It is deliberately narrow:
 - only the `/crm/...` routes use this dependency; every other Kairon route still requires a Kairon login;
+- when `crm.staff_allowlist` is set it gates **every** CRM route for every caller (Kairon login or staff token), here and
+  nowhere else, so no route can be added without it;
 - verification is off unless `crm.staff_auth.jwt_secret` (env CRM_STAFF_JWT_SECRET, the same value as Metering's
   METERING_JWT_SECRET) is set, and then the staff email **must** be listed in `crm.staff_allowlist` (CRM_STAFF_ALLOWLIST).
   An empty allowlist rejects every staff token (fail closed);
@@ -17,13 +19,14 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import SecurityScopes
 from loguru import logger
 
+from kairon.exceptions import AppException
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.auth import Authentication
 from kairon.shared.data.utils import DataUtility
 from kairon.shared.models import User
 from kairon.shared.utils import Utility
 
-STAFF_TOKEN_TYPE = "metering-staff"  # nosec B105 - JWT "typ" claim value, not a credential
+STAFF_TOKEN_TYPE = "metering-staff"  # noqa: S105  # nosec B105 - value of the payload "type" claim, not a credential
 STAFF_AUDIENCE = "kairon-metering"
 
 
@@ -39,6 +42,15 @@ def staff_allowlist() -> list:
 def is_listed(email: Text) -> bool:
     email = (email or "").strip().lower()
     return any((entry.startswith("@") and email.endswith(entry)) or email == entry for entry in staff_allowlist())
+
+
+def assert_staff_allowed(email: Text):
+    """
+    Optional fail-closed gate for every CRM route. When `crm.staff_allowlist` (env CRM_STAFF_ALLOWLIST) is set only
+    listed callers pass; when unset the per-bot ADMIN_ACCESS rule applies unchanged.
+    """
+    if staff_allowlist() and not is_listed(email):
+        raise AppException("You are not authorised to manage CRM tenants.")
 
 
 def verify_staff_token(token: Optional[Text]) -> Optional[Text]:
@@ -60,7 +72,9 @@ async def get_crm_user_and_bot(security_scopes: SecurityScopes, request: Request
                                token: str = Depends(DataUtility.oauth2_scheme)) -> User:
     staff_email = verify_staff_token(token)
     if staff_email is None:
-        return await Authentication.get_current_user_and_bot(security_scopes, request, token)
+        user = await Authentication.get_current_user_and_bot(security_scopes, request, token)
+        assert_staff_allowed(user.email)
+        return user
     if not is_listed(staff_email):
         logger.warning("[CRMStaff] rejected staff token: identity is not in CRM_STAFF_ALLOWLIST")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,

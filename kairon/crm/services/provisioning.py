@@ -10,7 +10,9 @@ from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
 from kairon.crm.services.bench_executor import BenchExecutor
 from kairon.crm.services.erpnext_client import ERPNextClient
 from kairon.crm.services.provision_verifier import ProvisionVerifier
+from kairon.crm.services.site_naming import clean_site_name
 from kairon.crm.constants import DEFAULT_MODULE_SELECTION
+from kairon.crm.lead_dispatch import DEFAULT_BENCH_BASE_URL
 from kairon.shared.utils import Utility
 
 
@@ -97,8 +99,7 @@ class ProvisioningService:
     def _phase_project_created(self, doc):
         """State: PENDING -> PROJECT_CREATED (instant setup of site_name)."""
         if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
-            clean_name = "".join(c if c.isalnum() else "_" for c in doc.company_name.lower())
-            site_name = f"{clean_name}.localhost"
+            _, site_name = clean_site_name(doc.company_name)
             # A tenant site is addressed by name alone, so two bots must never resolve to the same one.
             clash = CRMClientDetails.objects(site_name=site_name, id__ne=doc.id).first()
             if clash:
@@ -171,7 +172,7 @@ class ProvisioningService:
                 logger.info(f"[{self.provisioning_id}] Tier 1 site: skipping ERPNext Company creation (uses CRM Organization instead).")
 
             logger.info(f"[{self.provisioning_id}] Ensuring default SMTP Email Account...")
-            client.ensure_default_smtp_account()
+            client.ensure_default_smtp_account(crm_config.get("bench", {}).get("smtp"))
 
             clean_site_domain = doc.site_name.replace("_", "-")
             integration_email = f"kairon-crm@{clean_site_domain}"
@@ -395,7 +396,7 @@ class ProvisioningService:
             return ProvisioningResult(status=CRMOnboardingStatus.FAILED_BENCH.value, error=str(e))
 
         # Setup Clients
-        base_url = bench_config.get("base_url", "http://localhost:80")
+        base_url = bench_config.get("base_url", DEFAULT_BENCH_BASE_URL)
         host_header = doc.site_name
 
         verifier = ProvisionVerifier(base_url, host_header)

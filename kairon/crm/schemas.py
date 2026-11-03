@@ -11,6 +11,8 @@ def validate_module_selection(selected_modules: Optional[List[str]]) -> Optional
     if isinstance(selected_modules, list) and len(selected_modules) == 0:
         raise ValueError("selected_modules cannot be an empty list. Specify at least one business module or omit the field.")
 
+    from kairon.crm.services.feature_resolver import FeatureAppResolver     # local import: keeps schemas import-light
+    matrix = FeatureAppResolver.load_matrix()
     cleaned = []
     for mod in selected_modules:
         if Utility.check_empty_string(mod):
@@ -21,6 +23,9 @@ def validate_module_selection(selected_modules: Optional[List[str]]) -> Optional
         if mod_clean not in BUSINESS_MODULE_CATALOG:
             valid_keys = ", ".join(sorted(BUSINESS_MODULE_CATALOG.keys()))
             raise ValueError(f"Invalid business module '{mod_clean}'. Valid modules: {valid_keys}")
+        if mod_clean.lower() not in matrix:
+            # In the catalog but not in the provisioning matrix: validation would pass and provisioning would fail.
+            raise ValueError(f"Module '{mod_clean}' cannot be provisioned: it has no provisioning-matrix entry.")
         if mod_clean not in cleaned:
             cleaned.append(mod_clean)
 
@@ -94,45 +99,6 @@ class CRMConfigureModulesRequest(BaseModel):
     def validate_fields(cls, values):
         selected_modules = values.get("selected_modules")
         values["selected_modules"] = validate_module_selection(selected_modules)
-        return values
-
-
-class CRMCreateUserRequest(BaseModel):
-    email: str
-    role: str
-
-    @root_validator
-    def validate_fields(cls, values):
-        email = values.get("email")
-        role = values.get("role")
-
-        if Utility.check_empty_string(email):
-            raise ValueError("email cannot be empty")
-        if Utility.check_empty_string(role):
-            raise ValueError("role cannot be empty")
-
-        return values
-
-
-class CRMInviteUserRequest(BaseModel):
-    """
-    Request body for POST /api/bot/{bot}/crm/invite-user.
-    Sends a native ERPNext UserInvitation — no manual user creation.
-    """
-    email: str
-    roles: List[str]
-    company_name: Optional[str] = None  # resolved from CRMClientDetails if omitted
-
-    @root_validator
-    def validate_fields(cls, values):
-        email = values.get("email")
-        roles = values.get("roles", [])
-
-        if Utility.check_empty_string(email):
-            raise ValueError("email cannot be empty")
-        if not roles or all(Utility.check_empty_string(r) for r in roles):
-            raise ValueError("at least one role must be specified")
-
         return values
 
 

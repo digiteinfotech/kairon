@@ -41,7 +41,7 @@ OPERATIONS = ("health", "site_exists", "list_apps", "new_site", "install_app", "
 GLOBAL_OPERATIONS = ("health", "reload_workers")
 READ_ONLY_OPERATIONS = ("health", "site_exists", "list_apps")   # never replayed from a cached job: they must observe now
 EXECUTION_MODES = ("docker", "runner")
-SITE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_]{0,59}\.localhost$")
+SITE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,59}\.[a-z0-9]([a-z0-9.-]{0,120}[a-z0-9])?$")
 TERMINAL_OK, TERMINAL_FAIL = "succeeded", "failed"
 TRANSIENT_STATUS = {408, 425, 429, 500, 502, 503, 504}
 

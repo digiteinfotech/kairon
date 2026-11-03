@@ -7,13 +7,11 @@ bot's own `CRMClientDetails`, never from request input.
 """
 import re
 from typing import Any, Dict, Optional, Text
-from urllib.parse import urlparse, urlunparse
 
-from kairon.crm.lead_dispatch import DEFAULT_BENCH_BASE_URL, get_lead_webhook_secret
+from kairon.crm.lead_dispatch import bench_base_url, build_target_url, get_lead_webhook_secret
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
 from kairon.events.publisher import KaironEventPublisher
 from kairon.exceptions import AppException
-from kairon.shared.utils import Utility
 
 API_PREFIX = "/api/method/kairon_connector.api.v1.users."
 OPERATIONS = ("list_users", "get_user", "invite_user", "resend_invitation", "set_user_enabled", "assignable_roles")
@@ -34,15 +32,13 @@ class ConnectorUserClient:
     def _target(self, operation: Text) -> Text:
         if operation not in OPERATIONS:
             raise AppException("Unsupported user-management operation.")
-        base_url = Utility.environment.get("crm", {}).get("bench", {}).get("base_url", DEFAULT_BENCH_BASE_URL)
-        parsed = urlparse(base_url)
-        netloc = f"{self.site_name}:{parsed.port}" if parsed.port else self.site_name
-        return urlunparse((parsed.scheme, netloc, API_PREFIX + operation, "", "", ""))
+        return build_target_url(bench_base_url(), API_PREFIX + operation)
 
     def call(self, operation: Text, body: Optional[Dict[Text, Any]] = None) -> Any:
         """Returns the connector's `message` payload. Raises AppException with a safe, specific message."""
         result = KaironEventPublisher.request_signed(
-            self._target(operation), get_lead_webhook_secret(self.bot), {"site": self.site_name, **(body or {})}
+            self._target(operation), get_lead_webhook_secret(self.bot), {"site": self.site_name, **(body or {})},
+            host_header=self.site_name,
         )
         data = result.get("json") or {}
         if not result["success"]:

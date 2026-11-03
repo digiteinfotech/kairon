@@ -3,6 +3,7 @@ from enum import Enum
 from mongoengine import StringField, DateTimeField, IntField, BooleanField, ListField
 from mongoengine.errors import ValidationError
 
+from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger
@@ -122,6 +123,44 @@ class CRMClientDetails(Auditlog):
             {"fields": ["bot", "company_name"], "unique": True},
         ]
     }
+
+    # mongoengine builds `meta` indexes lazily on first use, so a unique `site_name` index declared there would make every
+    # CRM query fail on a database that already holds duplicates. It is created by `ensure_site_name_index` instead.
+    SITE_NAME_INDEX = "site_name_unique_sparse"
+
+    @classmethod
+    def duplicate_site_names(cls) -> list:
+        """`[{"site_name", "count"}]` for site names used by more than one record. Records without a site name are ignored."""
+        pipeline = [
+            {"$match": {"site_name": {"$type": "string", "$ne": ""}}},
+            {"$group": {"_id": "$site_name", "count": {"$sum": 1}}},
+            {"$match": {"count": {"$gt": 1}}},
+            {"$sort": {"_id": 1}},
+        ]
+        return [{"site_name": row["_id"], "count": row["count"]} for row in cls._get_collection().aggregate(pipeline)]
+
+    @classmethod
+    def has_site_name_index(cls) -> bool:
+        return cls.SITE_NAME_INDEX in cls._get_collection().index_information()
+
+    @classmethod
+    def ensure_site_name_index(cls) -> dict:
+        """
+        Idempotently creates the sparse unique index on `site_name` (a tenant's hostname is its identity, and the
+        check-then-write clash test alone lets two bots race to one name). Refuses, and changes nothing, when duplicates
+        already exist: records are never deleted or rewritten here, an operator resolves them first.
+        """
+        from pymongo.errors import PyMongoError
+        duplicates = cls.duplicate_site_names()
+        if duplicates:
+            listed = ", ".join(f"{d['site_name']} (x{d['count']})" for d in duplicates[:10])
+            raise AppException(f"Cannot create the unique site_name index: {len(duplicates)} site name(s) are used by more "
+                               f"than one tenant record: {listed}. Resolve them, then run this again.")
+        try:
+            cls._get_collection().create_index([("site_name", 1)], name=cls.SITE_NAME_INDEX, unique=True, sparse=True)
+        except PyMongoError as e:
+            raise AppException(f"Could not create the site_name index: {type(e).__name__}")
+        return {"index": cls.SITE_NAME_INDEX, "duplicates": 0}
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.company_name):

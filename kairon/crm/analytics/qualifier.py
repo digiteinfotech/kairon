@@ -84,6 +84,11 @@ class QualificationResult(BaseModel):
     class Config:
         extra = Extra.ignore
 
+    @validator("lead_fields", pre=True)
+    def _null_fields(cls, v):
+        # A non-lead often comes back with `"lead_fields": null`; that is a valid answer, not a parse failure.
+        return LeadFields() if v is None else v
+
     @validator("qualifies_as_lead", pre=True)
     def _strict_bool(cls, v):
         # `"true"`, 1 and other truthy values from a misbehaving model must not create a lead.
@@ -201,9 +206,11 @@ def _extract_json(raw: Any) -> Dict[Text, Any]:
     if not isinstance(raw, str):
         raise AppException("LLM returned no content.")
     text = raw.strip()
-    fenced = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-    if fenced:
-        text = fenced.group(1)
+    if text.startswith("```") and text.endswith("```") and len(text) >= 6:
+        # Strip a Markdown code fence (optionally tagged `json`) without a regex: model output is untrusted input.
+        text = text[3:-3].strip()
+        if text.lower().startswith("json"):
+            text = text[4:].strip()
     try:
         data = json.loads(text)
     except ValueError:
