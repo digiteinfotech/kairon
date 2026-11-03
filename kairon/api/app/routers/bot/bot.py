@@ -1,11 +1,11 @@
 import os
 from datetime import date, datetime
-from typing import List, Optional, Dict, Text, Union
+from typing import Annotated, List, Optional, Dict, Text, Union
 
 from fastapi import APIRouter, BackgroundTasks, Path, Security, Request, Body, Query
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
-from pydantic import constr
+from pydantic import StringConstraints
 
 from kairon.api.models import (
     TextData,
@@ -50,6 +50,8 @@ from kairon.shared.models import User, TemplateType
 from kairon.shared.test.processor import ModelTestingLogProcessor
 from kairon.shared.utils import Utility
 
+LowerStr = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True)]
+
 router = APIRouter()
 v2 = APIRouter()
 mongo_processor = MongoProcessor()
@@ -60,7 +62,7 @@ async def get_intents(current_user: User = Security(Authentication.get_current_u
     """
     Fetches list of existing intents for particular bot
     """
-    return Response(data=mongo_processor.get_intents(current_user.get_bot())).dict()
+    return Response(data=mongo_processor.get_intents(current_user.get_bot())).model_dump()
 
 
 @router.get("/intents/all", response_model=Response)
@@ -69,7 +71,7 @@ async def get_intents_with_training_examples(
     """
     Fetches list of existing intents and associated training examples for particular bot
     """
-    return Response(data=mongo_processor.get_intents_and_training_examples(current_user.get_bot())).dict()
+    return Response(data=mongo_processor.get_intents_and_training_examples(current_user.get_bot())).model_dump()
 
 
 @router.post("/intents", response_model=Response)
@@ -159,7 +161,7 @@ async def training_example_exists(
 
 @router.post("/training_examples/{intent}", response_model=Response)
 async def add_training_examples(
-        intent: constr(to_lower=True, strip_whitespace=True),
+        intent: LowerStr,
         request_data: ListData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -177,7 +179,7 @@ async def add_training_examples(
 
 @router.post("/training_examples/move/{intent}", response_model=Response)
 async def move_training_examples(
-        intent: constr(to_lower=True, strip_whitespace=True),
+        intent: LowerStr,
         request_data: ListData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -252,7 +254,7 @@ async def get_responses(
 @router.post("/response/{utterance}", response_model=Response)
 async def add_responses(
         request_data: TextData,
-        utterance: constr(to_lower=True, strip_whitespace=True),
+        utterance: LowerStr,
         form_attached: Optional[str] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -268,7 +270,7 @@ async def add_responses(
 @router.post("/response/json/{utterance}", response_model=Response)
 async def add_custom_responses(
         request_data: DictData,
-        utterance: constr(to_lower=True, strip_whitespace=True),
+        utterance: LowerStr,
         form_attached: Optional[str] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
@@ -369,7 +371,7 @@ async def add_story(
         "message": "Flow added successfully",
         "data": {
             "_id": mongo_processor.add_complex_story(
-                story.dict(),
+                story.model_dump(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -391,7 +393,7 @@ async def update_story(
         "data": {
             "_id": mongo_processor.update_complex_story(
                 story_id,
-                story.dict(),
+                story.model_dump(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -419,7 +421,7 @@ async def add_story_multiflow(
         "message": "Story flow added successfully",
         "data": {
             "_id": mongo_processor.add_multiflow_story(
-                story.dict(),
+                story.model_dump(),
                 current_user.get_bot(),
                 current_user.get_user(),
             )
@@ -441,7 +443,7 @@ async def update_story_multiflow(
         "data": {
             "_id": mongo_processor.update_multiflow_story(
                 story_id,
-                story.dict(),
+                story.model_dump(),
                 current_user.get_bot(),
             )
         },
@@ -755,11 +757,13 @@ async def set_endpoint(
     Saves or Updates the bot endpoint configuration
     """
     mongo_processor.add_endpoints(
-        endpoint.dict(), current_user.get_bot(), current_user.get_user()
+        endpoint.model_dump(), current_user.get_bot(), current_user.get_user()
     )
 
     if endpoint.action_endpoint:
-        background_tasks.add_task(Utility.reload_model, current_user.get_bot(), current_user.email)
+        background_tasks.add_task(
+            Utility.reload_model_in_background, current_user.get_bot(), current_user.email
+        )
     return {"message": "Endpoint saved successfully!"}
 
 
@@ -797,7 +801,7 @@ async def set_config(
     Saves or Updates the bot pipeline and policies configurations
     """
     mongo_processor.save_config(
-        config.dict(), current_user.get_bot(), current_user.get_user()
+        config.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return {"message": "Config saved!"}
 
@@ -809,7 +813,7 @@ async def set_epoch_and_fallback_properties(config: ComponentConfig,
     """
     Set properties (epoch and fallback) in the bot pipeline and policies configurations
     """
-    mongo_processor.save_component_properties(config.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.save_component_properties(config.model_dump(), current_user.get_bot(), current_user.get_user())
     return {"message": "Config saved"}
 
 
@@ -919,7 +923,7 @@ async def add_slots(
     :param current_user:
     :return: Success message with slot id
     """
-    slot_id = mongo_processor.add_slot(slot_value=request_data.dict(), bot=current_user.get_bot(),
+    slot_id = mongo_processor.add_slot(slot_value=request_data.model_dump(), bot=current_user.get_bot(),
                                        user=current_user.get_user(), raise_exception_if_exists=True)
     return {"message": "Slot added successfully!", "data": {"_id": slot_id}}
 
@@ -952,7 +956,7 @@ async def edit_slots(
     :return: Success message
     """
     try:
-        slot_value = request_data.dict()
+        slot_value = request_data.model_dump()
         mongo_processor.add_slot(slot_value=slot_value, bot=current_user.get_bot(), user=current_user.get_user(),
                                  raise_exception_if_exists=False)
     except Exception as e:
@@ -1036,7 +1040,7 @@ async def get_all_synonyms(
 
 @router.get("/entity/synonym/{name:path}/values", response_model=Response)
 async def get_synonym_values(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
 ):
     """
@@ -1098,7 +1102,7 @@ async def add_synonym_values(
     :param current_user:
     :return: Success message
     """
-    data = request_data.dict()
+    data = request_data.model_dump()
     data['name'] = name
     added_synonyms = mongo_processor.add_synonym_values(synonyms_dict=data, bot=current_user.get_bot(),
                                                         user=current_user.get_user())
@@ -1108,7 +1112,7 @@ async def add_synonym_values(
 
 @router.put("/entity/synonym/{name:path}/value/{id}", response_model=Response)
 async def edit_synonym_value(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         id: str,
         request_data: TextData,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
@@ -1146,7 +1150,7 @@ async def delete_synonym_value(
 
 @router.delete("/entity/synonym/{name:path}/value/{id}", response_model=Response)
 async def delete_synonym_value(
-        name: constr(to_lower=True, strip_whitespace=True),
+        name: LowerStr,
         id: str,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
@@ -1241,7 +1245,7 @@ async def add_regex(
     :return: Success message
     """
 
-    regex_id = mongo_processor.add_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(),
+    regex_id = mongo_processor.add_regex(regex_dict=request_data.model_dump(), bot=current_user.get_bot(),
                                          user=current_user.get_user())
 
     return {"message": "Regex pattern added successfully!", "data": {"_id": regex_id}}
@@ -1259,7 +1263,7 @@ async def edit_regex(
     :return: Success message
     """
 
-    mongo_processor.edit_regex(regex_dict=request_data.dict(), bot=current_user.get_bot(), user=current_user.get_user())
+    mongo_processor.edit_regex(regex_dict=request_data.model_dump(), bot=current_user.get_bot(), user=current_user.get_user())
 
     return {"message": "Regex pattern modified successfully!"}
 
@@ -1334,7 +1338,7 @@ async def add_lookup_values(
     :param current_user:
     :return: Success message
     """
-    data = request_data.dict()
+    data = request_data.model_dump()
     data['name'] = name
     values = mongo_processor.add_lookup_values(lookup_dict=data, bot=current_user.get_bot(),
                                       user=current_user.get_user())
@@ -1425,7 +1429,7 @@ async def add_slot_mapping(request: SlotMappingRequest,
     """
     Adds slot mapping.
     """
-    mapping_id = mongo_processor.add_slot_mapping(request.dict(), current_user.get_bot(), current_user.get_user())
+    mapping_id = mongo_processor.add_slot_mapping(request.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Slot mapping added', data={"id": mapping_id})
 
 
@@ -1437,7 +1441,7 @@ async def update_slot_mapping(request: SlotMappingRequest,
     """
     Updates slot mapping.
     """
-    mongo_processor.update_slot_mapping(request.dict(), mapping_id)
+    mongo_processor.update_slot_mapping(request.model_dump(), mapping_id)
     return Response(message='Slot mapping updated')
 
 
@@ -1482,7 +1486,7 @@ async def add_form(
     """
     Adds a new form.
     """
-    form = mongo_processor.add_form(request.name, request.dict()['settings'], current_user.get_bot(),
+    form = mongo_processor.add_form(request.name, request.model_dump()['settings'], current_user.get_bot(),
                                     current_user.get_user())
     return Response(data=form, message='Form added')
 
@@ -1515,7 +1519,7 @@ async def edit_form(
     """
     Edits a form.
     """
-    mongo_processor.edit_form(request.name, request.dict()['settings'], current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_form(request.name, request.model_dump()['settings'], current_user.get_bot(), current_user.get_user())
     return Response(message='Form updated')
 
 
@@ -1584,7 +1588,7 @@ async def list_bot_assets(
 async def set_auditlog_config(request_data: EventConfig,
                               current_user: User = Security(Authentication.get_current_user_and_bot,
                                                             scopes=DESIGNER_ACCESS)):
-    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.dict())
+    mongo_processor.save_auditlog_event_config(current_user.get_bot(), current_user.get_user(), request_data.model_dump())
     return {"message": "Event config saved"}
 
 
@@ -1663,7 +1667,7 @@ async def update_bot_settings(
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=ADMIN_ACCESS)
 ):
     """Updates bot settings"""
-    MongoProcessor.edit_bot_settings(bot_settings.dict(), current_user.get_bot(), current_user.get_user())
+    MongoProcessor.edit_bot_settings(bot_settings.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Bot Settings updated')
 
 

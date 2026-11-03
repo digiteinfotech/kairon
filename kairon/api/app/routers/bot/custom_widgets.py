@@ -25,7 +25,7 @@ async def add_custom_widget(
     """
     return Response(
         message='Widget config added!',
-        data=CustomWidgetsProcessor.save_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
+        data=CustomWidgetsProcessor.save_config(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     )
 
 
@@ -38,7 +38,7 @@ async def update_custom_widget(
     """
     Update config for custom widget.
     """
-    CustomWidgetsProcessor.edit_config(widget_id, request_data.dict(), current_user.get_bot(), current_user.get_user())
+    CustomWidgetsProcessor.edit_config(widget_id, request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Widget config updated!')
 
 
@@ -110,7 +110,7 @@ async def add_global_filter_config(
     """
     return Response(
         message='Global Filter config added!',
-        data=CustomWidgetsProcessor.save_global_filter_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
+        data=CustomWidgetsProcessor.save_global_filter_config(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     )
 
 @router.put("/global_filter_config", response_model=Response)
@@ -121,7 +121,7 @@ async def update_global_filter_config(
     """
     Update global config for custom widget.
     """
-    CustomWidgetsProcessor.update_global_filter_config(current_user.get_bot(), request_data.dict(), current_user.get_user())
+    CustomWidgetsProcessor.update_global_filter_config(current_user.get_bot(), request_data.model_dump(), current_user.get_user())
     return Response(message='Global Filter config updated!')
 
 @router.get("/global_filter_config", response_model=Response)

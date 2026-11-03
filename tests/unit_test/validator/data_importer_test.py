@@ -511,6 +511,7 @@ def test_krasa_file_importer_exclusion(monkeypatch):
         responses={},
         action_names=[],
         forms={},
+        loops={},
         data={}
     )
     steps = KRasaFileImporter.load_data_from_files(story_files, dummy_domain, exclusion_percentage=50)

@@ -1,4 +1,3 @@
-import datetime
 import json
 import os
 from typing import Text, Dict, List
@@ -10,6 +9,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from rasa.core.channels import UserMessage
 from rasa.core.tracker_store import SerializedTrackerAsDict
 
+from kairon.shared.clock import utc_now
 from .agent_processor import AgentProcessor
 from .. import Utility
 from ..exceptions import AppException
@@ -144,7 +144,7 @@ class ChatUtils:
                             "working_hours_enabled"
                         )
                         if is_business_hours_enabled:
-                            current_utcnow = datetime.datetime.utcnow()
+                            current_utcnow = utc_now()
                             workingstatus = live_agent.validate_businessworkinghours(
                                 businessdata, current_utcnow
                             )

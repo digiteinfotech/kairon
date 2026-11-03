@@ -18,7 +18,7 @@ from unittest.mock import patch, MagicMock
 class TestMultilingualProcessor:
 
     @pytest.fixture(autouse=True, scope="class")
-    async def init_connection(self):
+    def init_connection(self):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         connect(**Utility.mongoengine_connection())
@@ -27,6 +27,53 @@ class TestMultilingualProcessor:
         pytest.bot = Bot(name="test", account=1, user="test_user").save()
 
         yield None
+
+    @pytest.fixture(autouse=True)
+    def bulk_overwrite_delete(self, monkeypatch):
+        # mongomock re-filters the whole collection for every document delete.
+        def _fast_hard_delete(documents, bot, **kwargs):
+            kwargs.pop("user", None)
+            query = {"bot": bot}
+            for key, value in kwargs.items():
+                if key.endswith("__ne"):
+                    query[key[:-4]] = {"$ne": value}
+                elif key.endswith("__in"):
+                    query[key[:-4]] = {"$in": value}
+                else:
+                    query[key] = value
+            for document in documents:
+                document._get_collection().delete_many(query)
+
+        monkeypatch.setattr(Utility, "hard_delete_document", _fast_hard_delete)
+
+    @pytest.fixture(autouse=True)
+    def drop_translated_bots(self):
+        # Each create copies training rows onto a new bot. The next
+        # save_from_path overwrite scans every row in the collection.
+        from mongoengine import Document
+
+        before = {str(bot.id) for bot in Bot.objects()}
+        yield
+        created = [bot.id for bot in Bot.objects() if str(bot.id) not in before]
+        if not created:
+            return
+        copied = [str(bot_id) for bot_id in created]
+
+        def _documents(cls):
+            found = []
+            for sub in cls.__subclasses__():
+                found.append(sub)
+                found.extend(_documents(sub))
+            return found
+
+        for cls in _documents(Document):
+            if cls._meta.get("abstract") or "bot" not in getattr(cls, "_fields", {}):
+                continue
+            # Only collections this process already opened. _get_collection binds a client.
+            if getattr(cls, "_collection", None) is None:
+                continue
+            cls._get_collection().delete_many({"bot": {"$in": copied}})
+        Bot._get_collection().delete_many({"_id": {"$in": created}})
 
     @pytest.mark.asyncio
     async def test_create_multilingual_bot(self, monkeypatch):

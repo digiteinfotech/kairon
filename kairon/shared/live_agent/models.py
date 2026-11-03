@@ -1,33 +1,39 @@
-from typing import List
+from typing import Optional, List
 
-from pydantic import BaseModel, validator
+from pydantic import ValidationInfo, field_validator
+from kairon.shared.pydantic_compat import KaironModel
 
 from kairon.live_agent.factory import LiveAgentFactory
 from kairon.shared.utils import Utility
 
 
-class LiveAgentRequest(BaseModel):
+class LiveAgentRequest(KaironModel):
     agent_type: str
     config: dict
-    trigger_on_intents: List[str] = None
-    trigger_on_actions: List[str] = None
+    trigger_on_intents: Optional[List[str]] = None
+    trigger_on_actions: Optional[List[str]] = None
     override_bot: bool = False
 
-    @validator("agent_type")
-    def validate_agent_type(cls, v, values, **kwargs):
+    @field_validator("agent_type")
+    @classmethod
+    def validate_agent_type(cls, v):
         if v not in Utility.get_live_agents():
             raise ValueError("Agent system not supported")
         return v
 
-    @validator("config")
-    def validate_live_agent_config(cls, v, values, **kwargs):
+    @field_validator("config")
+    @classmethod
+    def validate_live_agent_config(cls, v, info: ValidationInfo):
+        values = info.data
         if 'agent_type' in values:
             Utility.validate_live_agent_config(values['agent_type'], v, ValueError)
             LiveAgentFactory.get_agent(values['agent_type'], v).validate_credentials()
         return v
 
-    @validator("override_bot")
-    def validate_channel_config_model(cls, v, values, **kwargs):
+    @field_validator("override_bot")
+    @classmethod
+    def validate_channel_config_model(cls, v, info: ValidationInfo):
+        values = info.data
         if not (v or values.get('trigger_on_intents') or values.get('trigger_on_actions')):
             raise ValueError("At least 1 intent or action is required to perform agent handoff")
         return v

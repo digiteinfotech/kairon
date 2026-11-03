@@ -25,7 +25,7 @@ async def set_idp_config(request_data: IDPConfig, current_user: User = Depends(A
     """
     Save keycloak config for account
     """
-    broker_redirect_uri = IDPProcessor.save_idp_config(current_user, request_data.dict())
+    broker_redirect_uri = IDPProcessor.save_idp_config(current_user, request_data.model_dump())
     return Response(message="config saved", data=broker_redirect_uri)
 
 

@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import Dict, Text, List
 
 from mongoengine import DoesNotExist
 from loguru import logger
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.custom_widgets.constants import CustomWidgetParameterType
@@ -31,7 +31,7 @@ class CustomWidgetsProcessor:
             widget.dynamic_parameters = widget_config.get("dynamic_parameters")
             widget.headers = [CustomWidgetParameters(**h) for h in
                               widget_config["headers"]] if widget_config.get("headers") else None
-            widget.timestamp = datetime.utcnow()
+            widget.timestamp = utc_now()
             widget.user = user
             widget.save()
         except DoesNotExist as e:

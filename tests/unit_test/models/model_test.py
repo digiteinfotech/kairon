@@ -40,7 +40,7 @@ class TestBotModels:
             HttpActionParameters(key="key", value="", parameter_type="slot")
         with pytest.raises(ValueError, match=r".*Provide name of the slot as value.*"):
             HttpActionParameters(key="key", value=None, parameter_type="slot")
-        with pytest.raises(ValueError, match=r".*parameter_type\n  value is not a valid enumeration member.*"):
+        with pytest.raises(ValueError, match=r".*Input should be 'value', 'slot', 'sender_id', 'user_message', 'latest_message', 'intent', 'chat_log' or 'key_vault'.*"):
             HttpActionParameters(key="key", value="value", parameter_type="unknown_type")
 
     def test_http_action_config_request_valid(self):
@@ -62,7 +62,7 @@ class TestBotModels:
         )
 
     def test_http_action_config_request_invalid(self):
-        with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):
+        with pytest.raises(ValueError, match=r"action_name\n  Input should be a valid string"):
             HttpActionConfigRequest(auth_token="", action_name=None, response="response",
                                     http_url="http://www.google.com",
                                     request_method="GET", http_params_list=[])
@@ -75,7 +75,7 @@ class TestBotModels:
         with pytest.raises(ValueError, match=r".*URL is malformed.*"):
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response", http_url="",
                                     request_method="GET", http_params_list=[])
-        with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):
+        with pytest.raises(ValueError, match=r"http_url\n  Input should be a valid string"):
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response", http_url=None,
                                     request_method="GET", http_params_list=[])
         with pytest.raises(ValueError, match=r".URL is malformed.*"):
@@ -89,7 +89,7 @@ class TestBotModels:
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response",
                                     http_url="http://www.google.com",
                                     request_method="", http_params_list=[])
-        with pytest.raises(ValueError, match=r".*none is not an allowed value.*"):
+        with pytest.raises(ValueError, match=r"request_method\n  Input should be a valid string"):
             HttpActionConfigRequest(auth_token="", action_name="http_action", response="response",
                                     http_url="http://www.google.com",
                                     request_method=None, http_params_list=[])

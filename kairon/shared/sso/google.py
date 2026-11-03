@@ -19,18 +19,20 @@ class GoogleSSOClient(BaseSSO):
             Utility.environment["sso"][SSO_TYPES.GOOGLE.value]["client_id"],
             Utility.environment["sso"][SSO_TYPES.GOOGLE.value]["client_secret"],
             urljoin(Utility.environment["sso"]["redirect_url"], SSO_TYPES.GOOGLE.value),
-            allow_insecure_http=False, use_state=True
+            allow_insecure_http=False,
         )
 
     async def get_redirect_url(self):
 
         """Returns redirect url for facebook."""
 
-        return await self.sso_client.get_login_redirect()
+        async with self.sso_client:
+            return await self.sso_client.get_login_redirect()
 
     async def verify(self, request):
         try:
-            user = await self.sso_client.verify_and_process(request)
+            async with self.sso_client:
+                user = await self.sso_client.verify_and_process(request)
             return vars(user)
         except Exception as e:
             raise AppException(f'Failed to verify with google: {e}')

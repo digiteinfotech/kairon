@@ -1,7 +1,7 @@
-from datetime import datetime
 
 from mongoengine import StringField, DateTimeField, DynamicDocument, DictField, BooleanField
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.signals import push_notification
 
@@ -17,7 +17,7 @@ class UploadHandlerLogs(DynamicDocument):
     is_uploaded = BooleanField(default=False)
     status = StringField(default=None)
     event_status = StringField(default=EVENT_STATUS.COMPLETED.value)
-    start_timestamp = DateTimeField(default=datetime.utcnow)
+    start_timestamp = DateTimeField(default=utc_now)
     end_timestamp = DateTimeField(default=None)
 
     meta = {

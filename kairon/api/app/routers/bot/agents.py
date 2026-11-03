@@ -34,7 +34,7 @@ async def save_live_agent_config(
     """
     Stores live agent config.
     """
-    LiveAgentsProcessor.save_config(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    LiveAgentsProcessor.save_config(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Live agent system added')
 
 

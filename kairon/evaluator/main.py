@@ -30,9 +30,15 @@ cache_value = CacheControl().must_revalidate()
 content = XContentTypeOptions()
 server = Server().set("Secure")
 permissions_value = (
-    PermissionsPolicy().accelerometer("").autoplay("").camera("").document_domain("").encrypted_media("")
-        .fullscreen("").geolocation("").gyroscope("").magnetometer("").microphone("").midi("").payment("")
-        .picture_in_picture("").sync_xhr("").usb("").geolocation("self", "'spam.com'").vibrate()
+    PermissionsPolicy()
+    .accelerometer()
+    .autoplay()
+    .fullscreen()
+    .gyroscope()
+    .magnetometer()
+    .microphone()
+    .usb()
+    .geolocation("self", "'spam.com'")
 )
 secure_headers = Secure(
     server=server,
@@ -41,7 +47,7 @@ secure_headers = Secure(
     referrer=referrer,
     permissions=permissions_value,
     cache=cache_value,
-    content=content
+    xcto=content,
 )
 
 
@@ -71,7 +77,7 @@ instrument_fastapi(app)
 async def add_secure_headers(request: Request, call_next):
     """Add security headers."""
     response = await call_next(request)
-    secure_headers.framework.fastapi(response)
+    secure_headers.set_headers(response)
     return response
 
 
@@ -85,7 +91,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return JSONResponse(
             Response(
                 success=False, error_code=422, message=str(exc)
-            ).dict()
+            ).model_dump()
         )
 
 

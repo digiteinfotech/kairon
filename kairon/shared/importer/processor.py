@@ -3,6 +3,7 @@ from datetime import datetime
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
@@ -40,7 +41,7 @@ class DataImporterLogProcessor:
                 files_received=files_received,
                 bot=bot,
                 user=user,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
             )
         doc.event_status = event_status
         if exception:
@@ -48,7 +49,7 @@ class DataImporterLogProcessor:
         if status:
             doc.status = status
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod
@@ -72,7 +73,7 @@ class DataImporterLogProcessor:
             doc = ValidationLogs(
                 bot=bot,
                 user=user,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
             )
         doc.intents = TrainingComponentLog(count=component_count['intents'], data=summary.get('intents'))
         doc.utterances = TrainingComponentLog(count=component_count['utterances'], data=summary.get('utterances'))
@@ -101,7 +102,7 @@ class DataImporterLogProcessor:
         if status:
             doc.status = status
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod

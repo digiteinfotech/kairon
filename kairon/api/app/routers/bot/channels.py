@@ -28,7 +28,7 @@ async def add_channel_config(
     Stores the channel config.
     """
     channel_endpoint = ChatDataProcessor.save_channel_config(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Channel added', data=channel_endpoint)
 
@@ -201,7 +201,7 @@ async def add_message_broadcast_event(
             event_type = EventRequestType.add_schedule.value
         elif request.scheduler_config.expression_type == "epoch":
             event_type = EventRequestType.add_one_time_schedule.value
-    notification_id = event.enqueue(event_type, config=request.dict())
+    notification_id = event.enqueue(event_type, config=request.model_dump())
     return Response(message="Broadcast added!", data={"msg_broadcast_id": notification_id})
 
 
@@ -228,7 +228,7 @@ async def update_message_broadcast_event(
     Updates a scheduled message broadcast.
     """
     event = MessageBroadcastEvent(current_user.get_bot(), current_user.get_user())
-    event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=msg_broadcast_id, config=request.dict())
+    event.enqueue(EventRequestType.update_schedule.value, msg_broadcast_id=msg_broadcast_id, config=request.model_dump())
     return Response(message="Broadcast updated!")
 
 

@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from bson import ObjectId
 from loguru import logger
 
+from kairon.shared.clock import utc_now
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.channels.broadcast.factory import MessageBroadcastFactory
@@ -37,7 +38,7 @@ class MessageBroadcastEvent(ScheduledEventsBase):
         an event is already running for that particular bot and also
         whether the event trigger limit has exceeded.
         """
-        date_today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        date_today = utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
         bot_settings = MongoProcessor.get_bot_settings(self.bot, self.user)
         if bot_settings['notification_scheduling_limit'] <= \
                 len(list(MessageBroadcastProcessor.list_settings(self.bot, timestamp__gt=date_today))):

@@ -28,7 +28,7 @@ async def add_http_action(
     """
     Stores the http action config and story event
     """
-    http_config_id = mongo_processor.add_http_action_config(request_data.dict(), current_user.get_user(),
+    http_config_id = mongo_processor.add_http_action_config(request_data.model_dump(), current_user.get_user(),
                                                             current_user.get_bot())
     response = {"http_config_id": http_config_id}
     message = "Http action added!"
@@ -62,7 +62,7 @@ async def update_http_action(
     """
     Updates the http action config and related story event
     """
-    http_config_id = mongo_processor.update_http_config(request_data=request_data.dict(), user=current_user.get_user(),
+    http_config_id = mongo_processor.update_http_config(request_data=request_data.model_dump(), user=current_user.get_user(),
                                                         bot=current_user.get_bot())
     response = {"http_config_id": http_config_id}
     message = "Http action updated!"
@@ -77,7 +77,7 @@ async def add_pyscript_action(
     """
     Stores the Pyscript action config
     """
-    pyscript_config_id = mongo_processor.add_pyscript_action(request_data.dict(), current_user.get_user(),
+    pyscript_config_id = mongo_processor.add_pyscript_action(request_data.model_dump(), current_user.get_user(),
                                                              current_user.get_bot())
     return Response(data={"_id": pyscript_config_id}, message="Action added!")
 
@@ -100,7 +100,7 @@ async def update_pyscript_action(
     """
     Updates the pyscript action config
     """
-    action_id = mongo_processor.update_pyscript_action(request_data=request_data.dict(), user=current_user.get_user(),
+    action_id = mongo_processor.update_pyscript_action(request_data=request_data.model_dump(), user=current_user.get_user(),
                                                        bot=current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action updated!")
 
@@ -113,7 +113,7 @@ async def add_db_action(
     """
     Stores the vectordb action config and story event
     """
-    action_id = mongo_processor.add_db_action(request_data.dict(), current_user.get_user(),
+    action_id = mongo_processor.add_db_action(request_data.model_dump(), current_user.get_user(),
                                               current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action added!")
 
@@ -145,7 +145,7 @@ async def update_db_action(
     """
     Updates the vectordb action config and related story event
     """
-    action_id = mongo_processor.update_db_action(request_data=request_data.dict(), user=current_user.get_user(),
+    action_id = mongo_processor.update_db_action(request_data=request_data.model_dump(), user=current_user.get_user(),
                                                  bot=current_user.get_bot())
     return Response(data={"_id": action_id}, message="Action updated!")
 
@@ -158,7 +158,7 @@ async def add_jira_action(
     """
     Stores Jira action config.
     """
-    mongo_processor.add_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_jira_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -179,7 +179,7 @@ async def edit_jira_action(
     """
     Edits the Jira action config.
     """
-    mongo_processor.edit_jira_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_jira_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -191,7 +191,7 @@ async def add_slot_set_action(
     """
     Stores the slot set action config.
     """
-    mongo_processor.add_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_slot_set_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -214,7 +214,7 @@ async def edit_slot_set_action(
     """
     Edits the slot set action config.
     """
-    mongo_processor.edit_slot_set_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_slot_set_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -227,7 +227,7 @@ async def add_google_search_action(
     Stores the google search action config.
     """
     action_id = mongo_processor.add_google_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return Response(data=action_id, message='Action added')
 
@@ -252,7 +252,7 @@ async def update_google_search_action(
     Updates the google search action configuration.
     """
     mongo_processor.edit_google_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Action updated')
 
@@ -266,7 +266,7 @@ async def add_web_search_action(
     Stores the public search action config.
     """
     action_id = mongo_processor.add_web_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return Response(data=action_id, message='Action added')
 
@@ -291,7 +291,7 @@ async def update_web_search_action(
     Updates the public search action configuration.
     """
     mongo_processor.edit_web_search_action(
-        request_data.dict(), current_user.get_bot(), current_user.get_user()
+        request_data.model_dump(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Action updated')
 
@@ -304,7 +304,7 @@ async def add_email_action(
     """
     Stores the email action config.
     """
-    mongo_processor.add_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_email_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -325,7 +325,7 @@ async def edit_email_action(
     """
     Edits the email action config.
     """
-    mongo_processor.edit_email_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_email_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -337,7 +337,7 @@ async def add_zendesk_action(
     """
     Stores the zendesk action config.
     """
-    mongo_processor.add_zendesk_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_zendesk_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -359,7 +359,7 @@ async def edit_zendesk_action(
     """
     Edits the zendesk action config.
     """
-    mongo_processor.edit_zendesk_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_zendesk_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -371,7 +371,7 @@ async def add_pipedrive_action(
     """
     Stores the pipedrive leads action config.
     """
-    mongo_processor.add_pipedrive_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_pipedrive_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -393,7 +393,7 @@ async def edit_pipedrive_action(
     """
     Edits the pipedrive leads action config.
     """
-    mongo_processor.edit_pipedrive_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_pipedrive_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -405,7 +405,7 @@ async def add_hubspot_forms_action(
     """
     Stores the hubspot forms action config.
     """
-    mongo_processor.add_hubspot_forms_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_hubspot_forms_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -427,7 +427,7 @@ async def edit_hubspot_forms_action(
     """
     Edits the hubspot forms action config.
     """
-    mongo_processor.edit_hubspot_forms_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_hubspot_forms_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -461,7 +461,7 @@ async def add_two_stage_fallback_action(
     """
     Stores the two stage fallback action config.
     """
-    mongo_processor.add_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_two_stage_fallback_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action added!")
 
 
@@ -482,7 +482,7 @@ async def update_two_stage_fallback_action(
     """
     Updates the two stage fallback action config.
     """
-    mongo_processor.edit_two_stage_fallback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_two_stage_fallback_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
 
 
@@ -498,7 +498,7 @@ async def add_prompt_action(
         "message": "Action Added Successfully",
         "data": {
             "_id": mongo_processor.add_prompt_action(
-                request_data.dict(),
+                request_data.model_dump(),
                 current_user.get_bot(),
                 current_user.get_user()
             )
@@ -515,7 +515,7 @@ async def update_prompt_action(
     """
     Updates kairon FAQ Action
     """
-    mongo_processor.edit_prompt_action(faq_action_id, request_data.dict(),
+    mongo_processor.edit_prompt_action(faq_action_id, request_data.model_dump(),
                                        current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
 
@@ -539,7 +539,7 @@ async def add_razorpay_action(
     """
     Stores the razorpay action config.
     """
-    mongo_processor.add_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_razorpay_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action added!")
 
 
@@ -560,7 +560,7 @@ async def update_razorpay_action(
     """
     Updates the razorpay action config.
     """
-    mongo_processor.edit_razorpay_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_razorpay_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
 
 
@@ -580,7 +580,7 @@ async def enable_live_agent(
         request_data: LiveAgentActionRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    status = mongo_processor.enable_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    status = mongo_processor.enable_live_agent(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     msg = "Live Agent Action enabled!" if status else "Live Agent Action already enabled!"
     return Response(message=msg)
 
@@ -594,7 +594,7 @@ async def update_live_agent(
     Updates the live agent action config.
     """
 
-    mongo_processor.edit_live_agent(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_live_agent(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Action updated!")
 
 
@@ -637,7 +637,7 @@ async def add_callback(
         request_data: CallbackConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    info = mongo_processor.add_callback(request_data.dict(), current_user.get_bot())
+    info = mongo_processor.add_callback(request_data.model_dump(), current_user.get_bot())
     return Response(data=info, message="Callback added successfully!")
 
 
@@ -646,7 +646,7 @@ async def edit_callback(
         request_data: CallbackConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    info = mongo_processor.edit_callback(request_data.dict(), current_user.get_bot())
+    info = mongo_processor.edit_callback(request_data.model_dump(), current_user.get_bot())
     return Response(data=info, message="Callback updated successfully!")
 
 
@@ -682,7 +682,7 @@ async def add_callback_action(
         request_data: CallbackActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    action = mongo_processor.add_callback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    action = mongo_processor.add_callback_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(data=action, message="Callback action added successfully!")
 
 
@@ -691,7 +691,7 @@ async def edit_callback_action(
         request_data: CallbackActionConfigRequest,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
 ):
-    mongo_processor.edit_callback_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_callback_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message="Callback action updated successfully!")
 
 
@@ -768,7 +768,7 @@ async def add_schedule_action(
     """
     Add the schedule action
     """
-    action_id = mongo_processor.add_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    action_id = mongo_processor.add_schedule_action(request_data.model_dump(), current_user.get_bot(), user=current_user.get_user())
     return Response(data={"_id": action_id}, message="Action added!")
 
 
@@ -780,7 +780,7 @@ async def update_schedule_action(
     """
     Update the schedule action
     """
-    action_id = mongo_processor.update_schedule_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    action_id = mongo_processor.update_schedule_action(request_data.model_dump(), current_user.get_bot(), user=current_user.get_user())
     return Response(data={"_id": action_id}, message="Action updated!")
 
 
@@ -801,7 +801,7 @@ async def add_parallel_actions(
     """
     Add the parallel action
     """
-    action_id = mongo_processor.add_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    action_id = mongo_processor.add_parallel_action(request_data.model_dump(), current_user.get_bot(), user=current_user.get_user())
     return Response(data={"_id": action_id}, message="Action added!")
 
 
@@ -813,7 +813,7 @@ async def update_parallel_actions(
     """
     Update the parallel action
     """
-    action_id = mongo_processor.update_parallel_action(request_data.dict(), current_user.get_bot(), user=current_user.get_user())
+    action_id = mongo_processor.update_parallel_action(request_data.model_dump(), current_user.get_bot(), user=current_user.get_user())
     return Response(data={"_id": action_id}, message="Action updated!")
 
 
@@ -834,7 +834,7 @@ async def add_voice_call_action(
     """
     Stores the voice call action config.
     """
-    mongo_processor.add_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_voice_call_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -857,7 +857,7 @@ async def edit_voice_call_action(
     """
     Edits the voice call action config.
     """
-    mongo_processor.edit_voice_call_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_voice_call_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -892,7 +892,7 @@ async def add_store_page_action(
     """
     Stores the store page action config.
     """
-    mongo_processor.add_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_store_page_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -915,7 +915,7 @@ async def edit_store_page_action(
     """
     Edits the store page action config.
     """
-    mongo_processor.edit_store_page_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_store_page_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 
@@ -939,7 +939,7 @@ async def add_agent_action(
     """
     Stores the agent action config.
     """
-    mongo_processor.add_agent_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.add_agent_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action added')
 
 
@@ -962,7 +962,7 @@ async def edit_agent_action(
     """
     Edits the agent action config.
     """
-    mongo_processor.edit_agent_action(request_data.dict(), current_user.get_bot(), current_user.get_user())
+    mongo_processor.edit_agent_action(request_data.model_dump(), current_user.get_bot(), current_user.get_user())
     return Response(message='Action updated')
 
 

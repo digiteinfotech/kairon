@@ -39,19 +39,11 @@ def pad_to_multiple(pcm: bytes, multiple: int) -> bytes:
 def rms(pcm: bytes) -> float:
     """Root-mean-square amplitude of 16-bit signed little-endian PCM.
 
-    Uses stdlib ``audioop`` when available (fast, C), falling back to a pure
-    Python computation on interpreters where ``audioop`` has been removed
-    (Python 3.13+). Returns 0.0 for empty/odd-length input.
+    Returns 0.0 for empty or single-byte input. A trailing odd byte is ignored.
     """
     if len(pcm) < 2:
         return 0.0
     usable = pcm[: len(pcm) - (len(pcm) % 2)]
-    try:  # pragma: no cover - exercised on <3.13
-        import audioop
-
-        return float(audioop.rms(usable, 2))
-    except (ImportError, OSError):
-        pass
     total = 0
     count = 0
     for i in range(0, len(usable), 2):

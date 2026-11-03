@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from mongoengine import (
     Document,
@@ -11,6 +10,7 @@ from mongoengine import (
     ValidationError,
 )
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import auditlogger, push_notification
 
@@ -31,7 +31,7 @@ class SpeechProviderConfig(Auditlog):
     metadata = DictField(default=dict)
     secrets = DictField(default=dict)
     status = BooleanField(default=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {
         "indexes": [
@@ -66,7 +66,7 @@ class VoiceCallMetrics(Document):
     tts_ms_avg = FloatField(default=0.0)
     tts_ms_max = FloatField(default=0.0)
     tts_cache_hits = IntField(default=0)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {
         "indexes": [

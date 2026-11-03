@@ -1,8 +1,8 @@
-from datetime import datetime
 
 from mongoengine import StringField, ListField, BooleanField, DateTimeField, IntField, EmbeddedDocument, \
     EmbeddedDocumentField, DynamicField, DynamicDocument
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.shared.data.signals import push_notification
 
@@ -40,7 +40,7 @@ class ValidationLogs(DynamicDocument):
     files_received = ListField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    start_timestamp = DateTimeField(default=datetime.utcnow)
+    start_timestamp = DateTimeField(default=utc_now)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default=EVENT_STATUS.COMPLETED.value)

@@ -18,7 +18,7 @@ class ActorOrchestrator:
             for attempt in range(1, retries + 1):
                 try:
                     future = actor.execute(*args, **kwargs)
-                    result = future.get(actor_timeout)
+                    result = future.get(timeout=actor_timeout)
                     return result
                 except pykka._exceptions.Timeout as e:
                     logger.error(f"Actor '{actor_type}' execution timed out after {actor_timeout} seconds "

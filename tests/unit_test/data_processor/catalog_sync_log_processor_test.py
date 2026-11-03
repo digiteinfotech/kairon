@@ -1,12 +1,13 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from babel.messages.jslexer import uni_escape_re
 from mongoengine import connect
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.catalog_sync.catalog_sync_log_processor import CatalogSyncLogProcessor
@@ -594,7 +595,7 @@ class TestCatalogSyncLogProcessor:
             provider="demo",
             sync_type="push_menu",
             sync_status=SYNC_STATUS.COMPLETED.value,
-            start_timestamp=datetime.utcnow() - timedelta(minutes=10)
+            start_timestamp=utc_now() - timedelta(minutes=10)
         ).save()
 
         CatalogSyncLogs(
@@ -605,7 +606,7 @@ class TestCatalogSyncLogProcessor:
             provider="demo",
             sync_type="push_menu",
             sync_status=SYNC_STATUS.FAILED.value,
-            start_timestamp=datetime.utcnow() - timedelta(minutes=5)
+            start_timestamp=utc_now() - timedelta(minutes=5)
         ).save()
 
         CatalogSyncLogs(
@@ -616,7 +617,7 @@ class TestCatalogSyncLogProcessor:
             provider="demo",
             sync_type="push_menu",
             sync_status=SYNC_STATUS.PREPROCESSING.value,
-            start_timestamp=datetime.utcnow()
+            start_timestamp=utc_now()
         ).save()
 
         execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(bot)
@@ -636,7 +637,7 @@ class TestCatalogSyncLogProcessor:
             provider="demo",
             sync_type="push_menu",
             sync_status=SYNC_STATUS.COMPLETED.value,
-            start_timestamp=datetime.utcnow()
+            start_timestamp=utc_now()
         ).save()
 
         CatalogSyncLogs(
@@ -647,7 +648,7 @@ class TestCatalogSyncLogProcessor:
             provider="demo",
             sync_type="push_menu",
             sync_status=SYNC_STATUS.FAILED.value,
-            start_timestamp=datetime.utcnow()
+            start_timestamp=utc_now()
         ).save()
 
         execution_id = CatalogSyncLogProcessor.get_execution_id_for_bot(bot)
@@ -691,7 +692,7 @@ class TestCatalogSyncLogProcessor:
             user=user,
             bot=bot,
             status=True,
-            timestamp=datetime.utcnow()
+            timestamp=utc_now()
         ).save()
 
         CatalogSyncLogProcessor.validate_image_configurations(bot, user)

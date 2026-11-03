@@ -1,6 +1,6 @@
 from mongoengine import StringField, DictField, DateTimeField, ValidationError, DynamicDocument
-from datetime import datetime
 
+from kairon.shared.clock import utc_now
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -15,7 +15,7 @@ class Channels(Auditlog):
     connector_type = StringField(required=True, choices=Utility.get_channels)
     config = DictField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     meta_config = DictField()
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "connector_type")]}]}
@@ -50,6 +50,6 @@ class ChannelLogs(DynamicDocument):
     initiator = StringField(default=None)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "type", "campaign_id")]}]}

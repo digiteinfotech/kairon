@@ -1,8 +1,8 @@
 from mongoengine import StringField, BooleanField, DateTimeField, IntField
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
-from datetime import datetime
 
 
 @auditlogger.log
@@ -19,7 +19,7 @@ class BotReplicationLogs(Auditlog):
     translate_responses = BooleanField(default=True)
     translate_actions = BooleanField(default=False)
     exception = StringField(default="")
-    start_timestamp = DateTimeField(default=datetime.utcnow)
+    start_timestamp = DateTimeField(default=utc_now)
     end_timestamp = DateTimeField(default=None)
     status = StringField(default=None)
     event_status = StringField(default="COMPLETED")

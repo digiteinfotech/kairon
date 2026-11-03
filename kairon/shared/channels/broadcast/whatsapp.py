@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 from functools import partial
 
 import ujson as json
@@ -7,6 +6,7 @@ from typing import List, Text, Dict
 
 import requests
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.chat.handlers.channels.clients.whatsapp.factory import WhatsappFactory
 from kairon.exceptions import AppException
@@ -157,7 +157,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
         rate_per_second = Utility.environment["broadcast"]["whatsapp_broadcast_rate_per_second"]
         max_batches_per_second = rate_per_second // batch_size
 
-        last_time = datetime.utcnow()
+        last_time = utc_now()
         batches_sent_in_current_second = 0
         non_sent_recipients = []
         sent_count = 0
@@ -196,11 +196,11 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             batches_sent_in_current_second += 1
 
             if batches_sent_in_current_second >= max_batches_per_second:
-                current_time = datetime.utcnow()
+                current_time = utc_now()
                 time_diff = (current_time - last_time).total_seconds()
                 if time_diff < 1:
                     asyncio.run(asyncio.sleep(1 - time_diff))
-                last_time = datetime.utcnow()
+                last_time = utc_now()
                 batches_sent_in_current_second = 0
 
         failed_broadcast_log_type = MessageBroadcastLogType.resend.value if is_resend else MessageBroadcastLogType.send.value
@@ -508,7 +508,7 @@ class WhatsappBroadcast(MessageBroadcastFromConfig):
             f"failure_count_{retry_count}": failure_cnt,
             f"resend_count_{retry_count}": total,
             f"skipped_count_{retry_count}": skipped_count,
-            f"retry_{retry_count}_timestamp": datetime.utcnow(),
+            f"retry_{retry_count}_timestamp": utc_now(),
             f"retry_count_{retry_count}_status" : status,
             "retry_count": retry_count
         }

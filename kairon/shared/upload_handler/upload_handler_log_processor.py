@@ -1,5 +1,6 @@
 from datetime import datetime
 from mongoengine import Q, DoesNotExist
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.log_system.base import BaseLogHandler
@@ -45,9 +46,9 @@ class UploadHandlerLogProcessor:
             update_fields["is_uploaded"] = True
 
         if event_status == EVENT_STATUS.INITIATED.value:
-            update_fields["start_timestamp"] = datetime.utcnow()
+            update_fields["start_timestamp"] = utc_now()
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            update_fields["end_timestamp"] = datetime.utcnow()
+            update_fields["end_timestamp"] = utc_now()
 
         query = {
             "bot": bot,

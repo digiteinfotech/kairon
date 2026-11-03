@@ -3,6 +3,7 @@ from datetime import datetime
 from bson import ObjectId
 from loguru import logger
 from mongoengine import Q, DoesNotExist
+from kairon.shared.clock import utc_now
 from kairon.shared.content_importer.data_objects import ContentValidationLogs
 from kairon.shared.data.constant import EVENT_STATUS
 from kairon.exceptions import AppException
@@ -41,7 +42,7 @@ class ContentImporterLogProcessor:
                 bot=bot,
                 user=user,
                 table=table,
-                start_timestamp=datetime.utcnow(),
+                start_timestamp=utc_now(),
                 event_id=str(ObjectId())
             )
         doc.event_status = event_status
@@ -52,7 +53,7 @@ class ContentImporterLogProcessor:
         if validation_errors:
             doc.validation_errors = validation_errors
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
         doc.save()
 
     @staticmethod

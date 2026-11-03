@@ -1,6 +1,5 @@
 import requests
 import time
-from datetime import datetime
 import secrets
 import string
 from fastapi import HTTPException
@@ -8,6 +7,7 @@ from fastapi.responses import JSONResponse
 from typing import Any, Dict, List, Optional
 from loguru import logger
 import json
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.data_objects import BotSettings
@@ -19,9 +19,17 @@ import httpx
 
 class POSProcessor:
 
-    __base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
-    __master_password = Utility.environment["pos"]["odoo"]["odoo_master_password"]
-    __live_agent_url = Utility.environment["live_agent"]["url"]
+    @property
+    def __base_url(self):
+        return Utility.environment["pos"]["odoo"]["odoo_url"]
+
+    @property
+    def __master_password(self):
+        return Utility.environment["pos"]["odoo"]["odoo_master_password"]
+
+    @property
+    def __live_agent_url(self):
+        return Utility.environment["live_agent"]["url"]
 
     def _raise_if_error(self, resp: requests.Response, context: str = "Odoo request"):
         """Raise HTTPException if non-200 or invalid JSON-RPC response."""
@@ -806,7 +814,7 @@ class POSProcessor:
             "pos_session_id": session_id_odoo,
             "config_id": config_id,
             "company_id": company_id,
-            "date_order": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+            "date_order": utc_now().strftime("%Y-%m-%dT%H:%M:%S"),
             "user_id": self.jsonrpc_get_uid(session_id),
             "fiscal_position_id": False,
             "partner_id": partner_id or False,
@@ -818,7 +826,7 @@ class POSProcessor:
             "statement_ids": [[0, 0, {
                 "amount": total,
                 "payment_method_id": payment_method_id,
-                "name": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                "name": utc_now().strftime("%Y-%m-%d %H:%M:%S")
             }]],
         }
 

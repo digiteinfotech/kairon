@@ -13,6 +13,7 @@ from pymongo import MongoClient
 from tzlocal import get_localzone
 from uuid6 import uuid7
 from loguru import logger
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.events.executors.factory import ExecutorFactory
 from kairon.exceptions import AppException
@@ -390,7 +391,7 @@ class CallbackScriptUtility:
                 "collection_name": item.get("collection_name", "").lower().strip(),
                 "data": item.get("data"),
                 "source": item.get("source", ""),
-                "received_at": item.get("received_at") or datetime.utcnow(),
+                "received_at": item.get("received_at") or utc_now(),
                 "is_data_processed": False
             })
 
@@ -445,7 +446,7 @@ class CallbackScriptUtility:
 
         collection_name = payload.get("collection_name")
         data = payload.get("data", {})
-        received_at=payload.get("received_at", datetime.utcnow())
+        received_at=payload.get("received_at", utc_now())
         source=payload.get("source", "")
         is_data_processed=payload.get("is_data_processed", False)
 

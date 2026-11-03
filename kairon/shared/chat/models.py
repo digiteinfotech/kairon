@@ -2,21 +2,42 @@ from datetime import datetime
 
 import pytz
 from croniter import croniter
-from pydantic import BaseModel, root_validator, validator
+from pydantic import field_validator, model_validator
+from kairon.shared.pydantic_compat import KaironModel
 
 from kairon.shared.chat.broadcast.constants import MessageBroadcastType
 from kairon.shared.utils import Utility
 
-from typing import List, Text, Dict, Any
+from typing import Optional, List, Text, Dict, Any
 from kairon.exceptions import AppException
 
 
-class ChannelRequest(BaseModel):
+
+def _apply_root_values(model, values):
+    """Apply a v1 root-validator dict onto a model without revalidating.
+
+    Validators may replace a field with another type or drop a key.
+    """
+    fields = type(model).model_fields
+    for name, value in values.items():
+        if name in fields and getattr(model, name) is not value:
+            setattr(model, name, value)
+    for name in fields:
+        if name not in values and getattr(model, name) is not None:
+            setattr(model, name, None)
+    return model
+
+
+class ChannelRequest(KaironModel):
     connector_type: str
     config: dict
 
-    @root_validator
-    def validate_channel(cls, values):
+    @model_validator(mode="after")
+    def validate_channel(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if values.get("connector_type") not in Utility.get_channels():
             raise ValueError(f"Invalid channel type {values.get('connector_type')}")
         Utility.validate_channel_config(
@@ -29,15 +50,19 @@ class ChannelRequest(BaseModel):
                 raise AppException(
                     "Cannot edit secondary slack app. Please delete and install the app again using oAuth."
                 )
-        return values
+        return _apply_root_values(self, values)
 
-class SchedulerConfiguration(BaseModel):
+class SchedulerConfiguration(KaironModel):
     expression_type: str
-    schedule: str
-    timezone: str = None
+    schedule: Any
+    timezone: Optional[str] = None
 
-    @root_validator
-    def validate_schedule(cls, values):
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         expression_type = values.get("expression_type")
         schedule = values.get("schedule")
         tz = values.get("timezone")
@@ -48,7 +73,7 @@ class SchedulerConfiguration(BaseModel):
         if not tz or not tz.strip():
             raise ValueError("timezone is required for all schedules!")
 
-        if not schedule or not schedule.strip():
+        if schedule is None or (isinstance(schedule, str) and not schedule.strip()):
             raise ValueError("schedule time is required for all schedules!")
 
         if expression_type == "cron":
@@ -82,47 +107,51 @@ class SchedulerConfiguration(BaseModel):
 
             values["schedule"] = epoch_time
 
-        return values
+        return _apply_root_values(self, values)
 
 
-class RecipientsConfiguration(BaseModel):
+class RecipientsConfiguration(KaironModel):
     recipients: str
 
 
-class TemplateConfiguration(BaseModel):
+class TemplateConfiguration(KaironModel):
     template_id: str
     language: str = "en"
-    data: str = None
+    data: Optional[str] = None
 
 
-class BroadcastCollectionDataFilter(BaseModel):
+class BroadcastCollectionDataFilter(KaironModel):
     column: str
     condition: str
     value: Any
 
 
-class CollectionConfig(BaseModel):
+class CollectionConfig(KaironModel):
     collection: str
     number_field: str
     filters_list: List[BroadcastCollectionDataFilter] = []
     field_mapping: dict
 
 
-class MessageBroadcastRequest(BaseModel):
+class MessageBroadcastRequest(KaironModel):
     name: str
     connector_type: str
     broadcast_type: MessageBroadcastType
-    scheduler_config: SchedulerConfiguration = None
-    recipients_config: RecipientsConfiguration = None
-    template_config: List[TemplateConfiguration] = None
-    collection_config: CollectionConfig = None
-    template_name: str = None
-    language_code: str = None
-    pyscript: str = None
-    flowname: str = None
+    scheduler_config: Optional[SchedulerConfiguration] = None
+    recipients_config: Optional[RecipientsConfiguration] = None
+    template_config: Optional[List[TemplateConfiguration]] = None
+    collection_config: Optional[CollectionConfig] = None
+    template_name: Optional[str] = None
+    language_code: Optional[str] = None
+    pyscript: Optional[str] = None
+    flowname: Optional[str] = None
 
-    @root_validator
-    def validate_request(cls, values):
+    @model_validator(mode="after")
+    def validate_request(self):
+        values = {
+            field: getattr(self, field)
+            for field in type(self).model_fields
+        }
         if values.get("broadcast_type") == MessageBroadcastType.static:
             if not values.get("recipients_config") or not values.get("template_config"):
                 raise ValueError(
@@ -141,26 +170,28 @@ class MessageBroadcastRequest(BaseModel):
         ) == MessageBroadcastType.dynamic and Utility.check_empty_string(pyscript):
             raise ValueError("pyscript is required for dynamic broadcasts!")
 
-        return values
+        return _apply_root_values(self, values)
 
 
-class ChatRequest(BaseModel):
+class ChatRequest(KaironModel):
     data: Text
-    metadata: Dict = None
+    metadata: Optional[Dict] = None
 
-    @validator("data")
-    def validate_data(cls, v, values, **kwargs):
+    @field_validator("data")
+    @classmethod
+    def validate_data(cls, v):
         if Utility.check_empty_string(v):
             raise ValueError("data cannot be empty!")
         return v
 
-class AgenticFlowRequest(BaseModel):
+class AgenticFlowRequest(KaironModel):
     name: str
-    slot_vals: Dict[str, Any] = None
-    sender_id: str = None
+    slot_vals: Optional[Dict[str, Any]] = None
+    sender_id: Optional[str] = None
 
-    @validator("name")
-    def validate_name(cls, v, values, **kwargs):
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
         if Utility.check_empty_string(v):
             raise ValueError("name cannot be empty!")
         return v

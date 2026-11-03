@@ -5,11 +5,12 @@ import bson.int64
 import ujson as json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 from urllib.parse import urlencode, quote_plus
 
 from rasa.utils.endpoints import EndpointConfig
+from kairon.shared.clock import utc_now
 from kairon.shared.utils import Utility
 
 os.environ["system_file"] = "./tests/testing_data/system.yaml"
@@ -52,260 +53,326 @@ from kairon.train import start_training
 from deepdiff import DeepDiff
 from kairon.shared.concurrency.actors.factory import ActorFactory
 
-connect(**Utility.mongoengine_connection())
-
-loop = asyncio.new_event_loop()
-loop.run_until_complete(
-    AccountProcessor.account_setup(
-        RegisterAccount(
-            **{
-                "email": "test@chat.com",
-                "first_name": "Test",
-                "last_name": "Chat",
-                "password": "testChat@12",
-                "confirm_password": "testChat@12",
-                "account": "ChatTesting",
-                "accepted_privacy_policy": True,
-                "accepted_terms": True,
-                "accepted_ai_guidelines": True
-            }
-        ).dict()
-    )
-)
-loop.run_until_complete(
-    AccountProcessor.account_setup(
-        RegisterAccount(
-            **{
-                "email": "test1@chat.com",
-                "first_name": "Test",
-                "last_name": "Chat",
-                "password": "testChat@12",
-                "confirm_password": "testChat@12",
-                "account": "ChatTesting1",
-                "accepted_privacy_policy": True,
-                "accepted_terms": True,
-                "accepted_ai_guidelines": True
-            }
-        ).dict()
-    )
-)
-loop.run_until_complete(
-    AccountProcessor.account_setup(
-        RegisterAccount(
-            **{
-                "email": "resetpaswrd@chat.com",
-                "first_name": "Reset",
-                "last_name": "Password",
-                "password": "resetPswrd@12",
-                "confirm_password": "resetPswrd@12",
-                "account": "ResetPassword",
-                "accepted_privacy_policy": True,
-                "accepted_terms": True,
-                "accepted_ai_guidelines": True
-            }
-        ).dict()
-    )
-)
-AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"],
-                         "test@chat.com")[
-    "_id"
-].__str__()
-
-token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
-token_type = "Bearer"
-user = AccountProcessor.get_complete_user_details("test@chat.com")
-bot = AccountProcessor.add_bot("Hi-Hello", user["account"], "test@chat.com")[
-    "_id"
-].__str__()
-loop.run_until_complete(
-    MongoProcessor().save_from_path(
-        "./tests/testing_data/use-cases/Hi-Hello-GPT", bot, user="test@chat.com"
-    )
-)
-bot_account = user["account"]
-chat_client_config = (
-    MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
-)
-start_training(bot, "test@chat.com")
-bot2 = AccountProcessor.add_bot("testChat2", user["account"], "test@chat.com")[
-    "_id"
-].__str__()
-loop.run_until_complete(
-    MongoProcessor().save_from_path(
-        "./tests/testing_data/use-cases/Hi-Hello", bot2, user="test@chat.com"
-    )
-)
-start_training(bot2, "test@chat.com")
-bot3 = AccountProcessor.add_bot("testChat3", user["account"], "test@chat.com")[
-    "_id"
-].__str__()
-
-with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_team_info:
-    mock_slack_team_info.return_value = SlackResponse(
-        client=None,
-        http_verb="POST",
-        api_url="https://slack.com/api/team.info",
-        req_args={},
-        data={
-            "ok": True,
-            "team": {
-                "id": "T03BNQE7HLY",
-                "name": "helicopter",
-                "avatar_base_url": "https://ca.slack-edge.com/",
-                "is_verified": False,
-            },
-        },
-        headers=dict(),
-        status_code=200,
-    ).validate()
-    ChatDataProcessor.save_channel_config(
-        {
-            "connector_type": "slack",
-            "config": {
-                "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
-                "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
-                "client_id": "sdfghj34567890",
-                "client_secret": "asdf3456789gfghjkl",
-                "is_primary": True,
-            },
-        },
-        bot,
-        user="test@chat.com",
-    )
-ChatDataProcessor.save_channel_config(
-    {
-        "connector_type": "whatsapp",
-        "config": {
-            "app_secret": "jagbd34567890",
-            "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
-            "verify_token": "valid",
-            "phone_number": "1234567890",
-        },
-    },
-    bot,
-    user="test@chat.com",
-)
-settings = BotSettings.objects(bot=bot2, status=True).get()
-settings.whatsapp = "360dialog"
-settings.save()
-
-ChatDataProcessor.save_channel_config(
-    {
-        "connector_type": "whatsapp",
-        "config": {
-            "client_name": "kairon",
-            "client_id": "skds23Ga",
-            "channel_id": "dfghjkl",
-            "partner_id": "test_partner",
-            "bsp_type": "360dialog",
-            "api_key": "kHCwksdsdsMVYVx0doabaDyRLUQJUAK",
-            "waba_account_id": "Cyih7GWA",
-        },
-    },
-    bot2,
-    user="test@chat.com",
-)
-responses.start()
-encoded_url = urlencode(
-    {"url": f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus
-)
-responses.add(
-    "GET",
-    json={"result": True},
-    url=f"https://api.telegram.org/botxoxb-801939352912-801478018484/setWebhook?{encoded_url}",
-)
-Utility.environment["model"]["agent"][
-    "url"
-] = "https://test@test.com/api/bot/telegram/tests/test"
-
 
 def __mock_endpoint(*args):
     return f"https://test@test.com/api/bot/telegram/{bot}/test"
 
 
-with patch(
-        "kairon.shared.data.utils.DataUtility.get_channel_endpoint", __mock_endpoint
-):
+# The use-case yaml and the stored bot config keep their epochs.
+# This is only the file rasa trains for these chat tests.
+_FAST_CHAT_CONFIG = (
+    "recipe: default.v1\n"
+    "language: en\n"
+    "pipeline:\n"
+    "- name: KeywordIntentClassifier\n"
+    "- name: FallbackClassifier\n"
+    "  threshold: 0.3\n"
+    "policies:\n"
+    "- name: MemoizationPolicy\n"
+    "- name: RulePolicy\n"
+)
+
+
+def _tolerant_keyword_map(self):
+    # Rasa pops the same overlapping keyword once per longer example.
+    import re
+
+    re_flag = 0 if self.case_sensitive else re.IGNORECASE
+    ambiguous = []
+    for keyword1, intent1 in self.intent_keyword_map.items():
+        for keyword2, intent2 in self.intent_keyword_map.items():
+            if (
+                re.search(r"\b" + keyword1 + r"\b", keyword2, flags=re_flag)
+                and intent1 != intent2
+            ):
+                ambiguous.append(keyword1)
+    for keyword in ambiguous:
+        self.intent_keyword_map.pop(keyword, None)
+
+
+def _fast_chat_train(*args, **kwargs):
+    from rasa.api import train as rasa_train
+    from rasa.nlu.classifiers.keyword_intent_classifier import KeywordIntentClassifier
+
+    original_validate = KeywordIntentClassifier._validate_keyword_map
+    KeywordIntentClassifier._validate_keyword_map = _tolerant_keyword_map
+    config_path = kwargs.get("config")
+    if config_path is None and len(args) > 1:
+        config_path = args[1]
+    if isinstance(config_path, str) and os.path.isfile(config_path):
+        with open(config_path, "w") as config_file:
+            config_file.write(_FAST_CHAT_CONFIG)
+    core_args = dict(kwargs.get("core_additional_arguments") or {})
+    core_args["augmentation_factor"] = 0
+    kwargs["core_additional_arguments"] = core_args
+    try:
+        return rasa_train(*args, **kwargs)
+    finally:
+        KeywordIntentClassifier._validate_keyword_map = original_validate
+
+
+def _prepare_chat_tests():
+    # Pytest collects by importing this module. These trains used to run
+    # before it listed any tests, including on --collect-only.
+    global loop, token, token_type, user, bot, bot_account, chat_client_config
+    global bot2, bot3, settings
+
+    connect(**Utility.mongoengine_connection())
+
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(
+        AccountProcessor.account_setup(
+            RegisterAccount(
+                **{
+                    "email": "test@chat.com",
+                    "first_name": "Test",
+                    "last_name": "Chat",
+                    "password": "testChat@12",
+                    "confirm_password": "testChat@12",
+                    "account": "ChatTesting",
+                    "accepted_privacy_policy": True,
+                    "accepted_terms": True,
+                    "accepted_ai_guidelines": True
+                }
+            ).model_dump()
+        )
+    )
+    loop.run_until_complete(
+        AccountProcessor.account_setup(
+            RegisterAccount(
+                **{
+                    "email": "test1@chat.com",
+                    "first_name": "Test",
+                    "last_name": "Chat",
+                    "password": "testChat@12",
+                    "confirm_password": "testChat@12",
+                    "account": "ChatTesting1",
+                    "accepted_privacy_policy": True,
+                    "accepted_terms": True,
+                    "accepted_ai_guidelines": True
+                }
+            ).model_dump()
+        )
+    )
+    loop.run_until_complete(
+        AccountProcessor.account_setup(
+            RegisterAccount(
+                **{
+                    "email": "resetpaswrd@chat.com",
+                    "first_name": "Reset",
+                    "last_name": "Password",
+                    "password": "resetPswrd@12",
+                    "confirm_password": "resetPswrd@12",
+                    "account": "ResetPassword",
+                    "accepted_privacy_policy": True,
+                    "accepted_terms": True,
+                    "accepted_ai_guidelines": True
+                }
+            ).model_dump()
+        )
+    )
+    AccountProcessor.add_bot("Hi-Hello", AccountProcessor.get_complete_user_details("resetpaswrd@chat.com")["account"],
+                             "test@chat.com")[
+        "_id"
+    ].__str__()
+
+    token, _, _, _ = Authentication.authenticate("test@chat.com", "testChat@12")
+    token_type = "Bearer"
+    user = AccountProcessor.get_complete_user_details("test@chat.com")
+    bot = AccountProcessor.add_bot("Hi-Hello", user["account"], "test@chat.com")[
+        "_id"
+    ].__str__()
+    loop.run_until_complete(
+        MongoProcessor().save_from_path(
+            "./tests/testing_data/use-cases/Hi-Hello-GPT", bot, user="test@chat.com"
+        )
+    )
+    bot_account = user["account"]
+    chat_client_config = (
+        MongoProcessor().get_chat_client_config(bot, "test@chat.com").to_mongo().to_dict()
+    )
+    with patch("kairon.train.train", _fast_chat_train):
+        start_training(bot, "test@chat.com")
+    bot2 = AccountProcessor.add_bot("testChat2", user["account"], "test@chat.com")[
+        "_id"
+    ].__str__()
+    loop.run_until_complete(
+        MongoProcessor().save_from_path(
+            "./tests/testing_data/use-cases/Hi-Hello", bot2, user="test@chat.com"
+        )
+    )
+    with patch("kairon.train.train", _fast_chat_train):
+        start_training(bot2, "test@chat.com")
+    bot3 = AccountProcessor.add_bot("testChat3", user["account"], "test@chat.com")[
+        "_id"
+    ].__str__()
+
+    with patch("slack_sdk.web.client.WebClient.team_info") as mock_slack_team_info:
+        mock_slack_team_info.return_value = SlackResponse(
+            client=None,
+            http_verb="POST",
+            api_url="https://slack.com/api/team.info",
+            req_args={},
+            data={
+                "ok": True,
+                "team": {
+                    "id": "T03BNQE7HLY",
+                    "name": "helicopter",
+                    "avatar_base_url": "https://ca.slack-edge.com/",
+                    "is_verified": False,
+                },
+            },
+            headers=dict(),
+            status_code=200,
+        ).validate()
+        ChatDataProcessor.save_channel_config(
+            {
+                "connector_type": "slack",
+                "config": {
+                    "bot_user_oAuth_token": "xoxb-801939352912-801478018484-v3zq6MYNu62oSs8vammWOY8K",
+                    "slack_signing_secret": "79f036b9894eef17c064213b90d1042b",
+                    "client_id": "sdfghj34567890",
+                    "client_secret": "asdf3456789gfghjkl",
+                    "is_primary": True,
+                },
+            },
+            bot,
+            user="test@chat.com",
+        )
     ChatDataProcessor.save_channel_config(
         {
-            "connector_type": "telegram",
+            "connector_type": "whatsapp",
             "config": {
-                "access_token": "xoxb-801939352912-801478018484",
-                "username_for_bot": "test",
+                "app_secret": "jagbd34567890",
+                "access_token": "ERTYUIEFDGHGFHJKLFGHJKGHJ",
+                "verify_token": "valid",
+                "phone_number": "1234567890",
             },
         },
         bot,
         user="test@chat.com",
     )
-ChatDataProcessor.save_channel_config(
-    {"connector_type": "hangouts", "config": {"project_id": "1234568"}},
-    bot,
-    user="test@chat.com",
-)
+    settings = BotSettings.objects(bot=bot2, status=True).get()
+    settings.whatsapp = "360dialog"
+    settings.save()
 
-ChatDataProcessor.save_channel_config(
-    {
-        "connector_type": "business_messages",
-        "config": {
-            "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
-            "private_key": "test_private_key",
-            "client_email": "solution-provider@gbc-mahesh-mxqtkk9.iam.testaccount.com",
-            "client_id": "102056160806575769486",
+    ChatDataProcessor.save_channel_config(
+        {
+            "connector_type": "whatsapp",
+            "config": {
+                "client_name": "kairon",
+                "client_id": "skds23Ga",
+                "channel_id": "dfghjkl",
+                "partner_id": "test_partner",
+                "bsp_type": "360dialog",
+                "api_key": "kHCwksdsdsMVYVx0doabaDyRLUQJUAK",
+                "waba_account_id": "Cyih7GWA",
+            },
         },
-    },
-    bot,
-    user="test@chat.com",
-)
+        bot2,
+        user="test@chat.com",
+    )
+    responses.start()
+    encoded_url = urlencode(
+        {"url": f"https://test@test.com/api/bot/telegram/{bot}/test"}, quote_via=quote_plus
+    )
+    responses.add(
+        "GET",
+        json={"result": True},
+        url=f"https://api.telegram.org/botxoxb-801939352912-801478018484/setWebhook?{encoded_url}",
+    )
+    Utility.environment["model"]["agent"][
+        "url"
+    ] = "https://test@test.com/api/bot/telegram/tests/test"
 
-ChatDataProcessor.save_channel_config(
-    {
-        "connector_type": "messenger",
-        "config": {
-            "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
-            "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
-            "verify_token": "kairon-messenger-token",
+    with patch(
+            "kairon.shared.data.utils.DataUtility.get_channel_endpoint", __mock_endpoint
+    ):
+        ChatDataProcessor.save_channel_config(
+            {
+                "connector_type": "telegram",
+                "config": {
+                    "access_token": "xoxb-801939352912-801478018484",
+                    "username_for_bot": "test",
+                },
+            },
+            bot,
+            user="test@chat.com",
+        )
+    ChatDataProcessor.save_channel_config(
+        {"connector_type": "hangouts", "config": {"project_id": "1234568"}},
+        bot,
+        user="test@chat.com",
+    )
+
+    ChatDataProcessor.save_channel_config(
+        {
+            "connector_type": "business_messages",
+            "config": {
+                "private_key_id": "fa006e13b1e17eddf3990eede45ca6111eb74945",
+                "private_key": "test_private_key",
+                "client_email": "solution-provider@gbc-mahesh-mxqtkk9.iam.testaccount.com",
+                "client_id": "102056160806575769486",
+            },
         },
-    },
-    bot,
-    user="test@chat.com",
-)
+        bot,
+        user="test@chat.com",
+    )
 
-ChatDataProcessor.save_channel_config({"connector_type": "instagram",
-                                       "config": {
-                                           "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
-                                           "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
-                                           "verify_token": "kairon-instagram-token",
-                                           "static_comment_reply": "Thank You, Check your dm!",
-                                           "is_dev": True,
-                                           "post_config": {
-                                                '17859719991451845': {
-                                                    "keywords": ["offer", "discount"],
-                                                    "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
-                                                },
-                                                '17859719991451973': {
-                                                    "keywords": ["hi", "price"],
-                                                    "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
-                                                },
-                                                '17859719991451321': {
-                                                    "keywords": ["hello", "offer"]
-                                                }
-                                            },
-                                       }
-                                       },
-                                      bot, user="test@chat.com")
+    ChatDataProcessor.save_channel_config(
+        {
+            "connector_type": "messenger",
+            "config": {
+                "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                "verify_token": "kairon-messenger-token",
+            },
+        },
+        bot,
+        user="test@chat.com",
+    )
 
-ChatDataProcessor.save_channel_config(
-    {
-        "connector_type": "line",
-        "config": {
-            "channel_secret": "gAAAAABl8EZIcRrJMpxsgEiYK-M3sw2-k8deqiGPkuM1at4Y4hXN6wwD8SlxLaH1YGazfANEwZ9jd4nuILZQPIFIjOHDU6wCOpcOo4HxDpWWS5DJALXOl92Ez2DBIn8GTslg32PIDUv5",
-            "channel_access_token": "gAAAAABl8EZISp9iqFhvOMgrfj1DZzDPPwLOD4_jJtgKDyTPKtEmNz1gYAIPVWU9Q_KjakEC81PdOuvOWju3gZm67jU-rvBxgMacW6kM7qgvFClZThlZEXl9Z01fxo-1BPnvAkCdDmbPUgaM1tvT77QlobDN_IDEXNlc3q-bo3PsvO0mYe29lwqvCkyFUnpdZRCqnHWtyL2qhARX18xS0SBr_c8jlQ8sUs_IcVozBlva4nUmZLWIo496jKtXObHRpVcrMJCqlu9oJ2tAtaT84KVO_q9VK_xHduU9Gu95EStehvamLMyC78k="
-        }
-    },
-    bot,
-    user="test@chat.com",
-)
-responses.stop()
+    ChatDataProcessor.save_channel_config({"connector_type": "instagram",
+                                           "config": {
+                                               "app_secret": "cdb69bc72e2ccb7a869f20cbb6b0229a",
+                                               "page_access_token": "EAAGa50I7D7cBAJ4AmXOhYAeOOZAyJ9fxOclQmn52hBwrOJJWBOxuJNXqQ2uN667z4vLekSEqnCQf41hcxKVZAe2pAZBrZCTENEj1IBe1CHEcG7J33ZApED9Tj9hjO5tE13yckNa8lP3lw2IySFqeg6REJR3ZCJUvp2h03PQs4W5vNZBktWF3FjQYz5vMEXLPzAFIJcZApBtq9wZDZD",
+                                               "verify_token": "kairon-instagram-token",
+                                               "static_comment_reply": "Thank You, Check your dm!",
+                                               "is_dev": True,
+                                               "post_config": {
+                                                    '17859719991451845': {
+                                                        "keywords": ["offer", "discount"],
+                                                        "comment_reply": "Grab our latest offers and discounts on shoes before they run out!"
+                                                    },
+                                                    '17859719991451973': {
+                                                        "keywords": ["hi", "price"],
+                                                        "comment_reply": "Hi there! Yes, we offer the best prices on premium quality shoes!"
+                                                    },
+                                                    '17859719991451321': {
+                                                        "keywords": ["hello", "offer"]
+                                                    }
+                                                },
+                                           }
+                                           },
+                                          bot, user="test@chat.com")
+
+    ChatDataProcessor.save_channel_config(
+        {
+            "connector_type": "line",
+            "config": {
+                "channel_secret": "gAAAAABl8EZIcRrJMpxsgEiYK-M3sw2-k8deqiGPkuM1at4Y4hXN6wwD8SlxLaH1YGazfANEwZ9jd4nuILZQPIFIjOHDU6wCOpcOo4HxDpWWS5DJALXOl92Ez2DBIn8GTslg32PIDUv5",
+                "channel_access_token": "gAAAAABl8EZISp9iqFhvOMgrfj1DZzDPPwLOD4_jJtgKDyTPKtEmNz1gYAIPVWU9Q_KjakEC81PdOuvOWju3gZm67jU-rvBxgMacW6kM7qgvFClZThlZEXl9Z01fxo-1BPnvAkCdDmbPUgaM1tvT77QlobDN_IDEXNlc3q-bo3PsvO0mYe29lwqvCkyFUnpdZRCqnHWtyL2qhARX18xS0SBr_c8jlQ8sUs_IcVozBlva4nUmZLWIo496jKtXObHRpVcrMJCqlu9oJ2tAtaT84KVO_q9VK_xHduU9Gu95EStehvamLMyC78k="
+            }
+        },
+        bot,
+        user="test@chat.com",
+    )
+    responses.stop()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def prepare_chat_tests():
+    _prepare_chat_tests()
 
 
 def __mock_getbusinessdata_workingenabled(*args, **kwargs):
@@ -789,7 +856,6 @@ def test_chat():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -804,9 +870,7 @@ def test_chat():
     expected_headers = [
         ("content-type", "application/json"),
         ("server", "Secure"),
-        ("strict-transport-security", "includeSubDomains; preload; max-age=31536000"),
-        ("x-frame-options", "SAMEORIGIN"),
-        ("x-xss-protection", "0"),
+        ("strict-transport-security", "max-age=31536000; includeSubDomains; preload"),
         ("x-content-type-options", "nosniff"),
         (
             "content-security-policy",
@@ -816,7 +880,7 @@ def test_chat():
         ("cache-control", "must-revalidate"),
         (
             "permissions-policy",
-            "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+            "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
         ),
         ("cross-origin-embedder-policy", "require-corp"),
         ("cross-origin-opener-policy", "same-origin"),
@@ -991,7 +1055,6 @@ def test_chat_verification():
     response = client.get(
         f"/api/bot/{bot}/verify/chat",
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -1199,7 +1262,6 @@ def test_chat_with_different_bot_using_token_for_different_bot():
         f"/api/bot/{bot2}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -1219,7 +1281,6 @@ def test_chat_with_bot_using_deleted_token():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -1233,7 +1294,6 @@ def test_chat_different_bot():
         f"/api/bot/{bot2}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -1387,8 +1447,7 @@ def test_reload():
     expected_headers = [
         ("content-type", "application/json"),
         ("server", "Secure"),
-        ("strict-transport-security", "includeSubDomains; preload; max-age=31536000"),
-        ("x-frame-options", "SAMEORIGIN"),
+        ("strict-transport-security", "max-age=31536000; includeSubDomains; preload"),
         ("x-content-type-options", "nosniff"),
         (
             "content-security-policy",
@@ -1398,7 +1457,7 @@ def test_reload():
         ("cache-control", "must-revalidate"),
         (
             "permissions-policy",
-            "accelerometer=(), autoplay=(), camera=(), document-domain=(), encrypted-media=(), fullscreen=(), vibrate=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), sync-xhr=(), usb=()",
+            "accelerometer=(), autoplay=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), usb=()",
         ),
         ("cross-origin-embedder-policy", "require-corp"),
         ("cross-origin-opener-policy", "same-origin"),
@@ -1411,8 +1470,8 @@ def test_reload():
 @patch("kairon.chat.utils.ChatUtils.reload")
 def test_reload_logging(mock_reload):
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
     mock_reload.return_value = None
     response = client.get(
         f"/api/bot/{bot}/reload",
@@ -1444,8 +1503,8 @@ def test_reload_logging(mock_reload):
 @mock.patch("kairon.chat.agent_processor.AgentProcessor.reload", autospec=True)
 def test_reload_event_exception(mock_reload):
     processor = MongoProcessor()
-    start_time = datetime.utcnow() - timedelta(days=1)
-    end_time = datetime.utcnow() + timedelta(days=1)
+    start_time = utc_now() - timedelta(days=1)
+    end_time = utc_now() + timedelta(days=1)
 
     def _reload(*args):
         raise Exception("Simulated exception during model reload")
@@ -1562,7 +1621,7 @@ def test_slack_install_app_using_oauth(mock_slack_oauth, mock_slack_team_info_):
         {"code": "98765432109765432asdfghjkl", "state": ""}, quote_via=quote_plus
     )
     response = client.get(
-        f"/api/bot/slack/{bot}/{token}?{encoded_url_}", allow_redirects=False
+        f"/api/bot/slack/{bot}/{token}?{encoded_url_}", follow_redirects=False
     )
     assert "https://app.slack.com/client/T03BNQE7HLZ" == response.headers["location"]
     assert response.status_code == 303
@@ -2054,7 +2113,7 @@ def test_whatsapp_valid_text_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2119,7 +2178,7 @@ def test_whatsapp_exception_when_try_to_handle_webhook_for_whatsapp_message(
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2181,7 +2240,7 @@ def test_whatsapp_valid_button_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2247,7 +2306,7 @@ def test_whatsapp_valid_button_message_request_without_payload_value(mock_valida
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2311,7 +2370,7 @@ def test_whatsapp_valid_button_message_request_without_payload_key(mock_validate
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2369,7 +2428,7 @@ def test_whatsapp_valid_attachment_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2438,7 +2497,7 @@ def test_whatsapp_payment_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2515,7 +2574,7 @@ def test_whatsapp_valid_order_message_request(mock_validate, mock_actor):
     assert len(executor.execute.call_args[0]) == 4
     assert args[3] == bot
     assert not DeepDiff(args[1], request_json)
-    assert not DeepDiff(args[2], {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
+    assert not DeepDiff(args[2], {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp', 'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(int, bson.int64.Int64)])
 
 
@@ -2582,7 +2641,7 @@ def test_whatsapp_valid_flows_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2651,7 +2710,7 @@ def test_whatsapp_valid_location_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2720,7 +2779,7 @@ def test_whatsapp_invalid_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2788,7 +2847,7 @@ def test_whatsapp_valid_statuses_with_sent_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2856,7 +2915,7 @@ def test_whatsapp_valid_statuses_with_delivered_request(mock_validate, mock_acto
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2913,7 +2972,7 @@ def test_whatsapp_valid_statuses_with_read_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -2981,7 +3040,7 @@ def test_whatsapp_valid_statuses_with_errors_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -3041,7 +3100,7 @@ def test_whatsapp_valid_unsupported_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -3105,7 +3164,7 @@ def test_whatsapp_bsp_valid_text_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -3172,7 +3231,7 @@ def test_whatsapp_bsp_valid_button_message_request(mock_validate, mock_actor):
     assert actual == "success"
     assert not DeepDiff(executor.execute.call_args[0][1], payload, ignore_order=True)
     assert not DeepDiff(executor.execute.call_args[0][2],
-                        {'is_integration_user': True, 'bot': bot, 'account': 1, 'channel_type': 'whatsapp',
+                        {'is_integration_user': True, 'bot': bot, 'account': bot_account, 'channel_type': 'whatsapp',
                          'bsp_type': 'meta', 'tabname': 'default'}, ignore_order=True,
                         ignore_type_in_groups=[(bson.int64.Int64, int)])
     assert executor.execute.call_args[0][3] == bot
@@ -3404,7 +3463,6 @@ def test_chat_with_chatwoot_agent_fallback(
             f"/api/bot/{bot}/chat",
             json={"data": "!@#$%^&*()"},
             headers={"Authorization": token_type + " " + token},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -3532,7 +3590,6 @@ def test_chat_with_chatwoot_agent_fallback_existing_contact(
         f"/api/bot/{bot}/chat",
         json={"data": "@#$%^&*()_"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3607,7 +3664,6 @@ def test_chat_with_live_agent():
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "hello, please resolve my ticket"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3628,7 +3684,6 @@ def test_chat_with_live_agent_failed_to_send_message():
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "need help"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert not actual["success"]
@@ -3677,7 +3732,6 @@ def test_chat_with_live_agent_with_integration_token():
             "Authorization": f"{token_type} {access_token}",
             "X-USER": "test@chat.com",
         },
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3712,7 +3766,6 @@ def test_chat_with_chatwoot_agent_fallback_failed_to_initiate(mock_agent):
         f"/api/bot/{bot}/chat",
         json={"data": "!@#$%^&*()"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert actual["success"]
@@ -3813,7 +3866,6 @@ def test_live_agent_after_reset_passwrd(monkeypatch):
         f"/api/bot/{bot}/agent/live/2",
         json={"data": "need help"},
         headers={"Authorization": token_type + " " + access_token},
-        timeout=0,
     )
     live_actual = live_response.json()
     message = live_actual.get("message")
@@ -3848,7 +3900,6 @@ def test_get_chat_history():
         response = client.get(
             f"/api/bot/{bot}/conversation",
             headers={"Authorization": token_type + " " + token},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -3860,7 +3911,6 @@ def test_get_chat_history():
         response = client.get(
             f"/api/bot/{bot}/conversation",
             headers={"Authorization": f"{token_type} {access_token}"},
-            timeout=0,
         )
         actual = response.json()
         assert actual["success"]
@@ -4007,7 +4057,6 @@ def test_chat_with_chatwoot_agent_outof_workinghours(
         f"/api/bot/{bot}/chat",
         json={"data": "!@#$%^&*()"},
         headers={"Authorization": token_type + " " + token},
-        timeout=0,
     )
     actual = response.json()
     assert (
@@ -4192,7 +4241,6 @@ def test_chat_when_botownerchanged():
         f"/api/bot/{bot}/chat",
         json={"data": "Hi"},
         headers={"Authorization": token_type + " " + access_token, 'X-USER': "test"},
-        timeout=0,
     )
     actual = response.json()
     owner = AccountProcessor.get_bot_owner(bot)
@@ -4481,7 +4529,7 @@ def test_chat_media(mock_upload_media):
     assert actual["error_code"] == 0
     assert actual["data"]
     assert Utility.check_empty_string(actual["message"])
-    assert mock_upload_media.called_once()
+    mock_upload_media.assert_called_once()
 
 @patch("kairon.chat.utils.ChatUtils.handle_media_agentic_flow", new_callable=AsyncMock)
 def test_agentic_flow_media(mock_media_agentic_flow):

@@ -1,6 +1,6 @@
-from typing import Text, Dict
+from typing import Dict, Optional, Text, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from kairon import Utility
 from kairon.exceptions import AppException
@@ -9,15 +9,15 @@ from kairon.shared.constants import EventClass
 
 class EventRequest(BaseModel):
     data: Dict
-    cron_exp: Text = None
-    timezone: Text = None
-    run_at: Text = None
+    cron_exp: Optional[Text] = None
+    timezone: Optional[Text] = None
+    run_at: Optional[Union[Text, int, float]] = None
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
-    @validator("data")
-    def validate_data(cls, v, values, **kwargs):
+    @field_validator("data")
+    @classmethod
+    def validate_data(cls, v):
         if Utility.check_empty_string(v.get("user")) or Utility.check_empty_string(v.get("bot")):
             raise ValueError("user and bot are required!")
 

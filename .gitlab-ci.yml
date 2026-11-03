@@ -2,7 +2,7 @@ stages:
   - test
 
 variables:
-  UV_PYTHON: "3.10"
+  UV_PYTHON: "3.12"
 
 before_script:
   - echo "Stage Started for " $CI_COMMIT_REF_NAME

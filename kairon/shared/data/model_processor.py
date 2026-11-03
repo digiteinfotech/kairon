@@ -3,6 +3,7 @@ from typing import Text
 
 from mongoengine import Q
 from mongoengine.errors import DoesNotExist
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from .constant import EVENT_STATUS
 from .data_objects import ModelTraining, BotSettings
@@ -42,10 +43,10 @@ class ModelProcessor:
             doc = ModelTraining()
             doc.model_config = MongoProcessor().load_config(bot)
             doc.status = status
-            doc.start_timestamp = datetime.utcnow()
+            doc.start_timestamp = utc_now()
 
         if status in [EVENT_STATUS.FAIL.value, EVENT_STATUS.DONE.value]:
-            doc.end_timestamp = datetime.utcnow()
+            doc.end_timestamp = utc_now()
 
         doc.bot = bot
         doc.user = user

@@ -1,8 +1,8 @@
-from datetime import datetime
 
 from mongoengine import Document, StringField, DateTimeField, DictField, ListField, EmbeddedDocument, \
     DynamicField, EmbeddedDocumentField
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.constant import AuditlogActions
 from kairon.shared.data.signals import auditlog
 
@@ -15,7 +15,7 @@ class Attributes(EmbeddedDocument):
 class AuditLogData(Document):
     attributes = ListField(EmbeddedDocumentField(Attributes, required=True))
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     action = StringField(required=True, choices=[action.value for action in AuditlogActions])
     entity = StringField(required=True)
     data = DictField()

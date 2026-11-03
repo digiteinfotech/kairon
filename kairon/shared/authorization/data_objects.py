@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from mongoengine import (
     Document,
@@ -8,6 +7,7 @@ from mongoengine import (
 )
 from mongoengine.errors import ValidationError
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.constant import INTEGRATION_STATUS, ACCESS_ROLES
 from kairon.shared.data.signals import auditlogger
@@ -40,7 +40,7 @@ class Integration(Auditlog):
 class UserSessions(Document):
     user = StringField(required=True)
     jti = StringField(required=True, unique=True)
-    invalidated_at = DateTimeField(default=datetime.utcnow)
+    invalidated_at = DateTimeField(default=utc_now)
     expires_at = DateTimeField(required=True)
 
     meta = {

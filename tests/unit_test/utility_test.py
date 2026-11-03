@@ -31,7 +31,7 @@ from password_strength.tests import Special, Uppercase, Numbers, Length
 from rasa.shared.core.constants import RULE_SNIPPET_ACTION_NAME
 from rasa.shared.core.events import UserUttered, ActionExecuted
 from rasa.shared.core.training_data.structures import StoryStep, Checkpoint, RuleStep
-from websockets import InvalidStatusCode
+from websockets import Headers, InvalidStatus, Response
 
 from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
@@ -51,7 +51,8 @@ from kairon.shared.verification.email import QuickEmailVerification
 
 class TestUtility:
     @pytest.fixture(autouse=True, scope="class")
-    def init_connection(self):
+    @classmethod
+    def init_connection(cls):
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
         Utility.load_email_configuration()
@@ -1724,17 +1725,15 @@ class TestUtility:
 
     @pytest.mark.asyncio
     async def test_websocket_request_connect_exception(self):
-        from websockets.datastructures import Headers
-
         url = "ws://localhost/events/bot_id"
         msg = "hello"
 
         def _mock_websocket_connect_exception(*args, **kwargs):
-            raise InvalidStatusCode(404, headers=Headers())
+            raise InvalidStatus(Response(404, "Not Found", Headers()))
 
         with patch("kairon.shared.utils.connect", autospec=True) as mock:
             mock.side_effect = _mock_websocket_connect_exception
-            with pytest.raises(InvalidStatusCode):
+            with pytest.raises(InvalidStatus):
                 await Utility.websocket_request(url, msg)
 
     def test_execute_http_request_connection_error(self):
@@ -3458,7 +3457,7 @@ class TestUtility:
         with tarfile.open(model_file, "r:gz") as model:
             members = model.getnames()
             assert all(item in members for item in ["components", "metadata.json"])
-            model.extractall(tempdir)
+            model.extractall(tempdir, filter="data")
 
             metadata = json.load(open(f"{tempdir}/metadata.json"))
             domain = Utility.read_yaml(

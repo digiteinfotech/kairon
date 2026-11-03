@@ -5,9 +5,12 @@ from typing import Text
 
 from starlette.requests import Request
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.shared.constants import PluginTypes
 from kairon.shared.metering.constants import MetricType, UpdateMetricType
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
+
 from kairon.shared.metering.data_object import Metering
 from kairon.shared.plugins.factory import PluginFactory
 
@@ -74,11 +77,11 @@ class MeteringProcessor:
         :return: all the metrics as json.
         """
         if not start_date:
-            start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            start_date = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if not end_date:
-            month = datetime.utcnow().date().month
-            year = datetime.utcnow().date().year
-            end_date = datetime.utcnow().replace(day=calendar.monthrange(year, month)[1])
+            month = utc_now().date().month
+            year = utc_now().date().year
+            end_date = utc_now().replace(day=calendar.monthrange(year, month)[1])
         kwargs.update({"account": account, "metric_type": metric_type, "timestamp__gte": start_date,
                        "timestamp__lte": end_date})
         metric_count = Metering.objects(**kwargs).count()
@@ -111,14 +114,14 @@ class MeteringProcessor:
         from kairon.shared.data.processor import MongoProcessor
 
         if not start_date:
-            start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            start_date = utc_now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if not end_date:
-            month = datetime.utcnow().date().month
-            year = datetime.utcnow().date().year
-            end_date = datetime.utcnow().replace(day=calendar.monthrange(year, month)[1])
+            month = utc_now().date().month
+            year = utc_now().date().year
+            end_date = utc_now().replace(day=calendar.monthrange(year, month)[1])
         kwargs.update({"account": account, "timestamp__gte": start_date, "timestamp__lte": end_date})
         metrics = Metering.objects(**kwargs).order_by("-timestamp").skip(start_idx).limit(page_size) \
-            .exclude('id').to_json()
+            .exclude('id').to_json(json_options=LEGACY_JSON_OPTIONS)
 
         row_cnt = MongoProcessor().get_row_count(Metering, **kwargs)
         data = {

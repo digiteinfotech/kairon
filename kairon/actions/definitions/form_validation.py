@@ -2,6 +2,7 @@ from typing import Text, Dict, Any
 
 from loguru import logger
 from mongoengine import DoesNotExist
+from mongoengine.pymongo_support import LEGACY_JSON_OPTIONS
 from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
@@ -33,7 +34,7 @@ class ActionFormValidation(ActionsBase):
         :return: FormValidationAction object containing configuration for the action
         """
         action = FormValidationAction.objects(bot=self.bot, name=self.name, status=True)
-        logger.debug("form_validation_config: " + str(action.to_json()))
+        logger.debug("form_validation_config: " + str(action.to_json(json_options=LEGACY_JSON_OPTIONS)))
         return action
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):

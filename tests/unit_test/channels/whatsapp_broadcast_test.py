@@ -27,6 +27,16 @@ def setup_environment():
     disconnect()
 
 
+def _close_scheduled(coro):
+    frame = coro.cr_frame
+    if frame is not None:
+        for task in frame.f_locals.get("tasks_to_run") or ():
+            close = getattr(task, "close", None)
+            if close is not None:
+                close()
+    coro.close()
+
+
 @pytest.mark.asyncio
 async def test_send_action_async_success_meta():
     payload = {"key": "value"}
@@ -378,6 +388,8 @@ def test_initiate_broadcast():
         mock_send_template_message_retry.assert_not_called()
         mock_log_failed_messages.assert_not_called()
         mock_asyncio_run.assert_called()
+        for call in mock_asyncio_run.call_args_list:
+            _close_scheduled(call.args[0])
 
 
 def test_initiate_broadcast_resend():
@@ -415,6 +427,8 @@ def test_initiate_broadcast_resend():
         mock_send_template_message_retry.assert_called()
         mock_log_failed_messages.assert_not_called()
         mock_asyncio_run.assert_called()
+        for call in mock_asyncio_run.call_args_list:
+            _close_scheduled(call.args[0])
 
 
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from kairon.shared.clock import utc_now
 
 from mongoengine import Document, StringField, LongField, DateTimeField, BooleanField, SequenceField, EmbeddedDocument, EmbeddedDocumentField
 
@@ -13,7 +13,7 @@ class User(Document):
     account = LongField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
 
@@ -28,7 +28,7 @@ class Bot(Document):
     account = LongField(required=True)
     user = StringField(required=True)
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
 
@@ -36,5 +36,5 @@ class Account(Document):
     id = SequenceField(required=True, primary_key=True)
     name = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)

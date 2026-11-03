@@ -30,7 +30,7 @@ async def create_pipeline_event(
             event_type = EventRequestType.add_schedule.value
         elif request.scheduler_config.expression_type == "epoch":
             event_type = EventRequestType.add_one_time_schedule.value
-    event_id = event.enqueue(event_type, config=request.dict())
+    event_id = event.enqueue(event_type, config=request.model_dump())
     return Response(message="Event scheduled!", data={"event_id": event_id})
 
 
@@ -73,7 +73,7 @@ async def update_pipeline_event(
     )
     event.callback_name = request.callback_name
     event.validate()
-    event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=request.dict())
+    event.enqueue(EventRequestType.update_schedule.value, event_id=event_id, config=request.model_dump())
     return Response(message="Event updated", data={"event_id": event_id})
 
 
