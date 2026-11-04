@@ -4812,7 +4812,7 @@ def test_export_collection_data_csv():
         [{"data": {"name": "Aniket", "city": "Pune"}, "is_secure": [], "is_non_editable": []}],
         user="integ@demo.ai", bot=pytest.bot, collection_name="test_export_csv",
     )
-    response = client.get(
+    response = client.request("QUERY",
         url=f"/api/bot/{pytest.bot}/data/collection/Test_Export_CSV/export",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
@@ -4832,12 +4832,32 @@ def test_export_collection_data_csv_fields_and_decrypt_flag():
     )
     url = f"/api/bot/{pytest.bot}/data/collection/test_export_fields/export"
     headers = {"Authorization": pytest.token_type + " " + pytest.access_token}
-    only = client.get(url=url, params={"fields": ["city", "pin"], "decrypt_secure": True}, headers=headers)
-    default = client.get(url=url, params={"fields": ["pin"]}, headers=headers)
+    only = client.request("QUERY", url=url, params={"fields": ["city", "pin"], "decrypt_secure": True}, headers=headers)
+    default = client.request("QUERY", url=url, params={"fields": ["city", "pin"]}, headers=headers)
+    only_secure = client.request("QUERY", url=url, params={"fields": ["pin"]}, headers=headers)
     CollectionData.objects(collection_name="test_export_fields").delete()
     assert only.text.strip().splitlines() == ["city,pin", "Pune,4321"]
-    assert default.text.strip().splitlines()[0] == "pin"
-    assert "4321" not in default.text
+    assert default.text.strip().splitlines() == ["city", "Pune"]
+    assert "No exportable fields" in only_secure.json()["message"]
+
+
+def test_export_collection_data_csv_date_range():
+    DataProcessor.save_bulk_collection_data(
+        [{"data": {"a": "x"}, "is_secure": [], "is_non_editable": []}],
+        user="integ@demo.ai", bot=pytest.bot, collection_name="test_export_dates",
+    )
+    url = f"/api/bot/{pytest.bot}/data/collection/test_export_dates/export"
+    headers = {"Authorization": pytest.token_type + " " + pytest.access_token}
+    inside = client.request("QUERY", url=url, params={"from_date": "2000-01-01", "to_date": "2999-12-31"}, headers=headers)
+    outside = client.request("QUERY", url=url, params={"to_date": "2000-01-01"}, headers=headers)
+    inverted = client.request("QUERY", url=url, params={"from_date": "2024-02-01", "to_date": "2024-01-01"}, headers=headers)
+    invalid = client.request("QUERY", url=url, params={"from_date": "not-a-date"}, headers=headers)
+    CollectionData.objects(collection_name="test_export_dates").delete()
+    assert inside.text.strip().splitlines() == ["a", "x"]
+    assert "not found or has no data" in outside.json()["message"]
+    assert "from_date cannot be after to_date" in inverted.json()["message"]
+    assert invalid.json()["success"] is False
+    assert invalid.json()["error_code"] == 422
 
 
 def test_export_collection_data_csv_name_with_space_and_empty():
@@ -4845,14 +4865,14 @@ def test_export_collection_data_csv_name_with_space_and_empty():
         [{"data": {"a": "1"}, "is_secure": [], "is_non_editable": []}],
         user="integ@demo.ai", bot=pytest.bot, collection_name="export space name",
     )
-    response = client.get(
+    response = client.request("QUERY",
         url=f"/api/bot/{pytest.bot}/data/collection/export space name/export",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
     CollectionData.objects(collection_name="export space name").delete()
     assert response.status_code == 200
     assert response.headers["content-disposition"] == 'attachment; filename="export_space_name.csv"'
-    missing = client.get(
+    missing = client.request("QUERY",
         url=f"/api/bot/{pytest.bot}/data/collection/no_such_export/export",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )

@@ -1806,11 +1806,8 @@ def test_header_union_first_seen_order_and_empty_cells(_clean_export_collections
     _export_save("orders", {"a": "1", "b": "2"})
     _export_save("orders", {"b": "3", "c": "4"})
     rows = _export_parse(_export_csv(EXPORT_BOT, "orders"))
-    assert rows[0] == ["a", "b", "c"]
-    assert all(len(r) == 3 for r in rows)
-    by_b = {r[1]: r for r in rows[1:]}
-    assert by_b["2"] == ["1", "2", ""]
-    assert by_b["3"] == ["", "3", "4"]
+    assert rows[0] == ["b", "c", "a"]
+    assert rows[1:] == [["3", "4", ""], ["2", "", "1"]]
 
 
 def test_no_metadata_columns(_clean_export_collections):
@@ -1823,7 +1820,7 @@ def test_secure_values_exported_decrypted(_clean_export_collections):
     _export_save("orders", {"token": "abc123", "name": "x"}, is_secure=["token"])
     stored = CollectionData.objects(bot=EXPORT_BOT, collection_name="orders").get().data["token"]
     assert stored != "abc123"
-    content = _export_csv(EXPORT_BOT, "orders", decrypt_secure=True)
+    content = _export_csv(EXPORT_BOT, "orders", fields=["token", "name"], decrypt_secure=True)
     assert "abc123" in content
     assert stored not in content
     listed = list(DataProcessor.get_collection_data(EXPORT_BOT, collection_name="orders", key=[], value=[]))
@@ -1949,18 +1946,17 @@ def test_export_rows_ordered_by_timestamp(_clean_export_collections):
     for v in ["1", "2", "3"]:
         _export_save("orders", {"a": v})
     rows = _export_parse(_export_csv(EXPORT_BOT, "orders"))
-    assert [r[0] for r in rows[1:]] == ["1", "2", "3"]
+    assert [r[0] for r in rows[1:]] == ["3", "2", "1"]
 
 
 
-def test_secure_values_exported_as_stored_by_default(_clean_export_collections):
+def test_secure_columns_left_out_by_default(_clean_export_collections):
     _export_save("orders", {"token": "abc123", "name": "x"}, is_secure=["token"])
     stored = CollectionData.objects(bot=EXPORT_BOT, collection_name="orders").get().data["token"]
-    content = _export_csv(EXPORT_BOT, "orders")
-    assert "abc123" not in content
-    rows = _export_parse(content)
-    assert rows[1] == [stored, "x"]
-    assert rows == _export_parse(_export_csv(EXPORT_BOT, "orders", decrypt_secure=False))
+    for kwargs in ({}, {"decrypt_secure": False}, {"decrypt_secure": True}):
+        content = _export_csv(EXPORT_BOT, "orders", **kwargs)
+        assert "abc123" not in content and stored not in content
+        assert _export_parse(content) == [["name"], ["x"]]
 
 
 def test_export_only_requested_fields_in_given_order(_clean_export_collections):
@@ -1975,13 +1971,27 @@ def test_export_fields_missing_in_row_are_empty_and_duplicates_ignored(_clean_ex
     assert rows == [["a", "zzz"], ["1", ""]]
 
 
-def test_export_fields_with_secure_key_honours_decrypt_flag(_clean_export_collections):
+def test_export_secure_field_named_in_fields_needs_decrypt_flag(_clean_export_collections):
     _export_save("orders", {"token": "abc123", "name": "x"}, is_secure=["token"])
-    plain = _export_parse(_export_csv(
-        EXPORT_BOT, "orders", fields=["token"], decrypt_secure=True))
-    assert plain == [["token"], ["abc123"]]
+    stored = CollectionData.objects(bot=EXPORT_BOT, collection_name="orders").get().data["token"]
     assert _export_parse(_export_csv(
-        EXPORT_BOT, "orders", fields=["token"]))[1] != ["abc123"]
+        EXPORT_BOT, "orders", fields=["token", "name"], decrypt_secure=True)) == [["token", "name"], ["abc123", "x"]]
+    left_out = _export_csv(EXPORT_BOT, "orders", fields=["token", "name"])
+    assert _export_parse(left_out) == [["name"], ["x"]]
+    assert stored not in left_out
+    with pytest.raises(AppException, match="No exportable fields"):
+        DataProcessor.stream_collection_data_as_csv(EXPORT_BOT, "orders", fields=["token"])
+
+
+def test_export_nested_path_inside_secure_key_left_out(_clean_export_collections):
+    _export_save("orders", {"card": "1234", "name": "x"}, is_secure=["card"])
+    assert _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["card.no", "name"])) == [["name"], ["x"]]
+
+
+def test_export_key_secure_in_any_row_is_left_out(_clean_export_collections):
+    _export_save("orders", {"k": "plain", "name": "a"})
+    _export_save("orders", {"k": "hidden", "name": "b"}, is_secure=["k"])
+    assert _export_parse(_export_csv(EXPORT_BOT, "orders")) == [["name"], ["b"], ["a"]]
 
 
 def test_export_header_union_first_seen_order_without_fields(_clean_export_collections):
@@ -1989,7 +1999,7 @@ def test_export_header_union_first_seen_order_without_fields(_clean_export_colle
     _export_save("orders", {"c": "3", "a": "4"})
     _export_save("orders", {"d": "5"})
     rows = _export_parse(_export_csv(EXPORT_BOT, "orders"))
-    assert rows[0] == ["b", "a", "c", "d"]
+    assert rows[0] == ["d", "c", "a", "b"]
 
 
 def test_export_streams_in_chunks(_clean_export_collections, monkeypatch):
@@ -1999,7 +2009,7 @@ def test_export_streams_in_chunks(_clean_export_collections, monkeypatch):
     chunks = list(DataProcessor.stream_collection_data_as_csv(EXPORT_BOT, "orders", fields=["a"]))
     assert len(chunks) == 3
     rows = _export_parse(b"".join(chunks).decode("utf-8"))
-    assert [r[0] for r in rows] == ["a", "1", "2", "3", "4", "5"]
+    assert [r[0] for r in rows] == ["a", "5", "4", "3", "2", "1"]
 
 
 def test_export_missing_collection_raises_before_streaming(_clean_export_collections):
@@ -2018,15 +2028,115 @@ def test_export_fields_projection_fetches_only_requested_keys(_clean_export_coll
 def test_export_field_name_with_dot_still_exports(_clean_export_collections):
     _export_save("orders", {"a": "1", "b": "2"})
     rows = _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["a.x", "b"]))
-    assert rows == [["a.x", "b"], ["", "2"]]
+    assert rows == [["x", "b"], ["", "2"]]
 
 
-def test_export_row_cap_checked_before_streaming(_clean_export_collections, monkeypatch):
+NESTED_EXPORT_DATA = {
+    "address": {"line1": "mumbai", "lat": 3.45434, "street": {"name": "MG Road", "pincode": 400001}},
+    "name": "paakshala",
+    "phone": 23432343,
+}
+
+
+def test_export_nested_fields_any_depth(_clean_export_collections):
+    _export_save("orders", NESTED_EXPORT_DATA)
+    rows = _export_parse(_export_csv(
+        EXPORT_BOT, "orders",
+        fields=["name", "address.line1", "address.lat", "address.street.name", "address.street.pincode"]))
+    assert rows == [
+        ["name", "line1", "lat", "address.street.name", "pincode"],
+        ["paakshala", "mumbai", "3.45434", "MG Road", "400001"],
+    ]
+
+
+def test_header_labels_last_key_unless_colliding():
+    from kairon.shared.data.collection_processor import _header_labels
+    assert _header_labels(["address.lat", "address.street.pincode", "name"]) == ["lat", "pincode", "name"]
+    assert _header_labels(["name", "address.street.name", "a.b"]) == ["name", "address.street.name", "b"]
+
+
+def test_export_nested_field_missing_or_through_scalar_is_empty(_clean_export_collections):
+    _export_save("orders", NESTED_EXPORT_DATA)
+    _export_save("orders", {"name": "other"})
+    rows = _export_parse(_export_csv(
+        EXPORT_BOT, "orders", fields=["address.street.name", "name.first", "address.nope.x"]))
+    assert rows[0] == ["name", "first", "x"]
+    assert rows[1:] == [["", "", ""], ["MG Road", "", ""]]
+
+
+def test_export_parent_and_nested_field_together(_clean_export_collections):
+    _export_save("orders", NESTED_EXPORT_DATA)
+    rows = _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["address", "address.street.name"]))
+    assert json.loads(rows[1][0]) == NESTED_EXPORT_DATA["address"]
+    assert rows[1][1] == "MG Road"
+
+
+def test_export_nested_field_formula_is_neutralised(_clean_export_collections):
+    _export_save("orders", {"a": {"b": "=1+1"}})
+    assert _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["a.b"]))[1] == ["'=1+1"]
+
+
+def test_export_without_fields_keeps_top_level_headers(_clean_export_collections):
+    _export_save("orders", NESTED_EXPORT_DATA)
+    rows = _export_parse(_export_csv(EXPORT_BOT, "orders"))
+    assert rows[0] == ["address", "name", "phone"]
+
+
+def test_drop_nested_paths_keeps_shortest_ancestors():
+    from kairon.shared.data.collection_processor import _drop_nested_paths
+    assert _drop_nested_paths(["a", "a.b", "a.b.c", "ab", "x.y"]) == ["a", "ab", "x.y"]
+
+
+def _export_stamp_rows(collection_name, stamps):
+    """Re-stamp the rows of a collection, oldest saved first."""
+    for doc, stamp in zip(CollectionData.objects(bot=EXPORT_BOT, collection_name=collection_name).order_by("id"), stamps):
+        CollectionData.objects(id=doc.id).update(set__timestamp=stamp)
+
+
+def _export_dated_orders():
+    from datetime import datetime
+    for v in ["jan", "feb1", "feb2", "mar"]:
+        _export_save("orders", {"a": v})
+    _export_stamp_rows("orders", [datetime(2024, 1, 15, 10), datetime(2024, 2, 1, 0), datetime(2024, 2, 29, 23, 59),
+                                  datetime(2024, 3, 1, 0, 0)])
+
+
+def test_export_date_range_is_inclusive_on_both_ends(_clean_export_collections):
+    from datetime import date
+    _export_dated_orders()
+    rows = _export_parse(_export_csv(EXPORT_BOT, "orders", from_date=date(2024, 2, 1), to_date=date(2024, 2, 29)))
+    assert [r[0] for r in rows[1:]] == ["feb2", "feb1"]
+
+
+def test_export_open_ended_date_range_and_header_follows_range(_clean_export_collections):
+    from datetime import date, datetime
+    _export_save("orders", {"old_key": "x"})
+    _export_save("orders", {"a": "new"})
+    _export_stamp_rows("orders", [datetime(2024, 1, 1), datetime(2024, 5, 1)])
+    assert _export_parse(_export_csv(EXPORT_BOT, "orders", from_date=date(2024, 2, 1))) == [["a"], ["new"]]
+    assert _export_parse(_export_csv(EXPORT_BOT, "orders", to_date=date(2024, 2, 1))) == [["old_key"], ["x"]]
+    assert len(_export_parse(_export_csv(EXPORT_BOT, "orders"))) == 3
+
+
+def test_export_date_range_without_rows_or_inverted_raises(_clean_export_collections):
+    from datetime import date
+    _export_dated_orders()
+    with pytest.raises(AppException, match="not found or has no data"):
+        DataProcessor.stream_collection_data_as_csv(EXPORT_BOT, "orders", from_date=date(2025, 1, 1))
+    with pytest.raises(AppException, match="from_date cannot be after to_date"):
+        DataProcessor.stream_collection_data_as_csv(
+            EXPORT_BOT, "orders", from_date=date(2024, 3, 1), to_date=date(2024, 2, 1))
+
+
+def test_export_over_cap_returns_latest_rows_newest_first(_clean_export_collections, monkeypatch):
     monkeypatch.setattr("kairon.shared.data.collection_processor._MAX_EXPORT_ROWS", 2)
+    _export_save("orders", {"old": "0"})
     for v in ["1", "2", "3"]:
         _export_save("orders", {"a": v})
-    with pytest.raises(AppException, match="more than 2 rows"):
-        DataProcessor.stream_collection_data_as_csv(EXPORT_BOT, "orders", fields=["a"])
+    for kwargs in ({}, {"fields": ["a"]}):
+        rows = _export_parse(_export_csv(EXPORT_BOT, "orders", **kwargs))
+        assert rows[0][0] == "a"
+        assert [r[0] for r in rows[1:]] == ["3", "2"]
     for v in ["1", "2"]:
         _export_save("small", {"a": v})
     assert len(_export_parse(_export_csv(EXPORT_BOT, "small"))) == 3
