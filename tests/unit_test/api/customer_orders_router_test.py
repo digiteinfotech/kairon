@@ -367,10 +367,13 @@ class TestCollectionDataRouter:
     @pytest.mark.asyncio
     async def test_get_collection_metadata_success(self):
         expected = {"fields": ["name", "price"]}
-        with patch(f"{_DATA_PROC}.get_crud_metadata", return_value=expected) as mock_proc:
+        with patch(f"{_DATA_PROC}.get_crud_metadata", return_value=expected) as mock_proc, \
+                patch(f"{_DATA_PROC}.get_secure_fields", return_value=["price"]) as mock_secure:
             result = await get_collection_metadata(bot=BOT, collection_name="menu", current_user=MagicMock())
         mock_proc.assert_called_once_with(bot=BOT, collection_name="menu")
-        assert result["data"] == expected
+        mock_secure.assert_called_once_with(BOT, "menu")
+        assert result["data"] == {**expected, "is_secure": ["price"]}
+        assert "is_secure" not in expected
 
     @pytest.mark.asyncio
     async def test_get_collection_metadata_raises(self):
