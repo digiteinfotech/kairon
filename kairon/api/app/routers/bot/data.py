@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import date
 from typing import List, Optional, Union
 from fastapi import UploadFile, File, Security, APIRouter, Query, HTTPException, Path
 from starlette.requests import Request
@@ -288,22 +289,26 @@ async def get_collection_metadata(
     return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
 
 
-@router.get("/collection/{collection_name}/export")
+@router.api_route("/collection/{collection_name}/export", methods=["QUERY"])
 def export_collection_data(
         bot: str,
         collection_name: str,
         fields: List[str] = Query([]),
         decrypt_secure: bool = False,
+        from_date: Optional[date] = None,
+        to_date: Optional[date] = None,
         current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS),
 ):
     """
     Exports collection data of the bot as csv file.
-    fields: keys to export, all keys if not provided.
-    decrypt_secure: export secure keys decrypted, otherwise as stored (encrypted).
+    fields: keys to export, all top level non secure keys if not provided. Nested keys use dot notation, e.g. address.street.name.
+    decrypt_secure: export the secure keys named in fields, decrypted. Otherwise secure keys are left out.
+    from_date, to_date: optional YYYY-MM-DD (utc), both inclusive. All rows are considered if not provided.
     """
     collection_name = collection_name.lower()
     content = DataProcessor.stream_collection_data_as_csv(
-        current_user.get_bot(), collection_name, fields=fields, decrypt_secure=decrypt_secure
+        current_user.get_bot(), collection_name, fields=fields, decrypt_secure=decrypt_secure,
+        from_date=from_date, to_date=to_date
     )
     filename = re.sub(r"[^a-z0-9_-]", "_", collection_name)
     return StreamingResponse(
