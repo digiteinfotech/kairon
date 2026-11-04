@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 import json
 from fastapi import HTTPException
 from typing import Dict, Text, List
@@ -35,6 +35,7 @@ _MAX_NUMERIC_TEXT_LENGTH = 25
 _CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 _EXPORT_CHUNK_ROWS = 1000
 _MAX_EXPORT_ROWS = 10000
+_EXPORT_ORDER = ("-timestamp", "-id")
 
 def _build_filterable_attr_elem_match(column: str, value, condition: str = None) -> dict:
     if condition and condition in _REGEX_CONDITION_MAP:
@@ -79,6 +80,41 @@ def _neutralise_csv_formula(value):
     if isinstance(value, str) and value.startswith(_CSV_FORMULA_PREFIXES):
         return "'" + value
     return value
+
+
+def _resolve_field_path(row, path):
+    """Value at a dot separated path inside nested dicts, None if any step is missing or not a dict."""
+    value = row
+    for part in path.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return None
+        value = value[part]
+    return value
+
+
+def _header_labels(paths):
+    """Last key of each path as csv header, the full path where last keys would collide."""
+    last_keys = [path.rsplit(".", 1)[-1] for path in paths]
+    return [last if last_keys.count(last) == 1 else path for path, last in zip(paths, last_keys)]
+
+
+def _timestamp_range_filter(from_date: date = None, to_date: date = None) -> dict:
+    """Queryset filter for rows stamped from from_date 00:00 up to and including to_date, both optional."""
+    if from_date and to_date and from_date > to_date:
+        raise AppException("from_date cannot be after to_date!")
+    range_filter = {}
+    if from_date:
+        range_filter["timestamp__gte"] = datetime.combine(from_date, time.min)
+    if to_date:
+        range_filter["timestamp__lt"] = datetime.combine(to_date + timedelta(days=1), time.min)
+    return range_filter
+
+
+def _drop_nested_paths(paths):
+    """Mongo rejects a projection holding both 'a' and 'a.b', keep only the shortest ancestor paths."""
+    selected = set(paths)
+    return [path for path in paths
+            if not any(path.startswith(other + ".") for other in selected)]
 
 
 class DataProcessor:
@@ -346,8 +382,9 @@ class DataProcessor:
         order_by = kwargs.pop("order_by", None)
         decrypt = kwargs.pop("decrypt", True)
         only_fields = kwargs.pop("only_fields", None)
+        timestamp_filter = kwargs.pop("timestamp_filter", None) or {}
 
-        mongo_query = CollectionData.objects(bot=bot, collection_name=collection_name)
+        mongo_query = CollectionData.objects(bot=bot, collection_name=collection_name, **timestamp_filter)
         if attr_filters:
             raw = {"$and": attr_filters} if len(attr_filters) > 1 else attr_filters[0]
             mongo_query = mongo_query.filter(__raw__=raw)
@@ -357,7 +394,8 @@ class DataProcessor:
                                            *[f"data.{field}" for field in only_fields])
 
         if order_by:
-            mongo_query = mongo_query.order_by(order_by)
+            mongo_query = mongo_query.order_by(*order_by) if isinstance(order_by, (list, tuple)) \
+                else mongo_query.order_by(order_by)
 
         if page_size is not None and start_idx is not None:
             mongo_query = mongo_query.order_by("-timestamp").skip(start_idx).limit(page_size)
@@ -383,62 +421,79 @@ class DataProcessor:
             yield final_data
 
     @staticmethod
-    def __get_export_header(bot: Text, collection_name: Text) -> List[Text]:
+    def __get_export_header(bot: Text, collection_name: Text, timestamp_filter: dict) -> List[Text]:
         """
-        distinct data keys of a collection in first seen order, computed by mongo without loading documents
+        distinct data keys of the exported rows in first seen order, computed by mongo without loading documents
         """
         pipeline = [
-            {"$sort": {"_id": 1}},
-            {"$project": {"k": {"$map": {"input": {"$objectToArray": "$data"}, "in": "$$this.k"}}}},
+            {"$sort": {"timestamp": -1, "_id": -1}},
+            {"$limit": _MAX_EXPORT_ROWS},
+            {"$project": {"timestamp": 1, "k": {"$map": {"input": {"$objectToArray": "$data"}, "in": "$$this.k"}}}},
             {"$unwind": {"path": "$k", "includeArrayIndex": "i"}},
-            {"$group": {"_id": "$k", "doc": {"$first": "$_id"}, "i": {"$first": "$i"}}},
-            {"$sort": {"doc": 1, "i": 1}},
+            {"$group": {"_id": "$k", "ts": {"$first": "$timestamp"}, "doc": {"$first": "$_id"},
+                        "i": {"$first": "$i"}}},
+            {"$sort": {"ts": -1, "doc": -1, "i": 1}},
         ]
         return [item["_id"] for item in CollectionData.objects(
-            bot=bot, collection_name=collection_name).aggregate(pipeline, allowDiskUse=True)]
+            bot=bot, collection_name=collection_name, **timestamp_filter).aggregate(pipeline, allowDiskUse=True)]
 
     @staticmethod
     def stream_collection_data_as_csv(bot: Text, collection_name: Text, fields: List[Text] = None,
-                                      decrypt_secure: bool = False):
+                                      decrypt_secure: bool = False, from_date: date = None,
+                                      to_date: date = None):
         """
         exports every row of a collection as csv, streamed in chunks so memory does not grow with collection size.
-        Raises before the first chunk if the collection does not exist or has more than _MAX_EXPORT_ROWS rows.
+        Raises before the first chunk if the collection does not exist. Only the latest _MAX_EXPORT_ROWS rows
+        are exported, newest first.
 
         :param bot: bot id
         :param collection_name: collection name
-        :param fields: keys to export, in the given order. All keys are exported if empty
-        :param decrypt_secure: decrypt secure keys, otherwise they are exported as stored (encrypted)
+        :param fields: keys to export, in the given order. Nested keys use dot notation relative to data,
+                       e.g. address.street.name. All top level non secure keys are exported if empty.
+                       The csv header of a nested key is its last key (name), or the full path when
+                       two selected keys end the same
+        :param decrypt_secure: export the secure keys named in fields, decrypted. Otherwise secure keys are left out,
+                               also when named in fields. Secure keys are never exported when fields is empty
+        :param from_date: only rows stamped on or after this date (utc), optional
+        :param to_date: only rows stamped on or before this date (utc), optional
         :return: generator of utf-8 encoded csv chunks, string cells and headers starting with = + - @ tab or CR
                  are prefixed with a quote
         """
         collection_name = collection_name.lower()
-        row_count = CollectionData.objects(bot=bot, collection_name=collection_name).count()
+        timestamp_filter = _timestamp_range_filter(from_date, to_date)
+        row_count = CollectionData.objects(bot=bot, collection_name=collection_name, **timestamp_filter).count()
         if not row_count:
             raise AppException(f"Collection '{collection_name}' not found or has no data!")
-        if row_count > _MAX_EXPORT_ROWS:
-            raise AppException(f"Collection '{collection_name}' has more than {_MAX_EXPORT_ROWS} rows, cannot export!")
 
         if fields:
             header = list(dict.fromkeys(fields))
         else:
-            header = DataProcessor.__get_export_header(bot, collection_name)
+            header = DataProcessor.__get_export_header(bot, collection_name, timestamp_filter)
+        # a secure key is only ever exported decrypted, and only when it was asked for by name
+        export_secure = decrypt_secure and bool(fields)
+        if not export_secure:
+            secure_keys = set(CollectionData.objects(bot=bot, collection_name=collection_name).distinct("is_secure"))
+            header = [key for key in header if key.split(".")[0] not in secure_keys]
+            if not header:
+                raise AppException("No exportable fields, secure fields are exported only when decrypt_secure is true!")
         # keys that cannot be addressed in a projection are fetched with the whole document
-        only_fields = header if fields and not any("." in key or key.startswith("$") for key in header) else None
+        only_fields = _drop_nested_paths(header) if fields and not any(key.startswith("$") for key in header) else None
 
         def rows():
             buffer = io.StringIO()
             writer = csv.writer(buffer, lineterminator="\n")
-            writer.writerow([_neutralise_csv_formula(key) for key in header])
+            writer.writerow([_neutralise_csv_formula(label) for label in _header_labels(header)])
             count = 0
             for item in DataProcessor.get_collection_data(
-                    bot, collection_name=collection_name, key=[], value=[], order_by="id",
-                    decrypt=decrypt_secure, only_fields=only_fields
+                    bot, collection_name=collection_name, key=[], value=[], order_by=_EXPORT_ORDER,
+                    result_limit=_MAX_EXPORT_ROWS, timestamp_filter=timestamp_filter,
+                    decrypt=export_secure, only_fields=only_fields
             ):
                 row = item["data"]
                 writer.writerow([
                     json.dumps(value) if isinstance(value, (dict, list))
                     else ("" if value is None else _neutralise_csv_formula(value))
-                    for value in (row.get(key) for key in header)
+                    for value in (_resolve_field_path(row, key) for key in header)
                 ])
                 count += 1
                 if count % _EXPORT_CHUNK_ROWS == 0:
