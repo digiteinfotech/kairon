@@ -61,6 +61,14 @@ class ActionAgent(ActionsBase):
         transcript = "\n".join(f"{msg['role']}: {msg['content']}" for msg in history)
         return f"Conversation history:\n{transcript}\n\nCurrent message: {user_message}"
 
+    @staticmethod
+    def _single_dispatch_text(text: str) -> str:
+        """Collapse blank lines to one line break, channels split text at blank lines into separate messages."""
+        text = text.replace("\r\n", "\n")
+        while "\n\n" in text:
+            text = text.replace("\n\n", "\n")
+        return text
+
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         action_call = kwargs.get('action_call', {})
         status = STATUSES.SUCCESS.value
@@ -126,7 +134,7 @@ class ActionAgent(ActionsBase):
             )
         finally:
             if dispatch_bot_response and bot_response:
-                dispatcher.utter_message(text=bot_response)
+                dispatcher.utter_message(text=self._single_dispatch_text(bot_response))
             trigger_info_obj = TriggerInfo(**(action_call.get('trigger_info') or {}))
             ActionServerLogs(
                 type=ActionType.agent_action.value,
