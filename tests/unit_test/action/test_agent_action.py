@@ -238,6 +238,37 @@ class TestActionAgent:
 
     # ─── properties ───────────────────────────────────────────────────────────
 
+    @pytest.mark.parametrize("text,expected", [
+        ("a\n\nb", "a\nb"),
+        ("a\n\n\n\nb", "a\nb"),
+        ("a\r\n\r\nb", "a\nb"),
+        ("a\nb", "a\nb"),
+        ("a\n\n\n\n\n\n\n\n\n\nb\n\nc", "a\nb\nc"),
+        ("no breaks", "no breaks"),
+        ("", ""),
+    ])
+    def test_single_dispatch_text(self, text, expected):
+        assert ActionAgent._single_dispatch_text(text) == expected
+        assert "\n\n" not in ActionAgent._single_dispatch_text(text)
+
+    @pytest.mark.asyncio
+    async def test_execute_dispatches_one_message_and_keeps_original_in_slot(self, tracker, dispatcher):
+        self._make_config(name="exec_single", bot="bot_exec_single")
+        tracker.sender_id = "sender_single"
+        original = "first\n\nsecond\n\nthird"
+
+        with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   return_value=({"output": original}, 200, None, None)), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="mock_token"), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
+            result = await ActionAgent("bot_exec_single", "exec_single").execute(
+                dispatcher, tracker, {}, action_call={})
+
+        assert [m["text"] for m in dispatcher.messages] == ["first\nsecond\nthird"]
+        assert result["kairon_action_response"] == original
+
     @pytest.mark.asyncio
     async def test_is_success_true_on_success(self, tracker, dispatcher):
         self._make_config(name="exec_prop_ok", bot="bot_prop_ok")
