@@ -92,12 +92,6 @@ def _resolve_field_path(row, path):
     return value
 
 
-def _header_labels(paths):
-    """Last key of each path as csv header, the full path where last keys would collide."""
-    last_keys = [path.rsplit(".", 1)[-1] for path in paths]
-    return [last if last_keys.count(last) == 1 else path for path, last in zip(paths, last_keys)]
-
-
 def _timestamp_range_filter(from_date: date = None, to_date: date = None) -> dict:
     """Queryset filter for rows stamped from from_date 00:00 up to and including to_date, both optional."""
     if from_date and to_date and from_date > to_date:
@@ -450,8 +444,7 @@ class DataProcessor:
         :param collection_name: collection name
         :param fields: keys to export, in the given order. Nested keys use dot notation relative to data,
                        e.g. address.street.name. All top level non secure keys are exported if empty.
-                       The csv header of a nested key is its last key (name), or the full path when
-                       two selected keys end the same
+                       The csv header of a nested key is its full dot path, e.g. address.street.name
         :param decrypt_secure: export the secure keys named in fields, decrypted. Otherwise secure keys are left out,
                                also when named in fields. Secure keys are never exported when fields is empty
         :param from_date: only rows stamped on or after this date (utc), optional
@@ -482,7 +475,7 @@ class DataProcessor:
         def rows():
             buffer = io.StringIO()
             writer = csv.writer(buffer, lineterminator="\n")
-            writer.writerow([_neutralise_csv_formula(label) for label in _header_labels(header)])
+            writer.writerow([_neutralise_csv_formula(label) for label in header])
             count = 0
             for item in DataProcessor.get_collection_data(
                     bot, collection_name=collection_name, key=[], value=[], order_by=_EXPORT_ORDER,

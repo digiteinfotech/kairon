@@ -2028,7 +2028,7 @@ def test_export_fields_projection_fetches_only_requested_keys(_clean_export_coll
 def test_export_field_name_with_dot_still_exports(_clean_export_collections):
     _export_save("orders", {"a": "1", "b": "2"})
     rows = _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["a.x", "b"]))
-    assert rows == [["x", "b"], ["", "2"]]
+    assert rows == [["a.x", "b"], ["", "2"]]
 
 
 NESTED_EXPORT_DATA = {
@@ -2044,15 +2044,15 @@ def test_export_nested_fields_any_depth(_clean_export_collections):
         EXPORT_BOT, "orders",
         fields=["name", "address.line1", "address.lat", "address.street.name", "address.street.pincode"]))
     assert rows == [
-        ["name", "line1", "lat", "address.street.name", "pincode"],
+        ["name", "address.line1", "address.lat", "address.street.name", "address.street.pincode"],
         ["paakshala", "mumbai", "3.45434", "MG Road", "400001"],
     ]
 
 
-def test_header_labels_last_key_unless_colliding():
-    from kairon.shared.data.collection_processor import _header_labels
-    assert _header_labels(["address.lat", "address.street.pincode", "name"]) == ["lat", "pincode", "name"]
-    assert _header_labels(["name", "address.street.name", "a.b"]) == ["name", "address.street.name", "b"]
+def test_export_nested_header_is_full_path_without_collision(_clean_export_collections):
+    _export_save("orders", {"address": {"name": "mumbai"}, "new_address": {"name": "ajjss"}, "phone": 23432343})
+    rows = _export_parse(_export_csv(EXPORT_BOT, "orders", fields=["new_address.name", "phone"]))
+    assert rows == [["new_address.name", "phone"], ["ajjss", "23432343"]]
 
 
 def test_export_nested_field_missing_or_through_scalar_is_empty(_clean_export_collections):
@@ -2060,7 +2060,7 @@ def test_export_nested_field_missing_or_through_scalar_is_empty(_clean_export_co
     _export_save("orders", {"name": "other"})
     rows = _export_parse(_export_csv(
         EXPORT_BOT, "orders", fields=["address.street.name", "name.first", "address.nope.x"]))
-    assert rows[0] == ["name", "first", "x"]
+    assert rows[0] == ["address.street.name", "name.first", "address.nope.x"]
     assert rows[1:] == [["", "", ""], ["MG Road", "", ""]]
 
 
