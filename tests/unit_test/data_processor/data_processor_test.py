@@ -5711,6 +5711,7 @@ class TestMongoProcessor:
 
         paginated_queryset = MagicMock()
         paginated_queryset.__iter__.return_value = iter(mock_docs[2:4])
+        paginated_queryset.no_cache.return_value = paginated_queryset
 
         with patch("kairon.shared.data.collection_processor.CollectionData.objects") as objects_mock:
             objects_mock.return_value.order_by.return_value = objects_mock.return_value
@@ -5750,6 +5751,7 @@ class TestMongoProcessor:
 
         mock_queryset = MagicMock()
         mock_queryset.__iter__.return_value = iter([mock_obj])
+        mock_queryset.no_cache.return_value = mock_queryset
         with patch(
                 "kairon.shared.data.collection_processor.CollectionData.objects",
                 return_value=mock_queryset
